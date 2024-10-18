@@ -65,7 +65,7 @@ class MessageHandler(QWidget):
 class WorkFlowDesign(QWidget):
     def __init__(self,workflow_manager,workflow_id,workflow_title):
         super().__init__()
-
+        print(workflow_manager,":",workflow_id,":",workflow_title)
         # 设置窗口标题和大小
         self.setWindowTitle("工作流设计器")
         self.setGeometry(100, 100, 800, 400)

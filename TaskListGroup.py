@@ -3,28 +3,34 @@ from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeade
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt, QPoint
 
-
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 import time
-from db.DBFactory import query_AgentTaskMulti, query_AgentTaskMulti_Content,AgentTaskMulti,update_AgentTaskMulti,deleteMultiTasksFromDatabase
+from db.DBFactory import query_AgentTaskMulti, query_AgentTaskMulti_Content, AgentTaskMulti, update_AgentTaskMulti, \
+    deleteMultiTasksFromDatabase, query_AgentTask_Search_Content, query_AgentTaskMulti_Search_First, \
+    query_AgentTaskMulti_Search_Content
 from TaskPageGroup import TaskPageGroup
-from util import generate_random_id,add_msg_to_message_window,get_user_ask_msg_title_formatted,get_user_ask_msg_content_formatted,get_agent_reply_msg_title_formatted,get_agent_reply_msg_content_formatted,add_agent_reply_msg_to_message_window,add_msg_to_message_window_with_markdown_and_highlight
+from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, \
+    get_user_ask_msg_content_formatted, get_agent_reply_msg_title_formatted, get_agent_reply_msg_content_formatted, \
+    add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight
+
+
 class TaskListGroup(QTreeWidget):
     """TaskListGroup implements the view in a Tree of the Roster"""
     rename_signal = pyqtSignal(object)
+
     def __init__(self, parent, agentcfg):
 
         super(TaskListGroup, self).__init__(parent)
-        print("TaskListGroup parent",parent)
+        print("TaskListGroup parent", parent)
         self.connection = None
-        self.mainwindow=parent
+        self.mainwindow = parent
         self.agentcfg = agentcfg
         self.current_task_id = ""
         self.tasks_history = None
         self.browser_page = None
-        self.is_browser_page_loaded=False
+        self.is_browser_page_loaded = False
 
-        self.setHeaderLabel("对话列表")#需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
         # self.setSortingEnabled(True)#排序
         # self.sortItems(0, Qt.AscendingOrder)#排序
         self.buddies = {}
@@ -46,14 +52,13 @@ class TaskListGroup(QTreeWidget):
 
         self.offline = True
         self.away = False
-        print("agentcfg:",agentcfg)
-        class_type =type(agentcfg).__name__
-        print("class_type",class_type)
-        self.tasklist = query_AgentTaskMulti(is_first = True,group_id=agentcfg.group_id)
+        print("agentcfg:", agentcfg)
+        class_type = type(agentcfg).__name__
+        print("class_type", class_type)
+        self.tasklist = query_AgentTaskMulti(is_first=True, group_id=agentcfg.group_id)
         for record in self.tasklist:
             self.addItem(record.topic, record.id)
             # print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")
-
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete:
@@ -77,7 +82,6 @@ class TaskListGroup(QTreeWidget):
         else:
             super(TaskListGroup, self).keyPressEvent(event)
 
-
     def scrollContentsBy(self, dx, dy):
         # 调用父类方法处理滚动
         super().scrollContentsBy(dx, dy)
@@ -86,11 +90,10 @@ class TaskListGroup(QTreeWidget):
         if self.verticalScrollBar().value() == self.verticalScrollBar().maximum():
             print("Reached bottom!")
 
-
-    def addItem(self, name, id,is_top=False):
+    def addItem(self, name, id, is_top=False):
         item_count = self.topLevelItemCount()
 
-        if item_count==0:
+        if item_count == 0:
             group_item = QTreeWidgetItem(self)
             group_item.setText(0, "所有")
         else:
@@ -136,21 +139,19 @@ class TaskListGroup(QTreeWidget):
         else:
             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
 
-
     def delete_item(self):
-
 
         item = self.current_Item
         column = 0
         id_value = item.data(column, Qt.UserRole)
-        print("id_value",id_value)
+        print("id_value", id_value)
 
         if id_value:
 
             if item:
                 reply = QMessageBox.question(self, '删除确定',
-                                         f"您确定要删除 '{item.text(0)}'?",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+                                             f"您确定要删除 '{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
             if reply == QMessageBox.Yes:
 
                 # 从数据库中删除所有task_id相同的记录
@@ -166,7 +167,6 @@ class TaskListGroup(QTreeWidget):
 
             QMessageBox.critical(None, "警告", "分类不能删除", QMessageBox.Ok)
 
-
     def getInfo(self):
         pass
 
@@ -178,14 +178,13 @@ class TaskListGroup(QTreeWidget):
                 self.format_text(browser_page, record.content, record.owner, record.create_time)
             self.is_browser_page_loaded = True
 
-
     def on_itemDoubleClicked(self, item, column):
         print("双击了：", item.text(column))
         print(column)
         id_value = item.data(column, Qt.UserRole)
         print("双击了：", id_value)
-        if id_value==None:
-            return(False)
+        if id_value == None:
+            return (False)
 
         records = query_AgentTaskMulti_Content(id=id_value)
 
@@ -199,22 +198,78 @@ class TaskListGroup(QTreeWidget):
         taskpage.task_id = task_id
         taskpage.is_first = False
         browser_page = taskpage.messageBrowser.page()
-        browser_page.loadFinished.connect(self.onLoadFinished)#第一次可能page没来得及load，所以需要在onload中处理
+        browser_page.loadFinished.connect(self.onLoadFinished)  # 第一次可能page没来得及load，所以需要在onload中处理
         self.browser_page = browser_page
         self.tasks_history = records
 
-        if taskpage.is_browser_page_loaded==True:#page是否已经load了
-                 self.is_browser_page_loaded = True
+        if taskpage.is_browser_page_loaded == True:  # page是否已经load了
+            self.is_browser_page_loaded = True
 
-        if self.is_browser_page_loaded==True:
+        if self.is_browser_page_loaded == True:
             self.onLoadFinished(True)
-
 
     def format_text(self, browser_page, content, owner, create_time):
 
-        message = get_agent_reply_msg_title_formatted(owner,1, create_time, False)
+        message = get_agent_reply_msg_title_formatted(owner, 1, create_time, False)
         add_msg_to_message_window(browser_page, message, 1)
         # add_agent_reply_msg_to_message_window(browser_page, content)
         add_msg_to_message_window_with_markdown_and_highlight(browser_page, content, 2)
 
+    def search(self, key_word):
+        print("tasklistgroup searching", key_word)
+        self.reload(key_word)
 
+    def reload(self, key_word):
+        self.clear()
+
+        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
+        self.buddies = {}
+        self.groups = {}
+        self.tree = {}
+
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.menu = QMenu()
+        self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
+        self.rename_action.triggered.connect(self.rename)
+        self.menu.addAction(self.rename_action)
+
+        self.delete_action = QAction(QIcon("images/infos.png"), "删除", self)
+        self.delete_action.triggered.connect(self.delete_item)
+        self.menu.addAction(self.delete_action)
+
+        self.customContextMenuRequested.connect(self.context)
+        self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
+
+        if key_word.startswith('+++'):
+            # 获取上一次的搜索结果并过滤
+            filtered_tasklist = [
+                record for record in self.tasklist
+                if key_word[3:] in record.title or key_word[3:] in record.problem or key_word[3:] in record.answer
+            ]
+        else:
+            # self.tasklist = query_AgentTask_Search_Content(
+            #     agent_id=self.agent_cfg.user_id, title=key_word, problem=key_word, answer=key_word
+            # )
+            # self.tasklist = query_AgentTaskMulti(is_first=True, group_id=self.agentcfg.group_id,title=key_word)
+            self.tasklist = query_AgentTaskMulti_Search_Content(is_first=True,
+                                                                group_id=self.agentcfg.group_id, topic=key_word
+                                                                )
+
+            filtered_tasklist = self.tasklist
+
+        # 创建一个集合来存储已经处理过的 first_record 记录
+        processed_first_records = set()
+
+        for record in filtered_tasklist:
+            if record.is_first and record.id not in processed_first_records:
+                # 处理 first_record
+                self.addItem(record.topic.replace("\n", ""), record.id)
+                processed_first_records.add(record.id)
+            elif not record.is_first:
+                # 查找是否有相同 task_id 且 is_first 为 True 的记录
+                first_record = query_AgentTaskMulti_Search_First(agent_id=self.agent_cfg.user_id,
+                                                                 task_id=record.task_id)
+                if first_record and first_record.id not in processed_first_records:
+                    # 处理 first_record
+                    self.addItem(first_record.topic.replace("\n", ""), first_record.id)
+                    processed_first_records.add(first_record.id)

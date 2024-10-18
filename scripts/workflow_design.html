@@ -344,6 +344,42 @@
         let workflow_description="";
         let workflow_id = "";
         let workflow_tags = "";
+        let last_node = "";
+
+        //增加全局变量，当前打开结点
+        var cur_config_type="flow";
+        var last_config_node=""
+        function save_lastnode_config(configtype){
+           //alert("run save_lastnode_config")
+
+           //if (cur_config_type=="init"){
+           //     cur_config_type="flow"
+           //     return
+            //   }
+           if (cur_config_type!="init"){
+                if (cur_config_type=='node'){
+                     //alert("node save")
+                     if (last_config_node==""){
+                        return
+                     }
+                     last_node = selectedNode
+                     selectedNode = document.getElementById(last_config_node);
+                     //alert("node save 1")
+                     saveNodeConfig()
+                     selectedNode = last_node
+                     //alert("node save 2")
+
+                }
+                else
+                {
+                   //alert("flow save 1")
+                   last_config_node=""
+                   saveWorkFlowConfig()
+                   //alert("flow save 2")
+                }
+                cur_config_type = configtype
+           }
+        }
 
         // 使节点可拖动
         function makeDraggable(node) {
@@ -641,7 +677,13 @@
             nodes.push(nodeGroup);
 
             nodeGroup.addEventListener('click', (e) =>
-                showConfigPanelNode(nodeGroup,e));
+                {
+                //alert("click node");
+                //alert("1:"+last_config_node)
+                save_lastnode_config("node")
+                showConfigPanelNode(nodeGroup,e)
+                //alert("2:"+last_config_node)
+                });
             nodeGroup.addEventListener('contextmenu', (event) => showContextMenu(event, nodeGroup));
 
             nodeGroup.addEventListener('mousedown', onMouseDown);
@@ -670,6 +712,11 @@
 
         // 显示配置面板
         function showConfigPanel() {
+
+            //if (workflow_title!=null && workflow_title!=""  ){
+            //    alert("工作流---:"+workflow_title)
+            //    save_lastnode_config("flow")
+            //}
             configPanel.innerHTML = `
                 <h3>工作流配置</h3>
                 <label>标题: </label><input type="text" id="Title" value="${workflow_title}">
@@ -692,6 +739,15 @@
         }
 
         function showConfigPanelNode(nodeGroup, e) {
+            //alert("配置结点--:"+ nodeGroup.id)
+            //if (nodeGroup.id!=""){
+            //    alert("保存-配置结点--:")
+            //    save_lastnode_config("node")
+           //}
+           //更新上一个结点id
+           // alert("nodeGroup id --:"+nodeGroup.id)
+            last_config_node  = nodeGroup.id
+
             selectedNode = nodeGroup;
             const text = nodeGroup.querySelector('.node-text').textContent;
             let selectEl = "";
@@ -806,6 +862,7 @@
         }
 
         function saveNodeConfig() {
+            //alert(" 1 selectNode id:"+selectNode.id)
             const title = document.getElementById('nodeTitle').value;
             const description = document.getElementById('Content').value;
             const selEl  = document.getElementById('PluginList')
@@ -930,6 +987,11 @@
         });
 
         svg.addEventListener('click', ()  => {
+            //alert("flow click")
+            if (workflow_title!=null && workflow_title!=""  ){
+                //alert("工作流-123--:"+workflow_title)
+                save_lastnode_config("flow")
+            }
             showConfigPanel()
         });
 

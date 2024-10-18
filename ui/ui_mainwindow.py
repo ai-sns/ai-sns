@@ -20,7 +20,7 @@ from PyQt5.QtCore import QDir, Qt
 from PyQt5.QtGui import QFont, QPalette
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QColorDialog, QDialog,
                              QErrorMessage, QFileDialog, QFontDialog, QFrame, QGridLayout,
-                             QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,QStatusBar)
+                             QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QStatusBar)
 
 from PyQt5.QtCore import QFile, QFileInfo, Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
@@ -46,13 +46,16 @@ from humanaccountmng import FreezeTableDialog as HumanFreezeTableDialog
 from kmmng import FreezeTableDialog as KmFreezeTableDialog
 from logsmng import FreezeTableDialog as LogsFreezeTableDialog
 
-from db.DBFactory import add_AgentCfg, query_AgentCfg_All, update_AgentCfg, delete_AgentCfg,query_AgentCfg
+from db.DBFactory import add_AgentCfg, query_AgentCfg_All, update_AgentCfg, delete_AgentCfg, query_AgentCfg
 from db.DBFactory import add_KMData, query_KMData_All, update_KMData, delete_KMData, query_KMData
 from db.DBFactory import add_KMCfg, query_KMCfg_All, update_KMCfg, delete_KMCfg, query_KMCfg
-from db.DBFactory import add_HumanChatCfg, query_HumanChatCfg_All, update_HumanChatCfg, delete_HumanChatCfg, query_HumanChatCfg
+from db.DBFactory import add_HumanChatCfg, query_HumanChatCfg_All, update_HumanChatCfg, delete_HumanChatCfg, \
+    query_HumanChatCfg
 from db.DBFactory import add_AiChatCfg, query_AiChatCfg_All, update_AiChatCfg, delete_AiChatCfg, query_AiChatCfg
-from db.DBFactory import add_MutiAgentCfg, query_MutiAgentCfg_All, update_MutiAgentCfg, delete_MutiAgentCfg, query_MutiAgentCfg
-from db.DBFactory import add_PluginMng, query_PluginMng_All, query_PluginMng, update_PluginMng, delete_PluginMng,query_PluginMng_All_Tool
+from db.DBFactory import add_MutiAgentCfg, query_MutiAgentCfg_All, update_MutiAgentCfg, delete_MutiAgentCfg, \
+    query_MutiAgentCfg
+from db.DBFactory import add_PluginMng, query_PluginMng_All, query_PluginMng, update_PluginMng, delete_PluginMng, \
+    query_PluginMng_All_Tool
 from db.DBFactory import add_LogsMng, query_LogsMng_All, update_LogsMng, delete_LogsMng, query_LogsMng
 
 from pluginsmanager import PluginEngine
@@ -79,16 +82,18 @@ from NoteList import NoteList
 import http.client
 import json
 import requests
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QSize, QUrl,QThread
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QSize, QUrl, QThread
 from PyQt5.QtWidgets import QTreeWidgetItem
 from globals import global_agent_list
-from Agent import Agent,AgentMode
+from Agent import Agent, AgentMode
 from AddBuddyDialog import AddBuddyDialog
 from AddGroupDialog import AddGroupDialog
 from noteeditor.msword import Main as NoteEditor
 from function_manager import FunctionManager
 from util import open_file
 from keyvalue_mng import KeyValueManager
+
+
 class Arrow(QGraphicsLineItem):
     def __init__(self, startItem, endItem, parent=None, scene=None):
         super(Arrow, self).__init__(parent, scene)
@@ -419,26 +424,26 @@ class DiagramScene(QGraphicsScene):
 
 class WorkerThread(QThread):
     finished = pyqtSignal()
-    def __init__(self, filepath, persist_directory, embedding_model_name,emb_type,chunk_size, chunk_overlap):
+
+    def __init__(self, filepath, persist_directory, embedding_model_name, emb_type, chunk_size, chunk_overlap):
         super(WorkerThread, self).__init__()
-        self.filepath=filepath
-        self.persist_directory=persist_directory
-        self.embedding_model_name=embedding_model_name
-        self.emb_type=emb_type
-        self.chunk_size=chunk_size
-        self.chunk_overlap=chunk_overlap
+        self.filepath = filepath
+        self.persist_directory = persist_directory
+        self.embedding_model_name = embedding_model_name
+        self.emb_type = emb_type
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
 
     def run(self):
-        filepath =  self.filepath
+        filepath = self.filepath
         persist_directory = self.persist_directory
         embedding_model_name = self.embedding_model_name
         emb_type = self.emb_type
         chunk_size = self.chunk_size
         chunk_overlap = self.chunk_overlap
         print("开始向量化....")
-        savevector(filepath, persist_directory, embedding_model_name,emb_type,chunk_size, chunk_overlap)
+        savevector(filepath, persist_directory, embedding_model_name, emb_type, chunk_size, chunk_overlap)
         self.finished.emit()  # 发射信号，通知主线程
-
 
 
 class Ui_MainWindow(object):
@@ -592,7 +597,7 @@ class Ui_MainWindow(object):
         self.createToolBox_Setting()
         self.createToolbars()
 
-        #The main layout of the window
+        # The main layout of the window
         self.main_vlayout = QtWidgets.QVBoxLayout(self.centralwidget)
         self.hlayout = QtWidgets.QHBoxLayout(self.centralwidget)
 
@@ -634,9 +639,6 @@ class Ui_MainWindow(object):
         self.toggle_button.setCursor(Qt.PointingHandCursor)
         self.vlayout.addWidget(self.toggle_button)
 
-
-
-
         self.toggle_button.setStyleSheet("""
             QPushButton {
                 color: #146ebe;
@@ -657,7 +659,6 @@ class Ui_MainWindow(object):
         self.stack_toolbox_visible = True
 
         # 可移动窗口
-
 
         self.main_vlayout.addLayout(self.hlayout)
 
@@ -714,10 +715,11 @@ class Ui_MainWindow(object):
         for button in buttons:
             if self.buttonGroup_Plugin.button(id) != button:
                 button.setChecked(False)
+
     def buttonGroupClicked_plugin_install(self, id):
         buttons = self.buttonGroup_Plugin_install.buttons()
         for button in buttons:
-                button.setChecked(False)
+            button.setChecked(False)
 
     def settingbuttonGroupClicked(self, id):
         buttons = self.settingbuttonGroup.buttons()
@@ -846,7 +848,7 @@ class Ui_MainWindow(object):
         QMessageBox.about(self, "About Diagram Scene",
                           "The <b>Diagram Scene</b> example shows use of the graphics framework.")
 
-    def download_file(self,url, file_path):
+    def download_file(self, url, file_path):
         # 发送 GET 请求并获取响应对象
         response = requests.get(url)
 
@@ -859,7 +861,7 @@ class Ui_MainWindow(object):
         else:
             print(f"下载失败，状态码：{response.status_code}")
 
-    def unzip_file(self,zip_file_path,extract_to_path):
+    def unzip_file(self, zip_file_path, extract_to_path):
         # 创建一个ZipFile对象，并打开要解压的zip文件
         with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
             # 解压缩到指定位置
@@ -869,11 +871,10 @@ class Ui_MainWindow(object):
 
     # Agent tool box
 
-
-    def createToolBoxUnit_AgentChat(self, agent,pos=-1):
+    def createToolBoxUnit_AgentChat(self, agent, pos=-1):
 
         agent_cfg = agent.agent_cfg
-        if agent_cfg.is_show==False:
+        if agent_cfg.is_show == False:
             return
         # Create layout and buttons
         layout = QGridLayout()
@@ -906,15 +907,17 @@ class Ui_MainWindow(object):
         itemWidget.setLayout(layout)
         self.toolBox_AgentChat.setMinimumWidth(itemWidget.sizeHint().width())
         if pos == -1:
-            self.toolBox_AgentChat.addItem(itemWidget, QIcon('images/agentsingle.png'), f"{agent_cfg.name} ({agent_cfg.memo})" if agent_cfg.memo else agent_cfg.name)
+            self.toolBox_AgentChat.addItem(itemWidget, QIcon('images/agentsingle.png'),
+                                           f"{agent_cfg.name} ({agent_cfg.memo})" if agent_cfg.memo else agent_cfg.name)
         else:
-            self.toolBox_AgentChat.insertItem(pos-1,itemWidget, QIcon('images/agentsingle.png'), f"{agent_cfg.name} ({agent_cfg.memo})" if agent_cfg.memo else agent_cfg.name)
+            self.toolBox_AgentChat.insertItem(pos - 1, itemWidget, QIcon('images/agentsingle.png'),
+                                              f"{agent_cfg.name} ({agent_cfg.memo})" if agent_cfg.memo else agent_cfg.name)
 
         # Connect returnPressed signal to search function
         textEdit.returnPressed.connect(lambda: taskList.search(textEdit.text()))
 
-    def createToolBoxUnit_MutiAgentChat(self, agent_cfg_multi,pos=-1):
-        if agent_cfg_multi.is_show==False:
+    def createToolBoxUnit_MutiAgentChat(self, agent_cfg_multi, pos=-1):
+        if agent_cfg_multi.is_show == False:
             return
         # two button 两个按钮
         layout = QGridLayout()
@@ -926,7 +929,8 @@ class Ui_MainWindow(object):
 
         # search input 搜索框
         textEdit = QLineEdit()
-        textEdit.setPlaceholderText("搜索...")
+        textEdit.setPlaceholderText("关键词+回车搜索，空+回车复原")
+        textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
         layout.addWidget(textEdit, 1, 0, 1, 2)
 
         # task tab 任务页签
@@ -948,9 +952,12 @@ class Ui_MainWindow(object):
         self.toolBox_AgentChat.setMinimumWidth(itemWidget.sizeHint().width())
 
         if pos == -1:
-            self.toolBox_AgentChat.addItem(itemWidget, QIcon('images/agentmulti.png'), f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
+            self.toolBox_AgentChat.addItem(itemWidget, QIcon('images/agentmulti.png'),
+                                           f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
         else:
-            self.toolBox_AgentChat.insertItem(pos-1,itemWidget, QIcon('images/agentmulti.png'), f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
+            self.toolBox_AgentChat.insertItem(pos - 1, itemWidget, QIcon('images/agentmulti.png'),
+                                              f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
+        textEdit.returnPressed.connect(lambda: task_list_group.search(textEdit.text()))
 
     def createToolBox_AgentChat(self):
         self.toolBox_AgentChat = QToolBox()
@@ -960,10 +967,9 @@ class Ui_MainWindow(object):
         self.buttonGroup.setExclusive(False)
         self.buttonGroup.buttonClicked[int].connect(self.buttonGroupClicked)
 
-        agents=global_agent_list.values()#前面已经从数据库中初始化了agent列表，直接使用前面已经初始化的列表获取其agent_cfg即可
+        agents = global_agent_list.values()  # 前面已经从数据库中初始化了agent列表，直接使用前面已经初始化的列表获取其agent_cfg即可
         for agent in agents:
             self.createToolBoxUnit_AgentChat(agent)
-
 
         agent_cfgs_multi = query_MutiAgentCfg_All()
         for agent_cfg_multi in agent_cfgs_multi:
@@ -982,14 +988,14 @@ class Ui_MainWindow(object):
                                                               'images/usermng.png'), 0, 1)
 
         settingLayout.addWidget(self.createCellWidgetAgentMultiNew("新增Agent群",
-                                                              'images/agentmultiadd.png'), 1, 0)
+                                                                   'images/agentmultiadd.png'), 1, 0)
         settingLayout.addWidget(self.createCellWidgetAgentMultiMng("管理Agent群",
-                                                              'images/agentmultimng.png'), 1, 1)
+                                                                   'images/agentmultimng.png'), 1, 1)
 
         settingLayout.addWidget(self.createCellWidgetAgentMultiNew("模型评测",
-                                                              'images/billboard.png'), 2, 0)
+                                                                   'images/billboard.png'), 2, 0)
         settingLayout.addWidget(self.createCellWidgetAgentMultiMng("提示词管理",
-                                                              'images/fileline.png'), 2, 1)
+                                                                   'images/fileline.png'), 2, 1)
 
         settingLayout.setRowStretch(3, 10)
         settingLayout.setColumnStretch(2, 10)
@@ -1004,7 +1010,6 @@ class Ui_MainWindow(object):
 
         self.toolBox_AgentChat.currentChanged.connect(self.on_agentchat_toolbox_item_changed)
 
-
     # Ai Chat tool box
 
     def on_agentchat_toolbox_item_changed(self, index):
@@ -1013,14 +1018,12 @@ class Ui_MainWindow(object):
 
         agents = global_agent_list.values()  # 前面已经从数据库中初始化了agent列表，直接使用前面已经初始化的列表获取其agent_cfg即可
         for agent in agents:
-            if agent.name==text.split(' (')[0]:
+            if agent.name == text.split(' (')[0]:
                 self.open_exist_agent_task_chat(agent)
 
         print(f'Current item text: {text},current index{index}')
 
-
-
-    def createToolBoxUnit_AiChat(self, agent,pos=-1):
+    def createToolBoxUnit_AiChat(self, agent, pos=-1):
 
         # two button 两个按钮
         layout = QGridLayout()
@@ -1033,17 +1036,17 @@ class Ui_MainWindow(object):
 
         # search input 搜索框
         textEdit = QLineEdit()
-        textEdit.setPlaceholderText("搜索...")
+        textEdit.setPlaceholderText("关键词+回车搜索，空+回车复原")
+        textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
         layout.addWidget(textEdit, 1, 0, 1, 2)
 
         # task tab 任务页签
         tabWidget = QTabWidget()
         layout.addWidget(tabWidget, 2, 0, 3, 2)  # rowspan为3，此时tab在垂直方向上铺满
-        buddyList = BuddyList(self,agent)
-        infoList = InfoList(self,agent)
+        buddyList = BuddyList(self, agent)
+        infoList = InfoList(self, agent)
         self.buddylist_list[agent.user_id] = buddyList
         self.contactlist_list[agent.user_id] = infoList
-
 
         tabWidget.addTab(buddyList, "聊天")
         tabWidget.addTab(infoList, "通知")
@@ -1058,12 +1061,9 @@ class Ui_MainWindow(object):
         if pos == -1:
             self.toolBox_AiChat.addItem(itemWidget, QIcon('images/messageoffline.png'), agent.nickname)
         else:
-            self.toolBox_AiChat.insertItem(self.toolBox_AiChat.count()-1,itemWidget, QIcon('images/messageoffline.png'), agent.nickname)
-
-
-
-
-
+            self.toolBox_AiChat.insertItem(self.toolBox_AiChat.count() - 1, itemWidget,
+                                           QIcon('images/messageoffline.png'), agent.nickname)
+        textEdit.returnPressed.connect(lambda: buddyList.search(textEdit.text()))
 
     def createToolBox_AiChat(self):
         self.toolBox_AiChat = QToolBox()
@@ -1075,7 +1075,7 @@ class Ui_MainWindow(object):
 
         records = query_AiChatCfg_All()
         for record in records:
-            #print(f"ID: {record.id}, Name: {record.name}, Memo: {record.memo}")
+            # print(f"ID: {record.id}, Name: {record.name}, Memo: {record.memo}")
             self.createToolBoxUnit_AiChat(record)
 
         self.backgroundButtonGroup_AiChat = QButtonGroup()
@@ -1102,7 +1102,7 @@ class Ui_MainWindow(object):
         layout = QGridLayout()
         layout.addWidget(self.create_new_contact_group_button("添加联系人/组", None, DiagramItem.Conditional),
                          0, 0)
-        layout.addWidget(self.create_human_cfg_button("更多设置",agent, DiagramItem.Step), 0,
+        layout.addWidget(self.create_human_cfg_button("更多设置", agent, DiagramItem.Step), 0,
                          1)
 
         # search input 搜索框
@@ -1113,7 +1113,7 @@ class Ui_MainWindow(object):
         tabWidget = QTabWidget()
         layout.addWidget(tabWidget, 2, 0, 3, 2)  # rowspan为3，此时tab在垂直方向上铺满
         buddyList = BuddyListHuman(self)
-        infoList = InfoList(self,agent)
+        infoList = InfoList(self, agent)
         self.buddylist_human_list[agent.user_id] = buddyList
         self.contactlist_human_list[agent.user_id] = infoList
 
@@ -1141,7 +1141,7 @@ class Ui_MainWindow(object):
 
         records = query_HumanChatCfg_All()
         for record in records:
-            #print(f"ID: {record.id}, Name: {record.name}, Memo: {record.memo}")
+            # print(f"ID: {record.id}, Name: {record.name}, Memo: {record.memo}")
             self.createToolBoxUnit_HumanChat(record)
 
         self.backgroundButtonGroup_HumanChat = QButtonGroup()
@@ -1164,7 +1164,7 @@ class Ui_MainWindow(object):
 
     # KM tool box
     # @pyqtSlot(QTreeWidgetItem, int)
-    def km_item_click(self, item, col,kmrecord):
+    def km_item_click(self, item, col, kmrecord):
         print("in clickitem")
         print(item.type())
         print(QTreeWidgetItem.UserType + 1)
@@ -1177,13 +1177,13 @@ class Ui_MainWindow(object):
         file_path = os.path.join(os.getcwd(), "km", km_path, "doc", name)
         open_file(file_path)
 
-            # item.on_click()
+        # item.on_click()
 
-    def createToolBoxUnit_KM_Notes(self, kmrecord,pos=-1):
+    def createToolBoxUnit_KM_Notes(self, kmrecord, pos=-1):
 
         # Create layout and buttons
         layout = QGridLayout()
-        layout.addWidget(self.create_new_note_button("新建笔记",kmrecord,  "images/fileplus.png"),
+        layout.addWidget(self.create_new_note_button("新建笔记", kmrecord, "images/fileplus.png"),
                          0, 0)
         layout.addWidget(self.create_note_cfg_button("更多设置", DiagramItem.Step), 0,
                          1)
@@ -1193,19 +1193,18 @@ class Ui_MainWindow(object):
         textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
         layout.addWidget(textEdit, 1, 0, 1, 2)
 
-        #Create task and tech lists and add them to tab widget
+        # Create task and tech lists and add them to tab widget
         tabWidget = QTabWidget()
         layout.addWidget(tabWidget, 2, 0, 3, 2)
-        notelist_recent = NoteList(self,kmrecord, "recent")
+        notelist_recent = NoteList(self, kmrecord, "recent")
         notelist_recent.setObjectName("recentnotelist")
-        notelist_all = NoteList(self,kmrecord, "all")
+        notelist_all = NoteList(self, kmrecord, "all")
         notelist_all.setObjectName("allnotelist")
         self.notelist_recent = notelist_recent
         self.notelist_all = notelist_all
 
         self.notelist_recent_list[kmrecord.km_id] = notelist_recent
         self.notelist_all_list[kmrecord.km_id] = notelist_all
-
 
         tabWidget.addTab(notelist_recent, "最新")
         tabWidget.addTab(notelist_all, "全部")
@@ -1225,16 +1224,12 @@ class Ui_MainWindow(object):
         if pos == -1:
             self.toolBox_KM.addItem(itemWidget, QIcon('images/note.png'), kmrecord.name)
         else:
-            self.toolBox_KM.insertItem(self.toolBox_KM.count()-1,itemWidget, QIcon('images/note.png'), kmrecord.name)
-
-
-
+            self.toolBox_KM.insertItem(self.toolBox_KM.count() - 1, itemWidget, QIcon('images/note.png'), kmrecord.name)
 
         # Connect returnPressed signal to search function
         textEdit.returnPressed.connect(lambda: notelist_all.search(textEdit.text()))
 
-
-    def createToolBoxUnit_KM(self, kmrecord,pos=-1):
+    def createToolBoxUnit_KM(self, kmrecord, pos=-1):
         # two button 两个按钮
         layout = QGridLayout()
         layout.addWidget(self.create_new_km_button("新建知识", kmrecord, "images/fileplus.png"),
@@ -1243,20 +1238,21 @@ class Ui_MainWindow(object):
                          1)
         # search input 搜索框
         textEdit = QLineEdit()
+        textEdit.setPlaceholderText("关键词+回车搜索，空+回车复原")
+        textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
         textEdit.setPlaceholderText("搜索...")
         layout.addWidget(textEdit, 1, 0, 1, 2)
         # task tab 任务页签
 
         tabWidget = QTabWidget()
         layout.addWidget(tabWidget, 2, 0, 3, 2)  # rowspan为3，此时tab在垂直方向上铺满
-        kmlist_list = KMList(self,kmrecord,False)
-        kmlist_list_deleted = KMList(self,kmrecord,True)
+        kmlist_list = KMList(self, kmrecord, False)
+        kmlist_list_deleted = KMList(self, kmrecord, True)
 
-        kmlist_list.itemDoubleClicked.connect(lambda item, column:self.km_item_click(item, column, kmrecord))
+        kmlist_list.itemDoubleClicked.connect(lambda item, column: self.km_item_click(item, column, kmrecord))
 
         self.kmlist_list[kmrecord.km_id] = kmlist_list
         self.kmlist_list_deleted[kmrecord.km_id] = kmlist_list_deleted
-
 
         tabWidget.addTab(kmlist_list, "知识列表")
         tabWidget.addTab(kmlist_list_deleted, "回收站")
@@ -1270,7 +1266,10 @@ class Ui_MainWindow(object):
         if pos == -1:
             self.toolBox_KM.addItem(itemWidget, QIcon('images/filelist.png'), kmrecord.name)
         else:
-            self.toolBox_KM.insertItem(self.toolBox_KM.count() - 1, itemWidget, QIcon('images/filelist.png'), kmrecord.name)
+            self.toolBox_KM.insertItem(self.toolBox_KM.count() - 1, itemWidget, QIcon('images/filelist.png'),
+                                       kmrecord.name)
+        # Connect returnPressed signal to search function
+        textEdit.returnPressed.connect(lambda: kmlist_list.search(textEdit.text()))
 
     def createToolBox_KM(self):
         self.toolBox_KM = QToolBox()
@@ -1280,11 +1279,10 @@ class Ui_MainWindow(object):
         self.buttonGroup_KM.setExclusive(False)
         self.buttonGroup_KM.buttonClicked[int].connect(self.buttonGroupClicked)
 
-
         records = query_KMCfg_All()
         for record in records:
-            #print(f"ID: {record.id}, Name: {record.name}, Memo: {record.memo}")
-            if record.kmtype=="1":
+            # print(f"ID: {record.id}, Name: {record.name}, Memo: {record.memo}")
+            if record.kmtype == "1":
                 self.createToolBoxUnit_KM_Notes(record)
             else:
                 self.createToolBoxUnit_KM(record)
@@ -1307,68 +1305,68 @@ class Ui_MainWindow(object):
         backgroundWidget = QWidget()
         backgroundWidget.setLayout(backgroundLayout)
 
-        self.toolBox_KM.addItem(backgroundWidget,QIcon('images/setting.png'),  "知识库设置")
+        self.toolBox_KM.addItem(backgroundWidget, QIcon('images/setting.png'), "知识库设置")
 
         # Plugin Tool Box
 
     # Plugin tool box
-    def createToolBoxUnit_Plugin(self,record):
+    def createToolBoxUnit_Plugin(self, record):
         pass
 
     def createToolBox_Plugin(self):
         self.toolBox_Plugin = QToolBox()
         self.toolBox_Plugin.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Ignored))
 
-
-        #已装模型插件
+        # 已装模型插件
         self.buttonGroup_Plugin = QButtonGroup()
         self.buttonGroup_Plugin.setExclusive(False)
         self.buttonGroup_Plugin.buttonClicked[int].connect(self.buttonGroupClicked_plugin_cfg)
 
-        layout = QGridLayout()
+        self.layout = QGridLayout()
 
-        textEdit = QLineEdit()
-        textEdit.setPlaceholderText("搜索...")
-        layout.addWidget(textEdit, 0, 0, 1, 2)
+        self.textEdit = QLineEdit()
+        self.textEdit.setPlaceholderText("搜索...")
+        self.textEdit.textChanged.connect(self.filterTextEdit)
+        self.layout.addWidget(self.textEdit, 0, 0, 1, 2)
         i = 0
         row = 1
-        col =0
+        col = 0
         records = query_PluginMng_All(plugin_type="LLM_Connector")
+        print("records-->:", records)
         for record in records:
             print(f"ID: {record.id}, Name: {record.name}, Memo: {record.description}")
             # self.createToolBoxUnit_AgentChat(record)
-            print("row:",row)
-            print("col:",col)
-            print("col % 2：",col % 2)
+            print("row:", row)
+            print("col:", col)
+            print("col % 2：", col % 2)
             print("cjr in plugin...")
-            layout.addWidget(self.create_plugin_cfg_button(record, DiagramItem.Conditional),
-                             row, col % 2)
+            self.layout.addWidget(self.create_plugin_cfg_button(record, DiagramItem.Conditional),
+                                  row, col % 2)
 
-            if (col % 2)==1:
+            if (col % 2) == 1:
                 row = row + 1
             col = col + 1
 
-
-        layout.setRowStretch(row+1, 10)
-        layout.setColumnStretch(2, 10)
+        self.layout.setRowStretch(row + 1, 10)
+        self.layout.setColumnStretch(2, 10)
 
         itemWidget = QWidget()
-        itemWidget.setLayout(layout)
+        itemWidget.setLayout(self.layout)
 
         self.toolBox_Plugin.setMinimumWidth(itemWidget.sizeHint().width())
-        self.toolBox_Plugin.addItem(itemWidget, QIcon('images/llm.png'),"模型插件")
-
+        self.toolBox_Plugin.addItem(itemWidget, QIcon('images/llm.png'), "模型插件")
 
         # 已装工具插件
         self.buttonGroup_Plugin_tool = QButtonGroup()
         self.buttonGroup_Plugin_tool.setExclusive(False)
         self.buttonGroup_Plugin_tool.buttonClicked[int].connect(self.buttonGroupClicked_plugin_cfg)
 
-        layout_tool = QGridLayout()
+        self.layout_tool = QGridLayout()
 
-        textEdit_tool = QLineEdit()
-        textEdit_tool.setPlaceholderText("搜索...")
-        layout_tool.addWidget(textEdit_tool, 0, 0, 1, 2)
+        self.textEdit_tool = QLineEdit()
+        self.textEdit_tool.setPlaceholderText("搜索...")
+        self.textEdit_tool.textChanged.connect(self.filterTextEditTool)
+        self.layout_tool.addWidget(self.textEdit_tool, 0, 0, 1, 2)
         i = 0
         row = 1
         col = 0
@@ -1379,22 +1377,21 @@ class Ui_MainWindow(object):
             print("row:", row)
             print("col:", col)
             print("col % 2：", col % 2)
-            layout_tool.addWidget(self.create_plugin_tool_cfg_button(record, DiagramItem.Conditional),
-                             row, col % 2)
+            self.layout_tool.addWidget(self.create_plugin_tool_cfg_button(record, DiagramItem.Conditional),
+                                       row, col % 2)
 
             if (col % 2) == 1:
                 row = row + 1
             col = col + 1
 
-        layout_tool.setRowStretch(row + 1, 10)
-        layout_tool.setColumnStretch(2, 10)
+        self.layout_tool.setRowStretch(row + 1, 10)
+        self.layout_tool.setColumnStretch(2, 10)
 
         itemWidget = QWidget()
-        itemWidget.setLayout(layout_tool)
+        itemWidget.setLayout(self.layout_tool)
 
         self.toolBox_Plugin.setMinimumWidth(itemWidget.sizeHint().width())
         self.toolBox_Plugin.addItem(itemWidget, QIcon('images/plugin_tool.png'), "工具插件")
-
 
         # 已装函数插件
         self.buttonGroup_Plugin_function = QButtonGroup()
@@ -1417,7 +1414,6 @@ class Ui_MainWindow(object):
         layout_function.addWidget(self.create_plugin_function_button("0", DiagramItem.Conditional),
                                   1, 1)
 
-
         layout_function.setRowStretch(row + 1, 10)
         layout_function.setColumnStretch(2, 10)
 
@@ -1427,22 +1423,19 @@ class Ui_MainWindow(object):
         self.toolBox_Plugin.setMinimumWidth(itemWidget.sizeHint().width())
         self.toolBox_Plugin.addItem(itemWidget, QIcon('images/function.png'), "自定义函数")
 
-
-
-
-
-        #插件市场
+        # 插件市场
         self.buttonGroup_Plugin_install = QButtonGroup()
         self.buttonGroup_Plugin_install.setExclusive(False)
         self.buttonGroup_Plugin_install.buttonClicked[int].connect(self.buttonGroupClicked_plugin_install)
 
-        backgroundLayout = QGridLayout()
+        self.backgroundLayout = QGridLayout()
 
-        textEdit2 = QLineEdit()
-        textEdit2.setPlaceholderText("搜索...")
-        backgroundLayout.addWidget(textEdit2, 0, 0, 1, 2)
-        backgroundLayout.addWidget(self.create_install_plugin_local_button("导入本地插件",
-                                                                     'images/add.png'), 1, 0)
+        self.textEdit2 = QLineEdit()
+        self.textEdit2.setPlaceholderText("搜索...")
+        self.textEdit2.textChanged.connect(self.filterTextEdit2)
+        self.backgroundLayout.addWidget(self.textEdit2, 0, 0, 1, 2)
+        self.backgroundLayout.addWidget(self.create_install_plugin_local_button("导入本地插件",
+                                                                                'images/add.png'), 1, 0)
 
         conn = http.client.HTTPConnection("www.ai-sns.org", 80)
         headers = {
@@ -1476,21 +1469,19 @@ class Ui_MainWindow(object):
         finally:
             conn.close()
 
-
-
         i = 0
         row = 1
         col = 0
 
         for plugin_data in json_data:
 
-            if row==1:
+            if row == 1:
                 col = 1
 
-            backgroundLayout.addWidget(self.create_install_plugin_button(plugin_data,
-                                                                       'images/plugin.png'), row, col % 2)
-            if row==1:
-                row=row+1
+            self.backgroundLayout.addWidget(self.create_install_plugin_button(plugin_data,
+                                                                              'images/plugin.png'), row, col % 2)
+            if row == 1:
+                row = row + 1
             else:
                 if (col % 2) == 1:
                     row = row + 1
@@ -1504,19 +1495,141 @@ class Ui_MainWindow(object):
         #     content = plugin_data["name"]
         #     print("pluginname2", content)
 
-
-
-        backgroundLayout.setRowStretch(4, 10)
-        backgroundLayout.setColumnStretch(4, 10)
+        self.backgroundLayout.setRowStretch(4, 10)
+        self.backgroundLayout.setColumnStretch(4, 10)
 
         backgroundWidget = QWidget()
-        backgroundWidget.setLayout(backgroundLayout)
-
+        backgroundWidget.setLayout(self.backgroundLayout)
 
         self.toolBox_Plugin.addItem(backgroundWidget, QIcon('images/market.png'), "插件市场")
 
+    def filterTextEdit(self, text):
+        # 根据输入框的内容过滤表格项的标题列
+
+        # layout = QGridLayout()
+        i = 0
+        row = 1
+        col = 0
+
+        for i in range(self.layout.count()):
+            item = self.layout.itemAt(i)
+
+            # self.layout.itemAt(0).widget().deleteLater()  # 删除控件
+            # self.layout.removeAt(0)  # 从布局中移除控件
+            # item = self.layout.takeAt(0)
+            # 如果项目是一个控件，则删除它
+            if item.widget() and item.widget() is not None:
+                # 检查是否是 QLineEdit 输入框
+                if isinstance(item.widget(), QLineEdit):
+                    print("Found a QLineEdit")
+                # 检查是否是 QPushButton 按钮
+                elif isinstance(item.widget(), QToolButton):
+                    print("Found a QPushButton")
+                    item.widget().deleteLater()
+                else:
+                    plugin_widget = item.widget()
+                    print(type(plugin_widget).__name__)
+                    if hasattr(plugin_widget, 'name'):
+                        widget_name = plugin_widget.name
+                        if text == "" or text in widget_name:
+                            plugin_widget.setHidden(False)
+                            # self.layout.removeWidget(plugin_widget)
+                            # plugin_widget.setParent(None)
+                            # self.layout.addWidget(plugin_widget, row, col % 2)
+                            # if (col % 2) == 1:
+                            #     row = row + 1
+                            # col = col + 1
+                            print("The widget has a 'name' attribute.", item.widget().name)
+                        else:
+                            plugin_widget.setHidden(True)
+
+                    else:
+                        print("The widget does not have a 'name' attribute.")
+
+            # 如果项目是一个子布局，则递归清空子布
+
+        # i = 0
+        # row = 1
+        # col = 0
+        # records = query_PluginMng_All(plugin_type="LLM_Connector")
+        # print("records-->:", records)
+        # for record in records:
+        #
+        #     # self.createToolBoxUnit_AgentChat(record)
+        #     if text not in record.name:
+        #         continue
+        #     print(f"ID: {record.id}, Name: {record.name}, Memo: {record.description}")
+        #     self.layout.addWidget(self.create_plugin_cfg_button(record, DiagramItem.Conditional),
+        #                           row, col % 2)
+        #
+        #     if (col % 2) == 1:
+        #         row = row + 1
+        #     col = col + 1
+        #
+        # self.layout.setRowStretch(row + 1, 10)
+        # self.layout.setColumnStretch(2, 10)
+
+    def filterTextEditTool(self, text):
+        # 根据输入框的内容过滤表格项的标题列
+        # layout = QGridLayout()
+        i = 0
+        row = 1
+        col = 0
+        for i in range(self.layout_tool.count()):
+            item = self.layout_tool.itemAt(i)
+            # 如果项目是一个控件，则删除它
+            if item.widget() and item.widget() is not None:
+                # 检查是否是 QLineEdit 输入框
+                if isinstance(item.widget(), QLineEdit):
+                    print("Found a QLineEdit")
+                else:
+                    plugin_widget = item.widget()
+                    print(type(plugin_widget).__name__)
+                    if hasattr(plugin_widget, 'name'):
+                        widget_name = plugin_widget.name
+                        if text == "" or text in widget_name:
+                            plugin_widget.setHidden(False)
+                            # self.layout.removeWidget(plugin_widget)
+                            # plugin_widget.setParent(None)
+                            # self.layout.addWidget(plugin_widget, row, col % 2)
+                            # if (col % 2) == 1:
+                            #     row = row + 1
+                            # col = col + 1
+                            print("The widget has a 'name' attribute.", item.widget().name)
+                        else:
+                            plugin_widget.setHidden(True)
+
+                    else:
+                        print("The widget does not have a 'name' attribute.")
+
+            # 如果项目是一个子布局，则递归清空子布
+
+    def filterTextEdit2(self, text):
+        # 根据输入框的内容过滤表格项的标题列
+        for i in range(self.backgroundLayout.count()):
+            item = self.backgroundLayout.itemAt(i)
+            # 如果项目是一个控件，则删除它
+            if item.widget() and item.widget() is not None:
+                # 检查是否是 QLineEdit 输入框
+                if isinstance(item.widget(), QLineEdit):
+                    print("Found a QLineEdit")
+                else:
+                    plugin_widget = item.widget()
+                    print(type(plugin_widget).__name__)
+                    if hasattr(plugin_widget, 'name'):
+                        widget_name = plugin_widget.name
+                        if text == "" or text in widget_name:
+                            plugin_widget.setHidden(False)
+                            print("The widget has a 'name' attribute.", item.widget().name)
+                        else:
+                            plugin_widget.setHidden(True)
+                    else:
+                        print("The widget does not have a 'name' attribute.")
+
+            # 如果项目是一个子布局，则递归清空子布
+
     # createToolBox_WorkFlow
-    def createToolBoxUnit_WorkFlow(self,record):
+    def createToolBoxUnit_WorkFlow(self, record):
         pass
 
     def createToolBox_WorkFlow(self):
@@ -1538,8 +1651,7 @@ class Ui_MainWindow(object):
         col = 0
 
         layout_tool.addWidget(self.create_workflow_cfg_button(DiagramItem.Conditional),
-                             row, col % 2)
-
+                              row, col % 2)
 
         layout_tool.setRowStretch(row + 1, 10)
         layout_tool.setColumnStretch(2, 10)
@@ -1549,11 +1661,6 @@ class Ui_MainWindow(object):
 
         self.toolBox_Workflow.setMinimumWidth(itemWidget.sizeHint().width())
         self.toolBox_Workflow.addItem(itemWidget, QIcon('images/workflow_toolbox.png'), "工作流")
-
-
-
-
-
 
     # Setting Tool Box
 
@@ -1588,15 +1695,10 @@ class Ui_MainWindow(object):
         itemWidget = QWidget()
         itemWidget.setLayout(layout)
 
-
-
         self.toolBox_Setting = QToolBox()
         self.toolBox_Setting.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Ignored))
         self.toolBox_Setting.setMinimumWidth(itemWidget.sizeHint().width())
         self.toolBox_Setting.addItem(itemWidget, QIcon('images/setting.png'), "系统管理")
-
-
-
 
     def ShowAiAssistantStack(self):
         orgfont = QFont()
@@ -1619,7 +1721,6 @@ class Ui_MainWindow(object):
         self.stack_toolbox.setCurrentIndex(0)
         self.showagenthome()
 
-
     def ShowAiChatStack(self):
         orgfont = QFont()
         orgfont.setBold(False)
@@ -1640,7 +1741,6 @@ class Ui_MainWindow(object):
         self.ai2aiAction.setFont(font)
         self.stack_toolbox.setCurrentIndex(1)
         self.showaihome()
-
 
     def ShowKMStack(self):
         orgfont = QFont()
@@ -1663,9 +1763,6 @@ class Ui_MainWindow(object):
         self.stack_toolbox.setCurrentIndex(2)
         self.showkmhome()
 
-
-
-
     def ShowHumanChatStack(self):
         orgfont = QFont()
         orgfont.setBold(False)
@@ -1686,7 +1783,6 @@ class Ui_MainWindow(object):
         self.chatAction.setFont(font)
         self.stack_toolbox.setCurrentIndex(3)
         self.showhumanhome()
-
 
     def ShowWorkFlowStack(self):
         orgfont = QFont()
@@ -1709,7 +1805,6 @@ class Ui_MainWindow(object):
         self.stack_toolbox.setCurrentIndex(6)
         self.showpluginhome()
 
-
     def ShowPluginStack(self):
         orgfont = QFont()
         orgfont.setBold(False)
@@ -1730,7 +1825,6 @@ class Ui_MainWindow(object):
         self.pluginAction.setFont(font)
         self.stack_toolbox.setCurrentIndex(4)
         self.showpluginhome()
-
 
     def ShowSettingStack(self):
         orgfont = QFont()
@@ -1753,7 +1847,6 @@ class Ui_MainWindow(object):
         self.settingAction.setFont(font)
         self.stack_toolbox.setCurrentIndex(5)
         # self.stack_toolbox.setCurrentIndex(1)
-
 
     def createActions(self):
         self.toFrontAction = QAction(
@@ -1844,7 +1937,6 @@ class Ui_MainWindow(object):
         self.aboutAction = QAction("A&bout", self, shortcut="Ctrl+B",
                                    triggered=self.about)
 
-
     def createMenus(self):
         pass
         # self.fileMenu = self.menuBar().addMenu("开始(&F)")
@@ -1862,7 +1954,6 @@ class Ui_MainWindow(object):
         #
         # self.aboutMenu = self.menuBar().addMenu("帮助(&H)")
         # self.aboutMenu.addAction(self.aboutAction)
-
 
     def createToolbars(self):
         # Create Ai Toolbar
@@ -1914,8 +2005,6 @@ class Ui_MainWindow(object):
         # 将工具栏容器添加到主窗口的左侧
         self.addToolBar(Qt.LeftToolBarArea, toolbar_container)
 
-
-
     def create_install_plugin_button(self, plugin_data, image):
 
         plugin_name = plugin_data["name"]
@@ -1924,15 +2013,15 @@ class Ui_MainWindow(object):
         button.setIcon(QIcon(image))
         button.setIconSize(QSize(50, 50))
         button.setCheckable(True)
-        button.clicked.connect(lambda :self.plugin_install_dialog(plugin_data))
+        button.clicked.connect(lambda: self.plugin_install_dialog(plugin_data))
         self.buttonGroup_Plugin_install.addButton(button)
-
 
         layout = QGridLayout()
         layout.addWidget(button, 0, 0, Qt.AlignHCenter)
         layout.addWidget(QLabel(plugin_name), 1, 0, Qt.AlignCenter)
 
         widget = QWidget()
+        widget.name = plugin_name
         widget.setLayout(layout)
 
         return widget
@@ -1950,7 +2039,7 @@ class Ui_MainWindow(object):
             model.setItem(row, 0, checkbox_item)
 
             newItem = QStandardItem(agent.user_id)
-            print("agent.id:",agent.user_id)
+            print("agent.id:", agent.user_id)
             newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)  # Make items non-editable
             model.setItem(row, 1, newItem)
 
@@ -1972,9 +2061,8 @@ class Ui_MainWindow(object):
 
             row += 1
 
-        dialog = AgentFreezeTableDialog(model,self)
+        dialog = AgentFreezeTableDialog(model, self)
         dialog.exec_()
-
 
     def agentmultiopendialog(self):
         model = QStandardItemModel()
@@ -2001,7 +2089,8 @@ class Ui_MainWindow(object):
             model.setItem(row, 3, newItem2)
 
             # newItem3 = QStandardItem(",".join([query_AgentCfg(user_id=user_id).name for user_id in agent.agents.split(",")]))
-            newItem3 = QStandardItem(",".join([query_AgentCfg(user_id=user_id).name for user_id in agent.agents.split(",")]) if agent.agents else "")
+            newItem3 = QStandardItem(",".join(
+                [query_AgentCfg(user_id=user_id).name for user_id in agent.agents.split(",")]) if agent.agents else "")
             newItem3.setFlags(newItem3.flags() & ~Qt.ItemIsEditable)  # Make items non-editable
             model.setItem(row, 4, newItem3)
 
@@ -2011,7 +2100,7 @@ class Ui_MainWindow(object):
 
             row += 1
 
-        dialog = AgentMultiFreezeTableDialog(model,self)
+        dialog = AgentMultiFreezeTableDialog(model, self)
         dialog.exec_()
 
     def aiopendialog(self):
@@ -2047,9 +2136,8 @@ class Ui_MainWindow(object):
 
             row += 1
 
-        dialog = AiFreezeTableDialog(model,self)
+        dialog = AiFreezeTableDialog(model, self)
         dialog.exec_()
-
 
     def humanopendialog(self):
         model = QStandardItemModel()
@@ -2087,7 +2175,6 @@ class Ui_MainWindow(object):
         dialog = HumanFreezeTableDialog(model)
         dialog.exec_()
 
-
     def kmopendialog(self):
         model = QStandardItemModel()
         agents = query_KMCfg_All(is_delete=0)
@@ -2121,7 +2208,7 @@ class Ui_MainWindow(object):
 
             row += 1
 
-        dialog = KmFreezeTableDialog(model,self)
+        dialog = KmFreezeTableDialog(model, self)
         dialog.exec_()
 
     def kvopendialog(self):
@@ -2161,7 +2248,6 @@ class Ui_MainWindow(object):
         dialog = LogsFreezeTableDialog(model)
         dialog.exec_()
 
-
     def createCellWidgetAiChatMng(self, text, image):
         # agetnconfigdlg = FreezeTableDialog(self)
         agentcfgbutton = QToolButton()
@@ -2181,7 +2267,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createCellWidgetHumanChatMng(self, text, image):
         # agetnconfigdlg = FreezeTableDialog(self)
         agentcfgbutton = QToolButton()
@@ -2200,7 +2285,6 @@ class Ui_MainWindow(object):
         widget.setLayout(layout)
 
         return widget
-
 
     def createCellWidgetKMMng(self, text, image):
         # agetnconfigdlg = FreezeTableDialog(self)
@@ -2240,11 +2324,9 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-
     def plugin_install_local(self):
-        zip_file_path=self.setOpenFileName()
-        if zip_file_path!="":
+        zip_file_path = self.setOpenFileName()
+        if zip_file_path != "":
             self.plugin_install(zip_file_path)
 
     def create_install_plugin_local_button(self, text, image):
@@ -2266,17 +2348,13 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-
-    def create_new_note_button(self, text,km_cfg, image):
+    def create_new_note_button(self, text, km_cfg, image):
 
         button = QToolButton()
         button.setIcon(QIcon('images/task.png'))
         button.setIconSize(QSize(50, 50))
         button.setCheckable(True)
-        button.clicked.connect(lambda:self.create_new_note_editor(km_cfg))
-
-
+        button.clicked.connect(lambda: self.create_new_note_editor(km_cfg))
 
         layout = QGridLayout()
         layout.addWidget(button, 0, 0, Qt.AlignHCenter)
@@ -2287,8 +2365,8 @@ class Ui_MainWindow(object):
 
         return widget
 
-    def create_new_note_editor(self,km_cfg):
-           self.open_note_editor(km_cfg)
+    def create_new_note_editor(self, km_cfg):
+        self.open_note_editor(km_cfg)
 
     def create_new_note_buttonbak(self, text, image):
         # agetnconfigdlg = FreezeTableDialog(self)
@@ -2309,14 +2387,13 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def create_new_km_button(self, text, kmrecord, image):
         # agetnconfigdlg = FreezeTableDialog(self)
         agentcfgbutton = QToolButton()
         agentcfgbutton.setIcon(QIcon(image))
         agentcfgbutton.setIconSize(QSize(50, 50))
         agentcfgbutton.setCheckable(True)
-        agentcfgbutton.clicked.connect(lambda:self.createNewKM(kmrecord))
+        agentcfgbutton.clicked.connect(lambda: self.createNewKM(kmrecord))
 
         # self.backgroundButtonGroup.addButton(agentcfgbutton)
 
@@ -2328,7 +2405,6 @@ class Ui_MainWindow(object):
         widget.setLayout(layout)
 
         return widget
-
 
     def createCellWidgetAgentMng(self, text, image):
         # agetnconfigdlg = FreezeTableDialog(self)
@@ -2349,7 +2425,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createCellWidgetAgentMultiMng(self, text, image):
         # agetnconfigdlg = FreezeTableDialog(self)
         agentcfgbutton = QToolButton()
@@ -2369,8 +2444,7 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-    def createNewKM(self,kmrecord):
+    def createNewKM(self, kmrecord):
         filepath = self.setOpenFileName()
         filename = Path(filepath).name
         km_path = kmrecord.kmpath
@@ -2385,7 +2459,7 @@ class Ui_MainWindow(object):
             persist_directory = os.path.join(os.getcwd(), "km", km_path, "vector")
             if not os.path.exists(persist_directory):
                 os.makedirs(persist_directory)
-            embedding_model_name= kmrecord.embeddingmodel
+            embedding_model_name = kmrecord.embeddingmodel
             # embedding_model_name = 'shibing624/text2vec-bge-large-chinese'
             if embedding_model_name.lower() == "openai":
                 emb_type = "openai"
@@ -2394,17 +2468,16 @@ class Ui_MainWindow(object):
             chunk_size = kmrecord.textblocklength
             chunk_overlap = kmrecord.overlaplength
 
-
-
             km_id = kmrecord.km_id
             filename = filename
             filenum = 1
-            record_id=add_KMData(km_id, filename, filenum, chunk_size, chunk_overlap)
+            record_id = add_KMData(km_id, filename, filenum, chunk_size, chunk_overlap)
             print(filename)
             km_list = self.kmlist_list[kmrecord.km_id]
-            km_list.addItem(filename,record_id)
+            km_list.addItem(filename, record_id)
 
-            self.thread = WorkerThread(filepath, persist_directory, embedding_model_name, emb_type, chunk_size, chunk_overlap)
+            self.thread = WorkerThread(filepath, persist_directory, embedding_model_name, emb_type, chunk_size,
+                                       chunk_overlap)
             self.thread.finished.connect(self.on_thread_finished)  # 连接信号
             self.thread.start()
 
@@ -2414,8 +2487,6 @@ class Ui_MainWindow(object):
         self.thread.quit()  # 请求线程退出
         self.thread.wait()  # 等待线程结束
         del self.thread  # 删除线程对象（如果需要）
-
-
 
     def setOpenFileName(self):
         openFileNameLabel = ""
@@ -2430,7 +2501,6 @@ class Ui_MainWindow(object):
             openFileNameLabel = fileName
         print(openFileNameLabel)
         return openFileNameLabel
-
 
     def setOpenFileNames(self):
         openFilesPath = ""
@@ -2447,7 +2517,6 @@ class Ui_MainWindow(object):
             openFileNamesLabel = ("[%s]" % ', '.join(files))
         print(openFileNamesLabel)
         return openFileNamesLabel
-
 
     def open_agent_task_chat(self, agent):
         agent_cfg = agent.agent_cfg
@@ -2479,8 +2548,7 @@ class Ui_MainWindow(object):
         taskPage.messageEdit.setFocus()
         self.conversation_pages.setCurrentWidget(dialog)
 
-    def open_note_editor(self, km_cfg,id=0):
-
+    def open_note_editor(self, km_cfg, id=0):
 
         if km_cfg.km_id in self.km_note_window_list:
             dialog = self.km_note_window_list[km_cfg.km_id]
@@ -2493,13 +2561,11 @@ class Ui_MainWindow(object):
 
             editor.setObjectName('NoteEditorObject')
 
-
             editor.show()
 
             layout.addWidget(editor)
             dialog.setLayout(layout)
-            self.km_note_window_list[km_cfg.km_id]=dialog
-
+            self.km_note_window_list[km_cfg.km_id] = dialog
 
         self.conversation_pages.addWidget(dialog)
 
@@ -2511,7 +2577,6 @@ class Ui_MainWindow(object):
         note_editor.km_id = km_cfg.km_id
         note_editor.km_cfg = km_cfg
         note_editor.loadFile()
-
 
     def open_exist_agent_task_chat(self, agent):
         agent_cfg = agent.agent_cfg
@@ -2542,7 +2607,6 @@ class Ui_MainWindow(object):
             taskPage.new_task()
         self.conversation_pages.setCurrentWidget(dialog)
 
-
     def open_multi_agent_task_chat(self, agentcfg):
         if agentcfg.group_id in self.multi_agent_chat_window_list:
             dialog = self.multi_agent_chat_window_list[agentcfg.group_id]
@@ -2562,7 +2626,6 @@ class Ui_MainWindow(object):
         taskPage.new_task()
         self.conversation_pages.setCurrentWidget(dialog)
 
-
     def plugin_install_dialog(self, plugin_data):
         plugin_name = plugin_data["name"]
         plugin_version = plugin_data["version"]
@@ -2571,7 +2634,8 @@ class Ui_MainWindow(object):
         plugin_url = plugin_data["url"]
         message_box = QMessageBox()
         message_box.setWindowTitle("您是否要安装该插件？")
-        message_box.setText("名称："+plugin_name + ":" + plugin_version + "\n" + "公司：" + plugin_company + "\n" + "说明：" + plugin_description)
+        message_box.setText(
+            "名称：" + plugin_name + ":" + plugin_version + "\n" + "公司：" + plugin_company + "\n" + "说明：" + plugin_description)
 
         message_box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         message_box.setDefaultButton(QMessageBox.Ok)
@@ -2585,23 +2649,23 @@ class Ui_MainWindow(object):
             file_name = os.path.basename(plugin_url)
             file__without_extension = os.path.splitext(file_name)[0]
             file_extension = os.path.splitext(file_name)[1]
-            file_path=os.path.join(Path(__file__).resolve().parent.parent,"download",file_name)
+            file_path = os.path.join(Path(__file__).resolve().parent.parent, "download", file_name)
 
             if os.path.exists(file_path):
                 current_timestamp = str(time.time()).replace('.', '')
-                file_name=file__without_extension+current_timestamp+file_extension
+                file_name = file__without_extension + current_timestamp + file_extension
                 file_path = os.path.join(Path(__file__).resolve().parent.parent, "download", file_name)
-            self.download_file(plugin_url,file_path)
+            self.download_file(plugin_url, file_path)
             self.plugin_install(file_path)
         else:
             print("User clicked Cancel")
 
-    def plugin_install(self,zip_file_path):
-
+    def plugin_install(self, zip_file_path):
 
         file__without_extension = os.path.splitext(os.path.basename(zip_file_path))[0]
-        extract_to_path = os.path.join(Path(__file__).resolve().parent.parent, "download", "temp",file__without_extension)
-        self.unzip_file(zip_file_path,extract_to_path)
+        extract_to_path = os.path.join(Path(__file__).resolve().parent.parent, "download", "temp",
+                                       file__without_extension)
+        self.unzip_file(zip_file_path, extract_to_path)
         print("install.....")
         message_box = QMessageBox()
         message_box.setWindowTitle("提示")
@@ -2611,7 +2675,6 @@ class Ui_MainWindow(object):
         # message_box.setDefaultButton(QMessageBox.Ok)
         user_response = message_box.exec_()
         pass
-
 
     def createTaskGroup(self, agent):
         print("in createDialogGroup")
@@ -2638,7 +2701,6 @@ class Ui_MainWindow(object):
         self.conversation_pages.setCurrentWidget(dialog)
         print("goingaddconver3")
 
-
     def create_new_task_button(self, text, agent, diagramType):
 
         button = QToolButton()
@@ -2658,12 +2720,11 @@ class Ui_MainWindow(object):
 
         return widget
 
-    def create_new_task_chat(self,agent):
+    def create_new_task_chat(self, agent):
         agent_cfg = agent.agent_cfg
         taskList = self.tasklist_list[agent_cfg.user_id]
         taskList.deselect_all_items()
         self.open_agent_task_chat(agent)
-
 
     def create_new_group_task_button(self, text, agentcfg, diagramType):
         # item = DiagramItem(diagramType, self.itemMenu)
@@ -2686,7 +2747,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createCellWidget(self, text, diagramType):
         # item = DiagramItem(diagramType, self.itemMenu)
         # icon = QIcon(item.image())
@@ -2708,7 +2768,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createCellWidgetLogMng(self, text, diagramType):
         agentcfgbutton = QToolButton()
         agentcfgbutton.setIcon(QIcon('images/moresetting.png'))
@@ -2726,7 +2785,6 @@ class Ui_MainWindow(object):
         widget.setLayout(layout)
 
         return widget
-
 
     def createCellWidgetGeneralCfg(self, text, diagramType):
         # item = DiagramItem(diagramType, self.itemMenu)
@@ -2749,9 +2807,8 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-    def create_human_cfg_button(self, text,agent, diagramType):
-        agentconfigdlg = HumanChatConfigDialog(self,agent)
+    def create_human_cfg_button(self, text, agent, diagramType):
+        agentconfigdlg = HumanChatConfigDialog(self, agent)
         self.human_chat_cfg_dialog_list[agent.user_id] = agentconfigdlg
         agentcfgbutton = QToolButton()
         agentcfgbutton.setIcon(QIcon('images/moresetting.png'))
@@ -2797,7 +2854,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def create_note_cfg_button(self, text, diagramType):
         # pass
         kmrecord = query_KMCfg(name="我的笔记")
@@ -2840,8 +2896,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-
     def create_ai_cfg_button(self, text, agent, diagramType):
         agentconfigdlg = AiChatConfigDialog(self, agent)
         self.ai_chat_cfg_dialog_list[agent.user_id] = agentconfigdlg
@@ -2863,7 +2917,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createCellWidget(self, text, diagramType):
         # item = DiagramItem(diagramType, self.itemMenu)
         # icon = QIcon(item.image())
@@ -2884,9 +2937,10 @@ class Ui_MainWindow(object):
         widget.setLayout(layout)
 
         return widget
-    def open_multi_agent_cfg_dialog(self,agent):
+
+    def open_multi_agent_cfg_dialog(self, agent):
         group_id = agent.group_id
-        agent_group_cfg=query_MutiAgentCfg(group_id=group_id)
+        agent_group_cfg = query_MutiAgentCfg(group_id=group_id)
         agentconfigdlg = AgentMutiConfigDialog(self, agent_group_cfg)
         agentconfigdlg.exec_()
 
@@ -2898,7 +2952,7 @@ class Ui_MainWindow(object):
         agentcfgbutton.setIcon(QIcon('images/moresetting.png'))
         agentcfgbutton.setIconSize(QSize(50, 50))
         agentcfgbutton.setCheckable(True)
-        agentcfgbutton.clicked.connect(lambda:self.open_multi_agent_cfg_dialog(agent))
+        agentcfgbutton.clicked.connect(lambda: self.open_multi_agent_cfg_dialog(agent))
 
         self.buttonGroup.addButton(agentcfgbutton, diagramType)
 
@@ -2911,9 +2965,9 @@ class Ui_MainWindow(object):
 
         return widget
 
-    def open_agent_cfg_dialog(self,agent):
+    def open_agent_cfg_dialog(self, agent):
 
-        user_id=agent.agent_cfg.user_id
+        user_id = agent.agent_cfg.user_id
         agent_cfg = query_AgentCfg(user_id=user_id)
         agent = Agent(agent_cfg)
         agentconfigdlg = AgentConfigDialog(self, agent)
@@ -2924,14 +2978,14 @@ class Ui_MainWindow(object):
     def create_agent_cfg_button(self, text, agent, diagramType):
         # item = DiagramItem(diagramType, self.itemMenu)
         # icon = QIcon(item.image())
-        agent_cfg=agent.agent_cfg
+        agent_cfg = agent.agent_cfg
         # agentconfigdlg = AgentConfigDialog(self, agent)
         # self.agent_cfg_dialog_list[agent_cfg.user_id] = agentconfigdlg
         agentcfgbutton = QToolButton()
         agentcfgbutton.setIcon(QIcon('images/moresetting.png'))
         agentcfgbutton.setIconSize(QSize(50, 50))
         agentcfgbutton.setCheckable(True)
-        agentcfgbutton.clicked.connect(lambda:self.open_agent_cfg_dialog(agent))
+        agentcfgbutton.clicked.connect(lambda: self.open_agent_cfg_dialog(agent))
 
         self.buttonGroup.addButton(agentcfgbutton, diagramType)
 
@@ -2970,7 +3024,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def create_multi_agent(self):
         print("create agent")
         agetnconfigdlg = AgentMutiConfigDialog(self)
@@ -2997,10 +3050,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-
-
-
     def createCellWidgetAiChatNew(self, text, image):
         # item = DiagramItem(diagramType, self.itemMenu)
         # icon = QIcon(item.image())
@@ -3022,7 +3071,6 @@ class Ui_MainWindow(object):
         widget.setLayout(layout)
 
         return widget
-
 
     def createCellWidgetHumanChatNew(self, text, image):
         # item = DiagramItem(diagramType, self.itemMenu)
@@ -3047,14 +3095,11 @@ class Ui_MainWindow(object):
 
         # for plugin
 
-
     def __description(self) -> str:
         return "Create your own anime meta data"
 
-
     def __usage(self) -> str:
         return "vrv-meta.py --service vrv"
-
 
     def __init_cli(self) -> argparse:
         parser = argparse.ArgumentParser(description=self.__description(), usage=self.__usage())
@@ -3071,18 +3116,15 @@ class Ui_MainWindow(object):
         )
         return parser
 
-
     def __print_program_end(self) -> None:
         print("-----------------------------------")
         print("End of execution")
         print("-----------------------------------")
 
-
     def __init_app(self, parameters: dict) -> None:
         return PluginEngine(options=parameters).start()
 
-
-    def show_plugin_cfg(self,plugin_full_name):
+    def show_plugin_cfg(self, plugin_full_name):
         print("opening baichuan connector...")
         __cli_args = self.__init_cli().parse_args()
         print("cjrok")
@@ -3095,23 +3137,22 @@ class Ui_MainWindow(object):
 
         delegate = global_plugin_list[plugin_full_name]
 
-        if plugin_full_name=="函数管理器: 1.0.0":
-            content = delegate.invoke(command=["open_config_dialog"],app=self)
+        if plugin_full_name == "函数管理器: 1.0.0":
+            content = delegate.invoke(command=["open_config_dialog"], app=self)
         else:
             content = delegate.invoke(command=["open_config_dialog"])
 
-    def show_plugin_tool_cfg(self,record):
+    def show_plugin_tool_cfg(self, record):
         plugin = load_plugin_tool(self, record)
         plugin.open_config_dialog()
 
-
-    def show_workflow_list(self,plugin_full_name):
+    def show_workflow_list(self, plugin_full_name):
         workflow_dialog = WorkFlowManager()
         workflow_dialog.setObjectName("workflowmanager")
         self.conversation_pages.addWidget(workflow_dialog)
         self.conversation_pages.setCurrentWidget(workflow_dialog)
 
-    def show_function_list(self,type_str):
+    def show_function_list(self, type_str):
 
         fun_dialog = FunctionManager(type_str)
         fun_dialog.setObjectName("functionmanager")
@@ -3124,8 +3165,8 @@ class Ui_MainWindow(object):
         button.setIcon(QIcon('images/plugin.png'))
         button.setIconSize(QSize(50, 50))
         button.setCheckable(True)
-        if type_str=="1":
-            button_label="已发布"
+        if type_str == "1":
+            button_label = "已发布"
         else:
             button_label = "未发布"
 
@@ -3143,21 +3184,18 @@ class Ui_MainWindow(object):
 
         return widget
 
-    def function_search(self, keyword,type_str="0"):
+    def function_search(self, keyword, type_str="0"):
         # type_str:"0","1","2"
-        print("keyword",keyword)
+        print("keyword", keyword)
 
-        if keyword=="$$$cjrok":
-            type_str="2"
+        if keyword == "$$$cjrok":
+            type_str = "2"
         print(keyword)
-        print("type_str",type_str)
+        print("type_str", type_str)
         fun_dialog = FunctionManager(type_str)
         fun_dialog.setObjectName("functionmanager")
         self.conversation_pages.addWidget(fun_dialog)
         self.conversation_pages.setCurrentWidget(fun_dialog)
-
-
-
 
     def create_plugin_cfg_button(self, record, diagramType):
 
@@ -3166,7 +3204,7 @@ class Ui_MainWindow(object):
         button.setIconSize(QSize(50, 50))
         button.setCheckable(True)
 
-        button.clicked.connect(lambda: self.show_plugin_cfg(record.name+": "+record.version))
+        button.clicked.connect(lambda: self.show_plugin_cfg(record.name + ": " + record.version))
 
         self.buttonGroup_Plugin.addButton(button, diagramType)
         # self.buttonGroup.addButton(button, diagramType)
@@ -3176,6 +3214,8 @@ class Ui_MainWindow(object):
         layout.addWidget(QLabel(record.name), 1, 0, Qt.AlignCenter)
 
         widget = QWidget()
+        # 增加名称
+        widget.name = record.name
         widget.setLayout(layout)
 
         return widget
@@ -3197,10 +3237,10 @@ class Ui_MainWindow(object):
         layout.addWidget(QLabel(record.name), 1, 0, Qt.AlignCenter)
 
         widget = QWidget()
+        widget.name = record.name
         widget.setLayout(layout)
 
         return widget
-
 
     def create_workflow_cfg_button(self, diagramType):
 
@@ -3223,7 +3263,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createCellWidgetnewkm(self, text, diagramType):
         # item = DiagramItem(diagramType, self.itemMenu)
         # icon = QIcon(item.image())
@@ -3244,26 +3283,22 @@ class Ui_MainWindow(object):
 
         return widget
 
-
-    def show_add_buddy_dialog(self,ai_chat_cfg):
+    def show_add_buddy_dialog(self, ai_chat_cfg):
 
         print("going to add buddy")
         # self.add_buddy()
-        jid=ai_chat_cfg.account
-        current_connectorThread= self.connectorThread_list.get(ai_chat_cfg.user_id,None)
-        current_buddyList = self.buddylist_list.get(ai_chat_cfg.user_id,None)
+        jid = ai_chat_cfg.account
+        current_connectorThread = self.connectorThread_list.get(ai_chat_cfg.user_id, None)
+        current_buddyList = self.buddylist_list.get(ai_chat_cfg.user_id, None)
         if current_connectorThread is None:
-            QMessageBox.critical(self,"警告","该帐号尚未登录！",QMessageBox.Ok)
+            QMessageBox.critical(self, "警告", "该帐号尚未登录！", QMessageBox.Ok)
             return
         else:
-            if current_connectorThread.isConnected==False:
+            if current_connectorThread.isConnected == False:
                 QMessageBox.critical(self, "警告", "该帐号尚未登录！", QMessageBox.Ok)
                 return
         newBuddy = AddBuddyDialog(self, current_connectorThread.jabber_xmpp, list(current_buddyList.groups.keys()), "")
         newBuddy.show()
-
-
-
 
     def create_new_contact_group_button(self, text, agent, diagramType):
         button = QToolButton()
@@ -3283,7 +3318,6 @@ class Ui_MainWindow(object):
 
         return widget
 
-
     def createColorMenu(self, slot, defaultColor):
         colors = [Qt.black, Qt.white, Qt.red, Qt.blue, Qt.yellow]
         names = ["black", "white", "red", "blue", "yellow"]
@@ -3298,7 +3332,6 @@ class Ui_MainWindow(object):
                 colorMenu.setDefaultAction(action)
         return colorMenu
 
-
     def createColorToolButtonIcon(self, imageFile, color):
         pixmap = QPixmap(50, 80)
         pixmap.fill(Qt.transparent)
@@ -3312,7 +3345,6 @@ class Ui_MainWindow(object):
 
         return QIcon(pixmap)
 
-
     def createColorIcon(self, color):
         pixmap = QPixmap(20, 20)
         painter = QPainter(pixmap)
@@ -3322,15 +3354,20 @@ class Ui_MainWindow(object):
 
         return QIcon(pixmap)
 
-
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "Ai-SNS"))
-        self.statusBox.addItem(QtGui.QIcon("images/status/available.png"), QtWidgets.QApplication.translate("MainWindow", "Available"))
-        self.statusBox.addItem(QtGui.QIcon("images/status/chat.png"), QtWidgets.QApplication.translate("MainWindow", "Chat"))
-        self.statusBox.addItem(QtGui.QIcon("images/status/busy.png"), QtWidgets.QApplication.translate("MainWindow", "Do not disturb"))
-        self.statusBox.addItem(QtGui.QIcon("images/status/away.png"), QtWidgets.QApplication.translate("MainWindow", "Away"))
-        self.statusBox.addItem(QtGui.QIcon("images/status/extended-away.png"), QtWidgets.QApplication.translate("MainWindow", "Extended Away"))
-        self.statusBox.addItem(QtGui.QIcon("images/status/offline.png"), QtWidgets.QApplication.translate("MainWindow", "Offline"))
+        self.statusBox.addItem(QtGui.QIcon("images/status/available.png"),
+                               QtWidgets.QApplication.translate("MainWindow", "Available"))
+        self.statusBox.addItem(QtGui.QIcon("images/status/chat.png"),
+                               QtWidgets.QApplication.translate("MainWindow", "Chat"))
+        self.statusBox.addItem(QtGui.QIcon("images/status/busy.png"),
+                               QtWidgets.QApplication.translate("MainWindow", "Do not disturb"))
+        self.statusBox.addItem(QtGui.QIcon("images/status/away.png"),
+                               QtWidgets.QApplication.translate("MainWindow", "Away"))
+        self.statusBox.addItem(QtGui.QIcon("images/status/extended-away.png"),
+                               QtWidgets.QApplication.translate("MainWindow", "Extended Away"))
+        self.statusBox.addItem(QtGui.QIcon("images/status/offline.png"),
+                               QtWidgets.QApplication.translate("MainWindow", "Offline"))
         # self.menuContacts.setTitle(QtWidgets.QApplication.translate("MainWindow", "开始(&A)"))
         # self.menuBuddies.setTitle(QtWidgets.QApplication.translate("MainWindow", "视图(&V)"))
         # self.menuAffichage.setTitle(QtWidgets.QApplication.translate("MainWindow", "帮助(&H)"))

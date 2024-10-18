@@ -1,17 +1,24 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt
+from PyQt5.QtCore import QFile, QFileInfo, Qt, QSortFilterProxyModel
 from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox, QWidget
+from PyQt5.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, \
+    QLineEdit, QAction, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox, QWidget, QHBoxLayout
 from db.DBFactory import delete_AiChatCfg,update_AiChatCfg_by_user_id
 
 class FreezeTableDialog(QDialog):
     def __init__(self, model,parent=None):
         super(FreezeTableDialog, self).__init__()
         self.model = model
+        self.proxy_model = QSortFilterProxyModel(self)
+        self.proxy_model.setSourceModel(self.model)
         self.app = parent
         self.tableView = QTableView(self)
         self.tableView.setModel(self.model)
         self.tableView.setColumnHidden(1, True)
         self.tableView.setColumnWidth(0, 10)  # 设置这一列否则第二列长度过长
+
+        self.tableView.setModel(self.proxy_model)
+        self.tableView.horizontalHeader().setStretchLastSection(True)
+
         self.initUI()
 
     def initUI(self):
@@ -23,6 +30,14 @@ class FreezeTableDialog(QDialog):
         select_all_checkbox.stateChanged.connect(self.toggle_select_all)
         layout.addWidget(select_all_checkbox)
 
+        # 创建水平布局用于搜索框和关闭按钮
+        hlayout = QHBoxLayout()
+
+        # 创建搜索框
+        self.searchLineEdit = QLineEdit(self)
+        self.searchLineEdit.setPlaceholderText("搜索...")
+        self.searchLineEdit.textChanged.connect(self.filter_data)
+        hlayout.addWidget(self.searchLineEdit)
         # Add OK and Cancel buttons
         # button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         # button_box.accepted.connect(self.accept_close)
@@ -33,8 +48,9 @@ class FreezeTableDialog(QDialog):
 
         button_box.rejected.connect(self.reject_close)
 
-        layout.addWidget(button_box)
-
+        hlayout.addWidget(button_box)
+        # 将水平布局添加到垂直布局
+        layout.addLayout(hlayout)
         self.setLayout(layout)
         self.setWindowTitle("Ai帐号列表")
         self.setWindowIcon(QIcon("images/aisns.png"))
@@ -43,6 +59,18 @@ class FreezeTableDialog(QDialog):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # 指定过滤列
+        self.proxy_model.setFilterKeyColumn(2)  # 假设账号是第二列，索引为1
+
+    def filter_data(self, text):
+        # 根据账号过滤
+        self.proxy_model.setFilterRegExp(text)
+    # def filterTable(self, text):
+    #     # 根据输入框的内容过滤表格项的标题列
+    #     for row in range(self.tableView.rowCount()):
+    #         item = self.tableView.item(row, 1)  # 获取标题列的单元格
+    #         if item:
+    #             self.tableView.setRowHidden(row, text not in item.text())
 
     def toggle_select_all(self, state):
         for row in range(self.model.rowCount()):

@@ -576,14 +576,28 @@ def add_AgentTaskMulti(task_id,topic,content, owner, group_id,is_first=True,atta
 
 def query_AgentTaskMulti(**kwargs):
     session = Session()
+    title=""
     try:
         # 构建过滤条件
         filter_expr = []
         for key, value in kwargs.items():
-            filter_expr.append(getattr(AgentTaskMulti, key) == value)
+            if key!="title":
+                filter_expr.append(getattr(AgentTaskMulti, key) == value)
+            else:
+                title = value
+
 
         # 查询并过滤记录
-        tasks = session.query(AgentTaskMulti).filter(*filter_expr).order_by(desc(AgentTaskMulti.create_time)).limit(500).all()
+        if title=="":
+            tasks = session.query(AgentTaskMulti).filter(*filter_expr).order_by(desc(AgentTaskMulti.create_time)).limit(500).all()
+        else:
+            tasks = session.query(AgentTaskMulti).filter(
+                *filter_expr,
+                AgentTaskMulti.topic.like(title)  # 增加的过滤条件
+            ).order_by(
+                desc(AgentTaskMulti.create_time)
+            ).limit(500).all()
+
         # for task in tasks:
         #     print(f"ID: {task.id}, Name: {task.content}")
     except Exception as e:
@@ -592,6 +606,58 @@ def query_AgentTaskMulti(**kwargs):
     session.close()
     return tasks
 
+def query_AgentTaskMulti_Search_Content(**kwargs):
+    session = Session()
+
+    # 提取常规过滤条件
+    is_first = kwargs.get('is_first', None)
+    # agent_id = kwargs.get('agent_id', None)
+    group_id = kwargs.get('group_id', None)
+    # 搜索关键词
+    title_keyword = kwargs.get('title', None)
+    topic_keyword = kwargs.get('topic', None)
+    answer_keyword = kwargs.get('answer', None)
+
+    # 构建初始查询
+    query = session.query(AgentTaskMulti)
+
+    if is_first is not None:
+        query = query.filter(AgentTaskMulti.is_first == is_first)
+    if group_id is not None:
+        query = query.filter(AgentTaskMulti.group_id == group_id)
+
+    if title_keyword=="":
+        query = query.filter(AgentTaskMulti.is_first == True)
+
+    # 添加搜索条件
+    search_terms = []
+    if title_keyword:
+        search_terms.append(AgentTaskMulti.title.contains(title_keyword))
+    if topic_keyword:
+        search_terms.append(AgentTaskMulti.topic.contains(topic_keyword))
+    if answer_keyword:
+        search_terms.append(AgentTaskMulti.answer.contains(answer_keyword))
+
+    if search_terms:
+        query = query.filter(or_(*search_terms))
+
+    # 获取结果
+    tasks = query.order_by(desc(AgentTaskMulti.create_time)).limit(50000).all()
+
+    session.close()
+    return tasks
+
+
+def query_AgentTaskMulti_Search_First(agent_id, task_id):
+    session = Session()
+
+    # 查找特定 agent_id 和 task_id 且 is_first 为 True 的记录
+    first_task = session.query(AgentTaskMulti) \
+        .filter(AgentTaskMulti.agent_id == agent_id, AgentTaskMulti.task_id == task_id, AgentTaskMulti.is_first == True) \
+        .first()
+
+    session.close()
+    return first_task
 
 def query_AgentTaskMulti_Content(id,**kwargs):
     session = Session()
@@ -804,6 +870,38 @@ def query_AiChatCfg_All(**kwargs):
     #     print(f"ID: {record.id}, Name: {record.nickname}, Memo: {record.memo}")
     session.close()
     return records
+
+def query_AiChatCfg_Search_Content(**kwargs):
+    session = Session()
+
+    # 提取常规过滤条件
+    # 搜索关键词
+    nickname_keyword = kwargs.get('nickname', None)
+    account_keyword = kwargs.get('account', None)
+
+    # 构建初始查询
+    query = session.query(AiChatCfg)
+
+    # if is_first is not None:
+    #     query = query.filter(AgentTaskMulti.is_first == is_first)
+
+
+    # 添加搜索条件
+    search_terms = []
+    if nickname_keyword:
+        search_terms.append(AiChatCfg.nickname.contains(nickname_keyword))
+    if account_keyword:
+        search_terms.append(AiChatCfg.account.contains(account_keyword))
+
+
+    if search_terms:
+        query = query.filter(or_(*search_terms))
+
+    # 获取结果
+    tasks = query.order_by(desc(AiChatCfg.create_time)).limit(50000).all()
+
+    session.close()
+    return tasks
 
 def query_AiChatCfg(**kwargs):
     session = Session()

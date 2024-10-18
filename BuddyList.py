@@ -7,6 +7,9 @@ from BuddyGroup import BuddyGroup
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 import time
 
+from db.DBFactory import query_AiChatCfg_Search_Content
+
+
 class BuddyList(QTreeWidget):
     """BuddyList implements the view in a Tree of the Roster"""
     rename_signal = pyqtSignal(object)
@@ -164,3 +167,53 @@ class BuddyList(QTreeWidget):
 
     def getInfo(self):
         pass
+
+
+    def search(self, key_word):
+        print("buddylist searching", key_word)
+        self.reload(key_word)
+
+    def reload(self, key_word):
+        self.clear()
+
+        self.setHeaderLabel("联系人列表")  # 需要设置此处的值，否则缺省值为1  "对话列表"
+        self.buddies = {}
+        self.groups = {}
+        self.tree = {}
+
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.menu = QMenu()
+        self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
+        self.rename_action.triggered.connect(self.rename)
+        self.menu.addAction(self.rename_action)
+
+        # self.delete_action = QAction(QIcon("images/infos.png"), "删除", self)
+        # self.delete_action.triggered.connect(self.delete_item)
+        # self.menu.addAction(self.delete_action)
+
+        self.customContextMenuRequested.connect(self.context)
+        # self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
+
+        if key_word.startswith('+++'):
+            # 获取上一次的搜索结果并过滤
+            filtered_tasklist = [
+                record for record in self.tasklist
+                if key_word[3:] in record.title or key_word[3:] in record.problem or key_word[3:] in record.answer
+            ]
+        else:
+            # self.tasklist = query_AgentTask_Search_Content(
+            #     agent_id=self.agent_cfg.user_id, title=key_word, problem=key_word, answer=key_word
+            # )
+            # self.tasklist = query_AgentTaskMulti(is_first=True, group_id=self.agentcfg.group_id,title=key_word)
+            self.tasklist = query_AiChatCfg_Search_Content(nickname=key_word,
+                                                             account=key_word
+                                                                )
+
+            filtered_tasklist = self.tasklist
+
+        # 创建一个集合来存储已经处理过的 first_record 记录
+        processed_first_records = set()
+
+        for record in filtered_tasklist:
+
+            self.addItem(record)

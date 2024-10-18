@@ -7,7 +7,8 @@ from KMGroup import KMGroup
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 import time
 from langchainhandler import *
-from db.DBFactory import add_KMData,query_KMData_All,update_KMData,delete_KMData,query_KMData
+from db.DBFactory import add_KMData,query_KMData_All,update_KMData,delete_KMData,query_KMData,query_Note_Search_Content
+from util import open_file
 
 class KMList(QTreeWidget):
     """KMList implements the view in a Tree of the Roster"""
@@ -80,11 +81,23 @@ class KMList(QTreeWidget):
         self.menu.addAction(self.delete_action)
 
         self.customContextMenuRequested.connect(self.context)
+        # self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
+
+        if key_word.startswith('+++'):
+            # 获取上一次的搜索结果并过滤
+            filtered_kmfilelist = [
+                record for record in self.kmfilelist
+                if key_word[3:] in record.title or key_word[3:] in record.content
+            ]
+        else:
+            self.kmfilelist = query_KMData_All(km_id=self.km_cfg.km_id, is_delete=self.is_delete)
+            filtered_kmfilelist = [ km for km in self.kmfilelist if   key_word in km.filename ]
+
 
         self.offline = True
         self.away = False
-        self.kmfilelist = query_KMData_All(km_id=self.km_cfg.km_id, is_delete=self.is_delete)
-        for record in self.kmfilelist:
+        # self.kmfilelist = query_KMData_All(km_id=self.km_cfg.km_id, is_delete=self.is_delete)
+        for record in filtered_kmfilelist:
             self.addItem(record.filename, record.id)
             print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")
 
@@ -258,4 +271,9 @@ class KMList(QTreeWidget):
         file_path = os.path.join(os.getcwd(), "km", km_path, "doc",name)
         open_file(file_path)
         # os.system(f"start {file_path}")
+
+    def search(self, key_word):
+        self.reload(key_word)
+        self.parent().parent().setCurrentIndex(0)
+
 

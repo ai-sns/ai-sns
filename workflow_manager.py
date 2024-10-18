@@ -3,7 +3,7 @@ import os
 import datetime
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTableWidget,
-    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QCheckBox, QHBoxLayout
+    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QCheckBox, QHBoxLayout,QLineEdit
 )
 from PyQt5.QtCore import Qt
 from workflow_design import WorkFlowDesign
@@ -45,6 +45,15 @@ class WorkFlowManager(QWidget):
         self.select_all_checkbox = QCheckBox("全选")
         self.select_all_checkbox.stateChanged.connect(self.toggle_select_all)
 
+        # 创建 QLineEdit 实例，用于输入搜索关键词
+        self.searchLineEdit = QLineEdit(self)
+        #"Search in Title..."
+        self.searchLineEdit.setPlaceholderText("搜索...")
+        self.searchLineEdit.setFixedWidth(400)  # 设置固定宽度为150像素
+        # 或者使用最小宽度
+        #self.searchLineEdit.setMinimumWidth(100)  # 设置最小宽度为100像素
+        self.searchLineEdit.textChanged.connect(self.filterTable)
+
         self.add_button = QPushButton("新增")
         self.copy_button = QPushButton("拷贝")
         self.delete_button = QPushButton("删除")
@@ -56,6 +65,7 @@ class WorkFlowManager(QWidget):
 
         # 将控件添加到按钮布局中
         button_layout.addWidget(self.select_all_checkbox)
+        button_layout.addWidget(self.searchLineEdit)
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.copy_button)
         button_layout.addWidget(self.delete_button)
@@ -142,6 +152,13 @@ class WorkFlowManager(QWidget):
         for row in range(self.file_table.rowCount()):
             checkbox_item = self.file_table.item(row, 0)
             checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+
+    def filterTable(self, text):
+        # 根据输入框的内容过滤表格项的标题列
+        for row in range(self.file_table.rowCount()):
+            item = self.file_table.item(row, 1)  # 获取标题列的单元格
+            if item:
+                self.file_table.setRowHidden(row, text not in item.text())
 
     def add_file(self):
         fun_dialog = WorkFlowDesign(self,"","")

@@ -3,7 +3,7 @@ import os
 import datetime
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTableWidget,
-    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QHBoxLayout, QCheckBox
+    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QHBoxLayout, QCheckBox,QLineEdit
 )
 from PyQt5.QtCore import Qt
 from db.DBFactory import query_function_mng_all,delete_function_mng
@@ -52,6 +52,15 @@ class FunctionManager(QWidget):
         self.select_all_checkbox = QCheckBox("全选")
         self.select_all_checkbox.stateChanged.connect(self.toggle_select_all)
 
+        # 创建 QLineEdit 实例，用于输入搜索关键词
+        self.searchLineEdit = QLineEdit(self)
+        #"Search in Function..."
+        self.searchLineEdit.setPlaceholderText("搜索...")
+        self.searchLineEdit.setFixedWidth(400)  # 设置固定宽度为150像素
+        # 或者使用最小宽度
+        #self.searchLineEdit.setMinimumWidth(100)  # 设置最小宽度为100像素
+        self.searchLineEdit.textChanged.connect(self.filterTable)
+
         self.add_button = QPushButton("新增")
         self.delete_button = QPushButton("删除")
         self.reload_button = QPushButton("刷新")
@@ -61,6 +70,7 @@ class FunctionManager(QWidget):
 
         # 将控件添加到按钮布局中
         button_layout.addWidget(self.select_all_checkbox)
+        button_layout.addWidget(self.searchLineEdit)
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.delete_button)
         button_layout.addWidget(self.reload_button)
@@ -147,6 +157,14 @@ class FunctionManager(QWidget):
         for row in range(self.file_table.rowCount()):
             checkbox_item = self.file_table.item(row, 0)
             checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+
+
+    def filterTable(self, text):
+        # 根据输入框的内容过滤表格项的标题列
+        for row in range(self.file_table.rowCount()):
+            item = self.file_table.item(row, 1)  # 获取标题列的单元格
+            if item:
+                self.file_table.setRowHidden(row, text not in item.text())
 
     def add_file(self):
 
