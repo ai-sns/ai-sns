@@ -448,7 +448,9 @@ class WorkerThread(QThread):
 
 class Ui_MainWindow(object):
     InsertTextButton = 10
-
+    CurTabTextAI= ""         #AI社交
+    CurTabTextNote= ""       #我的笔记
+    CurTabTextKmlist=""      #知识列表
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(QtCore.QSize(QtCore.QRect(0, 0, 316, 407).size()).expandedTo(MainWindow.minimumSizeHint()))
@@ -1026,6 +1028,7 @@ class Ui_MainWindow(object):
     def createToolBoxUnit_AiChat(self, agent, pos=-1):
 
         # two button 两个按钮
+        print("createToolBoxUnit_AiChat-->")
         layout = QGridLayout()
 
         layout = QGridLayout()
@@ -1036,8 +1039,8 @@ class Ui_MainWindow(object):
 
         # search input 搜索框
         textEdit = QLineEdit()
-        textEdit.setPlaceholderText("关键词+回车搜索，空+回车复原")
-        textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
+        textEdit.setPlaceholderText("搜索...")
+        # textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
         layout.addWidget(textEdit, 1, 0, 1, 2)
 
         # task tab 任务页签
@@ -1050,6 +1053,12 @@ class Ui_MainWindow(object):
 
         tabWidget.addTab(buddyList, "聊天")
         tabWidget.addTab(infoList, "通知")
+        self.CurTabTextAI = "聊天"
+
+        # 直接在 connect 方法中使用 lambda 函数处理标签页切换
+        tabWidget.currentChanged.connect(
+            lambda index: setattr(self, 'CurTabTextAI', tabWidget.tabText(index))
+        )
 
         layout.setRowStretch(3, 10)
         layout.setColumnStretch(2, 10)
@@ -1063,7 +1072,39 @@ class Ui_MainWindow(object):
         else:
             self.toolBox_AiChat.insertItem(self.toolBox_AiChat.count() - 1, itemWidget,
                                            QIcon('images/messageoffline.png'), agent.nickname)
-        textEdit.returnPressed.connect(lambda: buddyList.search(textEdit.text()))
+        # textEdit.returnPressed.connect(lambda: buddyList.search(textEdit.text()))
+        textEdit.textChanged.connect(self.filterItemsBuddyList)
+
+
+    def filterItemsBuddyList(self, text):
+        """根据用户输入的关键词过滤树节点"""
+        # 过滤树形控件中的项目 topLevelItemCount
+        if hasattr(self, 'BuddyList') or hasattr(self, 'InfoList')  :
+            if self.CurTabTextAI== "聊天":
+                search_list = self.BuddyList
+            else:
+                search_list = self.InfoList
+            print("tree--:",search_list.tree)
+            for i in range(search_list.topLevelItemCount()):
+                top_item = search_list.topLevelItem(i)
+                self.filter_children(top_item, text)
+                # print("tree--:",self.BuddyList.tree)
+                # for i in range(self.BuddyList.topLevelItemCount()):
+                #     top_item = self.BuddyList.topLevelItem(i)
+                #     self.filter_children(top_item, text)
+
+
+
+    def filter_children(self, parent, text):
+        for i in range(parent.childCount()):
+            child = parent.child(i)
+            if text.lower() in child.text(0).lower():
+                child.setHidden(False)
+            else:
+                child.setHidden(True)
+            if child.childCount() > 0:
+                self.filter_children(child, text)
+
 
     def createToolBox_AiChat(self):
         self.toolBox_AiChat = QToolBox()
@@ -1208,6 +1249,11 @@ class Ui_MainWindow(object):
 
         tabWidget.addTab(notelist_recent, "最新")
         tabWidget.addTab(notelist_all, "全部")
+        self.CurTabTextNote = "最新"
+        # 直接在 connect 方法中使用 lambda 函数处理标签页切换
+        tabWidget.currentChanged.connect(
+            lambda index: setattr(self, 'CurTabTextNote', tabWidget.tabText(index))
+        )
 
         # Stretch settings
         layout.setRowStretch(3, 10)
@@ -1227,7 +1273,14 @@ class Ui_MainWindow(object):
             self.toolBox_KM.insertItem(self.toolBox_KM.count() - 1, itemWidget, QIcon('images/note.png'), kmrecord.name)
 
         # Connect returnPressed signal to search function
-        textEdit.returnPressed.connect(lambda: notelist_all.search(textEdit.text()))
+        # textEdit.returnPressed.connect(lambda: notelist_all.search(textEdit.text()))
+        textEdit.returnPressed.connect(lambda: self.notelist_on_return_pressed(textEdit.text()))
+
+    def notelist_on_return_pressed(self,key_word):
+        if self.CurTabTextNote=="全部":  # 这里是你的判断条件
+            self.notelist_all.search(key_word)
+        else:
+            self.notelist_recent.search(key_word)
 
     def createToolBoxUnit_KM(self, kmrecord, pos=-1):
         # two button 两个按钮
@@ -1250,12 +1303,19 @@ class Ui_MainWindow(object):
         kmlist_list_deleted = KMList(self, kmrecord, True)
 
         kmlist_list.itemDoubleClicked.connect(lambda item, column: self.km_item_click(item, column, kmrecord))
+        self.kmlist_all = kmlist_list
+        self.kmlist_deleted  = kmlist_list_deleted
 
         self.kmlist_list[kmrecord.km_id] = kmlist_list
         self.kmlist_list_deleted[kmrecord.km_id] = kmlist_list_deleted
 
         tabWidget.addTab(kmlist_list, "知识列表")
         tabWidget.addTab(kmlist_list_deleted, "回收站")
+        self.CurTabTextKmlist="知识列表"
+        # 直接在 connect 方法中使用 lambda 函数处理标签页切换
+        tabWidget.currentChanged.connect(
+            lambda index: setattr(self, 'CurTabTextKmlist', tabWidget.tabText(index))
+        )
 
         layout.setRowStretch(3, 10)
         layout.setColumnStretch(2, 10)
@@ -1269,7 +1329,14 @@ class Ui_MainWindow(object):
             self.toolBox_KM.insertItem(self.toolBox_KM.count() - 1, itemWidget, QIcon('images/filelist.png'),
                                        kmrecord.name)
         # Connect returnPressed signal to search function
-        textEdit.returnPressed.connect(lambda: kmlist_list.search(textEdit.text()))
+        # textEdit.returnPressed.connect(lambda: kmlist_list.search(textEdit.text()))
+        textEdit.returnPressed.connect(lambda: self.kmlist_on_return_pressed(textEdit.text()))
+
+    def kmlist_on_return_pressed(self, key_word):
+        if self.CurTabTextKmlist == "知识列表":  # 这里是你的判断条件
+            self.kmlist_all.search(key_word)
+        else:
+            self.kmlist_deleted.search(key_word)
 
     def createToolBox_KM(self):
         self.toolBox_KM = QToolBox()
@@ -1577,7 +1644,6 @@ class Ui_MainWindow(object):
         col = 0
         for i in range(self.layout_tool.count()):
             item = self.layout_tool.itemAt(i)
-            # 如果项目是一个控件，则删除它
             if item.widget() and item.widget() is not None:
                 # 检查是否是 QLineEdit 输入框
                 if isinstance(item.widget(), QLineEdit):
@@ -1591,7 +1657,7 @@ class Ui_MainWindow(object):
                             plugin_widget.setHidden(False)
                             # self.layout.removeWidget(plugin_widget)
                             # plugin_widget.setParent(None)
-                            # self.layout.addWidget(plugin_widget, row, col % 2)
+                            self.layout.addWidget(plugin_widget, row, col % 2)
                             # if (col % 2) == 1:
                             #     row = row + 1
                             # col = col + 1

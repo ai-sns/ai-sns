@@ -78,6 +78,48 @@ def query_AIChatMessages(**kwargs):
     session.close()
     return record
 
+def query_AIChatMessages_Search_Content(**kwargs):
+    session = Session()
+
+    # 提取常规过滤条件
+    is_first = kwargs.get('is_first', None)
+    owner_account = kwargs.get('owner_account', None)
+    friend_account = kwargs.get('friend_account', None)
+
+    # 搜索关键词
+    title_keyword = kwargs.get('title', None)
+    content_keyword = kwargs.get('content', None)
+
+    # 构建初始查询
+    query = session.query(AIChatMessages)
+
+    if is_first is not None:
+        query = query.filter(AIChatMessages.is_first == is_first)
+    if owner_account is not None:
+        query = query.filter(AIChatMessages.owner_account == owner_account)
+    if friend_account is not None:
+        query = query.filter(AIChatMessages.friend_account == friend_account)
+
+    if title_keyword=="":
+        query = query.filter(AIChatMessages.is_first == True)
+
+    # 添加搜索条件
+    search_terms = []
+    if title_keyword:
+        search_terms.append(AIChatMessages.title.contains(title_keyword))
+    if content_keyword:
+        search_terms.append(AIChatMessages.content.contains(content_keyword))
+
+    if search_terms:
+        query = query.filter(or_(*search_terms))
+
+    # 获取结果
+    tasks = query.order_by(desc(AIChatMessages.create_time)).limit(50000).all()
+
+    session.close()
+    return tasks
+
+
 
 def update_AIChatMessages(id, **kwargs):
     session = Session()

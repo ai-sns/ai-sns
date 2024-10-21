@@ -491,6 +491,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.connectorThread_list[user_id] = connectorThread
             self.connectorThread = connectorThread
             self.BuddyList = buddyList
+            self.InfoList = infoList
 
             # 处理在线状态
             # self.toolBox_AiChat.setItemText(self.toolBox_AiChat.findChild(QWidget,user_id), "Ai智能体管理")

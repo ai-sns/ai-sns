@@ -155,6 +155,8 @@ class Ui_MessageWidget(object):
         self.tabLayout_chat_list.addWidget(textEdit)
         self.tabLayout_chat_list.addWidget(self.tab_chat_list)
         self.tabLayout_chat_list.setContentsMargins(5, 5, 5, 5)
+        # Connect returnPressed signal to search function
+        textEdit.returnPressed.connect(lambda: self.tab_chat_list.search(textEdit.text()))
 
         self.tabWidget.addTab(tab_widget, "聊天历史")
 

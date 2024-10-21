@@ -155,9 +155,9 @@ class NoteList(QTreeWidget):
             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
 
     def search(self, key_word):
-
+        print("Note_list searching", key_word)
         self.reload(key_word)
-        self.parent().parent().setCurrentIndex(1)
+        # self.parent().parent().setCurrentIndex(1)
 
     def relaod_tree(self):
         self.reload()

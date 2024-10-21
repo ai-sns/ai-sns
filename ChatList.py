@@ -8,7 +8,9 @@ from PyQt5.QtCore import Qt, QPoint
 
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 import time
-from db.DBFactory import query_AIChat_Content,query_AIChatMessages_All,query_AgentTask, query_AgentTask_Search_Content, query_AgentTask_Content, query_AgentTask_Search_First, AgentTask, deleteTasksFromDatabase, update_AgentTask
+from db.DBFactory import query_AIChat_Content, query_AIChatMessages_All, query_AgentTask, \
+    query_AgentTask_Search_Content, query_AgentTask_Content, query_AgentTask_Search_First, AgentTask, \
+    deleteTasksFromDatabase, update_AgentTask, query_AIChatMessages_Search_Content
 
 from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, get_user_ask_msg_content_formatted, get_agent_reply_msg_title_formatted, get_agent_reply_msg_content_formatted, add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight, get_content_from_attachment_content_list, add_attachment_to_message_window
 
@@ -174,11 +176,16 @@ class ChatList(QTreeWidget):
             # 获取上一次的搜索结果并过滤
             filtered_chat_list = [
                 record for record in self.chat_list
-                if key_word[3:] in record.title or key_word[3:] in record.problem or key_word[3:] in record.answer
+                if key_word[3:] in record.title or key_word[3:] in record.answer
             ]
         else:
-            self.chat_list = query_AgentTask_Search_Content(
-                agent_id=self.agent_cfg.user_id, title=key_word, problem=key_word, answer=key_word
+            # self.chat_list = query_AgentTask_Search_Content(
+            #     agent_id=self.agent_cfg.user_id, title=key_word, problem=key_word, answer=key_word
+            # )
+            # AIChatMessages
+            self.chat_list = query_AIChatMessages_Search_Content(
+                is_first=True, owner_account=self.agent.account,
+                friend_account=self.jid, title=key_word, content=key_word
             )
             filtered_chat_list = self.chat_list
 
@@ -186,17 +193,20 @@ class ChatList(QTreeWidget):
         processed_first_records = set()
 
         for record in filtered_chat_list:
-            if record.is_first and record.id not in processed_first_records:
-                # 处理 first_record
-                self.addItem(record.title.replace("\n", ""), record.id)
-                processed_first_records.add(record.id)
-            elif not record.is_first:
-                # 查找是否有相同 conversation_id 且 is_first 为 True 的记录
-                first_record = query_AgentTask_Search_First(agent_id=self.agent_cfg.user_id, conversation_id=record.conversation_id)
-                if first_record and first_record.id not in processed_first_records:
-                    # 处理 first_record
-                    self.addItem(first_record.title.replace("\n", ""), first_record.id)
-                    processed_first_records.add(first_record.id)
+            self.addItem(record.title.replace("\n", ""), record.id)
+
+        # for record in filtered_chat_list:
+        #     if record.is_first and record.id not in processed_first_records:
+        #         # 处理 first_record
+        #         self.addItem(record.title.replace("\n", ""), record.id)
+        #         processed_first_records.add(record.id)
+        #     elif not record.is_first:
+        #         # 查找是否有相同 conversation_id 且 is_first 为 True 的记录
+        #         first_record = query_AgentTask_Search_First(agent_id=self.agent_cfg.user_id, conversation_id=record.conversation_id)
+        #         if first_record and first_record.id not in processed_first_records:
+        #             # 处理 first_record
+        #             self.addItem(first_record.title.replace("\n", ""), first_record.id)
+        #             processed_first_records.add(first_record.id)
 
     def delete_item(self):
 
