@@ -226,14 +226,14 @@ class TaskList(QTreeWidget):
         for record in filtered_tasklist:
             if record.is_first and record.id not in processed_first_records:
                 # 处理 first_record
-                self.addItem(record.title.replace("\n", ""), record.id)
+                self.addItem(record.title.replace("\n", ""), record.id,icon= True if record.stick_time is not None else False)
                 processed_first_records.add(record.id)
             elif not record.is_first:
                 # 查找是否有相同 task_id 且 is_first 为 True 的记录
                 first_record = query_AgentTask_Search_First(agent_id=self.agent_cfg.user_id, task_id=record.task_id)
                 if first_record and first_record.id not in processed_first_records:
                     # 处理 first_record
-                    self.addItem(first_record.title.replace("\n", ""), first_record.id)
+                    self.addItem(first_record.title.replace("\n", ""), first_record.id,icon= True if first_record.stick_time is not None else False)
                     processed_first_records.add(first_record.id)
 
     def delete_item(self):

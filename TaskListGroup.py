@@ -1,13 +1,13 @@
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QInputDialog, QMessageBox
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QPoint
 
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import query_AgentTaskMulti, query_AgentTaskMulti_Content, AgentTaskMulti, update_AgentTaskMulti, \
     deleteMultiTasksFromDatabase, query_AgentTask_Search_Content, query_AgentTaskMulti_Search_First, \
-    query_AgentTaskMulti_Search_Content
+    query_AgentTaskMulti_Search_Content, update_AgentTaskMulti_stick, query_AgentTask_ById, query_AgentTaskMulti_ById
 from TaskPageGroup import TaskPageGroup
 from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, \
     get_user_ask_msg_content_formatted, get_agent_reply_msg_title_formatted, get_agent_reply_msg_content_formatted, \
@@ -36,12 +36,52 @@ class TaskListGroup(QTreeWidget):
         self.buddies = {}
         self.groups = {}
         self.tree = {}
+        # 创建一个图标
+        self.stick_icon = QIcon(QPixmap('images/start.png'))  # --> 增加一个置顶图标
 
+        self.load_pop_menu()
+        self.offline = True
+        self.away = False
+        print("agentcfg:", agentcfg)
+        class_type = type(agentcfg).__name__
+        print("class_type", class_type)
+
+        self.load_data()
+        # self.tasklist = query_AgentTaskMulti(is_first=True, group_id=agentcfg.group_id)
+        # for record in self.tasklist:
+        #     self.addItem(record.topic, record.id)
+            # print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")
+
+
+    # --> 加载 数据
+    def load_data(self):
+        self.tasklist = query_AgentTaskMulti(is_first=True, group_id=self.agentcfg.group_id)
+        for record in self.tasklist:
+            stick_icon = False
+            if record.stick_time is not None:
+                stick_icon = True
+            self.addItem(record.topic, record.id, icon=stick_icon)
+
+
+    # --> 加载 右键菜单
+    def load_pop_menu(self):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.menu = QMenu()
+        self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
+        self.stick_action.triggered.connect(self.stick_item)
+        self.menu.addAction(self.stick_action)
+
+        self.label_action = QAction(QIcon("images/edit.png"), "加标签", self)
+        self.label_action.triggered.connect(self.label_item)
+        self.menu.addAction(self.label_action)
+
         self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
         self.rename_action.triggered.connect(self.rename)
         self.menu.addAction(self.rename_action)
+
+        self.un_stick_action = QAction(QIcon("images/fileminus.png"), "取消置顶", self)
+        self.un_stick_action.triggered.connect(self.un_stick_item)
+        self.menu.addAction(self.un_stick_action)
 
         self.delete_action = QAction(QIcon("images/delete.png"), "删除", self)
         self.delete_action.triggered.connect(self.delete_item)
@@ -49,16 +89,6 @@ class TaskListGroup(QTreeWidget):
 
         self.customContextMenuRequested.connect(self.context)
         self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
-
-        self.offline = True
-        self.away = False
-        print("agentcfg:", agentcfg)
-        class_type = type(agentcfg).__name__
-        print("class_type", class_type)
-        self.tasklist = query_AgentTaskMulti(is_first=True, group_id=agentcfg.group_id)
-        for record in self.tasklist:
-            self.addItem(record.topic, record.id)
-            # print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete:
@@ -90,7 +120,7 @@ class TaskListGroup(QTreeWidget):
         if self.verticalScrollBar().value() == self.verticalScrollBar().maximum():
             print("Reached bottom!")
 
-    def addItem(self, name, id, is_top=False):
+    def addItem(self, name, id, is_top=False,icon=False):
         item_count = self.topLevelItemCount()
 
         if item_count == 0:
@@ -103,6 +133,8 @@ class TaskListGroup(QTreeWidget):
         # top_item = QTreeWidgetItem(group_item)
         top_item = QTreeWidgetItem()
         top_item.setText(0, name[0:50])
+        if icon == True:
+            top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
         top_item.setToolTip(0, name)
         top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
         if is_top == False:
@@ -227,24 +259,15 @@ class TaskListGroup(QTreeWidget):
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.menu = QMenu()
-        self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
-        self.rename_action.triggered.connect(self.rename)
-        self.menu.addAction(self.rename_action)
+        self.load_pop_menu()
 
-        self.delete_action = QAction(QIcon("images/infos.png"), "删除", self)
-        self.delete_action.triggered.connect(self.delete_item)
-        self.menu.addAction(self.delete_action)
-
-        self.customContextMenuRequested.connect(self.context)
         self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
 
         if key_word.startswith('+++'):
             # 获取上一次的搜索结果并过滤
             filtered_tasklist = [
                 record for record in self.tasklist
-                if key_word[3:] in record.title or key_word[3:] in record.problem or key_word[3:] in record.answer
+                if key_word[3:] in record.topic
             ]
         else:
             # self.tasklist = query_AgentTask_Search_Content(
@@ -263,13 +286,79 @@ class TaskListGroup(QTreeWidget):
         for record in filtered_tasklist:
             if record.is_first and record.id not in processed_first_records:
                 # 处理 first_record
-                self.addItem(record.topic.replace("\n", ""), record.id)
+                self.addItem(record.topic.replace("\n", ""), record.id,icon= True if record.stick_time is not None else False)
                 processed_first_records.add(record.id)
             elif not record.is_first:
                 # 查找是否有相同 task_id 且 is_first 为 True 的记录
-                first_record = query_AgentTaskMulti_Search_First(agent_id=self.agent_cfg.user_id,
+                first_record = query_AgentTaskMulti_Search_First(agent_id=self.agentcfg.user_id,
                                                                  task_id=record.task_id)
                 if first_record and first_record.id not in processed_first_records:
                     # 处理 first_record
-                    self.addItem(first_record.topic.replace("\n", ""), first_record.id)
+                    self.addItem(first_record.topic.replace("\n", ""), first_record.id,icon= True if first_record.stick_time is not None else False)
                     processed_first_records.add(first_record.id)
+
+    # --> 增加 置顶方法
+    def stick_item(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            if item:
+                reply = QMessageBox.question(self, '置顶确定',
+                                             f"您确定要置顶 '{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                update_AgentTaskMulti_stick(id_value, 1)
+                index = self.indexOfTopLevelItem(item)
+                if index == -1:
+                    parent = item.parent()
+                    if parent:
+                        # 获取当前项目的索引
+                        current_index = parent.indexOfChild(item)
+                        # 从父项目中移除当前项目
+                        parent.removeChild(item)
+                        # 将项目插入到父项目的第一个位置
+                        item.setIcon(0, self.stick_icon)
+                        parent.insertChild(0, item)
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能置顶", QMessageBox.Ok)
+        print("")
+
+    # --> 增加 取消置顶方法
+    def un_stick_item(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.UserRole)
+        if id_value:
+            if item:
+                reply = QMessageBox.question(self, '取消置顶确定',
+                                             f"您确定要取消置顶 '{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                update_AgentTaskMulti_stick(id_value, 0)
+                self.clear()
+                self.load_data()
+
+        else:
+            QMessageBox.critical(None, "警告", "分类不能取消置顶", QMessageBox.Ok)
+
+    def label_item(self):
+        self.rename_signal.emit(self.currentItem)
+        item = self.current_Item
+        oldName = None
+        column = 0
+        id_value = item.data(column, Qt.UserRole)
+
+        if id_value:
+            res = query_AgentTaskMulti_ById(id_value)
+            if res is not None:
+                oldName = res.label
+            if oldName is None:
+                oldName = ""
+            newName, ok = QInputDialog.getText(self, "加标签", "新标签:", text=oldName)
+            if ok and newName:
+                update_AgentTaskMulti(id_value, label=newName)
+        else:
+            QMessageBox.critical(None, "警告", "分类名不能加标签", QMessageBox.Ok)

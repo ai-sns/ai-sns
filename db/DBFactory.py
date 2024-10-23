@@ -664,6 +664,8 @@ class AgentTaskMulti(Base):
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
     is_delete = Column(Boolean, default=False, doc="软删除")
     is_first = Column(Boolean, default=False, doc="是否第一句对话")
+    stick_time = Column(DateTime, nullable=True, doc="置顶操作时间")  # --> 置顶字段
+    label = Column(String(50), doc="分类标签")                      # --> 标签字段
 
 
 def add_AgentTaskMulti(task_id, topic, content, owner, group_id, is_first=True, attachment_list="", document_content="",
@@ -688,26 +690,18 @@ def add_AgentTaskMulti(task_id, topic, content, owner, group_id, is_first=True, 
 def query_AgentTaskMulti(**kwargs):
     session = Session()
     title = ""
+
+
     try:
         # 构建过滤条件
         filter_expr = []
         for key, value in kwargs.items():
-            if key != "title":
-                filter_expr.append(getattr(AgentTaskMulti, key) == value)
-            else:
-                title = value
+            filter_expr.append(getattr(AgentTaskMulti, key) == value)
 
         # 查询并过滤记录
-        if title == "":
-            tasks = session.query(AgentTaskMulti).filter(*filter_expr).order_by(desc(AgentTaskMulti.create_time)).limit(
-                500).all()
-        else:
-            tasks = session.query(AgentTaskMulti).filter(
-                *filter_expr,
-                AgentTaskMulti.topic.like(title)  # 增加的过滤条件
-            ).order_by(
-                desc(AgentTaskMulti.create_time)
-            ).limit(500).all()
+        tasks = session.query(AgentTaskMulti).filter(*filter_expr).order_by(desc(AgentTaskMulti.stick_time),
+                                                                       desc(AgentTaskMulti.create_time)).limit(500).all()
+
 
         # for task in tasks:
         #     print(f"ID: {task.id}, Name: {task.content}")
@@ -717,6 +711,12 @@ def query_AgentTaskMulti(**kwargs):
     session.close()
     return tasks
 
+def query_AgentTaskMulti_ById(id):
+    session = Session()
+    res = session.query(AgentTaskMulti).filter(AgentTaskMulti.is_first == True, AgentTaskMulti.id == id).one_or_none()
+    session.close()
+
+    return res
 
 def query_AgentTaskMulti_Search_Content(**kwargs):
     session = Session()
@@ -754,7 +754,9 @@ def query_AgentTaskMulti_Search_Content(**kwargs):
         query = query.filter(or_(*search_terms))
 
     # 获取结果
-    tasks = query.order_by(desc(AgentTaskMulti.create_time)).limit(50000).all()
+    tasks = query.order_by(
+        desc(AgentTaskMulti.stick_time),
+        desc(AgentTaskMulti.create_time)).limit(50000).all()
 
     session.close()
     return tasks
@@ -793,6 +795,20 @@ def update_AgentTaskMulti(id, **kwargs):
     if task:
         for key, value in kwargs.items():
             setattr(task, key, value)
+        session.commit()
+    session.close()
+
+
+def update_AgentTaskMulti_stick(id,action:int=1):
+    session = Session()
+    key = "stick_time"
+    if action==1:
+        value =datetime.now()
+    else:
+        value = None
+    task = session.query(AgentTaskMulti).filter_by(id=id).first()
+    if task:
+        setattr(task, key, value)
         session.commit()
     session.close()
 

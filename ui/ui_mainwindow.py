@@ -27,6 +27,9 @@ from PyQt5.QtCore import QFile, QFileInfo, Qt
 from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QApplication, QDialog, QHeaderView, QTableView, QVBoxLayout
 
+# from TaskListGroupLabel import TaskListGroupLabel
+from TaskListGroupLabel import TaskListGroupLabel
+
 sys.path.append("..")
 sys.path.append("../..")
 import MainWindow_rc
@@ -972,6 +975,7 @@ class Ui_MainWindow(object):
         layout.addWidget(tabWidget, 2, 0, 3, 2)  # rowspan为3，此时tab在垂直方向上铺满
         task_list_group = TaskListGroup(self, agent_cfg_multi)
         member_list = MemberList(self, agent_cfg_multi)
+        task_list_group_label = TaskListGroupLabel(self, agent_cfg_multi)
         self.tasklist_group_list[agent_cfg_multi.group_id] = task_list_group
         self.memberlist_group_list[agent_cfg_multi.group_id] = member_list
 
@@ -980,6 +984,7 @@ class Ui_MainWindow(object):
 
         tabWidget.addTab(task_list_group, "对话列表")
         tabWidget.addTab(member_list, "成员列表")
+        tabWidget.addTab(task_list_group_label, "标签列表")
         self.CurTabTextChatMem = "对话列表"
         # 直接在 connect 方法中使用 lambda 函数处理标签页切换
         tabWidget.currentChanged.connect(
@@ -998,15 +1003,19 @@ class Ui_MainWindow(object):
         else:
             self.toolBox_AgentChat.insertItem(pos - 1, itemWidget, QIcon('images/agentmulti.png'),
                                               f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
-        textEdit.returnPressed.connect(lambda: task_list_group.search(textEdit.text()))
-        # textEdit.returnPressed.connect(lambda: self.task_list_group_on_return_pressed(textEdit.text()))
-
-    def task_list_group_on_return_pressed(self, key_word):
-        if self.CurTabTextChatMem == "对话列表":  # 这里是你的判断条件
-            self.task_list_group.search(key_word)
-        else:
-            # todo
-            print("成员列表---未实现")
+        # textEdit.returnPressed.connect(lambda: task_list_group.search(textEdit.text()))
+        textEdit.returnPressed.connect(lambda: task_list_group_on_return_pressed(textEdit.text()))
+        #--> 内部调用
+        def task_list_group_on_return_pressed(key_word):
+            if self.CurTabTextChatMem == "对话列表":  # 这里是你的判断条件
+                task_list_group.search(key_word)
+            elif self.CurTabTextChatMem == "标签列表":
+                task_list_group_label.search(key_word)
+            elif self.CurTabTextChatMem == "成员列表":
+                print("成员列表---未实现")
+                member_list.search(key_word)
+            else:
+                print("其他列表")
 
     def createToolBox_AgentChat(self):
         self.toolBox_AgentChat = QToolBox()

@@ -23,7 +23,8 @@ from qtpy.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
 from pathlib import Path
 from langchainhandler import get_file_content_tuple
 
-from pytalk.speaker import Speaker
+# from pytalk.speaker import Speaker
+from speaker import Speaker   #-->    修复上面路径bug
 
 sys.path.append("../..")
 sys.path.append("../../..")

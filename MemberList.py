@@ -128,12 +128,12 @@ class MemberList(QTreeWidget):
         top_item.setTextAlignment(0, 0)
 
         self.expandAll()
+    #
+    # def search(self, key_word):
+    #     print("memberlist_group_list searching", key_word)
+    #     self.reload(key_word)
 
-    def search(self, key_word):
-        print("memberlist_group_list searching", key_word)
-        self.reload(key_word)
-
-    def reload(self):
+    def reload(self,key_word):
         self.clear()
         agentcfg = query_MutiAgentCfg(group_id=self.agentcfg.group_id)
         self.agentcfg = agentcfg
@@ -252,5 +252,26 @@ class MemberList(QTreeWidget):
                 item.setText(0, "群主-"+newitemtext)
             else:
                 item.setText(0, newitemtext)
+
+    def search(self,text):
+        self.filterItemsList(text)
+
+    def filterItemsList(self, text):
+        """根据用户输入的关键词过滤树节点"""
+        # 过滤树形控件中的项目 topLevelItemCount
+        for i in range(self.topLevelItemCount()):
+            top_item = self.topLevelItem(i)
+            self.filter_children(top_item, text)
+
+
+    def filter_children(self, parent, text):
+        for i in range(parent.childCount()):
+            child = parent.child(i)
+            if text.lower() in child.text(0).lower():
+                child.setHidden(False)
+            else:
+                child.setHidden(True)
+            if child.childCount() > 0:
+                self.filter_children(child, text)
 
 
