@@ -1,3 +1,4 @@
+import copy
 import zipfile
 import shutil
 import sys
@@ -75,6 +76,7 @@ from BuddyListHuman import BuddyListHuman
 from InfoList import InfoList
 from TaskList import TaskList
 from TechList import TechList
+from TaskListLabel import TaskListLabel
 from TaskListGroup import TaskListGroup
 from MemberList import MemberList
 from KMList import KMList
@@ -448,9 +450,12 @@ class WorkerThread(QThread):
 
 class Ui_MainWindow(object):
     InsertTextButton = 10
-    CurTabTextAI= ""         #AI社交
-    CurTabTextNote= ""       #我的笔记
-    CurTabTextKmlist=""      #知识列表
+    CurTabTextChatTech = ""  # agent 对话列表
+    CurTabTextChatMem = ""  # agent  成员列表
+    CurTabTextAI = ""  # AI社交
+    CurTabTextNote = ""  # 我的笔记
+    CurTabTextKmlist = ""  # 知识列表
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(QtCore.QSize(QtCore.QRect(0, 0, 316, 407).size()).expandedTo(MainWindow.minimumSizeHint()))
@@ -894,11 +899,22 @@ class Ui_MainWindow(object):
         layout.addWidget(tabWidget, 2, 0, 3, 2)
         taskList = TaskList(self, agent)
         techList = TechList(self, agent)
+        labelList = TaskListLabel(self, agent)
+        # self.taskList_Task = taskList
+        # self.techList_Tech = techList
+        # self.labelList_label = labelList
+
         self.tasklist_list[agent_cfg.user_id] = taskList
         self.techlist_list[agent_cfg.user_id] = techList
+        # self.labellist_list[agent_cfg.user_id] = labelList  # 功能？
         tabWidget.addTab(taskList, "对话列表")
         tabWidget.addTab(techList, "技能列表")
-
+        tabWidget.addTab(labelList, "标签列表")  # -->
+        self.CurTabTextChatTech = "对话列表"
+        # 直接在 connect 方法中使用 lambda 函数处理标签页切换
+        tabWidget.currentChanged.connect(
+            lambda index: setattr(self, 'CurTabTextChatTech', tabWidget.tabText(index))
+        )
         # Stretch settings
         layout.setRowStretch(3, 10)
         layout.setColumnStretch(2, 10)
@@ -916,7 +932,23 @@ class Ui_MainWindow(object):
                                               f"{agent_cfg.name} ({agent_cfg.memo})" if agent_cfg.memo else agent_cfg.name)
 
         # Connect returnPressed signal to search function
-        textEdit.returnPressed.connect(lambda: taskList.search(textEdit.text()))
+        # textEdit.returnPressed.connect(lambda: self.taskList_Task.search(textEdit.text()))
+        textEdit.returnPressed.connect(lambda: taskList_on_return_pressed(textEdit.text()))
+
+        # -->内部函数
+        def taskList_on_return_pressed(key_word):
+            if self.CurTabTextChatTech == "对话列表":  # 这里是你的判断条件
+                print("对话列表")
+                taskList.search(key_word)
+            elif self.CurTabTextChatTech == "标签列表":
+                print("标签列表")
+                labelList.search(key_word)
+            elif self.CurTabTextChatTech == "技能列表":
+                # todo
+                print("技能列表")
+                techList.search(key_word)
+            else:
+                print("其他")
 
     def createToolBoxUnit_MutiAgentChat(self, agent_cfg_multi, pos=-1):
         if agent_cfg_multi.is_show == False:
@@ -943,9 +975,16 @@ class Ui_MainWindow(object):
         self.tasklist_group_list[agent_cfg_multi.group_id] = task_list_group
         self.memberlist_group_list[agent_cfg_multi.group_id] = member_list
 
+        self.task_list_group = task_list_group
+        self.member_list = member_list
+
         tabWidget.addTab(task_list_group, "对话列表")
         tabWidget.addTab(member_list, "成员列表")
-
+        self.CurTabTextChatMem = "对话列表"
+        # 直接在 connect 方法中使用 lambda 函数处理标签页切换
+        tabWidget.currentChanged.connect(
+            lambda index: setattr(self, 'CurTabTextChatMem', tabWidget.tabText(index))
+        )
         layout.setRowStretch(3, 10)
         layout.setColumnStretch(2, 10)
         itemWidget = QWidget()
@@ -960,6 +999,14 @@ class Ui_MainWindow(object):
             self.toolBox_AgentChat.insertItem(pos - 1, itemWidget, QIcon('images/agentmulti.png'),
                                               f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
         textEdit.returnPressed.connect(lambda: task_list_group.search(textEdit.text()))
+        # textEdit.returnPressed.connect(lambda: self.task_list_group_on_return_pressed(textEdit.text()))
+
+    def task_list_group_on_return_pressed(self, key_word):
+        if self.CurTabTextChatMem == "对话列表":  # 这里是你的判断条件
+            self.task_list_group.search(key_word)
+        else:
+            # todo
+            print("成员列表---未实现")
 
     def createToolBox_AgentChat(self):
         self.toolBox_AgentChat = QToolBox()
@@ -1075,16 +1122,15 @@ class Ui_MainWindow(object):
         # textEdit.returnPressed.connect(lambda: buddyList.search(textEdit.text()))
         textEdit.returnPressed.connect(lambda: self.filterItemsBuddyList(textEdit.text()))
 
-
     def filterItemsBuddyList(self, text):
         """根据用户输入的关键词过滤树节点"""
         # 过滤树形控件中的项目 topLevelItemCount
-        if hasattr(self, 'BuddyList') or hasattr(self, 'InfoList')  :
-            if self.CurTabTextAI== "聊天":
+        if hasattr(self, 'BuddyList') or hasattr(self, 'InfoList'):
+            if self.CurTabTextAI == "聊天":
                 search_list = self.BuddyList
             else:
                 search_list = self.InfoList
-            print("tree--:",search_list.tree)
+            print("tree--:", search_list.tree)
             for i in range(search_list.topLevelItemCount()):
                 top_item = search_list.topLevelItem(i)
                 self.filter_children(top_item, text)
@@ -1092,8 +1138,6 @@ class Ui_MainWindow(object):
                 # for i in range(self.BuddyList.topLevelItemCount()):
                 #     top_item = self.BuddyList.topLevelItem(i)
                 #     self.filter_children(top_item, text)
-
-
 
     def filter_children(self, parent, text):
         for i in range(parent.childCount()):
@@ -1104,7 +1148,6 @@ class Ui_MainWindow(object):
                 child.setHidden(True)
             if child.childCount() > 0:
                 self.filter_children(child, text)
-
 
     def createToolBox_AiChat(self):
         self.toolBox_AiChat = QToolBox()
@@ -1276,8 +1319,8 @@ class Ui_MainWindow(object):
         # textEdit.returnPressed.connect(lambda: notelist_all.search(textEdit.text()))
         textEdit.returnPressed.connect(lambda: self.notelist_on_return_pressed(textEdit.text()))
 
-    def notelist_on_return_pressed(self,key_word):
-        if self.CurTabTextNote=="全部":  # 这里是你的判断条件
+    def notelist_on_return_pressed(self, key_word):
+        if self.CurTabTextNote == "全部":  # 这里是你的判断条件
             self.notelist_all.search(key_word)
         else:
             self.notelist_recent.search(key_word)
@@ -1304,14 +1347,14 @@ class Ui_MainWindow(object):
 
         kmlist_list.itemDoubleClicked.connect(lambda item, column: self.km_item_click(item, column, kmrecord))
         self.kmlist_all = kmlist_list
-        self.kmlist_deleted  = kmlist_list_deleted
+        self.kmlist_deleted = kmlist_list_deleted
 
         self.kmlist_list[kmrecord.km_id] = kmlist_list
         self.kmlist_list_deleted[kmrecord.km_id] = kmlist_list_deleted
 
         tabWidget.addTab(kmlist_list, "知识列表")
         tabWidget.addTab(kmlist_list_deleted, "回收站")
-        self.CurTabTextKmlist="知识列表"
+        self.CurTabTextKmlist = "知识列表"
         # 直接在 connect 方法中使用 lambda 函数处理标签页切换
         tabWidget.currentChanged.connect(
             lambda index: setattr(self, 'CurTabTextKmlist', tabWidget.tabText(index))
@@ -1329,8 +1372,8 @@ class Ui_MainWindow(object):
             self.toolBox_KM.insertItem(self.toolBox_KM.count() - 1, itemWidget, QIcon('images/filelist.png'),
                                        kmrecord.name)
         # Connect returnPressed signal to search function
-        # textEdit.returnPressed.connect(lambda: kmlist_list.search(textEdit.text()))
-        textEdit.returnPressed.connect(lambda: self.kmlist_on_return_pressed(textEdit.text()))
+        textEdit.returnPressed.connect(lambda: kmlist_list.search(textEdit.text()))
+        # textEdit.returnPressed.connect(lambda: self.kmlist_on_return_pressed(textEdit.text()))
 
     def kmlist_on_return_pressed(self, key_word):
         if self.CurTabTextKmlist == "知识列表":  # 这里是你的判断条件
@@ -1399,7 +1442,7 @@ class Ui_MainWindow(object):
         row = 1
         col = 0
         records = query_PluginMng_All(plugin_type="LLM_Connector")
-        print("records-->:", records)
+        # print("records-->:", records)
         for record in records:
             print(f"ID: {record.id}, Name: {record.name}, Memo: {record.description}")
             # self.createToolBoxUnit_AgentChat(record)

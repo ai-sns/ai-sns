@@ -213,3 +213,38 @@ class TechList(QTreeWidget):
         embedding_model_name = 'shibing624/text2vec-bge-large-chinese'
         result=getvectorkm_String(question,persist_directory,embedding_model_name)
         print(result)
+
+
+    def search(self,text):
+        self.filterItemsList(text)
+
+    def filterItemsList(self, text):
+        """根据用户输入的关键词过滤树节点"""
+        # 过滤树形控件中的项目 topLevelItemCount
+        for i in range(self.topLevelItemCount()):
+            top_item = self.topLevelItem(i)
+            self.filter_children(top_item, text)
+
+        # if hasattr(self, 'BuddyList') or hasattr(self, 'InfoList'):
+        #     if self.CurTabTextAI == "聊天":
+        #         search_list = self.BuddyList
+        #     else:
+        #         search_list = self.InfoList
+        #     print("tree--:", search_list.tree)
+        #     for i in range(search_list.topLevelItemCount()):
+        #         top_item = search_list.topLevelItem(i)
+        #         self.filter_children(top_item, text)
+                # print("tree--:",self.BuddyList.tree)
+                # for i in range(self.BuddyList.topLevelItemCount()):
+                #     top_item = self.BuddyList.topLevelItem(i)
+                #     self.filter_children(top_item, text)
+
+    def filter_children(self, parent, text):
+        for i in range(parent.childCount()):
+            child = parent.child(i)
+            if text.lower() in child.text(0).lower():
+                child.setHidden(False)
+            else:
+                child.setHidden(True)
+            if child.childCount() > 0:
+                self.filter_children(child, text)

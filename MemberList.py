@@ -129,6 +129,10 @@ class MemberList(QTreeWidget):
 
         self.expandAll()
 
+    def search(self, key_word):
+        print("memberlist_group_list searching", key_word)
+        self.reload(key_word)
+
     def reload(self):
         self.clear()
         agentcfg = query_MutiAgentCfg(group_id=self.agentcfg.group_id)
