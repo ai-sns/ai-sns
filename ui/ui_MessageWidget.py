@@ -14,8 +14,11 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import QCheckBox, QLabel, QSplitter, QTabWidget, QVBoxLayout, QWidget, QMessageBox, QLineEdit
 from qtpy.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
 from PyQt5.QtWebChannel import QWebChannel
+
+from ChatListLabel import ChatListLabel
 from i18n import lt
 from ChatList import ChatList
+
 
 class MessageHandler(QWidget):
     on_message = pyqtSignal(str)
@@ -67,7 +70,8 @@ class MessageHandler(QWidget):
 class Ui_MessageWidget(object):
     def setupUi(self, MessageWidget):
         MessageWidget.setObjectName("MessageWidget")
-        MessageWidget.resize(QtCore.QSize(QtCore.QRect(0, 0, 800, 600).size()).expandedTo(MessageWidget.minimumSizeHint()))
+        MessageWidget.resize(
+            QtCore.QSize(QtCore.QRect(0, 0, 800, 600).size()).expandedTo(MessageWidget.minimumSizeHint()))
         MessageWidget.setContentsMargins(0, 0, 0, 0)  # 不留间隙
 
         self.vboxlayout = QtWidgets.QVBoxLayout(MessageWidget)
@@ -86,7 +90,8 @@ class Ui_MessageWidget(object):
         # 添加标签到布局中
         self.hboxlayoutlabel = QtWidgets.QHBoxLayout()
 
-        spacerItem_label_left = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem_label_left = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding,
+                                                      QtWidgets.QSizePolicy.Minimum)
         self.hboxlayoutlabel.addItem(spacerItem_label_left)  # 通过留空来居中
 
         self.title_label = QLabel("聊天对象：" + self.name, MessageWidget)
@@ -99,7 +104,8 @@ class Ui_MessageWidget(object):
         self.title_label.setContentsMargins(0, 0, 0, 0)  # 不留间隙
         self.hboxlayoutlabel.addWidget(self.title_label)
 
-        spacerItem_label_right = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem_label_right = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding,
+                                                       QtWidgets.QSizePolicy.Minimum)
         self.hboxlayoutlabel.addItem(spacerItem_label_right)  # 通过留空来居中
 
         self.vboxlayout.addLayout(self.hboxlayoutlabel)
@@ -148,8 +154,8 @@ class Ui_MessageWidget(object):
         textEdit.setPlaceholderText("关键词+回车搜索，空+回车复原")
         textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
 
-        tab_widget=QWidget()
-        self.tab_chat_list = ChatList(self,self.ai_chat_cfg)
+        tab_widget = QWidget()
+        self.tab_chat_list = ChatList(self, self.ai_chat_cfg)
         self.tab_chat_list.setObjectName("chat_list")
         self.tabLayout_chat_list = QVBoxLayout(tab_widget)
         self.tabLayout_chat_list.addWidget(textEdit)
@@ -160,6 +166,20 @@ class Ui_MessageWidget(object):
 
         self.tabWidget.addTab(tab_widget, "聊天历史")
 
+        # Create search input
+        textEdit_label = QLineEdit()
+        textEdit_label.setPlaceholderText("关键词+回车搜索，空+回车复原")
+        textEdit_label.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
+        tab_widget_label = QWidget()
+        self.tab_chat_list_label = ChatListLabel(self, self.ai_chat_cfg)
+        self.tab_chat_list_label.setObjectName("chat_list_label")
+        self.tabLayout_chat_list_label = QVBoxLayout(tab_widget_label)
+        self.tabLayout_chat_list_label.addWidget(textEdit_label)
+        self.tabLayout_chat_list_label.addWidget(self.tab_chat_list_label)
+        self.tabLayout_chat_list_label.setContentsMargins(5, 5, 5, 5)
+        # Connect returnPressed signal to search function
+        textEdit_label.returnPressed.connect(lambda: self.tab_chat_list_label.search(textEdit_label.text()))
+        self.tabWidget.addTab(tab_widget_label, "聊天标签")
 
         self.splitter.setSizes([1, ])  # 设置初始状态不显示输出窗口
 

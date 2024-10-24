@@ -56,6 +56,8 @@ class AIChatMessages(Base):
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
     is_delete = Column(Boolean, default=False, doc="软删除")
     is_first = Column(Boolean, default=False, doc="是否第一句对话")
+    stick_time = Column(DateTime, nullable=True, doc="置顶操作时间")  # --> 置顶字段
+    label = Column(String(50), doc="分类标签")  # --> 标签字段
 
 
 def add_AIChatMessages(conversation_id, flag, title, content, owner_name, owner_account, friend_name, friend_account,
@@ -74,7 +76,8 @@ def add_AIChatMessages(conversation_id, flag, title, content, owner_name, owner_
 
 def query_AIChatMessages_All(**kwargs):
     session = Session()
-    records = session.query(AIChatMessages).filter_by(**kwargs).order_by(desc(AIChatMessages.create_time)).limit(
+    records = session.query(AIChatMessages).filter_by(**kwargs).order_by(desc(AIChatMessages.stick_time),
+                                                                         desc(AIChatMessages.create_time)).limit(
         500).all()
     session.close()
     return records
@@ -85,6 +88,14 @@ def query_AIChatMessages(**kwargs):
     record = session.query(AIChatMessages).filter_by(**kwargs).first()
     session.close()
     return record
+
+
+def query_AIChatMessages_ById(id):
+    session = Session()
+    res = session.query(AIChatMessages).filter(AIChatMessages.is_first == True, AIChatMessages.id == id).one_or_none()
+    session.close()
+
+    return res
 
 
 def query_AIChatMessages_Search_Content(**kwargs):
@@ -123,10 +134,23 @@ def query_AIChatMessages_Search_Content(**kwargs):
         query = query.filter(or_(*search_terms))
 
     # 获取结果
-    tasks = query.order_by(desc(AIChatMessages.create_time)).limit(50000).all()
+    tasks = query.order_by(desc(AIChatMessages.stick_time), desc(AIChatMessages.create_time)).limit(50000).all()
 
     session.close()
     return tasks
+
+
+def query_AIChatMessages_Search_First(agent_id, task_id):
+    session = Session()
+
+    # 查找特定 agent_id 和 task_id 且 is_first 为 True 的记录
+    first_task = session.query(AIChatMessages) \
+        .filter(AIChatMessages.agent_id == agent_id, AIChatMessages.conversation_id == task_id,
+                AIChatMessages.is_first == True) \
+        .first()
+
+    session.close()
+    return first_task
 
 
 def update_AIChatMessages(id, **kwargs):
@@ -135,6 +159,15 @@ def update_AIChatMessages(id, **kwargs):
     if record:
         for key, value in kwargs.items():
             setattr(record, key, value)
+        session.commit()
+    session.close()
+
+
+def update_AIChatMessages_stick(id, value=None, key: str = 'stick_time'):
+    session = Session()
+    task = session.query(AIChatMessages).filter_by(id=id).first()
+    if task:
+        setattr(task, key, value)
         session.commit()
     session.close()
 
@@ -416,6 +449,7 @@ def query_AgentTask_ById(id):
 
     return res
 
+
 def query_AgentTask_Content(id, **kwargs):
     session = Session()
     res = session.query(AgentTask).filter(AgentTask.is_first == True, AgentTask.id == id).one_or_none()
@@ -466,7 +500,7 @@ def query_AgentTask_Search_Content(**kwargs):
         query = query.filter(or_(*search_terms))
 
     # 获取结果
-    tasks = query.order_by(desc(AgentTask.stick_time),desc(AgentTask.create_time)).limit(50000).all()
+    tasks = query.order_by(desc(AgentTask.stick_time), desc(AgentTask.create_time)).limit(50000).all()
 
     session.close()
     return tasks
@@ -493,11 +527,11 @@ def update_AgentTask(id, **kwargs):
         session.commit()
     session.close()
 
-def update_AgentTask_stick(id,action:int=1):
+
+def update_AgentTask_stick(id, action: int = 1, key: str = 'stick_time'):
     session = Session()
-    key = "stick_time"
-    if action==1:
-        value =datetime.now()
+    if action == 1:
+        value = datetime.now()
     else:
         value = None
     task = session.query(AgentTask).filter_by(id=id).first()
@@ -505,6 +539,7 @@ def update_AgentTask_stick(id,action:int=1):
         setattr(task, key, value)
         session.commit()
     session.close()
+
 
 def delete_AgentTask(id):
     session = Session()
@@ -665,7 +700,7 @@ class AgentTaskMulti(Base):
     is_delete = Column(Boolean, default=False, doc="软删除")
     is_first = Column(Boolean, default=False, doc="是否第一句对话")
     stick_time = Column(DateTime, nullable=True, doc="置顶操作时间")  # --> 置顶字段
-    label = Column(String(50), doc="分类标签")                      # --> 标签字段
+    label = Column(String(50), doc="分类标签")  # --> 标签字段
 
 
 def add_AgentTaskMulti(task_id, topic, content, owner, group_id, is_first=True, attachment_list="", document_content="",
@@ -691,7 +726,6 @@ def query_AgentTaskMulti(**kwargs):
     session = Session()
     title = ""
 
-
     try:
         # 构建过滤条件
         filter_expr = []
@@ -700,8 +734,8 @@ def query_AgentTaskMulti(**kwargs):
 
         # 查询并过滤记录
         tasks = session.query(AgentTaskMulti).filter(*filter_expr).order_by(desc(AgentTaskMulti.stick_time),
-                                                                       desc(AgentTaskMulti.create_time)).limit(500).all()
-
+                                                                            desc(AgentTaskMulti.create_time)).limit(
+            500).all()
 
         # for task in tasks:
         #     print(f"ID: {task.id}, Name: {task.content}")
@@ -711,12 +745,14 @@ def query_AgentTaskMulti(**kwargs):
     session.close()
     return tasks
 
+
 def query_AgentTaskMulti_ById(id):
     session = Session()
     res = session.query(AgentTaskMulti).filter(AgentTaskMulti.is_first == True, AgentTaskMulti.id == id).one_or_none()
     session.close()
 
     return res
+
 
 def query_AgentTaskMulti_Search_Content(**kwargs):
     session = Session()
@@ -799,11 +835,10 @@ def update_AgentTaskMulti(id, **kwargs):
     session.close()
 
 
-def update_AgentTaskMulti_stick(id,action:int=1):
+def update_AgentTaskMulti_stick(id, action: int = 1, key: str = 'stick_time'):
     session = Session()
-    key = "stick_time"
-    if action==1:
-        value =datetime.now()
+    if action == 1:
+        value = datetime.now()
     else:
         value = None
     task = session.query(AgentTaskMulti).filter_by(id=id).first()
@@ -1688,6 +1723,8 @@ class NoteMng(Base):
     creator = Column(String(100), doc="创建人")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+    stick_time = Column(DateTime, nullable=True, doc="置顶操作时间")  # --> 置顶字段
+    label = Column(String(50), doc="分类标签")  # --> 标签字段
 
 
 def add_note_mng(note_id, title, file_name, content, km_id, tag_1, tag_2,
@@ -1715,9 +1752,11 @@ def query_note_mng_all(count, **kwargs):
     """查询所有功能管理记录"""
     session = Session()
     if count == -1:
-        records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.create_time)).all()  # 查询所有符合条件的记录
+        records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.stick_time),
+                                                                      desc(NoteMng.create_time)).all()  # 查询所有符合条件的记录
     else:
-        records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.create_time)).limit(
+        records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.stick_time),
+                                                                      desc(NoteMng.create_time)).limit(
             count).all()  # 查询所有符合条件的记录
     session.close()  # 关闭会话
     return records
@@ -1731,6 +1770,14 @@ def query_note_mng(**kwargs):
     return record
 
 
+def query_note_mng_ById(id):
+    session = Session()
+    res = session.query(NoteMng).filter(NoteMng.id == id).one_or_none()
+    session.close()
+
+    return res
+
+
 def update_note_mng(note_id, **kwargs):
     """更新功能管理记录"""
     session = Session()
@@ -1740,6 +1787,15 @@ def update_note_mng(note_id, **kwargs):
             setattr(record, key, value)  # 更新字段
         session.commit()  # 提交事务
     session.close()  # 关闭会话
+
+
+def update_note_mng_stick(id, value=None, key: str = 'stick_time'):
+    session = Session()
+    task = session.query(NoteMng).filter_by(id=id).first()
+    if task:
+        setattr(task, key, value)
+        session.commit()
+    session.close()
 
 
 def update_note_mng_by_recordid(id, **kwargs):
@@ -1763,7 +1819,7 @@ def delete_note_mng(**kwargs):
     session.close()  # 关闭会话
 
 
-def query_Note_Search_Content(**kwargs):
+def query_Note_mng_Search_Content(count,**kwargs):
     session = Session()
 
     # 搜索关键词
@@ -1784,7 +1840,14 @@ def query_Note_Search_Content(**kwargs):
         query = query.filter(or_(*search_terms))
 
     # 获取结果
-    records = query.order_by(desc(NoteMng.create_time)).limit(50000).all()
+    if count==-1:
+        records = query.order_by(
+            desc(NoteMng.stick_time),
+            desc(NoteMng.create_time)).limit(50000).all()
+    else:
+        records = query.order_by(
+            desc(NoteMng.stick_time),
+            desc(NoteMng.create_time)).limit(count).all()
 
     session.close()
     return records

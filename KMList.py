@@ -7,7 +7,7 @@ from KMGroup import KMGroup
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
 import time
 from langchainhandler import *
-from db.DBFactory import add_KMData,query_KMData_All,update_KMData,delete_KMData,query_KMData,query_Note_Search_Content
+from db.DBFactory import add_KMData,query_KMData_All,update_KMData,delete_KMData,query_KMData
 from util import open_file
 
 class KMList(QTreeWidget):

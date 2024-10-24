@@ -1,24 +1,32 @@
 import json
 import os
-
+from datetime import datetime
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, QTreeWidgetItemIterator
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, \
+    QTreeWidgetItemIterator
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QPoint
 
 from PyQt5.QtCore import QSettings, QThread, pyqtSignal
-import time
-from db.DBFactory import query_AgentTask, query_AgentTask_Search_Content, update_note_mng_by_recordid, query_AgentTask_Search_First, AgentTask, delete_note_mng, update_AgentTask, query_Note_Search_Content
-from db.DBFactory import query_note_mng_all,delete_note_mng,query_note_mng
+
+from db.DBFactory import query_AgentTask, query_AgentTask_Search_Content, update_note_mng_by_recordid, \
+    query_AgentTask_Search_First, AgentTask, delete_note_mng, update_AgentTask, update_note_mng_stick, update_note_mng, \
+    query_note_mng_ById, query_Note_mng_Search_Content
+from db.DBFactory import query_note_mng_all, delete_note_mng, query_note_mng
 from TaskPage import TaskPage
-from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, get_user_ask_msg_content_formatted, get_agent_reply_msg_title_formatted, get_agent_reply_msg_content_formatted, add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight, get_content_from_attachment_content_list, add_attachment_to_message_window
-from langchainhandler import savevector,delete_vector
+from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, \
+    get_user_ask_msg_content_formatted, get_agent_reply_msg_title_formatted, get_agent_reply_msg_content_formatted, \
+    add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight, \
+    get_content_from_attachment_content_list, add_attachment_to_message_window
+from langchainhandler import savevector, delete_vector
+
 
 class NoteList(QTreeWidget):
     """TaskList implements the view in a Tree of the Roster"""
     rename_signal = pyqtSignal(object)
+    label_signal = pyqtSignal(object)
 
-    def __init__(self, parent,km_cfg, type_str):
+    def __init__(self, parent, km_cfg, type_str):
 
         super(NoteList, self).__init__(parent)
         print("TaskList parent", parent)
@@ -38,15 +46,10 @@ class NoteList(QTreeWidget):
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.menu = QMenu()
-        self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
-        self.rename_action.triggered.connect(self.rename)
-        self.menu.addAction(self.rename_action)
+        # 创建一个图标
+        self.stick_icon = QIcon(QPixmap('images/start.png'))  # --> 增加一个置顶图标
 
-        self.delete_action = QAction(QIcon("images/delete.png"), "删除", self)
-        self.delete_action.triggered.connect(self.delete_item)
-        self.menu.addAction(self.delete_action)
+        self.load_pop_menu()
 
         # self.vector_action = QAction(QIcon("images/vector.png"), "向量化", self)
         # self.vector_action.triggered.connect(self.vector_item)
@@ -58,15 +61,50 @@ class NoteList(QTreeWidget):
 
         # self.menu.addAction(QIcon("images/infos.png"), "信息", self.delete_item)
 
-        self.customContextMenuRequested.connect(self.context)
         self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
-        if type_str=="recent":
-            self.tasklist = query_note_mng_all(10,km_id=km_cfg.km_id)
+        self.load_data()
+        # if type_str == "recent":
+        #     self.tasklist = query_note_mng_all(10, km_id=km_cfg.km_id)
+        # else:
+        #     self.tasklist = query_note_mng_all(-1, km_id=km_cfg.km_id)
+        # for record in self.tasklist:
+        #     self.addItem(record.title.replace("\n", ""), record.id)
+
+    # --> 加载 右键菜单
+    def load_pop_menu(self):
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.menu = QMenu()
+        # --> 增加置顶，取消置顶 操作
+        self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
+        self.stick_action.triggered.connect(self.stick_item)
+        self.menu.addAction(self.stick_action)
+
+        self.label_action = QAction(QIcon("images/edit.png"), "加标签", self)
+        self.label_action.triggered.connect(self.label_item)
+        self.menu.addAction(self.label_action)
+
+        self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
+        self.rename_action.triggered.connect(self.rename)
+        self.menu.addAction(self.rename_action)
+
+        self.un_stick_action = QAction(QIcon("images/fileminus.png"), "取消置顶", self)
+        self.un_stick_action.triggered.connect(self.un_stick_item)
+        self.menu.addAction(self.un_stick_action)
+
+        self.delete_action = QAction(QIcon("images/delete.png"), "删除", self)
+        self.delete_action.triggered.connect(self.delete_item)
+        self.menu.addAction(self.delete_action)
+        self.customContextMenuRequested.connect(self.context)
+
+    # --> 加载 数据
+    def load_data(self):
+        if self.type_str == "recent":
+            self.tasklist = query_note_mng_all(10, km_id=self.km_cfg.km_id)
         else:
-            self.tasklist = query_note_mng_all(-1,km_id=km_cfg.km_id)
+            self.tasklist = query_note_mng_all(-1, km_id=self.km_cfg.km_id)
         for record in self.tasklist:
-            self.addItem(record.title.replace("\n", ""), record.id)
-            # print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")
+            stick_icon = True if record.stick_time is not None else False
+            self.addItem(record.title.replace("\n", ""), record.id, icon=stick_icon)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Delete:
@@ -98,7 +136,7 @@ class NoteList(QTreeWidget):
         if self.verticalScrollBar().value() == self.verticalScrollBar().maximum():
             print("Reached bottom!")
 
-    def addItem(self, name, id, is_top=False):
+    def addItem(self, name, id, is_top=False, icon=False):
         item_count = self.topLevelItemCount()
 
         if item_count == 0:
@@ -111,6 +149,8 @@ class NoteList(QTreeWidget):
         # top_item = QTreeWidgetItem(group_item)#不要这样构造，这样排序会缺省按字符排序，排序乱了
         top_item = QTreeWidgetItem()
         top_item.setText(0, name[0:50])
+        if icon == True:
+            top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
         top_item.setToolTip(0, name)
         top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
         if is_top == False:
@@ -170,21 +210,8 @@ class NoteList(QTreeWidget):
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.menu = QMenu()
-        self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
-        self.rename_action.triggered.connect(self.rename)
-        self.menu.addAction(self.rename_action)
+        self.load_pop_menu()
 
-        self.delete_action = QAction(QIcon("images/delete.png"), "删除", self)
-        self.delete_action.triggered.connect(self.delete_item)
-        self.menu.addAction(self.delete_action)
-
-        # self.vector_action = QAction(QIcon("images/vector.png"), "向量化", self)
-        # self.vector_action.triggered.connect(self.vector_item)
-        # self.menu.addAction(self.vector_action)
-
-        self.customContextMenuRequested.connect(self.context)
         self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
 
         if key_word.startswith('+++'):
@@ -194,17 +221,21 @@ class NoteList(QTreeWidget):
                 if key_word[3:] in record.title or key_word[3:] in record.content
             ]
         else:
-            self.tasklist = query_Note_Search_Content(
-                title=key_word, content=key_word,km_id=self.km_cfg.km_id
-            )
+            if self.type_str == "recent":
+                self.tasklist = query_Note_mng_Search_Content(
+                    10,title=key_word, content=key_word, km_id=self.km_cfg.km_id
+                )
+            else:
+                self.tasklist = query_Note_mng_Search_Content(
+                    -1, title=key_word, content=key_word, km_id=self.km_cfg.km_id
+                )
+
             filtered_tasklist = self.tasklist
 
-
         for record in filtered_tasklist:
-                # 处理 first_record
-                self.addItem(record.title.replace("\n", ""), record.id)
-
-
+            # 处理 first_record
+            self.addItem(record.title.replace("\n", ""), record.id,
+                         icon=True if record.stick_time is not None else False)
 
     def vector_item(self):
 
@@ -213,17 +244,15 @@ class NoteList(QTreeWidget):
         id_value = item.data(column, Qt.UserRole)
         print("id_value", id_value)
 
+        note_record = query_note_mng(id=id_value)
+        note_id = note_record.note_id
 
-        note_record =query_note_mng(id=id_value)
-        note_id=note_record.note_id
-
-        filepath = os.path.join(os.getcwd(),"km", "note_store", "doc", note_id+".txt")
-        persist_directory=os.path.join(os.getcwd(),"km", "note_store", "vector")
-        embedding_model_name=""
+        filepath = os.path.join(os.getcwd(), "km", "note_store", "doc", note_id + ".txt")
+        persist_directory = os.path.join(os.getcwd(), "km", "note_store", "vector")
+        embedding_model_name = ""
         savevector(filepath, persist_directory, embedding_model_name)
 
-
-    def delete_vector(self,note_id):
+    def delete_vector(self, note_id):
 
         filepath = os.path.join(os.getcwd(), "km", self.km_cfg.km_id, "doc", note_id + ".txt")
         persist_directory = os.path.join(os.getcwd(), "km", self.km_cfg.km_id, "vector")
@@ -236,7 +265,6 @@ class NoteList(QTreeWidget):
             emb_type = "other"
 
         delete_vector(filepath, persist_directory, embedding_model_name, emb_type)
-
 
     def delete_item(self):
 
@@ -268,10 +296,8 @@ class NoteList(QTreeWidget):
         else:
             QMessageBox.critical(None, "警告", "分类不能删除", QMessageBox.Ok)
             return
-        self.parent().parent().findChild(NoteList,"recentnotelist").reload()
+        self.parent().parent().findChild(NoteList, "recentnotelist").reload()
         self.parent().parent().findChild(NoteList, "allnotelist").reload()
-
-
 
     def getInfo(self):
         pass
@@ -297,8 +323,7 @@ class NoteList(QTreeWidget):
         if id_value == None:
             return (False)
 
-        self.mainwindow.open_note_editor(self.km_cfg,(id_value))
-
+        self.mainwindow.open_note_editor(self.km_cfg, (id_value))
 
     def get_record_problem_for_message(self, record):
         attachment_doc_content = ""
@@ -307,11 +332,11 @@ class NoteList(QTreeWidget):
         problem = record.problem
         if record.attachment_list is not None and record.attachment_list != '':
             attachment_content_list = json.loads(record.attachment_list)
-            attachment_doc_content, attachment_image_list, retrieve_doc_content = get_content_from_attachment_content_list(attachment_content_list)
+            attachment_doc_content, attachment_image_list, retrieve_doc_content = get_content_from_attachment_content_list(
+                attachment_content_list)
 
         if retrieve_doc_content != "":
             problem = f'请根据后面提供的背景内容回答问题，回答只能限制在背景内容的范围内，问题是：{problem};供参考的背景内容是：{retrieve_doc_content}'
-
 
         if attachment_doc_content != "":
             problem = f'{problem};为你提供相关附件内容作为参考，以下是具体的附件内容：{attachment_doc_content}'
@@ -361,3 +386,70 @@ class NoteList(QTreeWidget):
             add_msg_to_message_window(browser_page, answer, 2)
         else:
             add_msg_to_message_window_with_markdown_and_highlight(browser_page, answer, 2)
+
+    def label_item(self):
+        self.label_signal.emit(self.currentItem)
+        item = self.current_Item
+        oldName = None
+        column = 0
+        id_value = item.data(column, Qt.UserRole)
+
+        if id_value:
+            res = query_note_mng_ById(id_value)
+            if res is not None:
+                oldName = res.label
+            if oldName is None:
+                oldName = ""
+            newName, ok = QInputDialog.getText(self, "加标签", "新标签:", text=oldName)
+            if ok and newName:
+                update_note_mng_by_recordid(id_value, label=newName)
+
+        else:
+            QMessageBox.critical(None, "警告", "分类名不能加标签", QMessageBox.Ok)
+
+    # --> 增加 置顶方法
+    def stick_item(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            if item:
+                reply = QMessageBox.question(self, '置顶确定',
+                                             f"您确定要置顶 '{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                update_note_mng_stick(id_value, value=datetime.now())
+                index = self.indexOfTopLevelItem(item)
+                if index == -1:
+                    parent = item.parent()
+                    if parent:
+                        # 获取当前项目的索引
+                        current_index = parent.indexOfChild(item)
+                        # 从父项目中移除当前项目
+                        parent.removeChild(item)
+                        # 将项目插入到父项目的第一个位置
+                        item.setIcon(0, self.stick_icon)
+                        parent.insertChild(0, item)
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能置顶", QMessageBox.Ok)
+        print("")
+
+    # --> 增加 取消置顶方法
+    def un_stick_item(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.UserRole)
+        if id_value:
+            if item:
+                reply = QMessageBox.question(self, '取消置顶确定',
+                                             f"您确定要取消置顶 '{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                update_note_mng_stick(id_value, value=None)
+                self.clear()
+                self.load_data()
+
+        else:
+            QMessageBox.critical(None, "警告", "分类不能取消置顶", QMessageBox.Ok)

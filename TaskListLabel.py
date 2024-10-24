@@ -42,9 +42,7 @@ class TaskListLabel(TaskList):
 
             # 创建联系人项，并添加到对应的分类下
             # contact_item = QTreeWidgetItem(labels[label], [name])
-            stick_icon = False
-            if record.stick_time is not None:
-                stick_icon = True
+            stick_icon = True if record.stick_time is not None else False
             self.addItem(record.title.replace("\n", ""), labels[label], record.id, icon=stick_icon)
 
     def addItem(self, name, group_item,id, is_top=False, icon=False):
@@ -96,9 +94,7 @@ class TaskListLabel(TaskList):
                     label = "无标签"
                 if label not in labels:
                     labels[label] = QTreeWidgetItem(self, [label])
-                stick_icon = False
-                if record.stick_time is not None:
-                    stick_icon = True
+                stick_icon = True if record.stick_time is not None else False
                 self.addItem(record.title.replace("\n", ""), labels[label], record.id, icon=stick_icon)
 
                 # lambda: self.addItemLabel(record,labels)
@@ -115,9 +111,7 @@ class TaskListLabel(TaskList):
                         label = "无标签"
                     if label not in labels:
                         labels[label] = QTreeWidgetItem(self, [label])
-                    stick_icon = False
-                    if first_record.stick_time is not None:
-                        stick_icon = True
+                    stick_icon = True if record.stick_time is not None else False
                     self.addItem(first_record.title.replace("\n", ""), labels[label], first_record.id, icon=stick_icon)
 
                     # lambda: self.addItemLabel(record, labels)
@@ -140,9 +134,8 @@ class TaskListLabel(TaskList):
             label = "无标签"
         if label not in labels:
             labels[label] = QTreeWidgetItem(self, [label])
-        stick_icon = False
-        if record.stick_time is not None:
-            stick_icon = True
+
+        stick_icon = True if record.stick_time is not None else False
         self.addItem(record.title.replace("\n", ""), labels[label], record.id, icon=stick_icon)
 
 

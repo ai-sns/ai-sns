@@ -28,6 +28,7 @@ from PyQt5.QtGui import QStandardItem, QStandardItemModel
 from PyQt5.QtWidgets import QApplication, QDialog, QHeaderView, QTableView, QVBoxLayout
 
 # from TaskListGroupLabel import TaskListGroupLabel
+from NoteListLabel import NoteListLabel
 from TaskListGroupLabel import TaskListGroupLabel
 
 sys.path.append("..")
@@ -1005,7 +1006,8 @@ class Ui_MainWindow(object):
                                               f"{agent_cfg_multi.name} ({agent_cfg_multi.memo})" if agent_cfg_multi.memo else agent_cfg_multi.name)
         # textEdit.returnPressed.connect(lambda: task_list_group.search(textEdit.text()))
         textEdit.returnPressed.connect(lambda: task_list_group_on_return_pressed(textEdit.text()))
-        #--> 内部调用
+
+        # --> 内部调用
         def task_list_group_on_return_pressed(key_word):
             if self.CurTabTextChatMem == "对话列表":  # 这里是你的判断条件
                 task_list_group.search(key_word)
@@ -1293,14 +1295,18 @@ class Ui_MainWindow(object):
         notelist_recent.setObjectName("recentnotelist")
         notelist_all = NoteList(self, kmrecord, "all")
         notelist_all.setObjectName("allnotelist")
+        notelist_all_label = NoteListLabel(self, kmrecord, "label")
+        notelist_all_label.setObjectName("labelallnotelist")
         self.notelist_recent = notelist_recent
         self.notelist_all = notelist_all
+        self.notelist_all_label = notelist_all_label
 
         self.notelist_recent_list[kmrecord.km_id] = notelist_recent
         self.notelist_all_list[kmrecord.km_id] = notelist_all
 
         tabWidget.addTab(notelist_recent, "最新")
         tabWidget.addTab(notelist_all, "全部")
+        tabWidget.addTab(notelist_all_label, "标签")
         self.CurTabTextNote = "最新"
         # 直接在 connect 方法中使用 lambda 函数处理标签页切换
         tabWidget.currentChanged.connect(
@@ -1331,8 +1337,12 @@ class Ui_MainWindow(object):
     def notelist_on_return_pressed(self, key_word):
         if self.CurTabTextNote == "全部":  # 这里是你的判断条件
             self.notelist_all.search(key_word)
-        else:
+        elif self.CurTabTextNote == "标签":  # -->  增加 标签 页签
+            self.notelist_all_label.search(key_word)
+        elif self.CurTabTextNote == "最新":  # 这里是你的判断条件
             self.notelist_recent.search(key_word)
+        else:
+            print("其他")
 
     def createToolBoxUnit_KM(self, kmrecord, pos=-1):
         # two button 两个按钮
