@@ -106,10 +106,12 @@ def query_AIChatMessages_ById(id):
     return res
 
 
-def query_AIChatMessages_ByLabel(is_first,owner_account,friend_account):
+def query_AIChatMessages_ByLabel(is_first, owner_account, friend_account):
     session = Session()
     # 首先获取所有不同的 label
-    res = session.query(AIChatMessages.label).filter(AIChatMessages.is_first == True,AIChatMessages.owner_account == owner_account,AIChatMessages.friend_account == friend_account,).distinct().all()
+    res = session.query(AIChatMessages.label).filter(AIChatMessages.is_first == True,
+                                                     AIChatMessages.owner_account == owner_account,
+                                                     AIChatMessages.friend_account == friend_account, ).distinct().all()
     session.close()
     if res is None:
         labels = []
@@ -477,7 +479,8 @@ def query_AgentTask(label: bool = False, **kwargs):
 def query_AgentTask_ByLabel(agent_id):
     session = Session()
     # 首先获取所有不同的 label
-    res = session.query(AgentTask.label).filter(AgentTask.is_first == True,AgentTask.agent_id == agent_id).distinct().all()
+    res = session.query(AgentTask.label).filter(AgentTask.is_first == True,
+                                                AgentTask.agent_id == agent_id).distinct().all()
     session.close()
     if res is None:
         labels = []
@@ -813,7 +816,8 @@ def query_AgentTaskMulti_ById(id):
 def query_AgentTaskMulti_ByLabel(group_id):
     session = Session()
     # 首先获取所有不同的 label
-    res = session.query(AgentTaskMulti.label).filter(AgentTaskMulti.is_first == True,AgentTaskMulti.group_id == group_id).distinct().all()
+    res = session.query(AgentTaskMulti.label).filter(AgentTaskMulti.is_first == True,
+                                                     AgentTaskMulti.group_id == group_id).distinct().all()
     session.close()
     if res is None:
         labels = []
@@ -868,7 +872,7 @@ def query_AgentTaskMulti_Search_Content(label: bool = False, **kwargs):
     return tasks
 
 
-def query_AgentTaskMulti_Search_First(agent_id,task_id, label: bool = False):
+def query_AgentTaskMulti_Search_First(agent_id, task_id, label: bool = False):
     session = Session()
 
     # 查找特定 agent_id 和 task_id 且 is_first 为 True 的记录
@@ -1825,7 +1829,7 @@ def add_note_mng(note_id, title, file_name, content, km_id, tag_1, tag_2,
     return (record_id)
 
 
-def query_note_mng_all(count, label: bool = False,**kwargs):
+def query_note_mng_all(count, label: bool = False, **kwargs):
     """查询所有功能管理记录"""
     session = Session()
     if label:
@@ -1920,7 +1924,7 @@ def delete_note_mng(**kwargs):
     session.close()  # 关闭会话
 
 
-def query_Note_mng_Search_Content(count,label: bool = False,  **kwargs):
+def query_Note_mng_Search_Content(count, label: bool = False, **kwargs):
     session = Session()
 
     # 搜索关键词
@@ -2098,6 +2102,67 @@ def update_config_lang(lang, **kwargs):
     session.commit()
     session.close()
     return lang
+
+
+# --> question
+class Question(Base):
+    __tablename__ = 'question'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    question = Column(String)
+    tag = Column(String(20), doc="问题的类别")
+    create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+
+
+def add_Question(question, tag):
+    session = Session()
+    systemCfg = add_Question(question=question, tag=tag)
+    session.add(systemCfg)
+    session.commit()
+    session.close()
+
+
+def query_Question_All(**kwargs):
+    session = Session()
+    records = session.query(Question).filter_by(**kwargs).all()
+    session.close()
+    return records
+
+
+def query_Question_limit(num: int = 0, **kwargs):
+    session = Session()
+    if num <= 0:
+        records = session.query(Question).filter_by(**kwargs).all()
+    else:
+        records = session.query(Question).filter_by(**kwargs).limit(num).all()
+
+    session.close()
+    return records
+
+
+def query_Question(**kwargs):
+    session = Session()
+    record = session.query(Question).filter_by(**kwargs).first()
+    session.close()
+    return record
+
+
+def update_Question(id, **kwargs):
+    session = Session()
+    record = session.query(Question).filter_by(id=id).first()
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)
+        session.commit()
+    session.close()
+
+
+def delete_Question(id):
+    session = Session()
+    record = session.query(Question).filter_by(id=id).first()
+    if record:
+        session.delete(record)
+        session.commit()
+    session.close()
 
 
 # Prompt

@@ -30,6 +30,7 @@ from PyQt5.QtWidgets import QApplication, QDialog, QHeaderView, QTableView, QVBo
 # from TaskListGroupLabel import TaskListGroupLabel
 from NoteListLabel import NoteListLabel
 from TaskListGroupLabel import TaskListGroupLabel
+from model_metric import ModelEvaluationDialog
 
 sys.path.append("..")
 sys.path.append("../..")
@@ -1053,7 +1054,7 @@ class Ui_MainWindow(object):
         settingLayout.addWidget(self.createCellWidgetAgentMultiMng("管理Agent群",
                                                                    'images/agentmultimng.png'), 1, 1)
 
-        settingLayout.addWidget(self.createCellWidgetAgentMultiNew("模型评测",
+        settingLayout.addWidget(self.createCellWidgetAgentMultiEval("模型评测",
                                                                    'images/billboard.png'), 2, 0)
         # settingLayout.addWidget(self.createCellWidgetAgentMultiMng("提示词管理",
         #                                                            'images/fileline.png'), 2, 1)
@@ -2596,6 +2597,26 @@ class Ui_MainWindow(object):
 
         return widget
 
+    def createCellWidgetAgentMultiEval(self, text, image):
+        # agetnconfigdlg = FreezeTableDialog(self)
+        agentcfgbutton = QToolButton()
+        agentcfgbutton.setIcon(QIcon(image))
+        agentcfgbutton.setIconSize(QSize(50, 50))
+        agentcfgbutton.setCheckable(True)
+        # agentcfgbutton.clicked.connect(self.agentmultiopendialog)
+        agentcfgbutton.clicked.connect(lambda: self.show_eval_list("问题列表"))
+
+        self.settingbuttonGroup.addButton(agentcfgbutton)
+
+        layout = QGridLayout()
+        layout.addWidget(agentcfgbutton, 0, 0, Qt.AlignHCenter)
+        layout.addWidget(QLabel(text), 1, 0, Qt.AlignCenter)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+
+        return widget
+
     def createNewKM(self, kmrecord):
         filepath = self.setOpenFileName()
         filename = Path(filepath).name
@@ -3310,6 +3331,14 @@ class Ui_MainWindow(object):
         prompt_dialog.setObjectName("promptmanager")
         self.conversation_pages.addWidget(prompt_dialog)
         self.conversation_pages.setCurrentWidget(prompt_dialog)
+
+    def show_eval_list(self, plugin_full_name):
+        eval_dialog = ModelEvaluationDialog()
+        eval_dialog.setObjectName("evalmanager")
+        self.conversation_pages.addWidget(eval_dialog)
+        self.conversation_pages.setCurrentWidget(eval_dialog)
+
+
 
     def show_function_list(self, type_str):
 

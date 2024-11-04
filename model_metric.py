@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from db.DBFactory import Session, ModelMetrics
+from llmrecodialog import EvalApp
 
 session = Session()
 
@@ -32,6 +33,7 @@ if not session.query(ModelMetrics).first():
                                 video_recognition=70, searching=80, tool_ability="Tool1")
     session.add(initial_data)
     session.commit()
+
 
 class SliderWidget(QWidget):
     def __init__(self, min_value=0, max_value=100, initial_value=50, parent=None):
@@ -89,6 +91,11 @@ class ModelEvaluationDialog(QDialog):
         self.add_button.clicked.connect(self.add_record)
         button_layout.addWidget(self.add_button)
 
+        # button_layout = QHBoxLayout()
+        self.edit_button = QPushButton("编辑记录")
+        self.edit_button.clicked.connect(self.edit_record)
+        button_layout.addWidget(self.edit_button)
+
         self.delete_button = QPushButton("删除记录")
         self.delete_button.clicked.connect(self.delete_record)
         button_layout.addWidget(self.delete_button)
@@ -111,9 +118,10 @@ class ModelEvaluationDialog(QDialog):
         # self.tableView.horizontalScrollBar().rangeChanged.connect(self.adjust_column_widths)
         self.adjust_column_widths()
 
-    def load_data(self):
+    def load_data(self, datas=None):
         self.model.removeRows(0, self.model.rowCount())
-        metrics = session.query(ModelMetrics).all()
+        if datas is None:
+            metrics = session.query(ModelMetrics).all()
         for metric in metrics:
             row = [
                 QStandardItem(metric.connector_name),
@@ -173,29 +181,162 @@ class ModelEvaluationDialog(QDialog):
             self.tableView.setColumnWidth(column, column_width)
 
     def add_record(self):
+        dialog = EvalApp()
+        if dialog.exec_():
+            result = dialog.get_result()  # 通过get_result方法获取对话框返回的值
+            print(result)  # 打印结果
+        res_list = result.split(",")
+        ls = [l if l != " " else 0 for l in res_list]
         row = [
-            QStandardItem(""),  # connector_name
-            QStandardItem(""),  # model_name
-            QStandardItem("0"),  # price
-            QStandardItem(),  # speed slider will be added here
-            QStandardItem(),  # understanding slider will be added here
-            QStandardItem(),  # summarizing slider will be added here
-            QStandardItem(),  # knowledge slider will be added here
-            QStandardItem(),  # logical_reasoning slider will be added here
-            QStandardItem(),  # math slider will be added here
-            QStandardItem(),  # coding slider will be added here
-            QStandardItem(),  # writing slider will be added here
-            QStandardItem(),  # attachment slider will be added here
-            QStandardItem(),  # image_recognition slider will be added here
-            QStandardItem(),  # image_generation slider will be added here
-            QStandardItem(),  # video_generation slider will be added here
-            QStandardItem(),  # video_recognition slider will be added here
-            QStandardItem(),  # searching slider will be added here
-            QStandardItem(""),  # tool_ability
+            QStandardItem(ls[0]),  # connector_name
+            QStandardItem(ls[1]),  # model_name7
+            QStandardItem(ls[2]),  # price
+            QStandardItem(ls[3]),  # speed slider will be added here
+            QStandardItem(ls[4]),  # understanding slider will be added here
+            QStandardItem(ls[5]),  # summarizing slider will be added here
+            QStandardItem(ls[6]),  # knowledge slider will be added here
+            QStandardItem(ls[7]),  # logical_reasoning slider will be added here
+            QStandardItem(ls[8]),  # math slider will be added here
+            QStandardItem(ls[9]),  # coding slider will be added here
+            QStandardItem(ls[10]),  # writing slider will be added here
+            QStandardItem(ls[11]),  # attachment slider will be added here
+            QStandardItem(ls[12]),  # image_recognition slider will be added here
+            QStandardItem(ls[13]),  # image_generation slider will be added here
+            QStandardItem(ls[14]),  # video_generation slider will be added here
+            QStandardItem(ls[15]),  # video_recognition slider will be added here
+            QStandardItem(ls[16]),  # searching slider will be added here
+            QStandardItem(ls[17]),  # tool_ability
         ]
         self.model.appendRow(row)
-        self.add_sliders_to_row(self.model.rowCount() - 1, None)
+        # self.add_sliders_to_row(self.model.rowCount() - 1, row)
+        slider_columns = {i: int(ls[i]) for i in range(3, 16 + 1)}
+        print(slider_columns)
+        # slider_columns = {
+        #     3: ls[3],
+        #     4: ls[4],
+        #     5: ls[5],
+        #     6: ls[3],
+        #     7: ls[3],
+        #     8: ls[3],
+        #     9: ls[3],
+        #     10: metric.writing if metric else 0,
+        #     11: metric.attachment if metric else 0,
+        #     12: metric.image_recognition if metric else 0,
+        #     13: metric.image_generation if metric else 0,
+        #     14: metric.video_generation if metric else 0,
+        #     15: metric.video_recognition if metric else 0,
+        #     16: metric.searching if metric else 0,
+        # }
+        for col, value in slider_columns.items():
+            slider_widget = SliderWidget(initial_value=value)
+            self.tableView.setIndexWidget(self.model.index(self.model.rowCount() - 1, col), slider_widget)
         self.adjust_column_widths()
+
+    def edit_record(self):
+        selected = self.tableView.selectionModel().selectedRows()
+        if selected:
+            for index in selected:
+                print("index.row-->", index.row())
+                connector_name = self.model.item(index.row(), 0).text()
+                model_name = self.model.item(index.row(), 1).text()
+                price = float(self.model.item(index.row(), 2).text())
+                # metric = session.query(ModelMetrics).filter(
+                #     ModelMetrics.connector_name == connector_name,
+                #     ModelMetrics.model_name == model_name
+                # ).first()
+                # inx = self.model.index(index.row(), 3)
+                # slider_widget = self.tableView.indexWidget(inx)
+                # speed = self.tableView.indexWidget(self.model.index(index.row(), 3)).get_value()
+                # 获取 SliderWidget 的值
+                # slider_value = slider_widget.value() if slider_widget else None
+                # print("slider_widget-->", speed)
+
+                metric = ModelMetrics(
+                    connector_name=connector_name,
+                    model_name=model_name,
+                    price=price,
+                    speed=int(self.tableView.indexWidget(self.model.index(index.row(), 3)).get_value()),
+                    understanding=int(self.tableView.indexWidget(self.model.index(index.row(),4)).get_value()),
+                    summarizing=int(self.tableView.indexWidget(self.model.index(index.row(),5)).get_value()),
+                    knowledge=int(self.tableView.indexWidget(self.model.index(index.row(),6)).get_value()),
+                    logical_reasoning=int(self.tableView.indexWidget(self.model.index(index.row(),7)).get_value()),
+                    math=int(self.tableView.indexWidget(self.model.index(index.row(),8)).get_value()),
+                    coding=int(self.tableView.indexWidget(self.model.index(index.row(),9)).get_value()),
+                    writing=int(self.tableView.indexWidget(self.model.index(index.row(),10)).get_value()),
+                    attachment=int(self.tableView.indexWidget(self.model.index(index.row(),11)).get_value()),
+                    image_recognition=int(self.tableView.indexWidget(self.model.index(index.row(),12)).get_value()),
+                    image_generation=int(self.tableView.indexWidget(self.model.index(index.row(),13)).get_value()),
+                    video_generation=int(self.tableView.indexWidget(self.model.index(index.row(),14)).get_value()),
+                    video_recognition=int(self.tableView.indexWidget(self.model.index(index.row(),15)).get_value()),
+                    searching=int(self.tableView.indexWidget(self.model.index(index.row(),16)).get_value()),
+                    tool_ability=self.model.item(index.row(), 17).text()
+                )
+                # self.res = metric
+                dialog = EvalApp(res=metric)
+                if dialog.exec_():
+                    res = dialog.get_result()
+                    result = res.split(",")  # 通过get_result方法获取对话框返回的值
+                    role = Qt.DisplayRole
+                    new_values = {
+                        0: result[0],
+                        1: result[1],
+                        2: result[2],
+                        3: result[3],
+                        4: result[4],
+                        5: result[5],
+                        6: result[6],
+                        7: result[7],
+                        8: result[8],
+                        9: result[9],
+                        10: result[10],
+                        11: result[11],
+                        12: result[12],
+                        13: result[13],
+                        14: result[14],
+                        15: result[15],
+                        16: result[16],
+                        17: result[17]
+                        # ... 为其他列添加新值
+                    }
+                    # 遍历所有列
+                    for column, new_value in new_values.items():
+                        # 设置新值，这里使用Qt.EditRole，也可以根据需要使用Qt.DisplayRole
+                        # self.tableView.model().setData(index.sibling(index.row(), column), new_value, Qt.EditRole)
+
+                        if column > 2 and column < 17:
+                            slider_widget = SliderWidget(initial_value=int(new_value.strip()))
+                            self.tableView.setIndexWidget(self.model.index(self.model.rowCount() - 1, column),
+                                                          slider_widget)
+                        else:
+                            self.model.item(index.row(), column).setText(new_value.strip())
+                        self.adjust_column_widths()
+
+                    print(result)  # 打印结果
+
+            # self.adjust_column_widths()
+        # row = [
+        #     QStandardItem(""),  # connector_name
+        #     QStandardItem(""),  # model_name
+        #     QStandardItem("0"),  # price
+        #     QStandardItem(),  # speed slider will be added here
+        #     QStandardItem(),  # understanding slider will be added here
+        #     QStandardItem(),  # summarizing slider will be added here
+        #     QStandardItem(),  # knowledge slider will be added here
+        #     QStandardItem(),  # logical_reasoning slider will be added here
+        #     QStandardItem(),  # math slider will be added here
+        #     QStandardItem(),  # coding slider will be added here
+        #     QStandardItem(),  # writing slider will be added here
+        #     QStandardItem(),  # attachment slider will be added here
+        #     QStandardItem(),  # image_recognition slider will be added here
+        #     QStandardItem(),  # image_generation slider will be added here
+        #     QStandardItem(),  # video_generation slider will be added here
+        #     QStandardItem(),  # video_recognition slider will be added here
+        #     QStandardItem(),  # searching slider will be added here
+        #     QStandardItem(""),  # tool_ability
+        # ]
+        # self.model.appendRow(row)
+        # self.add_sliders_to_row(self.model.rowCount() - 1, None)
+        # self.adjust_column_widths()
 
     def delete_record(self):
         selected = self.tableView.selectionModel().selectedRows()
