@@ -1,6 +1,7 @@
 import sys
 import json
 import re
+import threading
 from datetime import datetime
 
 import jieba as jieba
@@ -17,7 +18,7 @@ from db.DBFactory import query_PluginMng_All, Session, query_Question_limit
 # from questions import QuestionManager
 from aichat import AI_spark, AI_kimi
 from questions import QuestionManager
-from globals import llm_ability,question_speed
+from globals import llm_ability, question_speed
 
 
 class Worker(QThread):
@@ -306,17 +307,14 @@ class EvalApp(QDialog):
             self.speed_edit.setText(str(row.speed))
             self.understanding_edit.setText(str(row.understanding))
             self.summarization_edit.setText(str(row.summarizing))
-
             self.Knowledge_edit.setText(str(row.knowledge))
             self.Logical_edit.setText(str(row.logical_reasoning))
             self.math_edit.setText(str(row.math))
             self.coding_edit.setText(str(row.coding))
-
             self.creation_edit.setText(str(row.writing))
             self.attach_edit.setText(str(row.attachment))
             self.image_rec_edit.setText(str(row.image_recognition))
             self.image_gen_edit.setText(str(row.image_generation))
-
             self.video_gen_edit.setText(str(row.video_generation))
             self.video_rec_edit.setText(str(row.video_recognition))
             self.search_edit.setText(str(row.searching))
@@ -325,8 +323,10 @@ class EvalApp(QDialog):
 
         # OK 和 Cancel 按钮
         button_layout = QHBoxLayout()
+        autotest_button = QPushButton('自动测试')
         ok_button = QPushButton('OK')
         cancel_button = QPushButton('Cancel')
+        button_layout.addWidget(autotest_button)
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
         main_layout.addLayout(button_layout)
@@ -364,11 +364,29 @@ class EvalApp(QDialog):
         settings_button_13.clicked.connect(self.on_settings13)
         test_button_13.clicked.connect(self.on_test13)
 
+        autotest_button.clicked.connect(self.on_autotest)
         ok_button.clicked.connect(self.on_ok)
         cancel_button.clicked.connect(self.on_cancel)
 
+    def on_autotest(self):
+        self.sender().setEnabled(False)  # 禁用按钮
+        # self.on_test0()
+        edits = [
+            "understanding_edit", "summarization_edit", "Knowledge_edit", "Logical_edit", "math_edit",
+            "coding_edit", "creation_edit", "attach_edit", "image_rec_edit",
+            "image_gen_edit", "video_gen_edit", "video_rec_edit", "search_edit"
+        ]
 
-
+        for i in range(3):  # 假设你有5个测试方法
+            method = getattr(self, f'on_test{i}', None)
+            if callable(method):
+                # method()
+                # edit_obj = getattr(self, edits[i - 1])
+                thread = threading.Thread(target=method)
+                thread.start()  # 启动线程
+                thread.join()  # 等待线程执行完成，确保顺序执行
+        self.sender().setEnabled(True)  # 禁用按钮
+        # pass
 
 
     def on_settings(self):
@@ -388,13 +406,13 @@ class EvalApp(QDialog):
         self.question_manager.exec_()
 
     def on_settings2(self):
-       self.on_settings1()
+        self.on_settings1()
 
     def on_settings3(self):
-       self.on_settings1()
+        self.on_settings1()
 
     def on_settings4(self):
-       self.on_settings1()
+        self.on_settings1()
 
     def on_settings5(self):
         self.on_settings1()
@@ -423,7 +441,7 @@ class EvalApp(QDialog):
     def on_settings13(self):
         self.on_settings1()
 
-    def on_test(self,question_type:str=llm_ability[0]):
+    def on_test(self, question_type: str = llm_ability[0], edit_obj=None):
         # 执行测试操作
         print("测试按钮被点击")
         bt = self.sender()
@@ -431,7 +449,7 @@ class EvalApp(QDialog):
         bt.setCursor(QCursor(Qt.WaitCursor))
         # question_type = llm_ability[0]
         question_num = 3
-        self.thread = Worker(question_type, question_num, self.understanding_edit)
+        self.thread = Worker(question_type, question_num, edit_obj)
         self.thread.finished.connect(self.on_thread_finished1)
         self.thread.start()
 
@@ -439,55 +457,57 @@ class EvalApp(QDialog):
         print("测试按钮被点击")
         spark = AI_spark()
         prompt = question_speed
-        time_start= datetime.now()
+        time_start = datetime.now()
         answers = spark.ask_one(prompt)
         answers = ''.join(answers)
-        time_end  = datetime.now()
+        time_end = datetime.now()
         tokens = jieba.cut(answers, cut_all=False)  # 精确模式
-        dur = (time_end-time_start)
+        dur = (time_end - time_start)
         lst = list(tokens)
-        speed = round(len(lst)/dur.total_seconds(),0)
+        speed = round(len(lst) / dur.total_seconds(), 0)
         self.speed_edit.setText(str(speed))
 
     def on_test1(self):
-        self.on_test(llm_ability[0])
+        self.on_test(llm_ability[0], self.understanding_edit)
 
     def on_test2(self):
-        self.on_test(llm_ability[1])
+        self.on_test(llm_ability[1], self.summarization_edit)
 
     def on_test3(self):
-        self.on_test(llm_ability[2])
+        self.on_test(llm_ability[1], self.Knowledge_edit)
 
     def on_test4(self):
-        self.on_test(llm_ability[3])
+        self.on_test(llm_ability[2], self.Logical_edit)
 
     def on_test5(self):
-        self.on_test(llm_ability[4])
+        self.on_test(llm_ability[3], self.math_edit)
 
     def on_test6(self):
-        self.on_test(llm_ability[5])
+        self.on_test(llm_ability[4], self.coding_edit)
 
     def on_test7(self):
-        self.on_test(llm_ability[6])
+        self.on_test(llm_ability[5], self.creation_edit)
 
     def on_test8(self):
-        self.on_test(llm_ability[7])
+        self.on_test(llm_ability[6], self.attach_edit)
+
+        "coding_edit", "creation_edit", "attach_edit", "image_rec_edit",
+        "image_gen_edit", "video_gen_edit", "video_rec_edit", "search_edit"
 
     def on_test9(self):
-        self.on_test(llm_ability[8])
+        self.on_test(llm_ability[8], self.image_rec_edit)
 
     def on_test10(self):
-        self.on_test(llm_ability[9])
+        self.on_test(llm_ability[9], self.image_gen_edit)
 
     def on_test11(self):
-        self.on_test(llm_ability[10])
+        self.on_test(llm_ability[10], self.video_gen_edit)
 
     def on_test12(self):
-        self.on_test(llm_ability[11])
+        self.on_test(llm_ability[11], self.video_rec_edit)
 
     def on_test13(self):
-        self.on_test(llm_ability[12])
-
+        self.on_test(llm_ability[12], self.search_edit)
 
     def on_thread_finished1(self):
         print("线程完成")
