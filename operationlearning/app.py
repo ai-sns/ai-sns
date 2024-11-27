@@ -19,8 +19,6 @@ import shutil
 
 # Import custom modules
 from .base import Base
-from .config import ABSOLUTE_PATH
-from .screen_record_thread import ScreenRecordThread
 
 import sys
 import pyautogui
@@ -491,6 +489,8 @@ class AnnotationDialog(QWidget):
 
     def finished(self):
         print("annotation finished")
+        self.content_textEdit.setPlainText("")
+        self.graphics_scene.clear()
         self.annotation_finished.emit()  # 发射信号，通知窗口已关闭
         self.close()  # 关闭窗口时发射信号
 
@@ -518,8 +518,11 @@ class AnnotationDialog(QWidget):
         json_object = {'action': 'annotated', 'mode': mode, 'content': content, 'image_path': image_path, '_time': time.time()}
         print(f"'action': 'annotated', 'mode': {mode},'content': {content},'image_path': {image_path}, '_time': {time.time()}")
         storage.append(json_object)
-        self.close()  # 关闭窗口时发射信号
+        self.content_textEdit.setPlainText("")
+        self.graphics_scene.clear()
         self.annotation_finished.emit()  # 发射信号，通知窗口已关闭
+        self.close()  # 关闭窗口时发射信号
+
 
 
 # 圆形倒计时窗口类
@@ -600,8 +603,6 @@ class ScreenBar(Base):
         self.start_btn = QPushButton()
         self.end_btn = QPushButton()
         self.close_btn = QPushButton()
-        # self.recording_thread = ScreenRecordThread()
-        # self.recording_thread.recording = False
         self.record_thread = None
         self.dialog = None
 
@@ -665,6 +666,11 @@ class ScreenBar(Base):
         self.move(QApplication.desktop().frameGeometry().width() - 300, QApplication.desktop().frameGeometry().height() - 150)
         self.setLayout(self.box)
 
+    def re_init(self):
+        self.stop_timer()
+
+
+
     def toggle_timer(self):
         """切换计时状态（开始/暂停）"""
         print("before togggle self.is_running:",self.is_running)
@@ -698,7 +704,6 @@ class ScreenBar(Base):
         if self.record_thread is None:
             self.record_thread = WorkerThread()
             self.record_thread.start()
-
 
     def on_countdown_finished(self):
         print("in countdown finished")
@@ -759,7 +764,6 @@ class ScreenBar(Base):
                 self.start_btn.setIcon(QIcon("images/pause.png"))
                 self.start_btn.setToolTip("暂停记录")
                 # self.annotation_btn.setEnabled(False)
-                # self.recording_thread.recording = True
                 self.countdown_window = CircularCountdown(self.count_down_number,"开始")
                 self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
                 self.countdown_window.show()
@@ -781,7 +785,6 @@ class ScreenBar(Base):
                 self.start_btn.setToolTip("暂停记录")
 
                 # self.annotation_btn.setEnabled(False)
-                # self.recording_thread.recording = True
                 self.countdown_window = CircularCountdown(self.count_down_number,"继续")
                 self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
                 self.countdown_window.show()
@@ -789,7 +792,6 @@ class ScreenBar(Base):
         def end_signal():
             global is_capturing
             is_capturing = False
-            # self.recording_thread.recording = False
             self.cur_status = "ended"
             self.countdown_window = CircularCountdown(0,"结束")
             self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
@@ -840,7 +842,6 @@ class ScreenBar(Base):
         self.dialog.show()
         self.dialog.raise_()          # 将对话框置于最上层
         self.dialog.activateWindow()  # 激活对话框窗口
-
 
 
     def annotation_finished_handle(self):
