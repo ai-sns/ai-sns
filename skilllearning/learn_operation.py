@@ -744,6 +744,9 @@ class ConfigDialog(QDialog):
         self.title = self.title_lineEdit.text()
         self.desc = self.desc_lineEdit.text()
         self.detail =self.detail_textEdit.toPlainText()
+        self.title_lineEdit.setText("")
+        self.desc_lineEdit.setText("")
+        self.detail_textEdit.setPlainText("")
         self.accept()
 
 
@@ -839,6 +842,12 @@ class LearnOperationBar(Base):
         self.bind()
         self.set_style()
         initialize_globals()
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+
+
 
     def auto_start(self):
         if self.cfg_dialog is None:

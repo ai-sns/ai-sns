@@ -15,7 +15,7 @@ from TaskPage import TaskPage
 from userinputdialog import UserInputDialog
 from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, \
     get_user_ask_msg_content_formatted, get_agent_reply_msg_title_formatted, get_agent_reply_msg_content_formatted, \
-    add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight, \
+    add_agent_reply_msg_to_message_window,add_msg_to_message_windowv2, add_msg_to_message_window_with_markdown_and_highlight, add_msg_to_message_window_with_markdown_and_highlightv2, \
     get_content_from_attachment_content_list, add_attachment_to_message_window
 
 
@@ -431,11 +431,11 @@ class TaskList(QTreeWidget):
 
         if record.problem:
             message = get_user_ask_msg_title_formatted(page_index, create_time, record_id=record.id)
-            add_msg_to_message_window(browser_page, message, 1)
+            add_msg_to_message_windowv2(browser_page, message, 1)
 
             # add_msg_to_message_window_and_format(browser_page, question, 2)
             message = get_user_ask_msg_content_formatted(question)
-            add_msg_to_message_window(browser_page, message, 2)
+            add_msg_to_message_windowv2(browser_page, message, 2)
 
             directory_path = os.path.join('resource', 'attachment', 'chat', record.task_id)
             if record.attachment_list:
@@ -446,77 +446,10 @@ class TaskList(QTreeWidget):
 
         if record.answer:
             message = get_agent_reply_msg_title_formatted(model_name, page_index + 1, create_time, False, record_id=record.id)
-            add_msg_to_message_window(browser_page, message, 1)
+            add_msg_to_message_windowv2(browser_page, message, 1)
 
             if question.startswith("给我画"):
                 add_msg_to_message_window(browser_page, answer, 2)
             else:
-                add_msg_to_message_window_with_markdown_and_highlight(browser_page, answer, 2)
+                add_msg_to_message_window_with_markdown_and_highlightv2(browser_page, answer, 2)
 
-    # def reloadok(self, key_word):
-    #     self.clear()
-    #
-    #     self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
-    #     # self.setSortingEnabled(True)#排序
-    #     # self.sortItems(0, Qt.AscendingOrder)#排序
-    #     self.buddies = {}
-    #     self.groups = {}
-    #     self.tree = {}
-    #
-    #     self.setContextMenuPolicy(Qt.CustomContextMenu)
-    #     self.menu = QMenu()
-    #     self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
-    #     self.rename_action.triggered.connect(self.rename)
-    #     self.menu.addAction(self.rename_action)
-    #
-    #     self.delete_action = QAction(QIcon("images/infos.png"), "删除", self)
-    #     self.delete_action.triggered.connect(self.delete_item)
-    #     self.menu.addAction(self.delete_action)
-    #
-    #
-    #
-    #     # self.menu.addAction(QIcon("images/infos.png"), "信息", self.delete_item)
-    #
-    #     self.customContextMenuRequested.connect(self.context)
-    #     self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
-    #
-    #     self.tasklist = query_AgentTask_Search_Content(is_first=True, agent_id=self.agent_cfg.user_id, title=key_word, problem=key_word, answer=key_word)
-    #     for record in self.tasklist:
-    #         self.addItem(record.title.replace("\n", ""), record.id)
-    #         # print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")
-    #
-    # def reloadbakok2(self, key_word):
-    #     self.clear()
-    #
-    #     self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
-    #     # self.setSortingEnabled(True)#排序
-    #     # self.sortItems(0, Qt.AscendingOrder)#排序
-    #     self.buddies = {}
-    #     self.groups = {}
-    #     self.tree = {}
-    #
-    #     self.setContextMenuPolicy(Qt.CustomContextMenu)
-    #     self.menu = QMenu()
-    #     self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
-    #     self.rename_action.triggered.connect(self.rename)
-    #     self.menu.addAction(self.rename_action)
-    #
-    #     self.delete_action = QAction(QIcon("images/infos.png"), "删除", self)
-    #     self.delete_action.triggered.connect(self.delete_item)
-    #     self.menu.addAction(self.delete_action)
-    #
-    #     # self.menu.addAction(QIcon("images/infos.png"), "信息", self.delete_item)
-    #
-    #     self.customContextMenuRequested.connect(self.context)
-    #     self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
-    #
-    #     if key_word.startswith('+++'):
-    #         # 获取上一次的搜索结果并过滤
-    #         filtered_tasklist = [record for record in self.tasklist if key_word[3:] in record.title or key_word[3:] in record.problem or key_word[3:] in record.answer]
-    #     else:
-    #         self.tasklist = query_AgentTask_Search_Content(is_first=True, agent_id=self.agent_cfg.user_id, title=key_word, problem=key_word, answer=key_word)
-    #         filtered_tasklist = self.tasklist
-    #
-    #     for record in filtered_tasklist:
-    #         self.addItem(record.title.replace("\n", ""), record.id)
-    #         # print(f"ID: {record.id}, filename: {record.filename}, filenum: {record.filenum}")

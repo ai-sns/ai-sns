@@ -166,6 +166,8 @@ class TaskPage(QWidget, Ui_TaskPageWidget):
         self.agent_cfg = agent_cfg
         self.name = agent_cfg.name
         self.application = application
+        self.qurl_remote_url = None
+        self.qurl_local_url = None
         self.task_id = ""
         self.is_first = True
         self.task_type = 'single'
@@ -259,6 +261,7 @@ class TaskPage(QWidget, Ui_TaskPageWidget):
     def onLoadFinished(self):
         self.is_browser_page_loaded = True
         self.messageEdit.setFocus()
+        print("the url2:", self.messageBrowser.page().url())
 
 
 

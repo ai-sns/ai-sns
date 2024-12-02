@@ -583,8 +583,11 @@ class Ui_TaskPageWidget(object):
         self.output_webview.page().setDevToolsPage(self.output_webview.page())  # 允许开发者工具
         # self.output_webview.page().devToolsPage() # 显示开发者工具
         self.output_webview.page().load(mind_url_string)
-
-        self.messageBrowser.page().load(url_string)
+        qurl_remote_url = QUrl("http://www.ai-sns.org/index_agent.html")
+        self.qurl_remote_url = qurl_remote_url
+        self.qurl_local_url = url_string
+        self.messageBrowser.page().load(self.qurl_local_url)
+        print("the url:",self.messageBrowser.page().url())
         global channel
         global message_handler
         channel = QWebChannel()

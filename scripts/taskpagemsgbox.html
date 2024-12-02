@@ -85,22 +85,25 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             z-index: 1000;
         }
+
         .menu ul {
             list-style: none;
             padding: 0;
             margin: 0;
         }
+
         .menu li {
             padding: 10px;
             cursor: pointer;
             font-size: 11pt;
             font-family: "Microsoft YaHei";
         }
+
         .menu li:hover {
             background: #f0f0f0;
         }
 
-                /* 菜单样式 */
+        /* 菜单样式 */
         .innermenu {
             border: 1px solid #ccc;
             background: #fff;
@@ -116,18 +119,18 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            display: flex;  /* 使菜单项横向排列 */
+            display: flex; /* 使菜单项横向排列 */
         }
 
         .innermenu li {
-    padding: 5px;
-    cursor: pointer;
-    font-size: 10pt;
-    font-family: "Microsoft YaHei";
-    display: flex;
-    align-items: center;
-    margin-right: 10px;  /* 添加右边距 */
-}
+            padding: 5px;
+            cursor: pointer;
+            font-size: 10pt;
+            font-family: "Microsoft YaHei";
+            display: flex;
+            align-items: center;
+            margin-right: 10px; /* 添加右边距 */
+        }
 
         .innermenu li:hover {
             background: #f0f0f0;
@@ -165,7 +168,6 @@
         }
 
 
-
         /* 样式用于工具提示 */
         .tooltip {
             position: relative;
@@ -185,7 +187,7 @@
             z-index: 1; /* 层级 */
             bottom: 125%; /* 工具提示位置 */
             left: 50%;
-            top:30px;
+            top: 30px;
             margin-left: -60px; /* 左对齐 */
             opacity: 0; /* 初始透明度 */
             transition: opacity 0.3s; /* 渐变效果 */
@@ -255,8 +257,8 @@
 
         /* 设置表单框的样式，宽度为100%确保铺满一行，边框线条更细 */
         fieldset {
-            border: 1px solid #ccc;  /* 边框线条更细 */
-            padding: 15px;  /* 减少填充以减小高度 */
+            border: 1px solid #ccc; /* 边框线条更细 */
+            padding: 15px; /* 减少填充以减小高度 */
             width: 100%;
             box-sizing: border-box; /* 包括填充和边框在内的宽度计算 */
             text-align: center; /* 内容居中 */
@@ -425,12 +427,13 @@
 
     var handlingContentDiv = document.getElementById('content');
     var allContentDiv = document.getElementById('allcontent');
+    var memDiv = document.createElement('div');
 
     var currentWordIndex = 0;
     var currentMarkdown = '';
     var words = '';
-    var selectedHistoryIndex=[];
-    var k=0;
+    var selectedHistoryIndex = [];
+    var k = 0;
 
     function renderNextWord(currentMarkdown) {
 
@@ -443,41 +446,45 @@
         // });
 
 
+    }
+
+    function renderNextWordv2(currentMarkdown) {
+        var result = md.render(currentMarkdown);
+        memDiv.innerHTML = result;
+    }
+
+
+    var add_message = function (word) {
+        // alert(word);
+        if (word != "__end_speak__") {
+            words += word;
+            k += 1;
+            if (k === 1 || k % 6 === 0) {
+                renderNextWord(words);
+            }
+
+        } else {
+            renderNextWord(words);
+            updatemaincontent();
+            window.scrollTo(0, document.body.scrollHeight);
+        }
 
     }
 
-    var add_message = function(word) {
-                // alert(word);
-                if(word !="__end_speak__"){
-                    words += word;
-                    k += 1;
-                    if (k===1 || k % 6 === 0) {
-                        renderNextWord(words);
-                    }
+    function add_to_selected_msg(checkbox, type_flag) {
 
-                }
-                else{
-                    renderNextWord(words);
-                    updatemaincontent();
-                    window.scrollTo(0, document.body.scrollHeight);
-                }
+        const isChecked = checkbox.checked;
+        const dataValue = checkbox.getAttribute('data-value');
+        const dataId = checkbox.getAttribute('data-id');
+        const status = `${isChecked ? 'checked' : 'unchecked'}`;
+        // alert(`Checkbox is ${isChecked ? 'checked' : 'unchecked'} with data value: ${dataValue},and type is ${type_flag}`);
+        setSelectedHistoryIndex(dataValue, status);
+        // alert(selectedHistoryIndex);
+        // api_object.Web2PyQt5Value(`Checkbox is ${isChecked ? 'checked' : 'unchecked'} with data value: ${dataValue},and type is ${type_flag}`);
+        // alert(dataId);
+        api_object.check_message(dataValue, dataId, status);
 
-            }
-
-    function add_to_selected_msg(checkbox,type_flag) {
-
-            const isChecked = checkbox.checked;
-            const dataValue = checkbox.getAttribute('data-value');
-            const dataId = checkbox.getAttribute('data-id');
-            const status = `${isChecked ? 'checked' : 'unchecked'}`;
-            // alert(`Checkbox is ${isChecked ? 'checked' : 'unchecked'} with data value: ${dataValue},and type is ${type_flag}`);
-            setSelectedHistoryIndex(dataValue,status);
-            // alert(selectedHistoryIndex);
-            // api_object.Web2PyQt5Value(`Checkbox is ${isChecked ? 'checked' : 'unchecked'} with data value: ${dataValue},and type is ${type_flag}`);
-            // alert(dataId);
-            api_object.check_message(dataValue,dataId,status);
-
-        }
+    }
 
     function setCheckboxesBasedOnSelectedHistory() {
         selectedHistoryIndex.forEach(index => {
@@ -488,23 +495,62 @@
         });
     }
 
-    function show_response_msg(words) {
-            // alert(word)
-            // words += word;
-            // words=words.replace(/\\`/g, "\\\`");
-            // words=words.replace(/\\\\`/g, "\\`");
-            // var replacedStr = str.replace("\\\\`", "\\`");
-            words = words.replace(/_back_cjrok_slash_/g, "`");
-            words = words.replace(/_sla_cjrok_sh_/g, "\\");
-            renderNextWord(words);
+    function show_title_msg(msg){
+        let tmpdiv = document.createElement('div');
+        tmpdiv.innerHTML = msg;
+        allContentDiv.appendChild(tmpdiv.firstElementChild); // Add to fragment
     }
 
-    function updatemaincontent(){
+    function show_response_msg(words) {
+        // alert(word)
+        // words += word;
+        // words=words.replace(/\\`/g, "\\\`");
+        // words=words.replace(/\\\\`/g, "\\`");
+        // var replacedStr = str.replace("\\\\`", "\\`");
+        words = words.replace(/_back_cjrok_slash_/g, "`");
+        words = words.replace(/_sla_cjrok_sh_/g, "\\");
+        renderNextWord(words);
+    }
 
-            var contentDiv = document.getElementById('content');
+    function show_response_msgv2(words) {
+        // alert(word)
+        // words += word;
+        // words=words.replace(/\\`/g, "\\\`");
+        // words=words.replace(/\\\\`/g, "\\`");
+        // var replacedStr = str.replace("\\\\`", "\\`");
+        words = words.replace(/_back_cjrok_slash_/g, "`");
+        words = words.replace(/_sla_cjrok_sh_/g, "\\");
+        renderNextWordv2(words);
+    }
+
+
+    function updatemaincontent() {
+
+        var contentDiv = document.getElementById('content');
+
+        // 使用querySelectorAll选择该div内的所有pre code元素
+        var codeBlocks = contentDiv.querySelectorAll('pre code');
+
+        // 遍历这些code元素并使用hljs.highlightBlock进行高亮
+        codeBlocks.forEach((block) => {
+            hljs.highlightBlock(block);
+        });
+
+
+        // allContentDiv.innerHTML += handlingContentDiv.innerHTML;
+        allContentDiv.innerHTML += "<div style='margin-left: 24px;'>" + handlingContentDiv.innerHTML + "</div>";
+        handlingContentDiv.innerHTML = "";
+        currentWordIndex = 0;
+        currentMarkdown = '';
+        words = '';
+        setCheckboxesBasedOnSelectedHistory();
+        k = 0;
+    }
+
+    function updatemaincontentv2(){
 
             // 使用querySelectorAll选择该div内的所有pre code元素
-            var codeBlocks = contentDiv.querySelectorAll('pre code');
+            var codeBlocks = memDiv.querySelectorAll('pre code');
 
             // 遍历这些code元素并使用hljs.highlightBlock进行高亮
             codeBlocks.forEach((block) => {
@@ -513,8 +559,14 @@
 
 
             // allContentDiv.innerHTML += handlingContentDiv.innerHTML;
-            allContentDiv.innerHTML += "<div style='margin-left: 24px;'>"+handlingContentDiv.innerHTML+"</div>";
-            handlingContentDiv.innerHTML = "";
+            // allContentDiv.innerHTML += "<div style='margin-left: 24px;'>"+handlingContentDiv.innerHTML+"</div>";
+
+            let tmpdiv = document.createElement('div');
+            tmpdiv.style.marginLeft = '24px';
+            tmpdiv.innerHTML = memDiv.innerHTML;
+            allContentDiv.appendChild(tmpdiv); // Add to fragment
+
+            memDiv.innerHTML = "";
             currentWordIndex = 0;
             currentMarkdown = '';
             words = '';
@@ -522,18 +574,18 @@
             k = 0;
     }
 
-        function re_init(){
+    function re_init() {
 
-            allContentDiv.innerHTML = "";
-            handlingContentDiv.innerHTML = "";
-            currentWordIndex = 0;
-            currentMarkdown = '';
-            words = '';
-            selectedHistoryIndex=[];
+        allContentDiv.innerHTML = "";
+        handlingContentDiv.innerHTML = "";
+        currentWordIndex = 0;
+        currentMarkdown = '';
+        words = '';
+        selectedHistoryIndex = [];
 
     }
 
-    function open_attachment(file_path){
+    function open_attachment(file_path) {
         // alert(file_path);
         api_object.file_clicked_message(file_path);
     }
@@ -583,9 +635,10 @@
         const code_type = code_type_el.innerText;
         const code = menuItem.closest('#menu').codeElement;
         const text = code.innerText;
-        api_object.edit_content_message(code_type,text);
+        api_object.edit_content_message(code_type, text);
     }
-        // 弹出 code 标签中的内容
+
+    // 弹出 code 标签中的内容
     function executeContent(menuItem) {
         // 获取关联的 code 标签
         const code = menuItem.closest('#menu').codeElement;
@@ -594,7 +647,7 @@
         alert(text);
     }
 
-        // 弹出 code 标签中的内容
+    // 弹出 code 标签中的内容
     function alertContent(menuItem) {
         // 获取关联的 code 标签
         const code = menuItem.closest('#menu').codeElement;
@@ -604,49 +657,45 @@
     }
 
 
-
-
-
-
     // 点击页面其他地方时隐藏菜单
-    document.addEventListener('click', function() {
+    document.addEventListener('click', function () {
         const menu = document.getElementById('menu');
         if (menu) {
             menu.style.display = 'none';
         }
     });
 
-        // 显示 Toast 消息
+    // 显示 Toast 消息
     function showToast(message) {
         const toast = document.getElementById('toast');
         toast.textContent = message;
         toast.className = 'toast show';
-        setTimeout(function() {
+        setTimeout(function () {
             toast.className = toast.className.replace('show', '');
         }, 1500);
     }
 
     function copy_code(button) {
 
-                    var codeElement = button.nextElementSibling;
-                    var range = document.createRange();
-                    range.selectNode(codeElement);
-                    window.getSelection().removeAllRanges();
-                    window.getSelection().addRange(range);
+        var codeElement = button.nextElementSibling;
+        var range = document.createRange();
+        range.selectNode(codeElement);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
 
-                    try {
-                        document.execCommand('copy');
-                        window.getSelection().removeAllRanges();
-                        button.textContent = '已经拷贝';
-                        setTimeout(() => {
-                            button.textContent = '操作▼';
-                        }, 2000);
-                    } catch (err) {
-                        alert('无法拷贝代码：' + err);
-                    }
-                }
+        try {
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            button.textContent = '已经拷贝';
+            setTimeout(() => {
+                button.textContent = '操作▼';
+            }, 2000);
+        } catch (err) {
+            alert('无法拷贝代码：' + err);
+        }
+    }
 
-    function setSelectedHistoryIndex(i, check_status){
+    function setSelectedHistoryIndex(i, check_status) {
         console.log("setSelectedHistoryIndex i:", i);
         console.log("setSelectedHistoryIndex status:", check_status);
         if (check_status === "checked") {
@@ -657,7 +706,7 @@
 
     }
 
-   function addSelectedHistoryIndex(i){
+    function addSelectedHistoryIndex(i) {
         // Check if 'i' is already in 'selectedHistoryIndex'
         if (!selectedHistoryIndex.includes(i)) {
             // Insert 'i' into 'selectedHistoryIndex' in sorted order
@@ -666,7 +715,7 @@
         }
     }
 
-    function removeSelectedHistoryIndex(i){
+    function removeSelectedHistoryIndex(i) {
         // Remove the first occurrence of 'i' from 'selectedHistoryIndex', if it exists
         const index = selectedHistoryIndex.indexOf(i);
         if (index > -1) {
@@ -675,18 +724,18 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
-                new QWebChannel(qt.webChannelTransport, function (channel) {
-                    api_object = channel.objects.message_handler;
-                    // alert(api_object);
-                    // api_object.Web2PyQt5Value("cjr from web");
-                    // alert(api_object.thevalue);
-                    api_object.on_message.connect(add_message);
-                    api_object.on_set_div_id.connect(add_message);
+        new QWebChannel(qt.webChannelTransport, function (channel) {
+            api_object = channel.objects.message_handler;
+            // alert(api_object);
+            // api_object.Web2PyQt5Value("cjr from web");
+            // alert(api_object.thevalue);
+            api_object.on_message.connect(add_message);
+            api_object.on_set_div_id.connect(add_message);
 
-                });
-            });
+        });
+    });
 
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
         let target = event.target; // 获取点击的元素
 
         if (target.tagName.toLowerCase() === 'a') {
@@ -700,12 +749,12 @@
 
             // 设置鼠标为手型
             target.style.cursor = 'pointer';
-        }else{
+        } else {
             console.log('tagName:', target.tagName);
         }
     });
 
-    document.addEventListener('mouseover', function(event) {
+    document.addEventListener('mouseover', function (event) {
         let target = event.target;
 
         if (target.tagName.toLowerCase() === 'a') {
@@ -713,8 +762,6 @@
             target.style.cursor = 'pointer';
         }
     });
-
-
 
 
     // 添加悬浮菜单的显示和隐藏逻辑
@@ -757,12 +804,12 @@
     });
 
 
-     /**
+    /**
      * 处理 innermenu
      */
 
 
-   function setDivId(oldId,newId){
+    function setDivId(oldId, newId) {
 
         var element = document.getElementById(oldId);
 
@@ -774,21 +821,21 @@
             // 如果元素不存在，我们可以打印一条警告信息或者采取其他行动。
             console.warn('Element with ID "oldId" was not found.');
         }
-     }
+    }
 
-     function setCheckBoxId(oldId,newId){
+    function setCheckBoxId(oldId, newId) {
 
         var element = document.getElementById(oldId);
 
         // 检查元素是否存在，防止空引用错误。
         if (element) {
             // 修改元素的ID属性。这里我们假设新的ID是'newId'。
-            element.setAttribute('data-id',newId); // 设置菜单的data-value
+            element.setAttribute('data-id', newId); // 设置菜单的data-value
         } else {
             // 如果元素不存在，我们可以打印一条警告信息或者采取其他行动。
             console.warn('Element with ID "oldId" was not found.');
         }
-     }
+    }
 
     function copyMessage() {
         alert(allContentDiv.outerHTML);
@@ -797,7 +844,7 @@
         const dataText = innermenu.getAttribute('data-text');
         const dataIndex = innermenu.getAttribute('data-index');
         api_object.copy_message(dataId); // 获取连接地址
-        setTimeout(showToast('内容已拷贝成功了！'),500);
+        setTimeout(showToast('内容已拷贝成功了！'), 500);
 
 
         // alert("1");
@@ -816,48 +863,47 @@
         const dataIndex = innermenu.getAttribute('data-index');
         api_object.edit_message(dataId); // 获取连接地址
 
-    // 可以在此处添加其他处理逻辑
-}
+        // 可以在此处添加其他处理逻辑
+    }
 
     function deleteMessageById(dataId) {
 
         // 获取起始 DIV 元素
-            const div1 = document.getElementById(dataId);
+        const div1 = document.getElementById(dataId);
 
-            let currentNode = div1.nextSibling;
+        let currentNode = div1.nextSibling;
 
-            // 遍历兄弟节点
-           while (currentNode) {
-                // 检查节点类型
-                if (currentNode.nodeType === Node.ELEMENT_NODE) {
-                    const id = currentNode.getAttribute('id');
+        // 遍历兄弟节点
+        while (currentNode) {
+            // 检查节点类型
+            if (currentNode.nodeType === Node.ELEMENT_NODE) {
+                const id = currentNode.getAttribute('id');
 
-                    // 检查 ID 是否以 'q_' 或 'a_' 开头
-                    if (id && (id.startsWith('id_') || id.startsWith('id_'))) {
-                        break; // 找到目标 <div>，停止删除
-                    }
-                    // 删除元素节点
-                    currentNode.parentNode.removeChild(currentNode);
-                } else if (currentNode.nodeType === Node.TEXT_NODE) {
-                    // 如果是文本节点，直接删除
-                    currentNode.parentNode.removeChild(currentNode);
+                // 检查 ID 是否以 'q_' 或 'a_' 开头
+                if (id && (id.startsWith('id_') || id.startsWith('id_'))) {
+                    break; // 找到目标 <div>，停止删除
                 }
-
-                // 移动到下一个兄弟节点
-                currentNode = div1.nextSibling; // 更新为下一个兄弟节点
+                // 删除元素节点
+                currentNode.parentNode.removeChild(currentNode);
+            } else if (currentNode.nodeType === Node.TEXT_NODE) {
+                // 如果是文本节点，直接删除
+                currentNode.parentNode.removeChild(currentNode);
             }
 
-            // 删除 div1
-            div1.parentNode.removeChild(div1);
+            // 移动到下一个兄弟节点
+            currentNode = div1.nextSibling; // 更新为下一个兄弟节点
+        }
+
+        // 删除 div1
+        div1.parentNode.removeChild(div1);
 
         // const brElement = document.createElement('br');
         // div1.parentNode.insertBefore(brElement, div1.nextSibling);
         // div1.parentNode.removeChild(div1);
 
 
-
-    // 可以在此处添加其他处理逻辑
-}
+        // 可以在此处添加其他处理逻辑
+    }
 
     function deleteMessage() {
         const dataId = innermenu.getAttribute('data-id');
@@ -867,44 +913,42 @@
         api_object.delete_message(dataId);
 
 
-
         // 获取起始 DIV 元素
-            const div1 = document.getElementById(dataId);
+        const div1 = document.getElementById(dataId);
 
-            let currentNode = div1.nextSibling;
+        let currentNode = div1.nextSibling;
 
-            // 遍历兄弟节点
-           while (currentNode) {
-                // 检查节点类型
-                if (currentNode.nodeType === Node.ELEMENT_NODE) {
-                    const id = currentNode.getAttribute('id');
+        // 遍历兄弟节点
+        while (currentNode) {
+            // 检查节点类型
+            if (currentNode.nodeType === Node.ELEMENT_NODE) {
+                const id = currentNode.getAttribute('id');
 
-                    // 检查 ID 是否以 'id_'
-                    if (id && (id.startsWith('id_') || id.startsWith('id_'))) {
-                        break; // 找到目标 <div>，停止删除
-                    }
-                    // 删除元素节点
-                    currentNode.parentNode.removeChild(currentNode);
-                } else if (currentNode.nodeType === Node.TEXT_NODE) {
-                    // 如果是文本节点，直接删除
-                    currentNode.parentNode.removeChild(currentNode);
+                // 检查 ID 是否以 'id_'
+                if (id && (id.startsWith('id_') || id.startsWith('id_'))) {
+                    break; // 找到目标 <div>，停止删除
                 }
-
-                // 移动到下一个兄弟节点
-                currentNode = div1.nextSibling; // 更新为下一个兄弟节点
+                // 删除元素节点
+                currentNode.parentNode.removeChild(currentNode);
+            } else if (currentNode.nodeType === Node.TEXT_NODE) {
+                // 如果是文本节点，直接删除
+                currentNode.parentNode.removeChild(currentNode);
             }
 
-            // 删除 div1
-            div1.parentNode.removeChild(div1);
+            // 移动到下一个兄弟节点
+            currentNode = div1.nextSibling; // 更新为下一个兄弟节点
+        }
+
+        // 删除 div1
+        div1.parentNode.removeChild(div1);
 
         // const brElement = document.createElement('br');
         // div1.parentNode.insertBefore(brElement, div1.nextSibling);
         // div1.parentNode.removeChild(div1);
 
 
-
-    // 可以在此处添加其他处理逻辑
-}
+        // 可以在此处添加其他处理逻辑
+    }
 
     function transferMessage() {
         const dataId = innermenu.getAttribute('data-id');
@@ -913,8 +957,8 @@
         const dataIndex = innermenu.getAttribute('data-index');
         api_object.transfer_message(dataId); // 获取连接地址
 
-    // 可以在此处添加其他处理逻辑
-}
+        // 可以在此处添加其他处理逻辑
+    }
 
     function collectMessage() {
         const dataId = innermenu.getAttribute('data-id');
@@ -923,10 +967,10 @@
         const dataIndex = innermenu.getAttribute('data-index');
         api_object.collect_message(dataId); // 获取连接地址
 
-    // 可以在此处添加其他处理逻辑
-}
+        // 可以在此处添加其他处理逻辑
+    }
 
-     function toggle_parent_menu(){
+    function toggle_parent_menu() {
         const dataValue = innermenu.getAttribute('data-value');
         const dataText = innermenu.getAttribute('data-text');
         const dataIndex = innermenu.getAttribute('data-index');
@@ -939,101 +983,100 @@
 
 
     // 用于动态创建工具提示
-    document.querySelectorAll('#innermenu li').forEach(function(item) {
-    const tooltipText = item.getAttribute('data-tooltip');
-    const tooltipElement = document.createElement('span');
+    document.querySelectorAll('#innermenu li').forEach(function (item) {
+        const tooltipText = item.getAttribute('data-tooltip');
+        const tooltipElement = document.createElement('span');
 
-    tooltipElement.className = 'tooltiptext';
-    tooltipElement.innerText = tooltipText; // 设置工具提示内容
+        tooltipElement.className = 'tooltiptext';
+        tooltipElement.innerText = tooltipText; // 设置工具提示内容
 
-    item.classList.add('tooltip'); // 添加工具提示类
-    item.appendChild(tooltipElement); // 将工具提示元素添加到列表项中
-});
-
-// 获取所有 class 为 styled-checkbox 的 input 元素
-
-
-// 函数：显示所有复选框
-function displayCheckboxes() {
-    // 遍历所有选中的复选框
-    const checkboxes = document.querySelectorAll('.styled-checkbox');
-    checkboxes.forEach((checkbox) => {
-        // 通过设置 display 属性来显示复选框
-        checkbox.style.display = 'inline-block'; // 设置为 inline-block 以便正常显示
+        item.classList.add('tooltip'); // 添加工具提示类
+        item.appendChild(tooltipElement); // 将工具提示元素添加到列表项中
     });
-}
 
-// 函数：显示所有复选框
-function hideCheckboxes() {
-    // 遍历所有选中的复选框
-    const checkboxes = document.querySelectorAll('.styled-checkbox');
-    checkboxes.forEach((checkbox) => {
-        // 通过设置 display 属性来显示复选框
-        checkbox.style.display = 'none'; // 设置为 inline-block 以便正常显示
-    });
-}
+    // 获取所有 class 为 styled-checkbox 的 input 元素
 
-// 函数：显示所有复选框
-function setAllCheckboxesChecked(Checked) {
-        // 获取所有具有 class="styled-checkbox" 的复选框元素
-    const checkboxes = document.querySelectorAll('.styled-checkbox');
 
-    // 遍历每个复选框并调用指定的函数
-    checkboxes.forEach((checkbox) => {
-        // 调用函数 add_to_selected_msg 并传入当前的复选框
-        if(checkbox.checked!=Checked){
-        checkbox.checked = Checked;
-        add_to_selected_msg(checkbox);
-        }
-    });
-}
-
-/**
- * Toggles the visibility of the div with the specified ID.
- * If the div is currently hidden, it will be displayed; if it is displayed, it will be hidden.
- */
-function toggleOperatorDisplay() {
-    // Get the div element by its ID
-    var divElement = document.getElementById('operator');
-
-    // Check if the div element exists
-    if (divElement) {
-        // Toggle the display property between 'none' and 'block'
-        if (divElement.style.display === 'none') {
-            divElement.style.display = 'block';
-        } else {
-            divElement.style.display = 'none';
-        }
-    } else {
-        console.error('Element with ID "operator" not found.');
+    // 函数：显示所有复选框
+    function displayCheckboxes() {
+        // 遍历所有选中的复选框
+        const checkboxes = document.querySelectorAll('.styled-checkbox');
+        checkboxes.forEach((checkbox) => {
+            // 通过设置 display 属性来显示复选框
+            checkbox.style.display = 'inline-block'; // 设置为 inline-block 以便正常显示
+        });
     }
-}
 
+    // 函数：显示所有复选框
+    function hideCheckboxes() {
+        // 遍历所有选中的复选框
+        const checkboxes = document.querySelectorAll('.styled-checkbox');
+        checkboxes.forEach((checkbox) => {
+            // 通过设置 display 属性来显示复选框
+            checkbox.style.display = 'none'; // 设置为 inline-block 以便正常显示
+        });
+    }
+
+    // 函数：显示所有复选框
+    function setAllCheckboxesChecked(Checked) {
+        // 获取所有具有 class="styled-checkbox" 的复选框元素
+        const checkboxes = document.querySelectorAll('.styled-checkbox');
+
+        // 遍历每个复选框并调用指定的函数
+        checkboxes.forEach((checkbox) => {
+            // 调用函数 add_to_selected_msg 并传入当前的复选框
+            if (checkbox.checked != Checked) {
+                checkbox.checked = Checked;
+                add_to_selected_msg(checkbox);
+            }
+        });
+    }
+
+    /**
+     * Toggles the visibility of the div with the specified ID.
+     * If the div is currently hidden, it will be displayed; if it is displayed, it will be hidden.
+     */
+    function toggleOperatorDisplay() {
+        // Get the div element by its ID
+        var divElement = document.getElementById('operator');
+
+        // Check if the div element exists
+        if (divElement) {
+            // Toggle the display property between 'none' and 'block'
+            if (divElement.style.display === 'none') {
+                divElement.style.display = 'block';
+            } else {
+                divElement.style.display = 'none';
+            }
+        } else {
+            console.error('Element with ID "operator" not found.');
+        }
+    }
 
 
     function taskRunCode() {
         api_object.task_run_code(); // 获取连接地址
         toggleOperatorDisplay();
-    // 可以在此处添加其他处理逻辑
-}
+// 可以在此处添加其他处理逻辑
+    }
 
     function taskNextStep() {
         api_object.task_next_step(); // 获取连接地址
         toggleOperatorDisplay();
-    // 可以在此处添加其他处理逻辑
-}
+// 可以在此处添加其他处理逻辑
+    }
 
     function taskExit() {
         api_object.task_exit(); // 获取连接地址
         toggleOperatorDisplay();
-    // 可以在此处添加其他处理逻辑
-}
+// 可以在此处添加其他处理逻辑
+    }
 
-    function showHelp(){
-    alert("您可直接输入文字和Agent进行交互。");
+    function showHelp() {
+        alert("您可直接输入文字和Agent进行交互。");
 
     }
 
-    </script>
+</script>
 </body>
 </html>

@@ -110,6 +110,15 @@ def add_msg_to_message_window_with_markdown_and_highlight(browser_page, message,
     formatted_message = f'{line_break}'
     browser_page.runJavaScript('document.getElementById("allcontent").innerHTML += "' + formatted_message + '"')
 
+def add_msg_to_message_window_with_markdown_and_highlightv2(browser_page, message, line_breaks=1):
+    message = format_string_for_run_javascript(message)
+    script_string_to_run = 'show_response_msgv2(`' + message + '`)'
+    print("script_string_to_run:")
+    print(script_string_to_run)
+    browser_page.runJavaScript(script_string_to_run)
+    browser_page.runJavaScript('updatemaincontentv2()')
+
+
 
 def add_msg_to_message_window(browser_page, message, line_breaks=1):
     browser_page.runJavaScript('document.getElementById("allcontent").innerHTML +=`' + message + '`')
@@ -117,6 +126,20 @@ def add_msg_to_message_window(browser_page, message, line_breaks=1):
     line_break = '<br>' * line_breaks
     formatted_message = f'{line_break}'
     browser_page.runJavaScript('document.getElementById("allcontent").innerHTML += "' + formatted_message + '"')
+
+def add_msg_to_message_windowv2(browser_page, message, line_breaks=1):
+    print("get the message html:",message)
+
+    script_string_to_run = 'show_title_msg(`' + message + '`)'
+    print("script_string_to_run:")
+    print(script_string_to_run)
+    browser_page.runJavaScript(script_string_to_run)
+
+    # browser_page.runJavaScript('document.getElementById("allcontent").innerHTML +=`' + message + '`')
+    # line_breaks = 0
+    # line_break = '<br>' * line_breaks
+    # formatted_message = f'{line_break}'
+    # browser_page.runJavaScript('document.getElementById("allcontent").innerHTML += "' + formatted_message + '"')
 
 
 # def add_attachment_to_message_window(browser_page, directory_path, attachment_list, line_breaks=1):

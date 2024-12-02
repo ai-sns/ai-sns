@@ -88,7 +88,7 @@ class CustomModernWindow(qtmodern.windows.ModernWindow):
         # Init QSystemTrayIcon
         self.tray_icon = QSystemTrayIcon(self)
         # self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
-        self.tray_icon.setIcon(QIcon('images/aisns.png'))  # 设置自定义图标
+        self.tray_icon.setIcon(QIcon('images/aisnsicon.png'))  # 设置自定义图标
         self.tray_icon.setVisible(True)  # 显示托盘图标
         '''
             Define and add steps to work with the system tray icon
@@ -109,6 +109,7 @@ class CustomModernWindow(qtmodern.windows.ModernWindow):
         tray_menu.addAction(quit_action)
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
+        self.tray_icon.activated.connect(self.on_tray_icon_activated)
 
     def closeEvent(self, event):
         # 忽略关闭事件，窗口将不会关闭
@@ -119,7 +120,7 @@ class CustomModernWindow(qtmodern.windows.ModernWindow):
             event.ignore()
             self.hide()
             self.tray_icon.showMessage(
-                "Pytalk",
+                "Ai-SNS",
                 "应用最小化到托盘",
                 QSystemTrayIcon.Information,
                 100
@@ -127,6 +128,19 @@ class CustomModernWindow(qtmodern.windows.ModernWindow):
         else:
             super(CustomModernWindow, self).closeEvent(event)  # 调用父类的 closeEvent 方法
         # event.ignore()
+
+    def show_window(self):
+        # 显示窗口并恢复正常大小
+        self.showMaximized()
+
+
+    def on_tray_icon_activated(self, reason):
+        # 根据托盘图标的激活原因显示窗口
+        if reason == QSystemTrayIcon.Trigger:  # 单击托盘图标
+            if self.isVisible():
+                self.hide()
+            else:
+                self.show_window()
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     connectorThread = None
