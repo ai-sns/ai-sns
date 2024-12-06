@@ -36,7 +36,7 @@ from pynput.mouse import Button, Controller as MouseController
 
 # Initialize global variables
 def initialize_globals():
-    global storage, is_capturing, esc_count, last_esc_time, record_all, name_of_recording, signal_emitter, keyboard_listener, mouse_listener, delay_time,skill_name
+    global storage, is_capturing, esc_count, last_esc_time, record_all, name_of_recording, signal_emitter, keyboard_listener, mouse_listener, delay_time, skill_name
     storage = []
     is_capturing = True
     esc_count = 0
@@ -135,7 +135,8 @@ class WorkerThread(QThread):
             except AttributeError:
                 char = str(key)
             mouse_position = mouse.Controller().position
-            json_object = {'action': 'released_key', 'x': mouse_position[0], 'y': mouse_position[1], 'key': char, '_time': time.time()}
+            json_object = {'action': 'released_key', 'x': mouse_position[0], 'y': mouse_position[1], 'key': char,
+                           '_time': time.time()}
             # json_object = {'action': 'released_key', 'key': char, '_time': time.time()}
             storage.append(json_object)
 
@@ -599,16 +600,20 @@ class AnnotationDialog(QWidget):
 
     def click_by_image_detect(self, img, style: int = 1):
         time.sleep(1)
-        image = pyautogui.locateOnScreen(img, grayscale=True, confidence=0.7)
-        time.sleep(1)
-        if image:  # 确保找到了图片
-            center = pyautogui.center(image)
-            if style == 1:
-                pyautogui.click(center)  # 单击
-            elif style == 2:
-                pyautogui.doubleClick(center)  # 双击
-        else:
-            print("Image not found on the screen.")
+        try:
+            image = pyautogui.locateOnScreen(img, grayscale=True, confidence=0.7)
+            time.sleep(1)
+            if image:  # 确保找到了图片
+                center = pyautogui.center(image)
+                if style == 1:
+                    pyautogui.click(center)  # 单击
+                elif style == 2:
+                    pyautogui.doubleClick(center)  # 双击
+            else:
+                print("Image not found on the screen.")
+        except pyautogui.ImageNotFoundException:
+            # 如果图像未找到，执行这里的代码
+            print("未能在屏幕上找到指定的图像。")
 
     def save_image(self):
         """Render the scene to a pixmap and save it as an image file."""
@@ -638,7 +643,7 @@ class AnnotationDialog(QWidget):
         return file_path
 
     def save(self):
-        global storage,skill_name
+        global storage, skill_name
         self.keyboard_controller = KeyboardController()
         self.mouse_controller = MouseController()
 
@@ -647,7 +652,7 @@ class AnnotationDialog(QWidget):
         sample = self.sample_textEdit.toPlainText()
         image_path = self.save_image()
         last_action = storage[-1]
-        print("last_action-->",last_action)
+        print("last_action-->", last_action)
         mouse_click = self.mouseclick_combobox.currentData()
         other_action = self.otheraction_combobox.currentData()
         delay_time = self.delay_lineEdit.text()
@@ -687,6 +692,10 @@ class AnnotationDialog(QWidget):
             self.mouse_controller.release(Button.left)
             time.sleep(0.3)
             print("set_value-->", sample)
+            # pyautogui.click()  # 鼠标当前位置点击一下
+            pyautogui.hotkey('ctrl', 'a')  # 或者在macOS上使用 pyautogui.hotkey('command', 'a')
+            pyautogui.press('backspace')  # 或者使用 pyautogui.press('delete')
+            time.sleep(0.2)
             self.keyboard_controller.type(sample)
             time.sleep(1)
 
