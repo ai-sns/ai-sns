@@ -57,6 +57,10 @@ def savevector(filepath, persist_directory, embedding_model_name, emb_type="open
     full_text = get_file_content(filepath)
     print(full_text)
 
+
+    file_name=os.path.basename(filepath)
+
+
     file_name = os.path.basename(filepath)
 
     if emb_type == "openai":
