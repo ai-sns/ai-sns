@@ -1,36 +1,13 @@
 from __future__ import annotations
-import inspect
-import json
-from typing import Any, Dict, List, Union
-
-import os
-
-from openai.types.chat.chat_completion import ChatCompletionMessage
-from typing_extensions import Annotated
-from typing_extensions import Annotated
-from autogen.oai.client import OpenAIWrapper
-import autogen
-from autogen import AssistantAgent, UserProxyAgent
-
-
-from openai import OpenAI
 
 import inspect
 import logging
 import sys
-import uuid
-from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, Union
 
+from typing import Any, Dict, List, Optional, Union
 from flaml.automl.logger import logger_formatter
-from pydantic import BaseModel
-
-from autogen.cache import Cache
 from autogen.io.base import IOStream
-from autogen.logger.logger_utils import get_current_ts
 from autogen.oai.openai_utils import OAI_PRICE1K, get_key, is_valid_api_key
-from autogen.runtime_logging import log_chat_completion, log_new_client, log_new_wrapper, logging_enabled
-from autogen.token_count_utils import count_token
-from autogen import ModelClient
 
 TOOL_ENABLED = False
 try:
@@ -77,7 +54,8 @@ LEGACY_DEFAULT_CACHE_SEED = 41
 LEGACY_CACHE_DIR = ".cache"
 OPEN_API_BASE_URL_PREFIX = "https://api.openai.com"
 
-#OpenAI兼容模型
+
+# OpenAI兼容模型
 class OpenAICompatibleLLMClient:
     """Follows the Client protocol and wraps the OpenAI client."""
 
@@ -91,7 +69,7 @@ class OpenAICompatibleLLMClient:
         self._last_tooluse_status = {}
 
     def message_retrieval(
-        self, response: Union[ChatCompletion, Completion]
+            self, response: Union[ChatCompletion, Completion]
     ) -> Union[List[str], List[ChatCompletionMessage]]:
         """Retrieve the messages from the response."""
         choices = response.choices
@@ -109,7 +87,8 @@ class OpenAICompatibleLLMClient:
             ]
         else:
             return [  # type: ignore [return-value]
-                choice.message if choice.message.function_call is not None else choice.message.content  # type: ignore [union-attr]
+                choice.message if choice.message.function_call is not None else choice.message.content
+                # type: ignore [union-attr]
                 for choice in choices
             ]
 
@@ -146,7 +125,7 @@ class OpenAICompatibleLLMClient:
             # Send the chat completion request to OpenAI's API and process the response in chunks
             params.pop("model_client_cls")
             for chunk in completions.create(**params):
-                #cjr to modified*******
+                # cjr to modified*******
                 if chunk.model is None:
                     chunk.model = "generalv3.5"
                 print("cjr get the chunk:", chunk)
@@ -154,15 +133,15 @@ class OpenAICompatibleLLMClient:
                     for choice in chunk.choices:
                         content = choice.delta.content
 
-                        print("cjr get the content:",content)
+                        print("cjr get the content:", content)
 
                         tool_calls_chunks = choice.delta.tool_calls
                         # finish_reasons[choice.index] = choice.finish_reason
 
-                        finish_reasons[choice.index] =(
-                            choice.finish_reason if (choice.finish_reason != "" and choice.finish_reason != "normal" and choice.finish_reason is not None) else "stop"
+                        finish_reasons[choice.index] = (
+                            choice.finish_reason if (
+                                    choice.finish_reason != "" and choice.finish_reason != "normal" and choice.finish_reason is not None) else "stop"
                         )
-
 
                         # todo: remove this after function calls are removed from the API
                         # the code should work regardless of whether function calls are removed or not, but test_chat_functions_stream should fail
@@ -214,7 +193,7 @@ class OpenAICompatibleLLMClient:
 
             # Prepare the final ChatCompletion object based on the accumulated data
             model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API****讯飞，model这个值是none
-            prompt_tokens=10#chatglm没有这个参数，所以要把它先写死
+            prompt_tokens = 10  # chatglm没有这个参数，所以要把它先写死
             # prompt_tokens = count_token(params["messages"], model)
             response = ChatCompletion(
                 id=chunk.id,
@@ -260,9 +239,9 @@ class OpenAICompatibleLLMClient:
             # If streaming is not enabled, send a regular chat completion request
             params = params.copy()
             params["stream"] = False
-            params.pop("model_client_cls")#在非流式的情况下要把这个参数去掉
+            params.pop("model_client_cls")  # 在非流式的情况下要把这个参数去掉
             response = completions.create(**params)
-            print("非流式response:",response)
+            print("非流式response:", response)
 
         return response
 
@@ -281,7 +260,8 @@ class OpenAICompatibleLLMClient:
         tmp_price1K = OAI_PRICE1K[model]
         # First value is input token rate, second value is output token rate
         if isinstance(tmp_price1K, tuple):
-            return (tmp_price1K[0] * n_input_tokens + tmp_price1K[1] * n_output_tokens) / 1000  # type: ignore [no-any-return]
+            return (tmp_price1K[0] * n_input_tokens + tmp_price1K[
+                1] * n_output_tokens) / 1000  # type: ignore [no-any-return]
         return tmp_price1K * (n_input_tokens + n_output_tokens) / 1000  # type: ignore [operator]
 
     @staticmethod

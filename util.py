@@ -250,7 +250,7 @@ def get_user_ask_msg_title_formatted(page_index, createtime=None,show_checkbox="
     message = f"""
     <div style="display: flex; align-items: center;" id="{div_id}" data-value="{page_index}v" data-text="{page_index}t" data-index="{page_index}i" onmouseover='handleMouseOver(this)' onmouseleave='handleMouseLeave(event)'>
 		 <input class="styled-checkbox" style="display:{show_checkbox}" {checked} type="checkbox" id="msg_checkbox_{page_index}" data-id="{div_id}" data-value="{page_index}" onclick="add_to_selected_msg(this,'question')">
-		 <img src="file:///images/user.png" style="width:18px;height:25px;">
+		 <img src="../images/user.png" style="width:18px;height:25px;">
 		 <span style='color: darkred;font-size:18px;margin-left:5px'>用户</span>
 		 <span style='color: #c0c0c0; font-size:18px;;margin-left:10px'>{createtime.strftime("%Y-%m-%d %H:%M:%S")}</span>
     </div>
@@ -284,7 +284,7 @@ def get_agent_reply_msg_title_formatted(model_name, page_index, createtime=None,
     message = f"""
     <div style='display: flex; align-items: center;' id="{div_id}" data-value="{page_index}v" data-text="{page_index}t" data-index="{page_index}i"  onmouseover='handleMouseOver(this)' onmouseleave='handleMouseLeave(event)'>
          <input class="styled-checkbox"  style="display:{show_checkbox}" {checked} type="checkbox" id="msg_checkbox_{page_index}" data-id="{div_id}" data-value="{page_index}" onclick="add_to_selected_msg(this,'answer')">
-         <img src="file:///images/ybot.png" style="width:18px;height:31px">
+         <img src="../images/ybot.png" style="width:18px;height:31px">
          <span style='color: darkblue; font-size:18px;margin-left:5px'>{model_name}</span>
          <span style='color: #c0c0c0; font-size:18px;margin-left:10px'>{createtime.strftime("%Y-%m-%d %H:%M:%S")}</span>
          <img class='imgcls' style='width: 15px; height: 15px;margin-bottom:7px;margin-left:20px;{display_setting}' src='{loading_img}'>
