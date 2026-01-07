@@ -136,7 +136,7 @@ npm run build:linux
 
 ## API 端点
 
-API 服务器默认运行在 `http://localhost:8765`
+API 服务器默认运行在 `http://localhost:8788`
 
 ### Agent 管理
 - `GET /api/agents` - 获取所有 Agent
@@ -159,7 +159,7 @@ API 服务器默认运行在 `http://localhost:8765`
 - `GET /health` - 健康检查
 
 ### WebSocket
-- `ws://localhost:8765/ws/{client_id}` - 实时通信
+- `ws://localhost:8788/ws/{client_id}` - 实时通信
 
 ## 主题支持
 
@@ -203,7 +203,7 @@ API 服务器默认运行在 `http://localhost:8765`
 
 ### API 连接失败
 - 确保 Python API 服务器已启动
-- 检查端口 8765 是否被占用
+- 检查端口 8788 是否被占用
 
 ### 样式显示异常
 - 清除浏览器缓存

@@ -5,7 +5,7 @@
 
 class APIClient {
     constructor() {
-        this.baseUrl = 'http://localhost:8765';
+        this.baseUrl = 'http://localhost:8788';
         this.wsConnection = null;
         this.wsCallbacks = new Map();
         this.reconnectAttempts = 0;
@@ -75,7 +75,7 @@ class APIClient {
 
     connectWebSocket(clientId) {
         return new Promise((resolve, reject) => {
-            const wsUrl = `ws://localhost:8765/ws/${clientId}`;
+            const wsUrl = `ws://localhost:8788/ws/${clientId}`;
 
             this.wsConnection = new WebSocket(wsUrl);
 

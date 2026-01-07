@@ -455,7 +455,7 @@ async def get_file(file_path: str):
 
 # ==================== 启动服务器 ====================
 
-def start_server(host: str = "0.0.0.0", port: int = 8765):
+def start_server(host: str = "0.0.0.0", port: int = 8788):
     """启动API服务器"""
     uvicorn.run(app, host=host, port=port, log_level="info")
 
@@ -464,7 +464,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="AI-SNS API Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
-    parser.add_argument("--port", type=int, default=8765, help="Port to bind")
+    parser.add_argument("--port", type=int, default=8788, help="Port to bind")
 
     args = parser.parse_args()
 

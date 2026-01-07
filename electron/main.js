@@ -19,7 +19,7 @@ let isQuitting = false;
 
 // API服务器配置
 const API_HOST = 'localhost';
-const API_PORT = 8765;
+const API_PORT = 8788;
 const API_BASE_URL = `http://${API_HOST}:${API_PORT}`;
 
 // 开发模式检测

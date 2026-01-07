@@ -56,7 +56,7 @@ async def run_tests():
     """Run all tests"""
     import httpx
 
-    base_url = "http://127.0.0.1:8765"
+    base_url = "http://127.0.0.1:8788"
 
     async with httpx.AsyncClient(timeout=30.0) as client:
 
@@ -394,13 +394,13 @@ def main():
 
     # Start the server
     print_header("Starting A2A Server")
-    print("  Starting server on port 8765...")
+    print("  Starting server on port 8788...")
 
     server_script = os.path.join(os.path.dirname(__file__), "run_a2a_server.py")
 
     try:
         server_process = subprocess.Popen(
-            [sys.executable, server_script, "--port", "8765"],
+            [sys.executable, server_script, "--port", "8788"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             preexec_fn=os.setsid if hasattr(os, 'setsid') else None

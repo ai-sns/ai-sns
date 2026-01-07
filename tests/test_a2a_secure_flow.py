@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class SecureFlowTest:
     """Test runner for A2A + Blockchain secure transaction flow"""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:8765"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8788"):
         self.base_url = base_url
         self.results: List[Dict[str, Any]] = []
         self.server_process = None
@@ -435,7 +435,7 @@ class SecureFlowTest:
 
     def start_server(self) -> bool:
         """Start the A2A server"""
-        print("\n  Starting A2A server on port 8765...")
+        print("\n  Starting A2A server on port 8788...")
 
         server_script = os.path.join(
             os.path.dirname(__file__),
@@ -444,7 +444,7 @@ class SecureFlowTest:
 
         try:
             self.server_process = subprocess.Popen(
-                [sys.executable, server_script, "--port", "8765"],
+                [sys.executable, server_script, "--port", "8788"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 preexec_fn=os.setsid if hasattr(os, 'setsid') else None

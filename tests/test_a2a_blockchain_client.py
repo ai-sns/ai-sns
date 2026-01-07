@@ -9,7 +9,7 @@ This client demonstrates the complete secure A2A transaction flow:
 4. Receive result + settlement transaction
 
 Usage:
-    python tests/test_a2a_blockchain_client.py --url http://localhost:8765
+    python tests/test_a2a_blockchain_client.py --url http://localhost:8788
 """
 
 import os
@@ -503,7 +503,7 @@ def main():
     )
     parser.add_argument(
         "--url",
-        default="http://localhost:8765",
+        default="http://localhost:8788",
         help="A2A agent URL"
     )
     parser.add_argument(

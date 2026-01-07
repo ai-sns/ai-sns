@@ -65,7 +65,7 @@ def on_connect(iostream: IOWebsockets) -> None:
         message=initial_msg,
     )
 
-with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8765) as uri:
+with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8788) as uri:
     print(f" - test_setup() with websocket server running on {uri}.", flush=True)
 
     with ws_connect(uri) as websocket:
