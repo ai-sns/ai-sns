@@ -343,3 +343,4 @@ pip-cache/
 *.bak.*
 *.old
 *.save
+.claude/settings.local.json
