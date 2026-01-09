@@ -1,6 +1,6 @@
 import time
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtWidgets import QMessageBox
 from jabber import STATUS
 import xmpp
 import sys

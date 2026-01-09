@@ -1,3 +1,4 @@
+
 import os
 import io
 import time
@@ -5,18 +6,18 @@ import json
 import threading
 from pynput import mouse, keyboard
 
-from PyQt5.QtWidgets import QGraphicsScene, QInputDialog, QGraphicsTextItem, QGraphicsRectItem, QGraphicsEllipseItem, \
+from PyQt6.QtWidgets import QGraphicsScene, QInputDialog, QGraphicsTextItem, QGraphicsRectItem, QGraphicsEllipseItem, \
     QGraphicsPathItem, QDialog, QLineEdit
-from PyQt5.QtGui import QCursor
-from PyQt5.QtCore import Qt, QRectF, QThread
+from PyQt6.QtGui import QCursor, QGuiApplication, QPalette
+from PyQt6.QtCore import Qt, QRectF, QThread, pyqtSignal
 
-from PyQt5 import QtGui
-from PyQt5.QtWidgets import QShortcut, QToolBar, QAction, QGraphicsView, QTextEdit, QTabWidget, QFormLayout, QComboBox, \
+from PyQt6 import QtGui
+from PyQt6.QtWidgets import QToolBar,  QGraphicsView, QTextEdit, QTabWidget, QFormLayout, QComboBox, \
     QGraphicsPixmapItem
-from PyQt5 import QtCore
-from PyQt5.QtCore import QTimer, pyqtSignal
-from PyQt5.QtGui import QBrush, QIcon, QFont, QPixmap, QPainterPath
-from PyQt5.QtWidgets import QPushButton, QHBoxLayout, QLabel, QVBoxLayout, QMessageBox, QFileDialog, QWidget
+from PyQt6 import QtCore
+from PyQt6.QtCore import QTimer, pyqtSignal, QObject
+from PyQt6.QtGui import QShortcut, QAction,QBrush, QIcon, QFont, QPixmap, QPainterPath
+from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QLabel, QVBoxLayout, QMessageBox, QFileDialog, QWidget
 import shutil
 
 # Import custom modules
@@ -25,111 +26,116 @@ from .utils import *
 
 import sys
 import pyautogui
-from PyQt5.QtWidgets import QApplication, QRubberBand, QMainWindow
-from PyQt5.QtCore import Qt, QRect, QSize
-from PyQt5.QtGui import QPainter, QPen, QColor
+from PyQt6.QtWidgets import QApplication, QRubberBand, QMainWindow
+from PyQt6.QtCore import Qt, QRect, QSize
+from PyQt6.QtGui import QPainter, QPen, QColor
 from util import generate_random_id
 from db.DBFactory import add_skill_mng
 from pynput.keyboard import Controller as KeyboardController
 from pynput.mouse import Button, Controller as MouseController
-
+sys.path.append("../..")
+sys.path.append("../../..")
+from i18n import lt
+from multiprocessing import Process, Pipe
+import subprocess
+import sys
+import time
+import json
+from PyQt6.QtCore import QTimer
+global storage
 
 # Initialize global variables
 def initialize_globals():
-    global storage, is_capturing, esc_count, last_esc_time, record_all, name_of_recording, signal_emitter, keyboard_listener, mouse_listener, delay_time, skill_name
+    global storage, is_capturing, esc_count, last_esc_time, record_all, name_of_recording, signal_emitter, keyboard_listener, mouse_listener, delay_time,sample
     storage = []
     is_capturing = True
     esc_count = 0
     last_esc_time = 0
     record_all = "record-all"
     name_of_recording = "test008"
-    signal_emitter = SignalEmitter()
     delay_time = 3
+    sample = ""
 
 
-# 创建一个自定义线程类
-class WorkerThread(QThread):
-    # 定义一个信号，用于发送消息
-    finished = pyqtSignal(str)
+def run_listener():
+    """Runs the input listener in a separate process."""
+    try:
+        listener = InputListener()
+        listener.start()
+    except Exception as e:
+        print(f"Error in listener: {e}")
 
-    def __init__(self, screen_bar):
-        super().__init__()
-        self.running = True
-        self.screen_bar = screen_bar
 
-    def run(self):
-        # 线程执行的任务
-        self.record()
+class InputListener:
+    def __init__(self):
+        self.log_file_path = "input_log.txt"
+        self.command_file_path = "command.txt"
+        self.storage_file_path = "storage.txt"
+        self.keyboard_listener = None
+        self.mouse_listener = None
+        self.expect_response = False
+        self.command = ""
+        self.storage = []
+        self.is_capturing = False
+        self.esc_count = 0
+        self.last_esc_time = 0
 
-    def stop(self):
-        self.keyboard_listener.stop()
-        self.mouse_listener.stop()
+    def read_command(self):
+        try:
+            with open(self.command_file_path, "r") as file:
+                command = file.read().strip()
+            return command
+        except FileNotFoundError:
+            return ""
 
-    def record(self):
+    def write_command(self, command):
+        with open(self.command_file_path, "w") as file:
+            file.write(command)
 
-        print(
-            "Hold right click for more than 2 seconds (and then release) to end the recording for mouse and click 'esc' to end the recording for keyboard (both are needed to finish recording)")
+    def read_storage(self):
+        try:
+            with open(self.storage_file_path, "r") as file:
+                storage = json.load(file)
+            return storage
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
 
-        # Setup keyboard and mouse listeners
-        self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
-        self.mouse_listener = mouse.Listener(on_click=self.on_click, on_scroll=self.on_scroll, on_move=self.on_move)
+    def write_storage(self, storage):
+        with open(self.storage_file_path, "w") as file:
+            json.dump(storage, file)
 
-        # Start listeners
-        self.keyboard_listener.start()
-        self.mouse_listener.start()
-
-        # Wait for listeners to finish
-        self.keyboard_listener.join()
-        self.mouse_listener.join()
-
-    # Keyboard press event handler
     def on_press(self, key):
-        global storage, is_capturing, esc_count, last_esc_time
-
-        if self.is_screen_bar_under_cursor():
-            print("under screenbar")
-            return
-
-        # Check ESC double-click condition
-        # if key == keyboard.Key.esc:
-        if key == keyboard.Key.shift:
-            if time.time() - last_esc_time < 0.5:
-                esc_count += 1
-                if esc_count == 2:
-                    is_capturing = not is_capturing
-                    esc_count = 0
-                    if not is_capturing:
+        if key == keyboard.Key.esc:
+            if time.time() - self.last_esc_time < 0.5:
+                self.esc_count += 1
+                if self.esc_count == 2:
+                    self.is_capturing = not self.is_capturing
+                    self.esc_count = 0
+                    if not self.is_capturing:
                         mouse_position = mouse.Controller().position
-                        # Emit signal to show dialog in the main thread
-                        signal_emitter.show_dialog_signal.emit(mouse_position[0], mouse_position[1])
-                    print("State toggled: capturing is now", is_capturing)
+                        self.write_storage(self.storage)
+                        self.write_command(f"SHOW_DIALOG {mouse_position[0]} {mouse_position[1]}")
+                    print("State toggled: capturing is now", self.is_capturing)
             else:
-                esc_count = 1
-            last_esc_time = time.time()
+                self.esc_count = 1
+            self.last_esc_time = time.time()
             return
 
-        # Handle other keys
-        if is_capturing:
+        if self.is_capturing:
             try:
                 char = key.char
             except AttributeError:
                 char = str(key)
             json_object = {'action': 'pressed_key', 'key': char, '_time': time.time()}
             print(f"'action': 'pressed_key', 'key': {char}, '_time': {time.time()}")
-            storage.append(json_object)
+            self.storage.append(json_object)
+            self.write_storage(self.storage)
 
-    # Keyboard release event handler
     def on_release(self, key):
-        global storage, is_capturing, esc_count, last_esc_time
-
-        if self.is_screen_bar_under_cursor():
-            print("under screenbar")
-            return
-
         if key == keyboard.Key.esc:
             return
 
-        if is_capturing:
+        if self.is_capturing:
             try:
                 char = key.char
             except AttributeError:
@@ -137,73 +143,226 @@ class WorkerThread(QThread):
             mouse_position = mouse.Controller().position
             json_object = {'action': 'released_key', 'x': mouse_position[0], 'y': mouse_position[1], 'key': char,
                            '_time': time.time()}
-            # json_object = {'action': 'released_key', 'key': char, '_time': time.time()}
-            storage.append(json_object)
+            self.storage.append(json_object)
+            self.write_storage(self.storage)
 
-    # Mouse move event handler
     def on_move(self, x, y):
-        global storage, is_capturing, esc_count, last_esc_time
+        record_all = "record-all"
+        if self.is_capturing and record_all:
+            json_object = {'action': 'moved', 'x': x, 'y': y, '_time': time.time()}
+            print(json_object)
+            self.storage.append(json_object)
+            self.write_storage(self.storage)
 
-        if self.is_screen_bar_under_cursor():
-            print("under screenbar")
-            return
-        if is_capturing and record_all:
-            if len(storage) == 0 or (storage[-1]['action'] == 'moved' and time.time() - storage[-1]['_time'] > 0.02):
-                json_object = {'action': 'moved', 'x': x, 'y': y, '_time': time.time()}
-                storage.append(json_object)
-
-    # Mouse click event handler
     def on_click(self, x, y, button, pressed):
-        global storage, is_capturing, esc_count, last_esc_time
-        if self.is_screen_bar_under_cursor():
-            print("under screenbar")
-            return
-        if is_capturing:
-            json_object = {'action': 'pressed' if pressed else 'released', 'button': str(button), 'x': x, 'y': y,
-                           '_time': time.time()}
-            print(
-                f"'action': {'pressed' if pressed else 'released'}, 'button': {str(button)}, 'x': {x}, 'y': {y}, '_time': {time.time()}")
-            storage.append(json_object)
-            if len(storage) > 1 and storage[-1]['action'] == 'released' and storage[-1]['button'] == 'Button.right' and \
-                    storage[-1]['_time'] - storage[-2]['_time'] > 2:
-                with open(f'C:/dev/ai-sns/record-and-play-pynput/record-and-play-pynput/data/{name_of_recording}.txt',
-                          'w') as outfile:
-                    json.dump(storage, outfile, ensure_ascii=False)
-                return False
+        print("on_clicking")
+        self.write_command(f"MOUSE_CLICK {x} {y} {button}")
 
-    # Mouse scroll event handler
+        while True:
+            time.sleep(0.1)
+            command = self.read_command()
+            if command:
+                if command.startswith("RECORD"):
+                    if self.is_capturing:
+                        json_object = {'action': 'pressed' if pressed else 'released', 'button': str(button),
+                                       'x': x, 'y': y, '_time': time.time()}
+                        print(f"'action': {'pressed' if pressed else 'released'}, 'button': {str(button)}, 'x': {x}, 'y': {y}, '_time': {time.time()}")
+                        self.storage.append(json_object)
+                        self.write_storage(self.storage)
+                    break
+                elif command.startswith("IGNORE"):
+                    break
+        self.write_command("")
+
     def on_scroll(self, x, y, dx, dy):
-        global storage, is_capturing, esc_count, last_esc_time
+        if self.is_capturing:
+            json_object = {'action': 'scroll', 'vertical_direction': int(dy), 'horizontal_direction': int(dx),
+                           'x': x, 'y': y, '_time': time.time()}
+            self.storage.append(json_object)
+            self.write_storage(self.storage)
 
-        if self.is_screen_bar_under_cursor():
-            print("under screenbar")
-            return
-        if is_capturing:
-            json_object = {'action': 'scroll', 'vertical_direction': int(dy), 'horizontal_direction': int(dx), 'x': x,
-                           'y': y, '_time': time.time()}
-            storage.append(json_object)
+    def start(self):
+        """Starts the input listeners."""
+        with open(self.log_file_path, "a") as self.log_file:
+            while True:
+                time.sleep(0.1)
+                command = self.read_command()
+                if command:
+                    if command.startswith("START"):
+                        if not self.keyboard_listener or not self.keyboard_listener.is_alive():
+                            self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
+                            self.keyboard_listener.start()
+                        if not self.mouse_listener or not self.mouse_listener.is_alive():
+                            self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move,
+                                                                 on_scroll=self.on_scroll)
+                            self.mouse_listener.start()
+                    elif command.startswith("STOP"):
+                        if self.keyboard_listener:
+                            self.keyboard_listener.stop()
+                            self.keyboard_listener = None
+                        if self.mouse_listener:
+                            self.mouse_listener.stop()
+                            self.mouse_listener = None
+                    elif command.startswith("PAUSE"):
+                        self.is_capturing = False
+                    elif command.startswith("RESUME"):
+                        self.is_capturing = True
+                    elif command.startswith("STORAGE"):
+                        self.write_storage(self.storage)
+                    elif command.startswith("RETURN_STORAGE"):
+                        self.storage = self.read_storage()
+                    elif command.startswith("EXIT"):
+                        break
+                    self.write_command("")
 
-    def is_screen_bar_under_cursor(self):
-        # 检查鼠标光标是否在主窗口上
 
-        screen_bar = self.screen_bar
-        pos = screen_bar.mapFromGlobal(screen_bar.cursor().pos())
-        # print(pos)
-        # print(screen_bar.rect())
-        # print(screen_bar.rect().contains(pos))
-        return screen_bar.rect().contains(pos)
-
-    # Record function to be run on a separate thread
-
-
-# Signal class to interact with the main thread
-class SignalEmitter(QtCore.QObject):
-    show_dialog_signal = pyqtSignal(int, int)
+class KeyboardMouseWorkerThread(QWidget):
+    finished = pyqtSignal(str)
+    show_dialog_signal = pyqtSignal(int, int, list)
+    storage_sent = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
+        global storage
+        self.process = subprocess.Popen([sys.executable, "inputoperate.py"])
+
+        self._running = False
+        self.screen_bar = None
+        self.receive_storage = False
+        self.storage = []
+        self.is_capturing = False
+        self.esc_count = 0
+        self.last_esc_time = 0
+        self.operate_bar = None
+        self.is_operating = True
+        self.number_of_plays = 1
+        self.gstatus = ""
+        self.gvalue = ""
+        self.skill_name = ""
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.check_for_events)
+        self.timer.start(100)
+
+    def set_screen_bar(self, screen_bar):
+        self.screen_bar = screen_bar
+
+    def set_operate_bar(self, operate_bar):
+        self.operate_bar = operate_bar
+
+    def re_init(self):
+        self.storage = []
+        self.is_capturing = False
+        self.esc_count = 0
+        self.last_esc_time = 0
+
+    def run(self):
+        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as keyboard_listener:
+            self.keyboard_listener = keyboard_listener
+            self._running = True
+            keyboard_listener.join()
+
+    def start(self):
+        self.write_command("START")
+
+    def stop(self):
+        self.write_command("STOP")
+
+    def stop_capturing(self):
+        self.write_command("STOP")
+        self.read_storage()
+
+    def pause_capturing(self):
+        self.is_capturing = False
+        self.write_command("PAUSE")
+
+    def resume_capturing(self):
+        self.is_capturing = True
+        self.write_command("RESUME")
+
+    def start_capturing(self):
+        self.re_init()
+        self.is_capturing = True
+        self.write_command("START")
+
+    def get_is_capturing(self):
+        return self.is_capturing
+
+    def set_is_capturing(self, is_capturing):
+        self.is_capturing = is_capturing
+
+    def get_storage_to_end(self):
+        self.write_command("STORAGE")
+
+    def get_storage(self):
+        global storage
+        self.storage=self.read_storage()
+        storage = self.storage
+        return storage
+
+    def update_storage(self):
+        global storage
+        self.storage = storage
+        self.write_storage(storage)
+        self.write_command(f"RETURN_STORAGE")
+
+    def check_for_events(self):
+        global storage
+        command = self.read_command()
+        if command:
+            if command.startswith("MOUSE_CLICK"):
+                params = command.split()
+                x, y, button = float(params[1]), float(params[2]), params[3]
+                if not self.is_screen_bar_under_cursor():
+                    self.write_command("RECORD")
+                else:
+                    self.write_command("IGNORE")
+            elif command.startswith("STORAGE"):
+                self.receive_storage = True
+                self.storage = self.read_storage()
+                storage = self.storage
+                self.storage_sent.emit(self.storage)
+            elif command.startswith("SHOW_DIALOG"):
+                self.read_storage()
+                params = command.split()
+                x, y = float(params[1]), float(params[2])
+                self.show_dialog_signal.emit(x, y, self.read_storage())
+
+    def is_screen_bar_under_cursor(self):
+        screen_bar = self.screen_bar
+        if screen_bar:
+            pos = screen_bar.mapFromGlobal(screen_bar.cursor().pos())
+            return screen_bar.rect().contains(pos)
+        else:
+            return False
+
+    def read_command(self):
+        try:
+            with open("command.txt", "r") as file:
+                command = file.read().strip()
+            return command
+        except FileNotFoundError:
+            return ""
+
+    def write_command(self, command):
+        with open("command.txt", "w") as file:
+            file.write(command)
+
+    def read_storage(self):
+        global storage
+        try:
+            with open("storage.txt", "r") as file:
+                storage = json.load(file)
+            return storage
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def write_storage(self, storage):
+        with open("storage.txt", "w") as file:
+            json.dump(storage, file)
 
 
+# Custom QGraphicsView to handle drawing and annotations
 class CustomGraphicsView(QGraphicsView):
     def __init__(self):
         super().__init__()
@@ -241,30 +400,30 @@ class CustomGraphicsView(QGraphicsView):
             if self.mode == "annotate_free":
                 if self.path_item:
                     self.path_item.lineTo(end_point)
-                    pen = QPen(Qt.blue, 2, Qt.SolidLine)
+                    pen = QPen(Qt.GlobalColor.blue, 2, Qt.PenStyle.SolidLine)
                     if self.item:
                         self.scene().removeItem(self.item)
                     self.item = QGraphicsPathItem(self.path_item)
                     self.item.setPen(pen)
-                    self.item.setFlags(QGraphicsPathItem.ItemIsMovable | QGraphicsPathItem.ItemIsSelectable)
+                    self.item.setFlags(QGraphicsPathItem.GraphicsItemFlag.ItemIsMovable | QGraphicsPathItem.GraphicsItemFlag.ItemIsSelectable)
                     self.scene().addItem(self.item)
             elif self.mode == "annotate_box" or self.mode == "crop_rect":
                 if self.item:
                     self.scene().removeItem(self.item)
                 rect = QRectF(self.start_point, end_point)
-                pen = QPen(Qt.red, 2, Qt.SolidLine)
+                pen = QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.SolidLine)
                 self.item = QGraphicsRectItem(rect)
                 self.item.setPen(pen)
-                self.item.setFlags(QGraphicsRectItem.ItemIsMovable | QGraphicsRectItem.ItemIsSelectable)
+                self.item.setFlags(QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable | QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable)
                 self.scene().addItem(self.item)
             elif self.mode == "crop_circle":
                 if self.item:
                     self.scene().removeItem(self.item)
                 rect = QRectF(self.start_point, end_point)
-                pen = QPen(Qt.red, 2, Qt.SolidLine)
+                pen = QPen(Qt.GlobalColor.red, 2, Qt.PenStyle.SolidLine)
                 self.item = QGraphicsEllipseItem(rect)
                 self.item.setPen(pen)
-                self.item.setFlags(QGraphicsEllipseItem.ItemIsMovable | QGraphicsEllipseItem.ItemIsSelectable)
+                self.item.setFlags(QGraphicsEllipseItem.GraphicsItemFlag.ItemIsMovable | QGraphicsEllipseItem.GraphicsItemFlag.ItemIsSelectable)
                 self.scene().addItem(self.item)
 
     def mouseReleaseEvent(self, event):
@@ -280,11 +439,11 @@ class CustomGraphicsView(QGraphicsView):
                 # Create a circular cropped image
                 cropped = self.pixmap_item.pixmap().copy(rect)
                 circular_cropped = QPixmap(cropped.size())
-                circular_cropped.fill(Qt.transparent)
+                circular_cropped.fill(Qt.GlobalColor.transparent)
 
                 # Create a circular mask and apply it
                 painter = QPainter(circular_cropped)
-                painter.setRenderHint(QPainter.Antialiasing)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
                 path = QPainterPath()
                 path.addEllipse(0, 0, rect.width(), rect.height())
                 painter.setClipPath(path)
@@ -295,10 +454,10 @@ class CustomGraphicsView(QGraphicsView):
                 self.setPixmap(circular_cropped)
 
     def enterEvent(self, event):
-        self.setCursor(QCursor(Qt.CrossCursor))
+        self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
 
     def leaveEvent(self, event):
-        self.setCursor(QCursor(Qt.ArrowCursor))
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
 
 
 class ScreenCapture(QMainWindow):
@@ -309,11 +468,12 @@ class ScreenCapture(QMainWindow):
 
         # Set the window to be transparent and fullscreen with no frame
         self.setWindowOpacity(0.3)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setWindowState(Qt.WindowFullScreen)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        # self.setWindowState(Qt.WindowState.WindowFullScreen)
+        self.setWindowState(Qt.WindowState.WindowMaximized)#mac下面不能使用fullscreen，这样会跳到另外一个桌面
 
         # Initialize the rubber band for selecting the region
-        self.rubber_band = QRubberBand(QRubberBand.Rectangle, self)
+        self.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, self)
         self.rubber_band.setStyleSheet("border: 10px solid red;")  # Set red border for the rubber band
 
         self.origin = None
@@ -328,7 +488,7 @@ class ScreenCapture(QMainWindow):
 
     def mousePressEvent(self, event):
         # Set the origin point for the rubber band
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.origin = event.pos()
             self.rubber_band.setGeometry(QRect(self.origin, QSize()))
             self.rubber_band.show()
@@ -340,7 +500,7 @@ class ScreenCapture(QMainWindow):
 
     def mouseReleaseEvent(self, event):
         # Capture the selected region
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.rubber_band.hide()
             selected_rect = self.rubber_band.geometry()
 
@@ -360,7 +520,7 @@ class ScreenCapture(QMainWindow):
             pixmap = QPixmap()
             pixmap.loadFromData(byte_array.read())
 
-            cropped_image.save(os.getcwd() + '\\cjrcaptureNew.png', 'png')
+            cropped_image.save(os.getcwd() + '/cjrcaptureNew.png', 'png')
             # Close the window after capturing
 
             self.on_captured_finished.emit((selected_rect.left(), selected_rect.top(),
@@ -376,11 +536,12 @@ class AnnotationDialog(QWidget):
         super().__init__()
 
         self.skill_id = ""
+        self.storage = None
         self.crop_rect = ()
         self.setWindowTitle("操作标注")
 
         # 设置窗口带边框，但去掉最大化、最小化和关闭按钮
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Window | Qt.WindowTitleHint | Qt.WindowMinMaxButtonsHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Window | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowMinMaxButtonsHint)
 
         # 设置对话框的布局
         layout = QVBoxLayout()
@@ -407,7 +568,7 @@ class AnnotationDialog(QWidget):
         self.otheraction_combobox.addItem("截屏", "3")
         self.otheraction_combobox.addItem("选择上周日期", "4")
         self.otheraction_combobox.addItem("输入昨天日期", "5")
-        # form_layout.addRow("操作模式:", self.mode_combobox,self.mouseclick_combobox)
+
         # 创建水平布局来包含两个下拉框
         hbox = QHBoxLayout()
         hbox.addWidget(self.mode_combobox)
@@ -428,10 +589,16 @@ class AnnotationDialog(QWidget):
         # 创建内容编辑框并添加到第一个标签页
         self.content_textEdit = QTextEdit()
         self.content_textEdit.setPlaceholderText("说明：对输入的内容进行说明")
+        palette = self.content_textEdit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.content_textEdit.setPalette(palette)
         self.content_textEdit.setAcceptRichText(False)
         self.sample_textEdit = QTextEdit()
         self.sample_textEdit.setFixedHeight(60)
         self.sample_textEdit.setPlaceholderText("例子：提供一个例子")
+        palette = self.sample_textEdit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.sample_textEdit.setPalette(palette)
         self.sample_textEdit.setAcceptRichText(False)
         first_tab = QWidget()
         first_tab_layout = QVBoxLayout()
@@ -466,9 +633,6 @@ class AnnotationDialog(QWidget):
         shortcut.activated.connect(ok_button.click)
 
         layout.addLayout(button_layout)
-
-        # 设置焦点到内容编辑框
-        # self.content_textEdit.setFocus()
 
         # 连接按钮事件
         ok_button.clicked.connect(self.save)
@@ -630,7 +794,7 @@ class AnnotationDialog(QWidget):
 
         scene_rect = self.graphics_scene.sceneRect()
         image = QPixmap(scene_rect.size().toSize())
-        image.fill(Qt.white)
+        image.fill(Qt.GlobalColor.white)
 
         painter = QPainter(image)
         self.graphics_scene.render(painter)
@@ -638,12 +802,11 @@ class AnnotationDialog(QWidget):
 
         if file_path:
             image.save(file_path)
-        # rect_coordinates = (scene_rect.x(), scene_rect.y(), scene_rect.width(), scene_rect.height())
-        # print('rect_coordinates-->',rect_coordinates)
         return file_path
 
     def save(self):
-        global storage, skill_name
+        global storage, skill_name,sample
+        storage = self.storage
         self.keyboard_controller = KeyboardController()
         self.mouse_controller = MouseController()
 
@@ -657,7 +820,6 @@ class AnnotationDialog(QWidget):
         other_action = self.otheraction_combobox.currentData()
         delay_time = self.delay_lineEdit.text()
         crop_rect = self.crop_rect
-        # if last_action["action"]
         if mode == "other_action":  # 其他操作
             mouse_click = ""
         elif mode == 'click_image':  # 点击图片
@@ -671,37 +833,34 @@ class AnnotationDialog(QWidget):
                        'mouse_click': mouse_click, 'other_action': other_action, 'crop_rect': crop_rect,
                        'delay_time': delay_time,
                        '_time': time.time()}
-        print(
-            f"'action': 'annotated', 'mode': {mode},'sample':{sample},'content': {content},'image_path': {image_path}, 'crop_rect':{crop_rect},'_time': {time.time()}")
+        print(f"'action': 'annotated', 'mode': {mode},'sample':{sample},'content': {content},'image_path': {image_path}, 'crop_rect':{crop_rect},'_time': {time.time()}")
         storage.append(json_object)
         self.content_textEdit.setPlainText("")
         self.sample_textEdit.setPlainText("")
         self.graphics_scene.clear()
         self.tab_widget.setCurrentIndex(0)
-
+        self.setVisible(False)
         self.close()  # 关闭窗口时发射信号
 
         if mode == "set_value":
-            x = int(last_action["x"])
-            y = int(last_action["y"])
-            # time.sleep(0.5)
-            self.mouse_controller.position = (x, y)
-            time.sleep(0.1)
-            self.mouse_controller.press(Button.left)
-            time.sleep(0.1)
-            self.mouse_controller.release(Button.left)
-            time.sleep(0.3)
-            print("set_value-->", sample)
-            # pyautogui.click()  # 鼠标当前位置点击一下
-            pyautogui.hotkey('ctrl', 'a')  # 或者在macOS上使用 pyautogui.hotkey('command', 'a')
-            pyautogui.press('backspace')  # 或者使用 pyautogui.press('delete')
-            time.sleep(0.2)
-            self.keyboard_controller.type(sample)
-            time.sleep(1)
+            # x = int(last_action["x"])
+            # y = int(last_action["y"])
+            # self.mouse_controller.position = (x, y)
+            # time.sleep(0.1)
+            # self.mouse_controller.press(Button.left)
+            # time.sleep(0.1)
+            # self.mouse_controller.release(Button.left)
+            # time.sleep(0.3)
+            # print("set_value-->", sample)
+            self.sample =sample
+            # pyautogui.hotkey('ctrl', 'a')  # 或者在macOS上使用 pyautogui.hotkey('command', 'a')
+            # pyautogui.hotkey('command', 'a')
+            # pyautogui.press('backspace')  # 或者使用 pyautogui.press('delete')
+            # time.sleep(0.2)
+            # self.keyboard_controller.type(sample)
+            # time.sleep(1)
 
         elif mode == "click_image":
-            # time.sleep(0.5)
-            # self.click_by_image_detect(image_path)
             self.click_by_image_detect(image_path, int(mouse_click))
             time.sleep(1)
 
@@ -711,7 +870,6 @@ class AnnotationDialog(QWidget):
             elif other_action == "2":  # 保存文档  2
                 action_save_doc(skill_name)
             elif other_action == "3":  # 截屏    3
-                # crop_rect = crop_rect
                 action_crop_doc(crop_rect[0], crop_rect[1], crop_rect[2] - crop_rect[0],
                                 crop_rect[3] - crop_rect[1])
             elif other_action == "4":  # 上周日期  4
@@ -723,21 +881,23 @@ class AnnotationDialog(QWidget):
         self.annotation_finished.emit()  # 发射信号，通知窗口已关闭
 
 
+
 class ConfigDialog(QDialog):
     annotation_finished = pyqtSignal()  # 自定义信号，表示捕获完成
 
-    def __init__(self):
+    def __init__(self,title):
         super().__init__()
 
         self.skill_id = ""
-        self.title = ""
+        self.title = title
+        self.instruction = ""
         self.desc = ""
         self.detail = ""
 
-        self.setWindowTitle("配置")
+        self.setWindowTitle(lt("Setting","配置"))
 
         # 设置窗口带边框，但去掉最大化、最小化和关闭按钮
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.Window | Qt.WindowTitleHint | Qt.WindowMinMaxButtonsHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.Window | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowMinMaxButtonsHint)
 
         # 设置对话框的布局
         layout = QVBoxLayout()
@@ -745,30 +905,30 @@ class ConfigDialog(QDialog):
 
         # 操作模式下拉框
         form_layout = QFormLayout()
+
         self.title_lineEdit = QLineEdit()
-        form_layout.addRow("标题:", self.title_lineEdit)
+        self.title_lineEdit.setText(self.title)
+        form_layout.addRow(lt("Title:","标题:"), self.title_lineEdit)
+
+        self.instruction_lineEdit = QLineEdit()
+        form_layout.addRow(lt("Instruction:","指令:"), self.instruction_lineEdit)
 
         self.desc_lineEdit = QLineEdit()
-        form_layout.addRow("简介:", self.desc_lineEdit)
+        form_layout.addRow(lt("Desc:","简介:"), self.desc_lineEdit)
 
-        # 将模式下拉框添加到标签的第一个页面
-        # layout.addLayout(form_layout)
-        # self.detail_label = QLabel("详细")
-        # layout.addWidget(self.detail_label)
-
-        # 创建内容编辑框并添加到第一个标签页
         self.detail_textEdit = QTextEdit()
-        self.detail_textEdit.setPlaceholderText("说明：对输入的内容进行说明")
+        palette = self.detail_textEdit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.detail_textEdit.setPalette(palette)
         self.detail_textEdit.setAcceptRichText(False)
 
-        # 将标签页添加到主布局
-        # layout.addWidget(self.detail_textEdit)
-        form_layout.addRow("详细:", self.detail_textEdit)
+        form_layout.addRow(lt("Detail:","详细:"), self.detail_textEdit)
         layout.addLayout(form_layout)
+
         # 确认和取消按钮
         button_layout = QHBoxLayout()
-        ok_button = QPushButton("确定")
-        cancel_button = QPushButton("取消")
+        ok_button = QPushButton(lt("OK","确定"))
+        cancel_button = QPushButton(lt("Cancel","取消"))
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
 
@@ -778,148 +938,107 @@ class ConfigDialog(QDialog):
 
         layout.addLayout(button_layout)
 
-        # 设置焦点到内容编辑框
-        # self.content_textEdit.setFocus()
-
         # 连接按钮事件
         ok_button.clicked.connect(self.save)
         cancel_button.clicked.connect(self.on_cancel)
 
-    def print_tool(self, tool_name):
-        """
-        打印被点击工具的名称
-        """
-        print(f"选择了工具: {tool_name}")
-
-    def capture_screenshot(self):
-        # Capture the entire screen
-        screenshot = pyautogui.screenshot()
-
-        # Convert to QPixmap using a QByteArray
-        byte_array = io.BytesIO()
-        screenshot.save(byte_array, format='PNG')
-        byte_array.seek(0)
-        pixmap = QPixmap()
-        pixmap.loadFromData(byte_array.read())
-
-        # Show in the scene
-        self.graphics_scene.clear()
-        self.graphics_view.setPixmap(pixmap)
-
-    def capture_crop(self):
-        self.screen_capture_win = ScreenCapture()
-        self.screen_capture_win.on_captured_finished.connect(self.handle_crop_capture)
-
-        self.screen_capture_win.show()
-
-    def handle_crop_capture(self, pos, pixmap):
-        print(pos[0])
-        print(pos[1])
-        print(pos[2])
-        print(pos[3])
-        self.graphics_scene.clear()
-        self.graphics_view.setPixmap(pixmap)
-
-    def get_data(self):
-        return {
-            'mode': self.title_lineEdit.currentText(),
-            'content': self.detail_textEdit.toPlainText().strip(),
-            'sample': self.desc_lineEdit.toPlainText().strip()
-        }
 
     def on_cancel(self):
         self.title_lineEdit.setText("")
+        self.instruction_lineEdit.setText("")
         self.desc_lineEdit.setText("")
         self.detail_textEdit.setPlainText("")
         self.reject()  # 关闭窗口时发射信号
 
     def save(self):
-        global skill_name
         self.title = self.title_lineEdit.text()
-        skill_name = self.title
+        self.instruction = self.instruction_lineEdit.text()
         self.desc = self.desc_lineEdit.text()
         self.detail = self.detail_textEdit.toPlainText()
+
         self.title_lineEdit.setText("")
+        self.instruction_lineEdit.setText("")
         self.desc_lineEdit.setText("")
         self.detail_textEdit.setPlainText("")
         self.accept()
 
 
-# 圆形倒计时窗口类
+# Circular countdown widget for visual countdown
 class CircularCountdown(QWidget):
-    # 定义一个信号，用于在窗口关闭时发射
+    # Signal to notify when countdown is finished
     countdown_finished = pyqtSignal()
 
     def __init__(self, count_down_number, end_text):
         super().__init__()
 
-        # 设置窗口无边框且形状为圆形，并置于最前
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        # Set window as frameless and always on top
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # 设置窗口大小
+        # Set window size
         self.resize(300, 300)
 
-        # 设置倒计时初始值
+        # Countdown initial value
         self.countdown_from = count_down_number
         self.end_text = end_text
 
-        # 创建一个定时器
+        # Timer for countdown
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_countdown)
-        self.timer.start(1000)  # 每秒触发一次
+        self.timer.start(1000)  # Trigger every second
 
-        # 显示窗口
+        # Show countdown widget
         self.show()
 
     def update_countdown(self):
-        """更新倒计时显示"""
+        """Update countdown display"""
         if self.countdown_from > 0:
             self.countdown_from -= 1
-            self.update()  # 触发重绘
+            self.update()  # Trigger repaint
         else:
-            # 倒计时结束，关闭窗口
+            # Countdown finished, close window
             self.timer.stop()
-            self.close()  # 关闭窗口时发射信号
-            self.countdown_finished.emit()  # 发射信号，通知窗口已关闭
+            self.close()
+            self.countdown_finished.emit()  # Emit signal when window is closed
 
     def paintEvent(self, event):
-        """自定义绘制窗口"""
+        """Custom paint event for the countdown"""
         painter = QPainter(self)
 
-        # 设置画刷为半透明背景
+        # Draw translucent circle background
         painter.setBrush(QBrush(QColor(0, 0, 0, 0)))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
 
-        # 绘制一个半透明黑色的圆形
-        painter.setBrush(QBrush(QColor(0, 0, 0, 150)))  # 设置黑色且透明度为150
+        # Draw a translucent black circle
+        painter.setBrush(QBrush(QColor(0, 0, 0, 150)))  # Black color with alpha 150
         painter.drawEllipse(0, 0, self.width(), self.height())
 
-        # 设置字体并绘制文本
+        # Set font and draw text
         painter.setFont(QFont("Helvetica", 80))
         painter.setPen(QColor(255, 255, 255))
 
         if self.countdown_from > 0:
-            painter.drawText(self.rect(), Qt.AlignCenter, str(self.countdown_from))
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, str(self.countdown_from))
         else:
             painter.setFont(QFont("Helvetica", 60))
-            painter.drawText(self.rect(), Qt.AlignCenter, self.end_text)
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.end_text)
 
 
-# 屏幕工具栏类
+# Main toolbar widget to control the application
 class LearnOperationBar(Base):
-    def __init__(self):
+    def __init__(self,application,learn_content):
         super(LearnOperationBar, self).__init__()
         self.skill_id_history_list = []
         self.skill_id = generate_random_id()
-        self.title = ""
+        self.title = learn_content
+        self.instruction = ""
         self.desc = ""
         self.detail = ""
         self.pre_status = ""
         self.cur_status = "ready"
         self.to_status = ""
         self.auto_start_flag = True
-        self.count_down_number = 1
+        self.count_down_number = 3
         self.box = QVBoxLayout()
         self.tip_box = QHBoxLayout()
         self.btn_box = QHBoxLayout()
@@ -929,13 +1048,18 @@ class LearnOperationBar(Base):
         self.start_btn = QPushButton()
         self.end_btn = QPushButton()
         self.close_btn = QPushButton()
-        self.record_thread = None
         self.dialog = None
         self.cfg_dialog = None
+        self.application = application
+        self.return_pos = False
+        initialize_globals()
+        # self.record_thread = application.keyboardmouse_thread
+        self.record_thread = KeyboardMouseWorkerThread()
+        # self.record_thread.storage_sent.connect(self.end_record_execute)
 
         self.bind()
         self.set_style()
-        initialize_globals()
+
 
     def closeEvent(self, event):
         event.ignore()
@@ -943,15 +1067,16 @@ class LearnOperationBar(Base):
 
     def auto_start(self):
         if self.cfg_dialog is None:
-            self.cfg_dialog = ConfigDialog()
+            self.cfg_dialog = ConfigDialog(self.title)
 
-        if self.cfg_dialog.exec_() == QDialog.Accepted:
+        if self.cfg_dialog.exec() == QDialog.DialogCode.Accepted:
             self.title = self.cfg_dialog.title
+            self.instruction = self.cfg_dialog.instruction
             self.desc = self.cfg_dialog.desc
             self.detail = self.cfg_dialog.detail
             print(self.title)
 
-        if self.auto_start_flag == True:
+        if self.auto_start_flag:
             self.start_btn.click()
 
     def set_style(self):
@@ -963,10 +1088,10 @@ class LearnOperationBar(Base):
         self.end_btn.setIcon(QIcon('images/stop.png'))
         self.close_btn.setIcon(QIcon('images/closecircle.png'))
         self.close_btn.setToolTip("关闭")
-        # self.tip_label.setIcon(QIcon('operationlearning/res/full.png'))
-        pixmap = QPixmap('images/arrowalldirect.png')  # 请将 'path_to_your_icon.png' 替换为你的图标路径
-        icon_size = (22, 22)  # 指定图标的宽和高
-        scaled_pixmap = pixmap.scaled(icon_size[0], icon_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        pixmap = QPixmap('images/arrowalldirect.png')
+        icon_size = (22, 22)
+        scaled_pixmap = pixmap.scaled(icon_size[0], icon_size[1], Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
 
         self.tip_label.setPixmap(scaled_pixmap)
         self.annotation_btn.setEnabled(False)
@@ -978,7 +1103,7 @@ class LearnOperationBar(Base):
         self.btn_box.addWidget(self.end_btn, 0)
         self.btn_box.addWidget(self.start_btn, 0)
 
-        # 初始化计时变量
+        # Initialize timer variables
         self.seconds = 0
         self.is_running = False
 
@@ -988,7 +1113,7 @@ class LearnOperationBar(Base):
         self.timer_label.setText("00:00:00")
         self.timer_label.setToolTip("记录时长")
 
-        # 初始化计时器
+        # Initialize timer
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time)
 
@@ -996,13 +1121,16 @@ class LearnOperationBar(Base):
 
         self.btn_box.addWidget(self.close_btn, 0)
 
-        # self.box.addLayout(self.tip_box)
         self.box.addLayout(self.btn_box)
         self.box.setContentsMargins(5, 5, 5, 5)
         self.setWindowOpacity(0.7)
         self.frameGeometry()
-        self.move(QApplication.desktop().frameGeometry().width() - 300,
-                  QApplication.desktop().frameGeometry().height() - 150)
+
+        screen_geometry = QGuiApplication.primaryScreen().geometry()
+
+        # Calculate initial position of the window at bottom right corner, width 300
+        self.move(screen_geometry.width() - 300,
+                  screen_geometry.height() - self.height())
         self.setLayout(self.box)
 
     def re_init(self):
@@ -1022,6 +1150,7 @@ class LearnOperationBar(Base):
         self.skill_id_history_list.append(self.skill_id)
         self.skill_id = generate_random_id()
         self.title = ""
+        self.instruction = ""
         self.desc = ""
         self.detail = ""
         storage = []
@@ -1029,27 +1158,25 @@ class LearnOperationBar(Base):
         last_esc_time = 0
 
     def toggle_timer(self):
-        """切换计时状态（开始/暂停）"""
-        print("before togggle self.is_running:", self.is_running)
+        """Toggle timer state (start/pause)"""
         if self.is_running:
             self.timer.stop()
         else:
-            self.timer.start(1000)  # 每秒更新一次
+            self.timer.start(1000)  # Update every second
         self.is_running = not self.is_running
-        print("after togggle self.is_running:", self.is_running)
 
     def start_timer(self):
-        """切换计时状态（开始/暂停）"""
+        """Start the timer"""
         self.is_running = True
         self.timer.start(1000)
 
     def stop_timer(self):
-        """切换计时状态（开始/暂停）"""
+        """Stop the timer"""
         self.is_running = False
         self.timer.stop()
 
     def update_time(self):
-        """更新显示时间"""
+        """Update displayed time"""
         self.seconds += 1
         h = self.seconds // 3600
         m = (self.seconds % 3600) // 60
@@ -1058,26 +1185,48 @@ class LearnOperationBar(Base):
 
     def start_record(self):
 
-        if self.record_thread is None:
-            self.record_thread = WorkerThread(self)
-            self.record_thread.start()
+        self.record_thread.set_screen_bar(self)
+        self.record_thread.start_capturing()
+
 
     def on_countdown_finished(self):
         print("in countdown finished")
-        global is_capturing
+        global is_capturing,sample
 
+        if self.return_pos:
+            time.sleep(2)
+
+            self.keyboard_controller = KeyboardController()
+            self.mouse_controller = MouseController()
+
+            last_action = storage[-2]
+
+            x = int(last_action["x"])
+            y = int(last_action["y"])
+            self.mouse_controller.position = (x, y)
+            time.sleep(0.1)
+            self.mouse_controller.press(Button.left)
+            time.sleep(0.1)
+            self.mouse_controller.release(Button.left)
+            time.sleep(0.3)
+            print("set_value-->", "self.sample")
+            # pyautogui.hotkey('ctrl', 'a')  # 或者在macOS上使用 pyautogui.hotkey('command', 'a')
+            pyautogui.hotkey('command', 'a')
+            pyautogui.press('backspace')  # 或者使用 pyautogui.press('delete')
+            time.sleep(0.2)
+            self.keyboard_controller.type(sample)
+            time.sleep(1)
+            self.return_pos = False
         if self.cur_status == "ready" and self.to_status == "started":
-            is_capturing = True
+            self.record_thread.resume_capturing()
             self.cur_status = "started"
-            # go_record()
             self.start_record()
         elif self.cur_status == "paused" and self.to_status == "started":
-            is_capturing = True
+            self.record_thread.resume_capturing()
             self.cur_status = "started"
         elif self.cur_status == "ended":
             self.end_record()
-            self.re_init()
-            self.close()
+
 
     def bind(self):
         global is_capturing
@@ -1085,15 +1234,10 @@ class LearnOperationBar(Base):
         def annotation_signal():
             global is_capturing
             mouse_position = mouse.Controller().position
-            # Emit signal to show dialog in the main thread
-            # signal_emitter.show_dialog_signal.emit(mouse_position[0], mouse_position[1])
-            # self.show_dialog(mouse_position[0], mouse_position[1])
-            # 设置按钮状态
+
             self.pre_status = self.cur_status
             if self.cur_status == "started":
-                # self.start_btn.click()
-                # time.sleep(1)
-                is_capturing = False
+                self.record_thread.pause_capturing()
                 self.toggle_timer()
                 self.to_status = "paused"
                 self.cur_status = "paused"
@@ -1107,31 +1251,27 @@ class LearnOperationBar(Base):
             self.show_dialog(-1, -1)
 
         def start_signal():
-
             global is_capturing
             self.toggle_timer()
             self.end_btn.setEnabled(True)
             self.annotation_btn.setEnabled(True)
 
             if self.cur_status == "ready":
-                # Connect the signal to the slot function
-                signal_emitter.show_dialog_signal.connect(self.annotation_btn.click)
+                self.record_thread.show_dialog_signal.connect(self.annotation_btn.click)
                 self.to_status = "started"
                 self.start_btn.setIcon(QIcon("images/pause.png"))
                 self.start_btn.setToolTip("暂停记录")
-                # self.annotation_btn.setEnabled(False)
-                self.countdown_window = CircularCountdown(self.count_down_number, "开始")
+                self.countdown_window = CircularCountdown(self.count_down_number, lt("Start","开始"))
                 self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
                 self.countdown_window.show()
 
             elif self.cur_status == "started":
-                is_capturing = False
+                self.record_thread.pause_capturing()
                 self.to_status = "paused"
                 self.cur_status = "paused"
                 self.start_btn.setIcon(QIcon("images/startcircle.png"))
                 self.start_btn.setToolTip("开始记录")
-                # self.annotation_btn.setEnabled(True)
-                self.countdown_window = CircularCountdown(0, "暂停")
+                self.countdown_window = CircularCountdown(0, lt("Pause","暂停"))
                 self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
                 self.countdown_window.show()
 
@@ -1139,50 +1279,37 @@ class LearnOperationBar(Base):
                 self.to_status = "started"
                 self.start_btn.setIcon(QIcon("images/pause.png"))
                 self.start_btn.setToolTip("暂停记录")
-
-                # self.annotation_btn.setEnabled(False)
-                self.countdown_window = CircularCountdown(self.count_down_number, "继续")
+                self.countdown_window = CircularCountdown(self.count_down_number, lt("Resume","继续"))
                 self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
                 self.countdown_window.show()
 
         def end_signal():
             global is_capturing
-            is_capturing = False
+            self.record_thread.stop_capturing()
             self.cur_status = "ended"
-            self.countdown_window = CircularCountdown(0, "结束")
+            self.countdown_window = CircularCountdown(0, lt("End","结束"))
             self.countdown_window.countdown_finished.connect(self.on_countdown_finished)
             self.countdown_window.show()
 
         def close_signal():
-            global is_capturing
-            pre_is_capturing = is_capturing
+            pre_is_capturing = self.record_thread.get_is_capturing()
             pre_time_is_running = self.is_running
-            is_capturing = False
+            self.record_thread.stop_capturing()
             if pre_time_is_running:
                 self.toggle_timer()
 
             if self.cur_status != "ready":
-
                 reply = QMessageBox.question(self, '提醒',
                                              f"您已经开始录制，该操作将放弃保存。如需保存请改为点击结束按钮。是否继续?",
-                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-                if reply == QMessageBox.No:
-                    is_capturing = pre_is_capturing
+                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+                if reply == QMessageBox.StandardButton.No:
+                    self.record_thread.set_is_capturing(pre_is_capturing)
                     if pre_time_is_running:
                         self.toggle_timer()
                     return
 
-            is_capturing = False
+            self.record_thread.pause_capturing()
             self.cur_status = "ended"
-            if self.record_thread is not None:
-                self.record_thread.stop()
-                # time.sleep(1)
-                self.record_thread.quit()
-                # time.sleep(1)
-                # record_thread.terminate()
-                self.record_thread.wait()
-                # time.sleep(1)
-                self.record_thread = None
 
             self.re_init()
             self.close()
@@ -1194,6 +1321,7 @@ class LearnOperationBar(Base):
 
     def end_record(self):
         global storage
+        # self.record_thread.get_storage_to_end()
         skill_id = self.skill_id
         directory_path = os.path.join(os.getcwd(), 'skilllearning', 'data', skill_id)
         os.makedirs(directory_path, exist_ok=True)
@@ -1204,18 +1332,9 @@ class LearnOperationBar(Base):
             with open(file_path, 'w', encoding='utf-8') as outfile:
                 json.dump(storage, outfile, indent=4, ensure_ascii=False)
 
-        if self.record_thread is not None:
-            self.record_thread.stop()
-            # time.sleep(1)
-            self.record_thread.quit()
-            # time.sleep(1)
-            # record_thread.terminate()
-            self.record_thread.wait()
-            # time.sleep(1)
-            self.record_thread = None
-
         skill_id = self.skill_id
         title = self.title if self.title else "未命名"
+        instruction =  self.instruction if self.instruction else ""
         desc = self.desc if self.desc else "未说明"
         detail = self.detail if self.detail else "未说明"
         requirement = ""
@@ -1224,8 +1343,43 @@ class LearnOperationBar(Base):
         skill_event = ""
         creator = ""
 
-        add_skill_mng(skill_id, title, file_path, requirement, parameter, desc, detail, skill_type, skill_event,
+        add_skill_mng(skill_id, title,instruction, file_path, requirement, parameter, desc, detail, skill_type, skill_event,
                       creator)
+
+        self.re_init()
+        self.close()
+
+
+    def end_record_execute(self,storage):
+        # storage = self.record_thread.get_storage()
+        skill_id = self.skill_id
+        directory_path = os.path.join(os.getcwd(), 'skilllearning', 'data', skill_id)
+        os.makedirs(directory_path, exist_ok=True)
+        file_name = "steps.txt"
+        file_path = os.path.join(directory_path, file_name)
+
+        if len(storage) > 1:
+            with open(file_path, 'w', encoding='utf-8') as outfile:
+                json.dump(storage, outfile, indent=4, ensure_ascii=False)
+
+
+        skill_id = self.skill_id
+        title = self.title if self.title else "未命名"
+        instruction = self.instruction if self.instruction else ""
+        desc = self.desc if self.desc else "未说明"
+        detail = self.detail if self.detail else "未说明"
+        requirement = ""
+        parameter = ""
+        skill_type = 0
+        skill_event = ""
+        creator = ""
+
+        add_skill_mng(skill_id, title,instruction, file_path, requirement, parameter, desc, detail, skill_type, skill_event,
+                      creator)
+
+        self.re_init()
+        self.close()
+
 
     # Show dialog
     def show_dialog(self, x, y):
@@ -1233,22 +1387,32 @@ class LearnOperationBar(Base):
             self.dialog = AnnotationDialog()
             self.dialog.annotation_finished.connect(self.annotation_finished_handle)
 
+        storage = self.record_thread.get_storage()
+
         self.dialog.skill_id = self.skill_id  # 更新skill_id
+        self.dialog.storage = storage
 
         if x > 0 and y > 0:
             self.dialog.move(x, y)
 
-        # 确保对话框在最上层并获得焦点
+        # Ensure the dialog is on top and gets focus
         self.dialog.show()
-        self.dialog.raise_()  # 将对话框置于最上层
-        self.dialog.activateWindow()  # 激活对话框窗口
+        self.dialog.raise_()
+        self.dialog.activateWindow()
 
     def annotation_finished_handle(self):
+        global storage, skill_name
         print("return in annotation_finished_handle")
         self.annotation_btn.setEnabled(True)
         self.end_btn.setEnabled(True)
         self.start_btn.setEnabled(True)
         self.close_btn.setEnabled(True)
+        # self.dialog.set_value_click()
+        self.record_thread.update_storage()
+        self.return_pos = True
+
+
 
         if self.pre_status == "started":
             self.start_btn.click()
+

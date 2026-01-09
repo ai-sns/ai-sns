@@ -1,10 +1,10 @@
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QPoint
-
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtCore import Qt, QPoint
+from i18n import lt
 from KMItem import KMItem
 from KMGroup import KMGroup
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from langchainhandler import *
 from db.DBFactory import add_KMData,query_KMData_All,update_KMData,delete_KMData,query_KMData
@@ -42,14 +42,14 @@ class KMList(QTreeWidget):
 
         #QTreeWidgetItem configuration
         #self.header().setSectionHidden(0, True)
-        self.setHeaderLabel("知识列表")#需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("File List","文件列表"))#需要设置此处的值，否则缺省值为1
         self.setSortingEnabled(True)
-        self.sortItems(0, Qt.AscendingOrder)
+        self.sortItems(0, Qt.SortOrder.AscendingOrder)
         self.buddies = {}
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         self.delete_action = QAction(QIcon("images/delete.png"), "删除", self)
         self.delete_action.triggered.connect(self.delete_item)
@@ -67,14 +67,14 @@ class KMList(QTreeWidget):
     def reload(self, key_word=""):
         self.clear()
 
-        self.setHeaderLabel("知识列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("File List","文件列表"))  # 需要设置此处的值，否则缺省值为1
         self.setSortingEnabled(True)
-        self.sortItems(0, Qt.AscendingOrder)
+        self.sortItems(0, Qt.SortOrder.AscendingOrder)
         self.buddies = {}
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         self.delete_action = QAction(QIcon("images/delete.png"), "删除", self)
         self.delete_action.triggered.connect(self.delete_item)
@@ -115,7 +115,7 @@ class KMList(QTreeWidget):
 
         if item_count==0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "所有")
+            group_item.setText(0, lt("All","所有"))
         else:
             group_item = self.topLevelItem(0)
 
@@ -131,7 +131,7 @@ class KMList(QTreeWidget):
         kmrecord = self.km_cfg
         if item_count == 0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "所有")
+            group_item.setText(0, lt("All","所有"))
         else:
             group_item = self.topLevelItem(0)
         # print("adding item:",name)
@@ -144,7 +144,7 @@ class KMList(QTreeWidget):
         top_item = QTreeWidgetItem()
         top_item.setText(0, name)
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -176,7 +176,7 @@ class KMList(QTreeWidget):
 
         item = self.currentItem
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
 
         if id_value:

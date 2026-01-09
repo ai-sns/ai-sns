@@ -1,10 +1,10 @@
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QInputDialog, QMessageBox, \
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QInputDialog, QMessageBox, \
     QDialog
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
-
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QAction
+from PyQt6.QtCore import Qt, QPoint
+from i18n import lt
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import query_AgentTaskMulti, query_AgentTaskMulti_Content, AgentTaskMulti, update_AgentTaskMulti, \
     deleteMultiTasksFromDatabase, query_AgentTask_Search_Content, query_AgentTaskMulti_Search_First, \
@@ -33,9 +33,9 @@ class TaskListGroup(QTreeWidget):
         self.browser_page = None
         self.is_browser_page_loaded = False
 
-        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Chat List","对话列表"))  # 需要设置此处的值，否则缺省值为1
         # self.setSortingEnabled(True)#排序
-        # self.sortItems(0, Qt.AscendingOrder)#排序
+        # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -68,7 +68,7 @@ class TaskListGroup(QTreeWidget):
 
     # --> 加载 右键菜单
     def load_pop_menu(self):
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
         self.stick_action.triggered.connect(self.stick_item)
@@ -94,7 +94,7 @@ class TaskListGroup(QTreeWidget):
         self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             item = self.currentItem()
             if item:
                 reply = QMessageBox.question(self, '删除确定',
@@ -102,7 +102,7 @@ class TaskListGroup(QTreeWidget):
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
                 if reply == QMessageBox.Yes:
                     column = 0
-                    id_value = item.data(column, Qt.UserRole)
+                    id_value = item.data(column, Qt.ItemDataRole.UserRole)
                     # 从数据库中删除所有task_id相同的记录
                     deleteMultiTasksFromDatabase(id_value)
 
@@ -128,7 +128,7 @@ class TaskListGroup(QTreeWidget):
 
         if item_count == 0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "所有")
+            group_item.setText(0, lt("All","所有"))
         else:
             group_item = self.topLevelItem(0)
         # print("adding item:",name)
@@ -139,7 +139,7 @@ class TaskListGroup(QTreeWidget):
         if icon == True:
             top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -160,7 +160,7 @@ class TaskListGroup(QTreeWidget):
         item = self.current_Item
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
 
@@ -169,7 +169,7 @@ class TaskListGroup(QTreeWidget):
             if ok and newName:
                 item.setText(0, newName)
                 column = 0
-                id_value = item.data(column, Qt.UserRole)
+                id_value = item.data(column, Qt.ItemDataRole.UserRole)
                 update_AgentTaskMulti(id_value, topic=newName)
         else:
             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
@@ -178,7 +178,7 @@ class TaskListGroup(QTreeWidget):
 
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
 
         if id_value:
@@ -216,7 +216,7 @@ class TaskListGroup(QTreeWidget):
     def on_itemDoubleClicked(self, item, column):
         print("双击了：", item.text(column))
         print(column)
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("双击了：", id_value)
         if id_value == None:
             return (False)
@@ -245,7 +245,10 @@ class TaskListGroup(QTreeWidget):
 
     def format_text(self, browser_page, content, owner, create_time):
 
-        message = get_agent_reply_msg_title_formatted(owner, 1, create_time, False)
+        if owner == "User" or owner =="用户":
+            message =get_user_ask_msg_title_formatted(1,create_time)
+        else:
+            message = get_agent_reply_msg_title_formatted(owner, 1, create_time, False)
         add_msg_to_message_window(browser_page, message, 1)
         # add_agent_reply_msg_to_message_window(browser_page, content)
         add_msg_to_message_window_with_markdown_and_highlight(browser_page, content, 2)
@@ -257,7 +260,7 @@ class TaskListGroup(QTreeWidget):
     def reload(self, key_word):
         self.clear()
 
-        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Chat List","对话列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -304,7 +307,7 @@ class TaskListGroup(QTreeWidget):
     def stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
         if id_value:
             if item:
@@ -333,7 +336,7 @@ class TaskListGroup(QTreeWidget):
     def un_stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         if id_value:
             if item:
                 reply = QMessageBox.question(self, '取消置顶确定',
@@ -352,7 +355,7 @@ class TaskListGroup(QTreeWidget):
         item = self.current_Item
         oldName = None
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
             res = query_AgentTaskMulti_ById(id_value)
@@ -373,7 +376,7 @@ class TaskListGroup(QTreeWidget):
                     update_AgentTaskMulti(id_value, label=selection)
             dialog.user_selected.connect(handle_user_selection)
             # 以模态方式显示对话框
-            if dialog.exec_() == QDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 pass
             self.reload("")  # -->刷新列表
         else:

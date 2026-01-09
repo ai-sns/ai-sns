@@ -11,7 +11,7 @@ class Connector_Baichuan2_13B_Plugin(PluginCore):
     def __init__(self, logger: Logger) -> None:
         super().__init__(logger)
         self.meta = Meta(
-            name='百川',
+            name='Baichuan_local',
             description='用来连接baichuan-13B模型',
             version='1.0.0'
         )
@@ -35,13 +35,13 @@ class Connector_Baichuan2_13B_Plugin(PluginCore):
         # agetnconfigdlg=ConnectionDialog
         connection = SettingDialog(self)
         content=""
-        # self.actionConnection.triggered.connect(connection.exec_)  #
+        # self.actionConnection.triggered.connect(connection.exec)  #
 
         print("baichuan command:",command)
 
         if command[0]=="open_config_dialog":
             print("opendialogue")
-            connection.exec_()
+            connection.exec()
         else:
             headers = {
                 "Content-Type": "application/json",

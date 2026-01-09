@@ -1,0 +1,10 @@
+api_key: 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
+custom_params: false
+description: ''
+max_tokens: 4000
+model: deepseek-r1-distill-llama-70b
+parameters: ''
+stream: true
+temperature: 0.8
+top_p: 0.7
+url: https://api.groq.com/openai/v1/chat/completions

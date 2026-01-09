@@ -42,9 +42,9 @@
 #############################################################################
 
 
-from PyQt5.QtCore import QDate, QSize, Qt
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+from PyQt6.QtCore import QDate, QSize, Qt
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
                              QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox)
@@ -171,9 +171,9 @@ class ConfigDialog(QDialog):
         super(ConfigDialog, self).__init__(parent)
 
         self.contentsWidget = QListWidget()
-        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setViewMode(QListView.ViewMode.IconMode)
         self.contentsWidget.setIconSize(QSize(96, 84))
-        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMovement(QListView.Movement.Static)
         self.contentsWidget.setMaximumWidth(128)
         self.contentsWidget.setSpacing(12)
 
@@ -205,7 +205,7 @@ class ConfigDialog(QDialog):
 
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
 
@@ -237,20 +237,20 @@ class ConfigDialog(QDialog):
         configButton = QListWidgetItem(self.contentsWidget)
         configButton.setIcon(QIcon(':/images/config.png'))
         configButton.setText("Configuration")
-        configButton.setTextAlignment(Qt.AlignHCenter)
-        configButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        configButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        configButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         updateButton = QListWidgetItem(self.contentsWidget)
         updateButton.setIcon(QIcon(':/images/update.png'))
         updateButton.setText("Update")
-        updateButton.setTextAlignment(Qt.AlignHCenter)
-        updateButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        updateButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        updateButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         queryButton = QListWidgetItem(self.contentsWidget)
         queryButton.setIcon(QIcon(':/images/query.png'))
         queryButton.setText("Query")
-        queryButton.setTextAlignment(Qt.AlignHCenter)
-        queryButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        queryButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        queryButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         self.contentsWidget.currentItemChanged.connect(self.changePage)
 
@@ -261,4 +261,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

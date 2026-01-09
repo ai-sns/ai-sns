@@ -1,5 +1,5 @@
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton
 
 import syntax_pars
 
@@ -61,4 +61,4 @@ class CodeEditor(QWidget):
 aa=CodeEditor()
 bb=aa.create_widget(content="cjrok")
 bb.show()
-app.exec_()
+app.exec()

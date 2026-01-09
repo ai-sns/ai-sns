@@ -1,12 +1,12 @@
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate, QSize, Qt, QRect
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QDate, QSize, Qt, QRect,QPoint
 
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath,QKeySequence
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QKeySequence, QShortcut, QColor, QPalette
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
-                             QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog,QShortcut,QMessageBox,QFormLayout)
+                             QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog,QMessageBox,QFormLayout)
 
 from db.DBFactory import add_AgentCfg, update_AgentCfg,query_AgentCfg
 from db.DBFactory import query_AiChatCfg_All
@@ -28,9 +28,9 @@ class ConfigDialog(QDialog):
         super(ConfigDialog, self).__init__(parent)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinMaxButtonsHint)  # 添加最小化和最大化按钮
         self.contentsWidget = QListWidget()
-        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setViewMode(QListView.ViewMode.IconMode)
         self.contentsWidget.setIconSize(QSize(96, 84))
-        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMovement(QListView.Movement.Static)
         self.contentsWidget.setMaximumWidth(128)
         self.contentsWidget.setSpacing(12)
         # if idstr=="":
@@ -85,14 +85,14 @@ class ConfigDialog(QDialog):
 
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
 
         self.shortcut = QShortcut(QKeySequence('Ctrl+Enter'), self)
         self.shortcut.activated.connect(self.accept_close)
 
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
@@ -158,11 +158,14 @@ class ConfigDialog(QDialog):
         uselastplugins = self.securityPage.uselastpluginsCheckBox.isChecked()
         uselastkms = self.securityPage.uselastkmsCheckBox.isChecked()
         callpluginbyinstruct = self.securityPage.plugincallCheckBox.isChecked()
+        modelfrequent = self.securityPage.modelfrequentCheckBox.isChecked()
+        rolefrequent = self.securityPage.rolefrequentCheckBox.isChecked()
+        multimodelfrequent = self.securityPage.multimodelfrequentCheckBox.isChecked()
         autorunrounds = self.securityPage.hitsSpinBox.value()
         federationid = "None"
         if self.agent_cfg == None:
             idstr=generate_random_id()
-            add_AgentCfg(idstr,name,memo,borndate ,borncontry,language,gender,joinfederation,syncfederation,federationid,defaultmodel,defaultrole,defaultmodel,defaultrole,specialization,plugins,kms,last_plugins,last_kms,prompt,snsaccount,snsnickname,islimittotalmessage,islimitmessagepp,totalmessages,ppmessages,readfile,writefile,deletefile,execfile,uselastmodel,uselastrole,uselastplugins,uselastkms,callpluginbyinstruct,autorunrounds)
+            add_AgentCfg(idstr,name,memo,borndate ,borncontry,language,gender,joinfederation,syncfederation,federationid,defaultmodel,defaultrole,defaultmodel,defaultrole,specialization,plugins,kms,last_plugins,last_kms,prompt,snsaccount,snsnickname,islimittotalmessage,islimitmessagepp,totalmessages,ppmessages,readfile,writefile,deletefile,execfile,uselastmodel,uselastrole,uselastplugins,uselastkms,callpluginbyinstruct,modelfrequent,rolefrequent,multimodelfrequent,autorunrounds)
 
             self.app.get_all_agent()
             agents = global_agent_list.values()  # 前面已经从数据库中初始化了agent列表，直接使用前面已经初始化的列表获取其agent_cfg即可
@@ -171,7 +174,7 @@ class ConfigDialog(QDialog):
             self.app.createToolBoxUnit_AgentChat(new_agent,visible_count)
         else:
             idstr=self.agent_cfg.user_id
-            update_AgentCfg(self.agent_cfg.id, name=name,memo=memo,borndate=borndate,borncontry=borncontry,language=language,gender=gender,joinfederation=joinfederation,syncfederation=syncfederation,defaultmodel=defaultmodel,defaultrole=defaultrole,specialization=specialization,plugins=plugins,kms=kms,prompt=prompt,snsaccount=snsaccount,snsnickname=snsnickname,islimittotalmessage=islimittotalmessage,islimitmessagepp=islimitmessagepp,totalmessages=totalmessages,ppmessages=ppmessages,readfile=readfile,writefile=writefile,deletefile=deletefile,execfile=execfile,uselastmodel=uselastmodel,uselastrole=uselastrole,uselastplugins=uselastplugins,uselastkms=uselastkms,callpluginbyinstruct=callpluginbyinstruct,autorunrounds=autorunrounds)
+            update_AgentCfg(self.agent_cfg.id, name=name,memo=memo,borndate=borndate,borncontry=borncontry,language=language,gender=gender,joinfederation=joinfederation,syncfederation=syncfederation,defaultmodel=defaultmodel,defaultrole=defaultrole,specialization=specialization,plugins=plugins,kms=kms,prompt=prompt,snsaccount=snsaccount,snsnickname=snsnickname,islimittotalmessage=islimittotalmessage,islimitmessagepp=islimitmessagepp,totalmessages=totalmessages,ppmessages=ppmessages,readfile=readfile,writefile=writefile,deletefile=deletefile,execfile=execfile,uselastmodel=uselastmodel,uselastrole=uselastrole,uselastplugins=uselastplugins,uselastkms=uselastkms,callpluginbyinstruct=callpluginbyinstruct,modelfrequent=modelfrequent,rolefrequent=rolefrequent,multimodelfrequent=multimodelfrequent,autorunrounds=autorunrounds)
             tool_box_item = self.app.toolBox_AgentChat.findChild(QWidget, idstr)
             self.app.toolBox_AgentChat.setItemText(self.app.toolBox_AgentChat.indexOf(tool_box_item), f"{name} ({memo})" if memo else name)
             # self.app.toolBox_AgentChat.setItemIcon(self.app.toolBox_AgentChat.indexOf(settingWidget), QIcon('images/setting.png'))
@@ -180,6 +183,7 @@ class ConfigDialog(QDialog):
         self.memo = memo
         self.specialization = specialization
         self.snsaccount = snsaccount
+        self.app.map_message_box.update_ai_model_display_name()
         self.accept()
         self.close()
 
@@ -197,26 +201,26 @@ class ConfigDialog(QDialog):
         configButton = QListWidgetItem(self.contentsWidget)
         configButton.setIcon(QIcon(':/images/config.png'))
         configButton.setText("基本配置")
-        configButton.setTextAlignment(Qt.AlignHCenter)
-        configButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        configButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        configButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         techButton = QListWidgetItem(self.contentsWidget)
         techButton.setIcon(QIcon('images/technique.png'))
         techButton.setText("技能配置")
-        techButton.setTextAlignment(Qt.AlignHCenter)
-        techButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        techButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        techButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         # queryButton = QListWidgetItem(self.contentsWidget)
         # queryButton.setIcon(QIcon(':/images/update.png'))
         # queryButton.setText("社交配置")
-        # queryButton.setTextAlignment(Qt.AlignHCenter)
-        # queryButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        # queryButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        # queryButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         updateButton = QListWidgetItem(self.contentsWidget)
         updateButton.setIcon(QIcon(':/images/update.png'))
         updateButton.setText("其他设置")
-        updateButton.setTextAlignment(Qt.AlignHCenter)
-        updateButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        updateButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        updateButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
 
 
@@ -234,7 +238,7 @@ class GeneralPage(QWidget):
         self.agent_cfg = agent_cfg
 
         self.avatar_label = ClickableAvatarLabel()
-        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setFixedSize(70, 70)
         # self.avatar_label.setStyleSheet("QLabel{border: 1px solid blue;}")
 
@@ -349,14 +353,14 @@ class GeneralPage(QWidget):
     def setAvatar(self, pixmap):
         size = QSize(70, 70)
         target = QPixmap(size)
-        target.fill(Qt.transparent)
+        target.fill(Qt.GlobalColor.transparent)
 
         # 绘制圆形头像
         painter = QPainter(target)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # 绘制圆形边框
-        pen = QPen(Qt.gray)
+        pen = QPen(Qt.GlobalColor.white)
         pen.setWidth(2)
         painter.setPen(pen)
         painter.drawEllipse(1, 1, size.width() - 2, size.height() - 2)
@@ -365,17 +369,63 @@ class GeneralPage(QWidget):
         clip_path = QPainterPath()
         clip_path.addEllipse(2, 2, size.width() - 4, size.height() - 4)
         painter.setClipPath(clip_path)
-        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
         # 将原始图像缩放到适当大小，并放置在中心
         diameter = min(size.width(), size.height())
-        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.SmoothTransformation)
+        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.TransformationMode.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.TransformationMode.SmoothTransformation)
         target_rect = QRect((size.width() - scaled_pixmap.width()) // 2, (size.height() - scaled_pixmap.height()) // 2, scaled_pixmap.width(), scaled_pixmap.height())
         painter.drawPixmap(target_rect, scaled_pixmap)
 
         painter.end()
-
+        # 将圆形头像保存为 PNG 文件
+        target.save("avatar.png", "PNG")
+        # 将生成的圆形头像与pin.png合成并保存为mapavartar.png
+        self.compositeAndSave(target)
         self.avatar_label.setPixmap(target)
+
+    def compositeAndSave(self, avatar_pixmap):
+        # 加载pin.png文件
+        pin_pixmap = QPixmap("pin.png")
+        if pin_pixmap.isNull():
+            print("Failed to load pin.png")
+            return
+
+        # 创建一个新的QPixmap，大小为pin.png的尺寸
+        composite_pixmap = QPixmap(pin_pixmap.size())
+        composite_pixmap.fill(Qt.GlobalColor.transparent)
+
+        # 初始化QPainter，用于在合成图像上绘制
+        painter = QPainter(composite_pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # 绘制pin.png到合成图像上
+        painter.drawPixmap(0, 0, pin_pixmap)
+
+        # 定义圆形头像在合成图像中的位置（例如，右上角）
+        # avatar_position = QPoint(pin_pixmap.width() - avatar_pixmap.width() - 10, 10)
+        avatar_position = QPoint(1, 2)
+        painter.drawPixmap(avatar_position, avatar_pixmap)
+
+        # 结束绘制
+        painter.end()
+        # 将合成图像缩小一半
+        scaled_composite_pixmap = composite_pixmap.scaled(
+            composite_pixmap.width() // 2,
+            composite_pixmap.height() // 2,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        # 保存合成图像为mapavartar.png
+        # 将QPixmap转换为QImage
+        scaled_composite_pixmap = scaled_composite_pixmap.toImage()
+
+        # 保存图片并指定压缩质量
+        quality=25
+        scaled_composite_pixmap.save("compressed_image.png", "PNG", quality)
+
+        # scaled_composite_pixmap.save("mapavartar.png", "PNG")
+        print("Composite image saved as mapavartar.png")
 
 class TechniquePage(QWidget):
 
@@ -451,6 +501,9 @@ class TechniquePage(QWidget):
         self.specializationText = QtWidgets.QPlainTextEdit()
         self.specializationText.setFixedHeight(100)
         self.specializationText.setPlaceholderText("在此设置Agent的介绍，重点介绍它有什么功能，如：它拥有各类法律法规数据库，能解答各类法律法规")
+        palette = self.specializationText.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.specializationText.setPalette(palette)
 
 
         packagesLayout = QGridLayout()
@@ -497,7 +550,9 @@ class TechniquePage(QWidget):
         self.pmtText = QtWidgets.QPlainTextEdit()
         self.pmtText.setFixedHeight(100)
         self.pmtText.setPlaceholderText("在此设置Agent的角色系统提示词，比如：你是位律师，擅长解答各类法律法规，你要用专业的知识给用户解答")
-
+        palette = self.pmtText.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.pmtText.setPalette(palette)
         if agent is not None:
             selected_packages = agent_cfg.plugins.split(',')  # Assuming index 1 represents selected packages
             for i in range(self.pluginList.count()):
@@ -725,8 +780,9 @@ class SecurityPage(QWidget):
         self.uselastpluginsCheckBox = QCheckBox("启动后启用最近一次使用的插件")
         self.uselastkmsCheckBox = QCheckBox("启动后启用最近一次使用的知识库")
         self.plugincallCheckBox = QCheckBox("插件可通过指令调用")
-        self.modelfrequentCheckBox = QCheckBox("对话界面启用常用模型列表")
-        self.rolefrequentCheckBox = QCheckBox("对话界面启用常用角色列表")
+        self.modelfrequentCheckBox = QCheckBox("对话界面使用常用模型列表")
+        self.rolefrequentCheckBox = QCheckBox("对话界面使用常用角色列表")
+        self.multimodelfrequentCheckBox = QCheckBox("多模型对话界面使用常用列表")
 
         preferenceLayout = QGridLayout()
         preferenceLayout.addWidget(self.modelchoiceCheckBox, 0, 0)
@@ -736,6 +792,7 @@ class SecurityPage(QWidget):
         preferenceLayout.addWidget(self.plugincallCheckBox, 4, 0)
         preferenceLayout.addWidget(self.modelfrequentCheckBox, 5, 0)
         preferenceLayout.addWidget(self.rolefrequentCheckBox, 6, 0)
+        preferenceLayout.addWidget(self.multimodelfrequentCheckBox, 7, 0)
 
         preferenceGroup.setLayout(preferenceLayout)
 
@@ -772,6 +829,9 @@ class SecurityPage(QWidget):
             self.uselastkmsCheckBox.setChecked(agent_cfg.uselastkms)
             self.plugincallCheckBox.setChecked(agent_cfg.callpluginbyinstruct)
 
+            self.modelfrequentCheckBox.setChecked(agent_cfg.modelfrequent)
+            self.rolefrequentCheckBox.setChecked(agent_cfg.rolefrequent)
+            self.multimodelfrequentCheckBox.setChecked(agent_cfg.multimodelfrequent)
 
             self.hitsSpinBox.setValue(agent_cfg.autorunrounds)
 
@@ -806,7 +866,7 @@ class SecurityPage(QWidget):
         self.setLayout(mainLayout)
 
 class ClickableAvatarLabel(QLabel):
-    clicked = PyQt5.QtCore.pyqtSignal()
+    clicked = PyQt6.QtCore.pyqtSignal()
 
     def mousePressEvent(self, event):
         self.clicked.emit()
@@ -815,7 +875,7 @@ class ClickableLabel(QLabel):
     clicknum=0
     def __init__(self, text):
         super().__init__(text)
-        self.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.setTextInteractionFlags( Qt.TextInteractionFlag.TextSelectableByMouse)
         self.setStyleSheet("QLabel { color: blue; text-decoration: underline;cursor: pointer;margin-left:20px } QLabel:hover { color: red; text-decoration: underline;cursor: pointer;margin-left:20px }")
 
     def mousePressEvent(self, event):
@@ -824,7 +884,7 @@ class ClickableLabel(QLabel):
         print("clicknum", self.clicknum)
         if self.clicknum % 2 ==0:
             dialog = CustomDialog(self.text())
-            dialog.exec_()
+            dialog.exec()
         else:
             bat_file_path = r'C:\dev\magic_ai\DigitalIdentity\scripts\getcontract.bat'
             subprocess.call(['start', 'cmd', '/c', bat_file_path], shell=True)
@@ -1088,4 +1148,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

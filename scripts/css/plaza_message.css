@@ -1,0 +1,93 @@
+/* plaza message css */
+.message-block {
+    width: 300px;
+    display: flex;
+    align-items: center;
+    z-index: 1098;
+}
+
+.message-container {
+    width: 200px;
+    height: 40px;
+    position: absolute;
+    left: 5px;
+    top: 500px;
+    overflow: visible;
+    z-index: 1099;
+}
+
+.messagebak {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 14px;
+    color: #fff;
+    background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
+    border-radius: 10px;
+    box-shadow: 0 4px 28px #185a9d40;
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(60px);
+    padding-left: 5px;
+    will-change: transform, opacity;
+    cursor: pointer;
+    z-index: 1100;
+
+    /* ✅ 自动截断部分（新增） */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 10px; /* 留出空间避免文字紧贴右边 */
+    line-height: 1.4;
+}
+
+.message {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    font-size: 14px;
+    color: #fff;
+    background: linear-gradient(90deg, #43cea2 0%, #185a9d 100%);
+    border-radius: 10px;
+    box-shadow: 0 4px 28px #185a9d40;
+    display: -webkit-box;       /* 多行截断必须 */
+    -webkit-box-orient: vertical; /* 垂直排列 */
+    -webkit-line-clamp: 2;     /* 限制最多 2 行 */
+    overflow: hidden;           /* 隐藏超出部分 */
+    text-overflow: ellipsis;    /* 显示省略号 */
+    padding-left: 5px;
+    padding-right: 10px;        /* 留出空间 */
+    line-height: 1.4;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(60px);
+    will-change: transform, opacity;
+    z-index: 1100;
+
+    /* 保留原来的 flex 对齐样式可选 */
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    flex-direction: column;     /* 为了兼容多行文本 */
+}
+
+
+/* ✅ 响应式优化（可选） */
+@media (max-width: 600px) {
+    .message-container {
+        width: 160px;
+    }
+}
+
+/* 已有 */
+.active {
+    opacity: 1;
+    pointer-events: auto;
+}

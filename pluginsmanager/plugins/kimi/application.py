@@ -75,7 +75,7 @@ class Connector_Kimi_Plugin(PluginCore):
 
         if command[0] == "open_config_dialog":
             print("opendialogue")
-            connection.exec_()
+            connection.exec()
         else:
             headers = {
                 'Authorization': f'Bearer {api_key}',

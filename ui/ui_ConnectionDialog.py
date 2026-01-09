@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QGroupBox, QGridLayout, QLabel, QLineEdit, QCheckBox, QDialogButtonBox
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSettings
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QGroupBox, QGridLayout, QLabel, QLineEdit, QCheckBox, QDialogButtonBox
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QSettings
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 class Ui_ConnectionDialog(object):
     def setupUi(self, ConnectionDialog):
@@ -31,7 +31,7 @@ class Ui_ConnectionDialog(object):
         self.gridlayout.addWidget(self.label_2, 1, 0, 1, 1)
 
         self.password = QLineEdit(self.groupBox)
-        self.password.setEchoMode(QLineEdit.Password)
+        self.password.setEchoMode(QLineEdit.EchoMode.Password)
         self.password.setObjectName("password")
         self.gridlayout.addWidget(self.password, 1, 1, 1, 1)
         self.vboxlayout.addWidget(self.groupBox)
@@ -72,12 +72,12 @@ class Ui_ConnectionDialog(object):
         self.vboxlayout.addWidget(self.groupBox_2)
 
         self.buttonBox = QDialogButtonBox(ConnectionDialog)
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok)
 
-        ok_button = self.buttonBox.button(QDialogButtonBox.Ok)
+        ok_button = self.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
-        cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
+        cancel_button = self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
 
         self.buttonBox.setObjectName("buttonBox")

@@ -28,16 +28,87 @@ class Main():
 
     def open_config_dialog(self):
         connection = OpenAIConnectionDialog(self)
-        connection.exec_()
+        connection.exec()
 
     def run(self,*args,**kwargs):
         self.question=args[0]
         self.messages=args[1]
         self.browser_page=args[2]
         self.task_id=args[3]
+        self.speaker = args[4]
         answer = self.generate_image(self.question)
 
         return (answer,"")
+
+
+    def generate_image(self, prompt, model="dall-e-3", n=1, size="1024x1024"):
+        # 更新模型和参数的说明
+        """
+        The size of the generated images. Must be one of 1024x1024, 1792x1024, or 1024x1792 for dall-e-3 models.
+        The number of images to generate. Must be 1 for dall-e-3.
+        """
+        config = self.get_config()  # Get configuration settings
+        url = config.get("url", "https://api.openai.com/v1/images/generations")  # API endpoint
+        api_key = config.get("api_key", "")  # API key for authorization
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        data = {
+            "model": model,
+            "prompt": prompt,
+            "n": n,
+            "size": size
+        }
+
+        # 发送 POST 请求
+        response = requests.post(url, headers=headers, json=data)
+        print("dallurl:", url)
+
+        # 检查响应状态
+        if response.status_code != 200:
+            print("Error:", response.text)
+            return []
+
+        # 提取 URL 列表
+        urls = [datum['url'] for datum in response.json().get('data', [])]
+        print(urls)
+
+        for i in range(len(urls)):
+            image_name = generate_random_id() + ".png"
+
+            task_id = self.task_id
+            directory_path = os.path.join('resource', 'attachment', 'chat', task_id)
+            os.makedirs(directory_path, exist_ok=True)
+
+            save_path = os.path.join('resource', 'attachment', 'chat', task_id, image_name)
+
+            save_path = os.path.join('resource', 'attachment', 'chat', image_name)
+            download_image(urls[i], save_path)
+            save_path = os.path.abspath(save_path).replace("\\", "/")
+            urls[i] = save_path  # 直接替换 urls 列表中对应位置的值
+
+        img_element = ''.join(f"""<br><a id="__system_aisns_image__" href="#" onclick="open_attachment('{url}');return false;" style="color:blue"><img src="file:///{url}" alt="{url}" style="width:300px;height:auto;" /></a><br>""" for url in urls)
+        print(img_element)
+
+        # 添加附件元素到页面中
+        self.speaker.runJavaScript('document.getElementById("allcontent").innerHTML += `' + img_element + '`')
+        self.speaker.runJavaScript("window.scrollTo(0, document.body.scrollHeight);")
+
+        return img_element  # 返回生成的图像 URL 列表
+
+    def get_config(self):
+        try:
+            file_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+            with open(file_path, "r") as f:
+                config = yaml.safe_load(f)
+        except FileNotFoundError:
+            pass
+
+        return config
+
 
     def generate_imagebak(self, prompt, model="dall-e-3", n=1, size="1024x1024"):
         # 更新模型和参数的说明
@@ -97,7 +168,7 @@ class Main():
 
         return img_element  # 返回生成的图像 URL 列表
 
-    def generate_image(self, prompt, model="dall-e-3", n=1, size="1024x1024"):
+    def generate_imagebaklast(self, prompt, model="dall-e-3", n=1, size="1024x1024"):
         # 更新模型和参数的说明
         """
         The size of the generated images. Must be one of 1024x1024, 1792x1024, or 1024x1792 for dall-e-3 models.
@@ -106,6 +177,7 @@ class Main():
 
         url = "https://api.chatanywhere.tech/v1/images/generations"
         api_key = "sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26"  # 更新为您提供的 Bearer Token
+
 
         headers = {
             "Content-Type": "application/json",
@@ -255,7 +327,7 @@ class Connector_OpenAI_Plugin(PluginCore):
 
         if command[0] == "open_config_dialog":
             print("opendialogue")
-            connection.exec_()
+            connection.exec()
         else:
             headers = {
                 'Authorization': f'Bearer {api_key}',

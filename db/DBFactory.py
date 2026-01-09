@@ -74,6 +74,40 @@ def add_AIChatMessages(conversation_id, flag, title, content, owner_name, owner_
     session.close()
 
 
+def query_map_activity_previous(last_record_id=None, count=20, type_str=None):
+    """查询小于 last_record_id 的活动记录，返回 count 个记录，
+    记录按降序排列。如果 type_str 不为空，则返回 type 等于 type_str 的记录。
+    如果 last_record_id 为 None，则不应用此筛选条件。"""
+
+    session = Session()
+
+    # 基础查询：创建查询对象
+    query = session.query(MapActivity)
+
+    # 如果 last_record_id 不是 None，添加 id < last_record_id 的筛选条件
+    if last_record_id is not None:
+        query = query.filter(MapActivity.id < last_record_id)
+
+    # 如果 type_str 不为空，添加 type 的筛选条件
+    if type_str:
+        query = query.filter(MapActivity.type == type_str)
+
+    # 执行查询，按 id 降序排列，并限制返回的记录数量
+    records = query.order_by(MapActivity.id.desc()).limit(count).all()
+
+    session.close()
+    return records
+
+
+def query_AIChatMessages_All_previous(last_record_id=None, count=20,**kwargs):
+    session = Session()
+    query = session.query(AIChatMessages)
+    if last_record_id is not None:
+        query = query.filter(AIChatMessages.id < last_record_id)
+    records = query.filter_by(**kwargs).order_by(desc(AIChatMessages.create_time)).limit(count).all()
+    session.close()
+    return records
+
 def query_AIChatMessages_All(label: bool = False, **kwargs):
     session = Session()
     # 添加label不为None的条件
@@ -81,11 +115,11 @@ def query_AIChatMessages_All(label: bool = False, **kwargs):
         records = session.query(AIChatMessages).filter(AIChatMessages.label.isnot(None)).filter_by(
             **kwargs).order_by(desc(AIChatMessages.stick_time),
                                desc(AIChatMessages.create_time)).limit(
-            500).all()
+            20).all()
     else:
         records = session.query(AIChatMessages).filter_by(**kwargs).order_by(desc(AIChatMessages.stick_time),
                                                                              desc(AIChatMessages.create_time)).limit(
-            500).all()
+            20).all()
 
     session.close()
     return records
@@ -286,14 +320,14 @@ class AIFriend(Base):
     __tablename__ = 'ai_friend'
     id = Column(Integer, primary_key=True, autoincrement=True)
     account = Column(String(100), doc="帐号")
-    name = Column(String(200), doc="")
-    owner_user_id = Column(String(100), doc="所有人userid")
-    owner_name = Column(String(200), doc="")
+    nick_name = Column(String(200), doc="")
+    groups = Column(Text, doc="")
     owner_sns_account = Column(String(100), doc="所有人帐号")
     memo = Column(Text, doc="")
-    nickname = Column(String(100), doc="昵称")
     sign = Column(String(200), doc="状态信息(个人签名)")
-    borndate = Column(DateTime, default=datetime.now, doc="生日")
+    subscription = Column(String(100), doc="加好友状态")
+    name = Column(String(200), doc="Real Name")
+    borndate = Column(String(100), doc="生日")
     gender = Column(Integer, doc="")
     area = Column(String(100), doc="国家及地区")
     city = Column(String(100), doc="城市")
@@ -303,13 +337,15 @@ class AIFriend(Base):
     organization = Column(String(200), doc="组织")
     title = Column(String(100), doc="头衔")
     position = Column(String(100), doc="角色")
+    new_message_flag = Column(Boolean, default=False, doc="是否有新消息")
+    last_message_time = Column(DateTime, doc="创建时间")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_AIFriend(account, name, owner_user_id, owner_name, owner_sns_account, memo, nickname, sign, borndate, gender, area, city, address, mail, phone, organization, title, position):
+def add_AIFriend(account, nick_name, groups, owner_sns_account, memo, sign, subscription, name, borndate, gender, area, city, address, mail, phone, organization, title, position):
     session = Session()
-    ai_friend = AIFriend(account=account, name=name, owner_user_id=owner_user_id, owner_name=owner_name, owner_sns_account=owner_sns_account, memo=memo, nickname=nickname, sign=sign, borndate=borndate, gender=gender, area=area, city=city, address=address, mail=mail, phone=phone, organization=organization, title=title, position=position)
+    ai_friend = AIFriend(account=account, nick_name=nick_name, groups=groups, owner_sns_account=owner_sns_account, memo=memo, sign=sign, subscription=subscription, name=name, borndate=borndate, gender=gender, area=area, city=city, address=address, mail=mail, phone=phone, organization=organization, title=title, position=position)
     session.add(ai_friend)
     session.commit()
     session.close()
@@ -322,6 +358,13 @@ def query_AIFriend_All(**kwargs):
     return records
 
 
+def query_AIFriend_All_Orderby_Updatetime(**kwargs):
+    session = Session()
+    records = session.query(AIFriend).filter_by(**kwargs).order_by(desc(AIFriend.last_message_time)).all()
+    session.close()
+    return records
+
+
 def query_AIFriend(**kwargs):
     session = Session()
     record = session.query(AIFriend).filter_by(**kwargs).first()
@@ -329,9 +372,19 @@ def query_AIFriend(**kwargs):
     return record
 
 
-def update_AIFriend(id, **kwargs):
+def update_AIFriend_ById(id, **kwargs):
     session = Session()
     record = session.query(AIFriend).filter_by(id=id).first()
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)
+        session.commit()
+    session.close()
+
+
+def update_AIFriend(account, owner_sns_account, **kwargs):
+    session = Session()
+    record = session.query(AIFriend).filter_by(account=account, owner_sns_account=owner_sns_account).first()
     if record:
         for key, value in kwargs.items():
             setattr(record, key, value)
@@ -665,6 +718,11 @@ class AgentCfg(Base):
     uselastplugins = Column(Boolean, default=False, doc="")
     uselastkms = Column(Boolean, default=False, doc="")
     callpluginbyinstruct = Column(Boolean, default=True, doc="")
+    modelfrequent = Column(Boolean, default=False, doc="")
+    rolefrequent = Column(Boolean, default=False, doc="")
+    multimodelfrequent = Column(Boolean, default=False, doc="")
+    multimodellastmodel = Column(String(500), doc="")
+    multimodellastrole = Column(String(100), doc="")
     autorunrounds = Column(Integer, doc="")
     position = Column(Integer, default=9999, doc="")
     is_show = Column(Boolean, default=True, doc="是否显示")
@@ -672,9 +730,10 @@ class AgentCfg(Base):
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_AgentCfg(user_id, name, memo, borndate, borncontry, language, gender, joinfederation, syncfederation, federationid, defaultmodel, defaultrole, lastmodel, lastrole, specialization, plugins, kms, last_plugins, last_kms, prompt, snsaccount, snsnickname, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, readfile, writefile, deletefile, execfile, uselastmodel, uselastrole, uselastplugins, uselastkms, callpluginbyinstruct, autorunrounds):
+def add_AgentCfg(user_id, name, memo, borndate, borncontry, language, gender, joinfederation, syncfederation, federationid, defaultmodel, defaultrole, lastmodel, lastrole, specialization, plugins, kms, last_plugins, last_kms, prompt, snsaccount, snsnickname, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, readfile, writefile, deletefile, execfile, uselastmodel, uselastrole, uselastplugins, uselastkms, callpluginbyinstruct, modelfrequent, rolefrequent, multimodelfrequent, autorunrounds):
     session = Session()
-    agentcfg = AgentCfg(user_id=user_id, name=name, memo=memo, borndate=borndate, borncontry=borncontry, language=language, gender=gender, joinfederation=joinfederation, syncfederation=syncfederation, federationid=federationid, defaultmodel=defaultmodel, defaultrole=defaultrole, lastmodel=lastmodel, lastrole=lastrole, specialization=specialization, plugins=plugins, kms=kms, last_plugins=last_plugins, last_kms=last_kms, prompt=prompt, snsaccount=snsaccount, snsnickname=snsnickname, islimittotalmessage=islimittotalmessage, islimitmessagepp=islimitmessagepp, totalmessages=totalmessages, ppmessages=ppmessages, readfile=readfile, writefile=writefile, deletefile=deletefile, execfile=execfile, uselastmodel=uselastmodel, uselastrole=uselastrole, uselastplugins=uselastplugins, uselastkms=uselastkms, callpluginbyinstruct=callpluginbyinstruct, autorunrounds=autorunrounds)
+    agentcfg = AgentCfg(user_id=user_id, name=name, memo=memo, borndate=borndate, borncontry=borncontry, language=language, gender=gender, joinfederation=joinfederation, syncfederation=syncfederation, federationid=federationid, defaultmodel=defaultmodel, defaultrole=defaultrole, lastmodel=lastmodel, lastrole=lastrole, specialization=specialization, plugins=plugins, kms=kms, last_plugins=last_plugins, last_kms=last_kms, prompt=prompt, snsaccount=snsaccount, snsnickname=snsnickname, islimittotalmessage=islimittotalmessage, islimitmessagepp=islimitmessagepp, totalmessages=totalmessages, ppmessages=ppmessages, readfile=readfile, writefile=writefile, deletefile=deletefile, execfile=execfile, uselastmodel=uselastmodel, uselastrole=uselastrole, uselastplugins=uselastplugins, uselastkms=uselastkms, callpluginbyinstruct=callpluginbyinstruct, modelfrequent=modelfrequent,
+                        rolefrequent=rolefrequent, multimodelfrequent=multimodelfrequent, autorunrounds=autorunrounds)
     session.add(agentcfg)
     session.commit()
     session.close()
@@ -1057,8 +1116,8 @@ class AiChatCfg(Base):
     __tablename__ = 'aichat_cfg'
     id = Column(Integer, primary_key=True, autoincrement=True)
 
+    # Original fields
     user_id = Column(String(100), doc="")
-
     account = Column(String(100), doc="帐号")
     password = Column(String(256), doc="密码哈希值")
     nickname = Column(String(100), doc="昵称")
@@ -1069,7 +1128,10 @@ class AiChatCfg(Base):
     borndate = Column(DateTime, default=datetime.now, doc="生日")
     gender = Column(Integer, doc="")
     area = Column(String(100), doc="国家及地区")
+    state = Column(String(100), doc="联邦")
     city = Column(String(100), doc="城市")
+    community = Column(String(100), doc="社区")
+    street_block = Column(String(100), doc="街区")
     address = Column(String(200), doc="地址")
     mail = Column(String(100), doc="")
     imaccount = Column(String(100), doc="其他im帐号")
@@ -1097,16 +1159,80 @@ class AiChatCfg(Base):
     sendchatstatus = Column(Boolean, default=True, doc="发送聊天状态")
     sendgroupchatstatus = Column(Boolean, default=True, doc="群聊中发送聊天状态")
     agreeallfriendrequest = Column(Boolean, default=True, doc="同意所有联系人请求")
-
     position = Column(Integer, default=9999, doc="")
     is_show = Column(Boolean, default=True, doc="是否显示")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
+    # New fields
+    nationid = Column(String(100), doc="国家ID")
+    nationpassword = Column(String(100), doc="国家密码")
+    sns_url = Column(Text, doc="社交网络链接")
+    avatar = Column(Text, doc="头像")
+    avatar3d = Column(Text, doc="3D头像")
+    house3d = Column(Text, doc="3D房子")
+    map_type = Column(String(100), doc="地图类型")
+    map_api_key = Column(Text, doc="地图API钥匙")
+    map_id = Column(Text, doc="地图ID")
+    current_position = Column(String(100), doc="当前位置")
+    current_place = Column(String(500))
+    last_position = Column(String(100))
+    home_position = Column(String(100), doc="家庭位置")
+    positionx = Column(Float, doc="X坐标")
+    positiony = Column(Float, doc="Y坐标")
+    positionz = Column(Float, doc="Z坐标")
+    route_start = Column(String(500), doc="路线开始")
+    route_end = Column(String(500), doc="路线结束")
+    route_status = Column(String(100), doc="路线状态")
+    route_current_position = Column(String(100), doc="当前路线位置")
+    route = Column(Text, doc="路线")
+    level = Column(Integer)
+    credit = Column(Integer)
+    money = Column(Float)
+    token_unit = Column(String(100))
+    life_point = Column(Integer)
+    energy_point = Column(Integer)
+    move_point = Column(Integer)
+    exp_point = Column(Integer)
+    iq_point = Column(Integer)
+    profession = Column(String(200))
+    handle_after_trade = Column(String(200))
+    handle_content = Column(Text)
+    event_before_decistion = Column(String(200))
+    event_after_decistion = Column(String(200))
+    event_receive_msg = Column(String(200))
+    event_before_send_msg = Column(String(200))
+    event_before_move = Column(String(200))
+    event_after_move = Column(String(200))
+    event_before_use_tool = Column(String(200))
+    event_after_use_tool = Column(String(200))
 
-def add_AiChatCfg(user_id, account, password, nickname, sign, status, humantakeover, name, borndate, gender, area, city, address, mail, imaccount, phone, organization, title, orgposition, memo, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, serveraddress, port, ssl, resource, proxyused, proxyaddress, proxyport, proxyssl, savepasswordlocal, autoconnect, sendreceipt, sendreadflag, sendchatstatus, sendgroupchatstatus, agreeallfriendrequest):
+
+
+def add_AiChatCfg(user_id, account, password, nickname, sign, status, humantakeover, name, borndate, gender, area, state, city, community, street_block, address, mail, imaccount, phone, organization, title, orgposition, memo, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, serveraddress, port, ssl, resource, proxyused, proxyaddress, proxyport, proxyssl, savepasswordlocal, autoconnect, sendreceipt, sendreadflag, sendchatstatus, sendgroupchatstatus, agreeallfriendrequest, nationid, nationpassword, sns_url, avatar, avatar3d, house3d, map_type, map_api_key, map_id, current_position, home_position, positionx, positiony, positionz, route_start, route_end, route_status, route_current_position, route, level=1, credit=100, money=100, token_unit="k", life_point=4, energy_point=3, move_point=3, exp_point=4, iq_point=5):
     session = Session()
-    aichatCfg = AiChatCfg(user_id=user_id, account=account, password=password, nickname=nickname, sign=sign, status=status, humantakeover=humantakeover, name=name, borndate=borndate, gender=gender, area=area, city=city, address=address, mail=mail, imaccount=imaccount, phone=phone, organization=organization, title=title, orgposition=orgposition, memo=memo, islimittotalmessage=islimittotalmessage, islimitmessagepp=islimitmessagepp, totalmessages=totalmessages, ppmessages=ppmessages, serveraddress=serveraddress, port=port, ssl=ssl, resource=resource, proxyused=proxyused, proxyaddress=proxyaddress, proxyport=proxyport, proxyssl=proxyssl, savepasswordlocal=savepasswordlocal, autoconnect=autoconnect, sendreceipt=sendreceipt, sendreadflag=sendreadflag, sendchatstatus=sendchatstatus, sendgroupchatstatus=sendgroupchatstatus, agreeallfriendrequest=agreeallfriendrequest)
+    aichatCfg = AiChatCfg(
+        user_id=user_id, account=account, password=password, nickname=nickname,
+        sign=sign, status=status, humantakeover=humantakeover, name=name,
+        borndate=borndate, gender=gender, area=area, state=state, city=city, community=community, street_block=street_block, address=address,
+        mail=mail, imaccount=imaccount, phone=phone, organization=organization,
+        title=title, orgposition=orgposition, memo=memo,
+        islimittotalmessage=islimittotalmessage, islimitmessagepp=islimitmessagepp,
+        totalmessages=totalmessages, ppmessages=ppmessages,
+        serveraddress=serveraddress, port=port, ssl=ssl, resource=resource,
+        proxyused=proxyused, proxyaddress=proxyaddress, proxyport=proxyport,
+        proxyssl=proxyssl, savepasswordlocal=savepasswordlocal,
+        autoconnect=autoconnect, sendreceipt=sendreceipt, sendreadflag=sendreadflag,
+        sendchatstatus=sendchatstatus, sendgroupchatstatus=sendgroupchatstatus,
+        agreeallfriendrequest=agreeallfriendrequest, nationid=nationid,
+        nationpassword=nationpassword, sns_url=sns_url, avatar=avatar,
+        avatar3d=avatar3d, house3d=house3d, map_type=map_type,
+        map_api_key=map_api_key, map_id=map_id, current_position=current_position, home_position=home_position,
+        positionx=positionx, positiony=positiony, positionz=positionz,
+        route_start=route_start, route_end=route_end, route_status=route_status,
+        route_current_position=route_current_position, route=route,
+        level=level, credit=credit, money=money, token_unit=token_unit, life_point=life_point, energy_point=energy_point, move_point=move_point, exp_point=exp_point, iq_point=iq_point
+    )
     session.add(aichatCfg)
     session.flush()
     record_id = aichatCfg.id
@@ -1117,7 +1243,7 @@ def add_AiChatCfg(user_id, account, password, nickname, sign, status, humantakeo
         print(e)
     print("--->start insert db6")
     session.close()
-    return (record_id)
+    return record_id
 
 
 def query_AiChatCfg_All(**kwargs):
@@ -1165,6 +1291,72 @@ def query_AiChatCfg(**kwargs):
     record = session.query(AiChatCfg).filter_by(**kwargs).first()
     session.close()
     return record
+
+
+def query_AiChatCfg_map():
+    session = Session()
+    record = session.query(AiChatCfg).first()
+    session.close()
+    return record
+
+
+def query_AiChatCfg_common():
+    session = Session()
+    record = session.query(AiChatCfg).offset(1).limit(1).first()
+    session.close()
+    return record
+
+
+def query_AiChatCfg_map_setting(**kwargs):
+    session = Session()
+    # 获取符合条件的首个记录
+    record = session.query(AiChatCfg).filter_by(**kwargs).first()
+    session.close()
+
+    # 如果找到了记录，提取新字段的值
+    if record:
+        # 仅包含新添加的字段
+        fields = {
+            "nick_name": record.nickname,
+            "account": record.account,
+            "profile": record.sign,
+            "profession": record.profession,
+            "nationid": record.nationid,
+            "nationpassword": record.nationpassword,
+            "sns_url": record.sns_url,
+            "status": record.status,
+            "avatar": record.avatar,
+            "avatar3d": record.avatar3d,
+            "house3d": record.house3d,
+            "map_type": record.map_type,
+            "map_api_key": record.map_api_key,
+            "map_id": record.map_id,
+            "current_position": record.current_position,
+            "home_position": record.home_position,
+            "positionx": record.positionx,
+            "positiony": record.positiony,
+            "positionz": record.positionz,
+            "route_start": record.route_start,
+            "route_end": record.route_end,
+            "route_status": record.route_status,
+            "route_current_position": record.route_current_position,
+            "route": record.route
+        }
+        return fields
+    else:
+        # 如果没有找到记录，返回None或空字典
+        return None
+
+
+
+def update_AiChatCfg_map(**kwargs):
+    session = Session()
+    record = session.query(AiChatCfg).first()
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)
+        session.commit()
+    session.close()
 
 
 def update_AiChatCfg(id, **kwargs):
@@ -1312,14 +1504,14 @@ class KMCfg(Base):
 
     position = Column(Integer, default=9999, doc="")
     is_show = Column(Boolean, default=True, doc="是否显示")
-
+    config_param = Column(Text, doc="配置参数")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_KMCfg(km_id, name, memo, label, kmpath, vectorization, stopvectorization, kmtype, vectortype, embeddingmodel, textblocklength, overlaplength, titleaugment):
+def add_KMCfg(km_id, name, memo, label, kmpath, vectorization, stopvectorization, kmtype, vectortype, embeddingmodel, textblocklength, overlaplength, titleaugment,config_param):
     session = Session()
-    kmCfg = KMCfg(km_id=km_id, name=name, memo=memo, label=label, kmpath=kmpath, kmtype=kmtype, vectorization=vectorization, stopvectorization=stopvectorization, vectortype=vectortype, embeddingmodel=embeddingmodel, textblocklength=textblocklength, overlaplength=overlaplength, titleaugment=titleaugment)
+    kmCfg = KMCfg(km_id=km_id, name=name, memo=memo, label=label, kmpath=kmpath, kmtype=kmtype, vectorization=vectorization, stopvectorization=stopvectorization, vectortype=vectortype, embeddingmodel=embeddingmodel, textblocklength=textblocklength, overlaplength=overlaplength, titleaugment=titleaugment,config_param=config_param)
     session.add(kmCfg)
     session.commit()
     session.close()
@@ -1451,7 +1643,7 @@ class PluginMng(Base):
     filename = Column(String(200), doc="插件目录")
     run_mode = Column(String(100), doc="运行模式")
     run_scope = Column(String(100), doc="运行范围")
-    instruction = Column(Text, doc="调用该插件的指令")
+    instruction = Column(String(100), doc="调用该插件的指令")
 
     runtime_main = Column(String(200), doc="运行时主程序")
     runtime_test = Column(String(200), doc="运行时测试程序")
@@ -1463,6 +1655,9 @@ class PluginMng(Base):
     plugin_event = Column(String(100), doc="插件事件")
     plugin_title = Column(Text, doc="插件事件描述")
     detail = Column(Text, doc="详细信息")
+    confirm_needed = Column(Boolean, default=True)
+    can_be_sold = Column(Boolean, default=False)
+    used_in_sns = Column(Boolean, default=False)
 
     creator = Column(String(100), doc="创建人")
 
@@ -1470,14 +1665,15 @@ class PluginMng(Base):
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_PluginMng(plugin_id, company, company_abbr, name, version, alias_name, filename, runtime_main, runtime_test, description, plugin_directory, plugin_type, plugin_executed, plugin_event, plugin_title, detail, creator, run_mode="", run_scope="", instruction=""):
+def add_PluginMng(plugin_id, company, company_abbr, name, version, alias_name, filename, runtime_main, runtime_test, description, plugin_directory, plugin_type, plugin_executed, plugin_event, plugin_title, detail, creator, run_mode="", run_scope="", instruction="",used_in_sns=0):
     session = Session()
-    pluginMng = PluginMng(plugin_id=plugin_id, company=company, company_abbr=company_abbr, name=name, version=version, alias_name=alias_name, filename=filename, run_mode=run_mode, run_scope=run_scope, instruction=instruction, runtime_main=runtime_main, runtime_test=runtime_test, description=description, plugin_directory=plugin_directory, plugin_type=plugin_type, plugin_executed=plugin_executed, plugin_event=plugin_event, plugin_title=plugin_title, detail=detail, creator=creator)
+    pluginMng = PluginMng(plugin_id=plugin_id, company=company, company_abbr=company_abbr, name=name, version=version, alias_name=alias_name, filename=filename, run_mode=run_mode, run_scope=run_scope, instruction=instruction, runtime_main=runtime_main, runtime_test=runtime_test, description=description, plugin_directory=plugin_directory, plugin_type=plugin_type, plugin_executed=plugin_executed, plugin_event=plugin_event, plugin_title=plugin_title, detail=detail, creator=creator,used_in_sns=used_in_sns)
     session.add(pluginMng)
     session.commit()
     session.close()
 
-def copy_plugin_record(plugin_id,new_plugin_id, **kwargs):
+
+def copy_plugin_record(plugin_id, new_plugin_id, **kwargs):
     session = Session()
     try:
         # 查找要拷贝的记录
@@ -1522,6 +1718,7 @@ def copy_plugin_record(plugin_id,new_plugin_id, **kwargs):
     finally:
         session.close()
 
+
 def query_PluginMng_All(**kwargs):
     session = Session()
     records = session.query(PluginMng).filter_by(**kwargs).all()
@@ -1546,7 +1743,28 @@ def query_PluginMng_All_Tool(**kwargs):
         if kwargs:
             query = query.filter_by(**kwargs)
 
-        records = query.all()  # 执行查询并获取所有记录
+        records = query.order_by(desc(PluginMng.run_mode)).all()  # 执行查询并获取所有记录
+    finally:
+        session.close()  # 确保会话被关闭
+
+    return records  # 返回查询结果
+
+
+def query_PluginMng_All_Tool_Search(**kwargs):
+    session = Session()  # 创建数据库会话
+    try:
+        # 构建查询条件
+        query = session.query(PluginMng)
+        plugin_types = ["Tool_Headless", "Tool_Gui"]
+
+        # 如果提供了文件名列表，添加过滤条件
+        query = query.filter(or_(PluginMng.plugin_type == plugin_type for plugin_type in plugin_types))
+        query = query.filter(PluginMng.plugin_event.contains("search_before_ask"))
+        # 添加其他过滤条件
+        if kwargs:
+            query = query.filter_by(**kwargs)
+
+        records = query.order_by(desc(PluginMng.run_mode)).all()  # 执行查询并获取所有记录
     finally:
         session.close()  # 确保会话被关闭
 
@@ -1579,8 +1797,6 @@ def delete_PluginMng(**kwargs):
     session.close()
 
 
-# functionmng
-# FunctionMng
 class FunctionMng(Base):
     __tablename__ = 'function_mng'
 
@@ -1590,6 +1806,7 @@ class FunctionMng(Base):
     # 表字段
     function_id = Column(String(100), doc="功能ID")
     name = Column(String(100), doc="名称")
+    instruction = Column(String(100), doc="调用该插件的指令")
     file_path = Column(String(200), doc="文件路径")
     requirement = Column(Text, doc="需求")
     parameter = Column(Text, doc="参数")
@@ -1597,19 +1814,22 @@ class FunctionMng(Base):
     detail = Column(Text, doc="描述")
     function_type = Column(String(100), doc="功能类型")
     function_event = Column(String(100), doc="功能事件")
+    confirm_needed = Column(Boolean, default=True)
+    can_be_sold = Column(Boolean, default=False)
+    used_in_sns = Column(Boolean, default=False)
     creator = Column(String(100), doc="创建人")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_function_mng(function_id, name, file_path, requirement, parameter,
-                     description, detail, function_type, function_event, creator):
+def add_function_mng(function_id, name, instruction, file_path, requirement, parameter,
+                     description, detail, function_type, function_event, creator,used_in_sns=0):
     """添加功能管理记录"""
     session = Session()
     new_function = FunctionMng(
-        function_id=function_id, name=name, file_path=file_path,
+        function_id=function_id, name=name, instruction=instruction, file_path=file_path,
         requirement=requirement, parameter=parameter, description=description, detail=detail,
-        function_type=function_type, function_event=function_event, creator=creator
+        function_type=function_type, function_event=function_event, creator=creator,used_in_sns=used_in_sns
     )
 
     session.add(new_function)
@@ -1651,11 +1871,116 @@ def update_function_mng(function_id, **kwargs):
         session.commit()  # 提交事务
     session.close()  # 关闭会话
 
+def update_function_mng_with_id(id, **kwargs):
+    """更新功能管理记录"""
+    session = Session()
+    record = session.query(FunctionMng).filter_by(id=id).first()  # 查询记录
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)  # 更新字段
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
 
 def delete_function_mng(**kwargs):
     """删除功能管理记录"""
     session = Session()
     record = session.query(FunctionMng).filter_by(**kwargs).first()  # 查询记录
+    if record:
+        session.delete(record)  # 删除记录
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
+
+class McpMng(Base):
+    __tablename__ = 'mcp_mng'
+
+    # 主键
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 表字段
+    mcp_id = Column(String(100), doc="功能ID")
+    name = Column(String(100), doc="名称")
+    instruction = Column(String(100), doc="调用该插件的指令")
+    file_path = Column(String(200), doc="文件路径")
+    requirement = Column(Text, doc="需求")
+    parameter = Column(Text, doc="参数")
+    description = Column(String(100), doc="简介")
+    detail = Column(Text, doc="描述")
+    mcp_type = Column(String(100), doc="功能类型")
+    mcp_event = Column(String(100), doc="功能事件")
+    confirm_needed = Column(Boolean, default=True)
+    can_be_sold = Column(Boolean, default=False)
+    used_in_sns = Column(Boolean, default=False)
+    creator = Column(String(100), doc="创建人")
+    is_delete = Column(Boolean, default=False, doc="软删除")
+    create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+
+
+def add_mcp_mng(mcp_id, name, instruction, file_path, requirement, parameter,
+                description, detail, mcp_type, mcp_event, creator,used_in_sns=0):
+    """添加功能管理记录"""
+    session = Session()
+    new_mcp = McpMng(
+        mcp_id=mcp_id, name=name, instruction=instruction, file_path=file_path,
+        requirement=requirement, parameter=parameter, description=description, detail=detail,
+        mcp_type=mcp_type, mcp_event=mcp_event, creator=creator,used_in_sns=used_in_sns
+    )
+
+    session.add(new_mcp)
+    session.flush()
+    record_id = new_mcp.id
+    session.refresh(new_mcp)
+    try:
+        session.commit()
+    except Exception as e:
+        print(e)
+    print("--->start insert db6")
+    session.close()
+    return (record_id)
+
+
+def query_mcp_mng_all(**kwargs):
+    """查询所有功能管理记录"""
+    session = Session()
+    records = session.query(McpMng).filter_by(**kwargs).all()  # 查询所有符合条件的记录
+    session.close()  # 关闭会话
+    return records
+
+
+def query_mcp_mng(**kwargs):
+    """查询单个功能管理记录"""
+    session = Session()
+    record = session.query(McpMng).filter_by(**kwargs).first()  # 查询第一个符合条件的记录
+    session.close()  # 关闭会话
+    return record
+
+
+def update_mcp_mng(mcp_id, **kwargs):
+    """更新功能管理记录"""
+    session = Session()
+    record = session.query(McpMng).filter_by(mcp_id=mcp_id).first()  # 查询记录
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)  # 更新字段
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
+def update_mcp_mng_with_id(id, **kwargs):
+    """更新功能管理记录"""
+    session = Session()
+    record = session.query(McpMng).filter_by(id=id).first()  # 查询记录
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)  # 更新字段
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
+
+def delete_mcp_mng(**kwargs):
+    """删除功能管理记录"""
+    session = Session()
+    record = session.query(McpMng).filter_by(**kwargs).first()  # 查询记录
     if record:
         session.delete(record)  # 删除记录
         session.commit()  # 提交事务
@@ -1673,6 +1998,7 @@ class SkillMng(Base):
     # 表字段
     skill_id = Column(String(100), doc="技能ID")
     name = Column(String(100), doc="名称")
+    instruction = Column(String(100), doc="调用该插件的指令")
     file_path = Column(String(200), doc="文件路径")
     requirement = Column(Text, doc="需求")
     parameter = Column(Text, doc="参数")
@@ -1680,19 +2006,22 @@ class SkillMng(Base):
     detail = Column(Text, doc="描述")
     skill_type = Column(String(100), doc="技能类型")
     skill_event = Column(String(100), doc="技能事件")
+    confirm_needed = Column(Boolean, default=True)
+    can_be_sold = Column(Boolean, default=False)
+    used_in_sns = Column(Boolean, default=False)
     creator = Column(String(100), doc="创建人")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_skill_mng(skill_id, name, file_path, requirement, parameter,
-                  description, detail, skill_type, skill_event, creator):
+def add_skill_mng(skill_id, name, instruction, file_path, requirement, parameter,
+                  description, detail, skill_type, skill_event, creator,used_in_sns=0):
     """添加技能管理记录"""
     session = Session()
     new_skill = SkillMng(
-        skill_id=skill_id, name=name, file_path=file_path,
+        skill_id=skill_id, name=name, instruction=instruction, file_path=file_path,
         requirement=requirement, parameter=parameter, description=description, detail=detail,
-        skill_type=skill_type, skill_event=skill_event, creator=creator
+        skill_type=skill_type, skill_event=skill_event, creator=creator,used_in_sns=used_in_sns
     )
 
     session.add(new_skill)
@@ -1734,6 +2063,16 @@ def update_skill_mng(skill_id, **kwargs):
         session.commit()  # 提交事务
     session.close()  # 关闭会话
 
+def update_skill_mng_with_id(id, **kwargs):
+    """更新技能管理记录"""
+    session = Session()
+    record = session.query(SkillMng).filter_by(id=id).first()  # 查询记录
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)  # 更新字段
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
 
 def delete_skill_mng(**kwargs):
     """删除技能管理记录"""
@@ -1745,8 +2084,85 @@ def delete_skill_mng(**kwargs):
     session.close()  # 关闭会话
 
 
-# workflow
-# 定义 Workflow 数据模型
+class WebMng(Base):
+    __tablename__ = 'web_mng'
+
+    # 主键
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 表字段
+    web_id = Column(String(100), doc="功能ID")
+    name = Column(String(100), doc="名称")
+    title = Column(String(100), doc="标题")
+    type = Column(String(100), doc="类型")
+    description = Column(Text, doc="描述")
+    filename = Column(String(200), doc="image path")
+    url = Column(String(500), doc="url")
+    position = Column(Integer, default=999)
+    creator = Column(String(100), doc="创建人")
+    is_delete = Column(Boolean, default=False, doc="软删除")
+    create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+
+
+def add_web_mng(web_id, name, title, type, description,
+                filename, url):
+    """添加功能管理记录"""
+    session = Session()
+    new_web = WebMng(
+        web_id=web_id, name=name, title=title,
+        type=type, description=description, filename=filename, url=url
+    )
+
+    session.add(new_web)
+    session.flush()
+    record_id = new_web.id
+    session.refresh(new_web)
+    try:
+        session.commit()
+    except Exception as e:
+        print(e)
+    print("--->start insert db6")
+    session.close()
+    return (record_id)
+
+
+def query_web_mng_all(**kwargs):
+    """查询所有功能管理记录"""
+    session = Session()
+    records = session.query(WebMng).filter_by(**kwargs).order_by(asc(WebMng.position)).all()  # 查询所有符合条件的记录
+    session.close()  # 关闭会话
+    return records
+
+
+def query_web_mng(**kwargs):
+    """查询单个功能管理记录"""
+    session = Session()
+    record = session.query(WebMng).filter_by(**kwargs).first()  # 查询第一个符合条件的记录
+    session.close()  # 关闭会话
+    return record
+
+
+def update_web_mng(web_id, **kwargs):
+    """更新功能管理记录"""
+    session = Session()
+    record = session.query(WebMng).filter_by(web_id=web_id).first()  # 查询记录
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)  # 更新字段
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
+
+def delete_web_mng(**kwargs):
+    """删除功能管理记录"""
+    session = Session()
+    record = session.query(WebMng).filter_by(**kwargs).first()  # 查询记录
+    if record:
+        session.delete(record)  # 删除记录
+        session.commit()  # 提交事务
+    session.close()  # 关闭会话
+
+
 class WorkflowMng(Base):
     __tablename__ = 'workflow_mng'
 
@@ -1755,7 +2171,7 @@ class WorkflowMng(Base):
     workflow_id = Column(String(100), doc="工作流ID")
     title = Column(String(100), doc="标题")
     description = Column(Text, doc="描述")
-    workflow_tags = Column(String(100), doc="工作流类型")
+    instruction = Column(String(100), doc="调用的指令")
     workflow_event = Column(String(100), doc="工作流事件")
     detail = Column(Text, doc="详细信息")
     timer_desc = Column(String(200), doc="定时描述")
@@ -1767,7 +2183,7 @@ class WorkflowMng(Base):
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
 
 
-def add_workflow_mng(workflow_id, title, description, workflow_tags,
+def add_workflow_mng(workflow_id, title, description, instruction,
                      detail, timer_desc, timer_cron, run_agent_name, run_agent_id):
     """添加新的工作流管理记录"""
     session = Session()
@@ -1775,7 +2191,7 @@ def add_workflow_mng(workflow_id, title, description, workflow_tags,
         workflow_id=workflow_id,
         title=title,
         description=description,
-        workflow_tags=workflow_tags,
+        instruction=instruction,
         detail=detail,
         timer_desc=timer_desc,
         timer_cron=timer_cron,
@@ -1860,7 +2276,7 @@ def copy_workflow(workflow_id, new_workflow_id):
                 workflow_id=new_workflow_id,  # 新工作流ID可根据需求修改
                 title=original_record.title + "-Copy",
                 description=original_record.description,
-                workflow_tags=original_record.workflow_tags,
+                instruction=original_record.instruction,
                 workflow_event=original_record.workflow_event,
                 detail=original_record.detail,
                 timer_desc=original_record.timer_desc,
@@ -2453,6 +2869,7 @@ def get_all_prompt_by_modelname(model_name):
         # 确保会话在完成后关闭
         session.close()
 
+
 def update_prompt(id, **kwargs):
     session = Session()
     record = session.query(Prompt).filter_by(id=id).first()
@@ -2461,6 +2878,7 @@ def update_prompt(id, **kwargs):
             setattr(record, key, value)
         session.commit()
     session.close()
+
 
 # 定义 KeyValue 表
 class KeyValue(Base):
@@ -2590,7 +3008,7 @@ class MapCfg(Base):
     agreeallfriendrequest = Column(Boolean)
     level = Column(Integer)
     credit = Column(Integer)
-    tokens = Column(Integer)
+    money = Column(Integer, default=0)
     token_unit = Column(String(100))
     growth = Column(Integer)
     tech = Column(Integer)
@@ -2701,6 +3119,13 @@ class MapTask(Base):
     title = Column(String(500))
     detail = Column(Text)
     result = Column(Text)
+    sub_task_list = Column(Text)
+    current_sub_task = Column(Text)
+    process_info_list = Column(Text)
+    current_place = Column(String(500))
+    current_position = Column(String(100))
+    task_summary = Column(Text)
+    status = Column(Integer, default=0)
     rating = Column(Integer)
     comment = Column(Text)
     agent_id = Column(String(200))
@@ -2788,9 +3213,9 @@ def delete_map_task(task_id):
 
 
 # MapTech model definition
-class MapTech(Base):
-    """Model for the map_tech table"""
-    __tablename__ = 'map_tech'
+class MapTool(Base):
+    """Model for the map_tool table"""
+    __tablename__ = 'map_tool'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     plugin_id = Column(String(100))
@@ -2814,20 +3239,22 @@ class MapTech(Base):
     runtime_test = Column(String(200))
     get_from_name = Column(String(200))
     get_from_account = Column(String(200))
-    get_time = Column(DateTime)
-    pay = Column(Float)
+    get_time = Column(DateTime, default=datetime.now)
+    pay = Column(Float, default=100)
     pay_method = Column(String(100))
     trade_id = Column(String(100))
+    confirm_needed = Column(Boolean, default=True)
+    can_be_sold = Column(Boolean, default=False)
     creator = Column(String(100))
     is_delete = Column(Boolean, default=False)
     create_time = Column(DateTime, default=datetime.now)
 
 
-def add_map_tech(**kwargs):
+def add_map_tool(**kwargs):
     """Add a new MapTech record to the database."""
     session = Session()
     try:
-        new_tech = MapTech(**kwargs)
+        new_tech = MapTool(**kwargs)
         session.add(new_tech)
         session.commit()
         session.refresh(new_tech)
@@ -2840,12 +3267,12 @@ def add_map_tech(**kwargs):
         session.close()
 
 
-def query_map_techs(**kwargs):
+def query_map_tools(**kwargs):
     """Query MapTech records with optional filters."""
     session = Session()
     try:
-        filter_expr = [getattr(MapTech, key) == value for key, value in kwargs.items()]
-        results = session.query(MapTech).filter(*filter_expr).order_by(desc(MapTech.create_time)).all()
+        filter_expr = [getattr(MapTool, key) == value for key, value in kwargs.items()]
+        results = session.query(MapTool).filter(*filter_expr).order_by(desc(MapTool.create_time)).all()
         return results
     except Exception as e:
         print(f"Error querying MapTech: {e}")
@@ -2854,12 +3281,12 @@ def query_map_techs(**kwargs):
         session.close()
 
 
-def query_single_map_tech(**kwargs):
+def query_single_map_tool(**kwargs):
     """Query a single MapTech record with optional filters."""
     session = Session()
     try:
-        filter_expr = [getattr(MapTech, key) == value for key, value in kwargs.items()]
-        result = session.query(MapTech).filter(*filter_expr).order_by(desc(MapTech.create_time)).first()
+        filter_expr = [getattr(MapTool, key) == value for key, value in kwargs.items()]
+        result = session.query(MapTool).filter(*filter_expr).order_by(desc(MapTool.create_time)).first()
         return result
     except Exception as e:
         print(f"Error querying single MapTech: {e}")
@@ -2868,11 +3295,11 @@ def query_single_map_tech(**kwargs):
         session.close()
 
 
-def update_map_tech(tech_id, **kwargs):
+def update_map_tool(tech_id, **kwargs):
     """Update an existing MapTech by its ID."""
     session = Session()
     try:
-        tech = session.query(MapTech).filter_by(id=tech_id).first()
+        tech = session.query(MapTool).filter_by(id=tech_id).first()
         if tech:
             for key, value in kwargs.items():
                 setattr(tech, key, value)
@@ -2885,11 +3312,11 @@ def update_map_tech(tech_id, **kwargs):
         session.close()
 
 
-def delete_map_tech(tech_id):
+def delete_map_tool(tech_id):
     """Delete a MapTech by its ID."""
     session = Session()
     try:
-        tech = session.query(MapTech).filter_by(id=tech_id).first()
+        tech = session.query(MapTool).filter_by(id=tech_id).first()
         if tech:
             session.delete(tech)
             session.commit()
@@ -2911,12 +3338,13 @@ class MapTrade(Base):
     trade_type = Column(String(100))
     title = Column(String(500))
     detail = Column(Text)
+    link = Column(Text)
     trade_with_name = Column(String(200))
     trade_with_account = Column(String(200))
-    trade_with_company = Column(Boolean)
-    pay = Column(Float)
-    pay_method = Column(Text)
-    trade_time = Column(DateTime)
+    trade_with_company = Column(Boolean, default=False)
+    pay = Column(Float, default=100)
+    pay_method = Column(Text, default="as_coin")
+    status = Column(Integer, default=0)
     create_time = Column(DateTime, default=datetime.now)
     is_delete = Column(Boolean, default=False)
 
@@ -2970,7 +3398,7 @@ def update_map_trade(trade_id, **kwargs):
     """Update an existing MapTrade by its ID."""
     session = Session()
     try:
-        trade = session.query(MapTrade).filter_by(id=trade_id).first()
+        trade = session.query(MapTrade).filter_by(trade_id=trade_id).first()
         if trade:
             for key, value in kwargs.items():
                 setattr(trade, key, value)
@@ -3008,14 +3436,14 @@ class MapVisit(Base):
     visit_id = Column(String(50))
     title = Column(String(500))
     detail = Column(Text)
-    place_type = Column(Text)
+    place_type = Column(String(100))
     address = Column(Text)
     lng = Column(Float)
     lat = Column(Float)
     owner_name = Column(String(200))
     owner_account = Column(String(100))
     owner_type = Column(String(50))
-    is_free = Column(Boolean)
+    is_free = Column(Boolean, default=True)
     trade_id = Column(String(100))
     create_time = Column(DateTime, default=datetime.now)
     is_delete = Column(Boolean, default=False)
@@ -3317,6 +3745,400 @@ def delete_prompt_frequent(frequent_id):
         print(f"Error deleting PromptFrequent: {e}")
     finally:
         session.close()
+
+
+# 定义模型
+class SystemInit(Base):
+    __tablename__ = 'system_init'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), doc="姓名")
+    avatar = Column(Text, doc="头像链接")
+    password = Column(String(128), doc="密码")
+    confirm_password = Column(String(128), doc="确认密码")
+    profile = Column(String(500), doc="个人简介")
+    llm = Column(String(100), doc="LLM信息")
+    llm_server = Column(String(500), doc="LLM Server Url")
+    api_key = Column(String(200), doc="API密钥")
+    avatar3d = Column(Text, doc="3D头像链接")
+    account = Column(String(128), doc="帐号")
+    account_password = Column(String(128), doc="帐号密码")
+    sns_url = Column(Text, doc="社交网络链接")
+    map = Column(String, doc="地图")
+    map_api_key = Column(String(128), doc="地图API密钥")
+    map_id = Column(String(128), doc="地图ID")
+    status = Column(Integer, doc="状态")
+    is_delete = Column(Boolean, default=False, doc="软删除")
+    create_time = Column(DateTime, default=datetime.utcnow, doc="创建时间")
+
+
+# 增加记录
+def add_SystemInit(name, avatar, password, confirm_password, profile, llm, llm_server, api_key, avatar3d,
+                   account, account_password, sns_url, map, map_api_key, map_id, status):
+    """添加新记录到 system_init 表"""
+    session = Session()
+    system_init = SystemInit(
+        name=name,
+        avatar=avatar,
+        password=password,
+        confirm_password=confirm_password,
+        profile=profile,
+        llm=llm,
+        llm_server=llm_server,
+        api_key=api_key,
+        avatar3d=avatar3d,
+        account=account,
+        account_password=account_password,
+        sns_url=sns_url,
+        map=map,
+        map_api_key=map_api_key,
+        map_id=map_id,
+        status=status
+    )
+    session.add(system_init)
+    session.commit()
+    session.close()
+
+
+# 查询所有记录
+def query_SystemInit_All(**kwargs):
+    """查询所有记录，支持过滤条件"""
+    session = Session()
+    records = session.query(SystemInit).filter_by(**kwargs).all()
+    session.close()
+    return records
+
+
+# 查询单条记录
+def query_SystemInit(**kwargs):
+    """根据条件查询单条记录"""
+    session = Session()
+    record = session.query(SystemInit).filter_by(**kwargs).first()
+    session.close()
+    return record
+
+
+# 更新记录
+def update_SystemInit_ById(id, **kwargs):
+    """根据 ID 更新记录"""
+    session = Session()
+    record = session.query(SystemInit).filter_by(id=id).first()
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)
+        session.commit()
+    session.close()
+
+
+# 删除记录
+def delete_SystemInit(id):
+    """将记录标记为已删除"""
+    session = Session()
+    record = session.query(SystemInit).filter_by(id=id).first()
+    if record:
+        record.is_delete = True  # 将 is_delete 标记为 True 进行软删除
+        session.commit()
+    session.close()
+
+
+# 定义 map_activity 表的 ORM 类
+class MapActivity(Base):
+    __tablename__ = 'map_activity'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    activity_id = Column(String(50), doc="活动ID")
+    content = Column(Text, doc="活动内容")
+    type = Column(String(100), doc="活动类型")
+    create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+    is_delete = Column(Boolean, default=False, doc="软删除")
+
+
+
+
+def add_map_activity(activity_id, content, type):
+    """新增活动记录"""
+    session = Session()
+    new_activity = MapActivity(activity_id=activity_id, content=content, type=type)
+    session.add(new_activity)
+    session.commit()
+    session.close()
+
+
+def query_map_activity_all(**kwargs):
+    """查询所有活动记录，支持筛选条件"""
+    session = Session()
+    records = session.query(MapActivity).filter_by(**kwargs).all()
+    session.close()
+    return records
+
+
+def query_map_activity_previous(last_record_id=None, count=20, type_str=None):
+    """查询小于 last_record_id 的活动记录，返回 count 个记录，
+    记录按降序排列。如果 type_str 不为空，则返回 type 等于 type_str 的记录。
+    如果 last_record_id 为 None，则不应用此筛选条件。"""
+
+    session = Session()
+
+    # 基础查询：创建查询对象
+    query = session.query(MapActivity)
+
+    # 如果 last_record_id 不是 None，添加 id < last_record_id 的筛选条件
+    if last_record_id is not None:
+        query = query.filter(MapActivity.id < last_record_id)
+
+    # 如果 type_str 不为空，添加 type 的筛选条件
+    if type_str:
+        query = query.filter(MapActivity.type == type_str)
+
+    # 执行查询，按 id 降序排列，并限制返回的记录数量
+    records = query.order_by(MapActivity.id.desc()).limit(count).all()
+
+    session.close()
+    return records
+
+
+def query_map_activity(**kwargs):
+    """查询符合条件的第一条活动记录"""
+    session = Session()
+    record = session.query(MapActivity).filter_by(**kwargs).first()
+    session.close()
+    return record
+
+
+def update_map_activity_by_id(activity_id, **kwargs):
+    """通过ID更新活动记录"""
+    session = Session()
+    record = session.query(MapActivity).filter_by(activity_id=activity_id).first()
+    if record:
+        for key, value in kwargs.items():
+            setattr(record, key, value)
+        session.commit()
+    session.close()
+
+
+def delete_map_activity(activity_id):
+    """通过ID删除活动记录"""
+    session = Session()
+    record = session.query(MapActivity).filter_by(activity_id=activity_id).first()
+    if record:
+        session.delete(record)
+        session.commit()
+    session.close()
+
+
+# 定义 map_preset_msg 表的 ORM 类
+class MapPresetMsg(Base):
+    __tablename__ = 'map_preset_msg'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(Text, doc="内容")
+    position = Column(Integer, default=0, doc="位置")
+    create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+    is_delete = Column(Boolean, default=False, doc="软删除")
+
+def add_map_preset_msg(content):
+    """新增预设消息记录"""
+    session = Session()
+    try:
+        new_msg = MapPresetMsg(content=content)
+        session.add(new_msg)
+        session.commit()  # 提交新记录
+    except Exception as e:
+        session.rollback()  # 发生异常时回滚
+        raise e
+    finally:
+        session.close()  # 确保会话关闭
+
+def query_map_preset_msg_all(**kwargs):
+    """查询所有预设消息记录，支持筛选条件"""
+    session = Session()
+    try:
+        records = session.query(MapPresetMsg).filter_by(**kwargs).all()
+    finally:
+        session.close()  # 确保会话关闭
+    return records
+
+def query_map_preset_msg_previous(last_record_id=None, count=20):
+    """查询小于 last_record_id 的预设消息记录，返回 count 个记录，按降序排列"""
+    session = Session()
+    query = session.query(MapPresetMsg)
+
+    if last_record_id is not None:
+        query = query.filter(MapPresetMsg.id < last_record_id)
+
+    records = query.order_by(MapPresetMsg.id.desc()).limit(count).all()
+    session.close()  # 确保会话关闭
+    return records
+
+def query_map_preset_msg(**kwargs):
+    """查询符合条件的第一条预设消息记录"""
+    session = Session()
+    try:
+        record = session.query(MapPresetMsg).filter_by(**kwargs).first()
+    finally:
+        session.close()  # 确保会话关闭
+    return record
+
+def update_map_preset_msg_by_id(msg_id, **kwargs):
+    """通过ID更新预设消息记录"""
+    session = Session()
+    try:
+        record = session.query(MapPresetMsg).filter_by(id=msg_id).first()
+        if record:
+            for key, value in kwargs.items():
+                setattr(record, key, value)  # 更新属性
+            session.commit()  # 提交更改
+    except Exception as e:
+        session.rollback()  # 发生异常时回滚
+        raise e
+    finally:
+        session.close()  # 确保会话关闭
+
+def delete_map_preset_msg(content):
+    """通过ID删除预设消息记录"""
+    session = Session()
+    try:
+        record = session.query(MapPresetMsg).filter_by(content=content).first()
+        if record:
+            session.delete(record)  # 删除记录
+            session.commit()  # 提交更改
+    except Exception as e:
+        session.rollback()  # 发生异常时回滚
+        raise e
+    finally:
+        session.close()  # 确保会话关闭
+
+
+# 定义 chat_preset_msg 表的 ORM 类
+class ChatPresetMsg(Base):
+    __tablename__ = 'chat_preset_msg'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(Text, doc="内容")
+    position = Column(Integer, default=0, doc="位置")
+    create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+    is_delete = Column(Boolean, default=False, doc="软删除")
+
+
+def add_chat_preset_msg(content):
+    """新增预设消息记录"""
+    session = Session()
+    try:
+        new_msg = ChatPresetMsg(content=content)
+        session.add(new_msg)
+        session.commit()  # 提交新记录
+    except Exception as e:
+        session.rollback()  # 发生异常时回滚
+        raise e
+    finally:
+        session.close()  # 确保会话关闭
+
+def query_chat_preset_msg_all(**kwargs):
+    """查询所有预设消息记录，支持筛选条件"""
+    session = Session()
+    try:
+        records = session.query(ChatPresetMsg).filter_by(**kwargs).all()
+    finally:
+        session.close()  # 确保会话关闭
+    return records
+
+def query_chat_preset_msg_previous(last_record_id=None, count=20):
+    """查询小于 last_record_id 的预设消息记录，返回 count 个记录，按降序排列"""
+    session = Session()
+    query = session.query(ChatPresetMsg)
+
+    if last_record_id is not None:
+        query = query.filter(ChatPresetMsg.id < last_record_id)
+
+    records = query.order_by(ChatPresetMsg.id.desc()).limit(count).all()
+    session.close()  # 确保会话关闭
+    return records
+
+def query_chat_preset_msg(**kwargs):
+    """查询符合条件的第一条预设消息记录"""
+    session = Session()
+    try:
+        record = session.query(ChatPresetMsg).filter_by(**kwargs).first()
+    finally:
+        session.close()  # 确保会话关闭
+    return record
+
+def update_chat_preset_msg_by_id(msg_id, **kwargs):
+    """通过ID更新预设消息记录"""
+    session = Session()
+    try:
+        record = session.query(ChatPresetMsg).filter_by(id=msg_id).first()
+        if record:
+            for key, value in kwargs.items():
+                setattr(record, key, value)  # 更新属性
+            session.commit()  # 提交更改
+    except Exception as e:
+        session.rollback()  # 发生异常时回滚
+        raise e
+    finally:
+        session.close()  # 确保会话关闭
+
+def delete_chat_preset_msg(content):
+    """通过ID删除预设消息记录"""
+    session = Session()
+    try:
+        record = session.query(ChatPresetMsg).filter_by(content=content).first()
+        if record:
+            session.delete(record)  # 删除记录
+            session.commit()  # 提交更改
+    except Exception as e:
+        session.rollback()  # 发生异常时回滚
+        raise e
+    finally:
+        session.close()  # 确保会话关闭
+
+
+# Define the ToolList model corresponding to the view tool_list
+class ToolList(Base):
+    """Model for the tool_list view"""
+    __tablename__ = 'tool_list'
+
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    description = Column(Text)
+    plugin_type = Column(String)
+    confirm_needed = Column(Boolean)
+    can_be_sold = Column(Boolean)
+
+# Function definitions to interact with the ToolList view
+
+def query_tool_list(**kwargs):
+    """Query ToolList records with optional filters."""
+    session = Session()
+    try:
+        # Build filter expressions from kwargs
+        filter_expr = [getattr(ToolList, key) == value for key, value in kwargs.items()]
+        # Query with filters, sorted by id for consistency
+        results = session.query(ToolList).filter(*filter_expr).order_by(desc(ToolList.id)).all()
+        return results
+    except Exception as e:
+        print(f"Error querying ToolList: {e}")
+        return []
+    finally:
+        session.close()
+
+def query_single_tool(**kwargs):
+    """Query a single ToolList record with optional filters."""
+    session = Session()
+    try:
+        # Build filter expressions from kwargs
+        filter_expr = [getattr(ToolList, key) == value for key, value in kwargs.items()]
+        # Query the first record matching the filters
+        result = session.query(ToolList).filter(*filter_expr).order_by(desc(ToolList.id)).first()
+        return result
+    except Exception as e:
+        print(f"Error querying single ToolList: {e}")
+        return None
+    finally:
+        session.close()
+
+
+
+
+
+# 在创建表时，请确保调用 Base.metadata.create_all(engine)
 
 
 Base.metadata.create_all(engine)

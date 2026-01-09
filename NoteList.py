@@ -1,13 +1,13 @@
 import json
 import os
 from datetime import datetime
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, \
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox, QInputDialog, \
     QTreeWidgetItemIterator, QDialog
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
+from PyQt6.QtGui import QIcon, QPixmap, QAction
+from PyQt6.QtCore import Qt, QPoint
 
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import query_AgentTask, query_AgentTask_Search_Content, update_note_mng_by_recordid, \
     query_AgentTask_Search_First, AgentTask, delete_note_mng, update_AgentTask, update_note_mng_stick, update_note_mng, \
@@ -20,7 +20,7 @@ from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg
     add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight, \
     get_content_from_attachment_content_list, add_attachment_to_message_window
 from langchainhandler import savevector, delete_vector
-
+from i18n import lt
 
 class NoteList(QTreeWidget):
     """TaskList implements the view in a Tree of the Roster"""
@@ -40,9 +40,9 @@ class NoteList(QTreeWidget):
         self.browser_page = None
         self.is_browser_page_loaded = False
 
-        self.setHeaderLabel("笔记列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Note List","笔记列表"))  # 需要设置此处的值，否则缺省值为1
         # self.setSortingEnabled(True)#排序
-        # self.sortItems(0, Qt.AscendingOrder)#排序
+        # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -73,7 +73,7 @@ class NoteList(QTreeWidget):
 
     # --> 加载 右键菜单
     def load_pop_menu(self):
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         # --> 增加置顶，取消置顶 操作
         self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
@@ -121,7 +121,7 @@ class NoteList(QTreeWidget):
             self.addItem(record.title.replace("\n", ""), record.id, icon=stick_icon)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             item = self.currentItem()
             if item:
                 reply = QMessageBox.question(self, '删除确定',
@@ -129,7 +129,7 @@ class NoteList(QTreeWidget):
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
                 if reply == QMessageBox.Yes:
                     column = 0
-                    id_value = item.data(column, Qt.UserRole)
+                    id_value = item.data(column, Qt.ItemDataRole.UserRole)
                     # 从数据库中删除所有task_id相同的记录
                     delete_note_mng(id=id_value)
 
@@ -150,12 +150,12 @@ class NoteList(QTreeWidget):
         if self.verticalScrollBar().value() == self.verticalScrollBar().maximum():
             print("Reached bottom!")
 
-    def addItem(self, name, id, is_top=False, icon=False):
+    def addItem(self, name, id, is_top=False, icon=False,select_new_item=False):
         item_count = self.topLevelItemCount()
 
         if item_count == 0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "所有")
+            group_item.setText(0, lt("All","所有"))
         else:
             group_item = self.topLevelItem(0)
         # print("adding item:",name)
@@ -166,16 +166,39 @@ class NoteList(QTreeWidget):
         if icon == True:
             top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
         else:
             print("im toppppppppp....")
-            group_item.insertChild(0, top_item)
+            insert_index = 0
+            insert_index = self._findInsertPosition(group_item)
+            group_item.insertChild(insert_index, top_item)
         top_item.setTextAlignment(0, 0)
+        # 选中刚添加的项
+        if select_new_item:
+            self.setCurrentItem(top_item)
 
         self.expandAll()
+
+    def _findInsertPosition(self, group_item):
+        """
+        Finds the appropriate insert position for a non-top item to be placed after
+        all items with an icon.
+
+        Args:
+            group_item (QTreeWidgetItem): The group item to search within.
+
+        Returns:
+            int: The index to insert the new item after all icon items.
+        """
+        for index in range(group_item.childCount()):
+            child = group_item.child(index)
+            if child.icon(0).isNull():  # Check if the child does not have an icon
+                return index
+        return group_item.childCount()  # Default to appending if all items have icons
+
 
     def context(self, pos):
         item = self.itemAt(pos)
@@ -194,7 +217,7 @@ class NoteList(QTreeWidget):
         item = self.current_Item
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
 
@@ -203,7 +226,7 @@ class NoteList(QTreeWidget):
             if ok and newName:
                 item.setText(0, newName)
                 column = 0
-                id_value = item.data(column, Qt.UserRole)
+                id_value = item.data(column, Qt.ItemDataRole.UserRole)
                 update_note_mng_by_recordid(id_value, title=newName)
         else:
             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
@@ -219,7 +242,7 @@ class NoteList(QTreeWidget):
     def reload(self, key_word=""):
         self.clear()
 
-        self.setHeaderLabel("笔记列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Note List","笔记列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -255,7 +278,7 @@ class NoteList(QTreeWidget):
 
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
 
         note_record = query_note_mng(id=id_value)
@@ -284,7 +307,7 @@ class NoteList(QTreeWidget):
 
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
 
         if id_value:
@@ -332,7 +355,7 @@ class NoteList(QTreeWidget):
     def on_itemDoubleClicked(self, item, column):
         print("双击了：", item.text(column))
         print(column)
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("双击了：", id_value)
         if id_value == None:
             return (False)
@@ -406,7 +429,7 @@ class NoteList(QTreeWidget):
         item = self.current_Item
         oldName = None
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
             res = query_note_mng_ById(id_value)
@@ -418,7 +441,7 @@ class NoteList(QTreeWidget):
             # if ok and newName:
             #     update_note_mng_by_recordid(id_value, label=newName)
             window_title = '加标签'
-            label_txt = '新标签:'
+            label_txt = '添加或选择(去除标签,赋空值即可)'
             comb_val = query_note_mng_ByLabel(km_id=self.km_cfg.km_id)
             dialog = UserInputDialog(window_title, label_txt, comb_val, oldName)
 
@@ -426,12 +449,16 @@ class NoteList(QTreeWidget):
                 print(f'主程序接收到用户选择: {selection}')
                 if selection:
                     update_note_mng_by_recordid(id_value, label=selection)
+                else:
+                    update_note_mng_by_recordid(id_value, label=None)
 
             dialog.user_selected.connect(handle_user_selection)
             # 以模态方式显示对话框
-            if dialog.exec_() == QDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 pass
             self.reload("") #-->刷新列表
+            labelList = self.mainwindow.notelist_all_list_label[self.km_cfg.km_id]
+            labelList.reload("")
         else:
             QMessageBox.critical(None, "警告", "分类名不能加标签", QMessageBox.Ok)
 
@@ -439,7 +466,7 @@ class NoteList(QTreeWidget):
     def stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
         if id_value:
             if item:
@@ -468,7 +495,7 @@ class NoteList(QTreeWidget):
     def un_stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         if id_value:
             if item:
                 reply = QMessageBox.question(self, '取消置顶确定',

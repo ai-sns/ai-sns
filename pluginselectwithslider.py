@@ -1,12 +1,12 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt, pyqtSlot
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction, QAbstractItemView, QDialogButtonBox, QMessageBox, QWidget, QHBoxLayout, QLabel, QSlider
-
+from PyQt6.QtCore import QFile, QFileInfo, Qt, pyqtSlot
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAbstractItemView, QDialogButtonBox, QMessageBox, QWidget, QHBoxLayout, QLabel, QSlider
+from i18n import lt
 
 class SliderWidget(QWidget):
     def __init__(self, min_value=1, max_value=100, initial_value=50, parent=None):
         super(SliderWidget, self).__init__(parent)
-        self.slider = QSlider(Qt.Horizontal, self)
+        self.slider = QSlider(Qt.Orientation.Horizontal, self)
         self.slider.setRange(min_value, max_value)
         self.slider.setValue(initial_value)
         self.label = QLabel(str(initial_value), self)
@@ -40,7 +40,7 @@ class FreezeTableDialog(QDialog):
         layout.addWidget(self.tableView)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
         layout.addWidget(button_box)
@@ -49,7 +49,7 @@ class FreezeTableDialog(QDialog):
         self.setWindowTitle("请选择插件")
         self.setWindowIcon(QIcon("images/aisns.png"))
         self.resize(560, 680)
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
 
@@ -85,7 +85,7 @@ class FreezeTableDialog(QDialog):
                 action = QAction(action_text, self)
                 action.triggered.connect(action_method)
                 menu.addAction(action)
-            menu.exec_(self.mapToGlobal(pos))
+            menu.exec(self.mapToGlobal(pos))
 
     def deleteSelectedRows(self):
         selected_indexes = self.tableView.selectionModel().selectedRows()
@@ -136,7 +136,7 @@ def main(args):
                 model.setItem(row, 0, item)
                 for col, field in enumerate(fields):
                     newItem = QStandardItem(field)
-                    newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)
+                    newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     model.setItem(row, col + 1, newItem)
                 row += 1
         file.close()
@@ -146,7 +146,7 @@ def main(args):
         slider_widget = SliderWidget()
         dialog.tableView.setIndexWidget(model.index(row, 0), slider_widget)
 
-    dialog.exec_()
+    dialog.exec()
 
 
 if __name__ == '__main__':

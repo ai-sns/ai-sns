@@ -96,9 +96,6 @@ class SparkAI(ModelClient):
                 except Exception as e:
                     raise Exception("spark用户中断")
 
-
-
-
             else:
                 try:
                     spark_response = self.spark_client.generate([spark_messages], callbacks=[handler])
@@ -115,11 +112,13 @@ class SparkAI(ModelClient):
                         choice.message = SimpleNamespace()
                         if isinstance(llm_result.message, AIMessage):
                             choice.message.content = llm_result.message.content
-                            print("cjr here:cjr get the content:", llm_result.message.content)
+                            print("cjr here:cjr get the content7:",
+                                  llm_result.message.content)
                             choice.message.function_call = None
                         elif isinstance(llm_result.message, FunctionMessage):
                             choice.message.content = llm_result.message.content
-                            print("cjr here2:cjr get the content:", llm_result.message.content)
+                            print("cjr here2:cjr get the content8:",
+                                  llm_result.message.content)
                             choice.message.function_call = llm_result.message.content
 
                         response.choices.append(choice)

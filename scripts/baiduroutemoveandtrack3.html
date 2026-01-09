@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>百度地图路线规划与轨迹模拟</title>
+    <style>
+        #map-container {
+            width: 100%;
+            height: 500px;
+        }
+
+        #input-container {
+            margin-bottom: 20px;
+        }
+
+        input, button {
+            margin: 5px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+<div id="input-container">
+    <input type="text" id="start" placeholder="起点（如：北京市海淀区上地10街）" value="清华大学">
+    <input type="text" id="end" placeholder="终点（如：北京市海淀区中关村）" value="北京大学">
+    <button onclick="planRoute()">规划路线</button>
+    <button onclick="startTrack()">轨迹模拟</button>
+    <!-- 新增清除路线按钮 -->
+    <button onclick="clearRoute()">清除路线</button>
+</div>
+<div id="map-container"></div>
+<script src="https://mapopen.bj.bcebos.com/github/BMapGLLib/TrackAnimation/src/TrackAnimation.min.js"></script>
+<script type="text/javascript" src="//api.map.baidu.com/api?type=webgl&v=1.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX"></script>
+<script>
+    let map, driving, gpsPositions = [], trackMarker, currentRoute;
+
+    // 初始化地图
+    function initMap() {
+        map = new BMapGL.Map("map-container");
+        map.centerAndZoom(new BMapGL.Point(116.404, 39.915), 11);
+        map.enableScrollWheelZoom(true);
+        driving = new BMapGL.DrivingRouteLine(map, {
+            renderOptions: {
+                map: map,
+                autoViewport: true,
+                enableDragging: true,
+            },
+            onSearchComplete: function (result) {
+                if (driving.getStatus() === BMAP_STATUS_SUCCESS || driving.getStatus() === 5) {
+                    console.log("规划成功，坐标数:", result);
+                    gpsPositions = getAllGpsPositions(result);
+                    console.log("规划成功，坐标数:", gpsPositions.length);
+                } else {
+                    alert("路线规划失败，状态码: " + driving.getStatus());
+                }
+            }
+        });
+    }
+
+    // 地址转坐标（Promise封装）
+    function geocodeAddress(address, city) {
+        return new Promise((resolve, reject) => {
+            new BMapGL.Geocoder().getPoint(address, point => {
+                if (point) resolve(point);
+                else reject(`地址解析失败: ${address}`);
+            }, city);
+        });
+    }
+
+    // 规划路线（异步处理）
+    async function planRoute() {
+        const start = document.getElementById("start").value.trim();
+        const end = document.getElementById("end").value.trim();
+
+        if (!start || !end) {
+            alert("请输入起点和终点");
+            return;
+        }
+
+        try {
+            // 步骤1：地址转坐标
+            const [startPoint, endPoint] = await Promise.all([
+                geocodeAddress(start, "北京市"),
+                geocodeAddress(end, "北京市")
+            ]);
+
+            // 步骤2：清除当前路线
+            clearRoute();
+
+            // 步骤3：使用坐标进行路线规划
+            driving.search(startPoint, endPoint);
+
+        } catch (error) {
+            alert(error); // 显示地址解析错误
+        }
+    }
+
+    // 提取所有路径点
+    function getAllGpsPositions(routeResult) {
+        const route = routeResult.getPlan(0).getRoute(0);
+        const numSteps = route.getNumSteps();
+        const positions = [];
+
+        for (let i = 0; i < numSteps; i++) {
+            const step = route.getStep(i);
+            const position = step.getPosition();
+            positions.push(position);
+        }
+
+        // 将路线绘制到地图上
+        const pointArray = positions.map(pos => new BMapGL.Point(pos.lng, pos.lat));
+        currentRoute = new BMapGL.Polyline(pointArray, { strokeColor: "blue", strokeWeight: 2, strokeOpacity: 0.5 });
+        map.addOverlay(currentRoute);
+
+        return positions;
+    }
+
+    // 轨迹模拟
+    function startTrack() {
+        if (gpsPositions.length === 0) {
+            alert("请先规划路线");
+            return;
+        }
+
+        const pointArray = gpsPositions.map(pos => new BMapGL.Point(pos.lng, pos.lat));
+        const pl = new BMapGL.Polyline(pointArray);
+
+        const trackAni = new BMapGLLib.TrackAnimation(map, pl, {
+            overallView: true,
+            tilt: 30,
+            duration: 60000,
+            delay: 300
+        });
+        trackAni.start();
+    }
+
+    // 清除路线
+    function clearRoute() {
+        driving.clearResults();  // 清除路线规划结果
+    }
+
+    window.onload = initMap;
+</script>
+</body>
+</html>

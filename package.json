@@ -4,10 +4,11 @@
   "description": "AI Agent Social Network - AI-SNS",
   "main": "electron/main.js",
   "scripts": {
-    "start": "concurrently \"python api_server.py\" \"wait-on http://localhost:8788 && electron .\"",
+    "start": "concurrently \"python api_server.py\" \"wait-on http://localhost:8788 && npx electron .\"",
     "start:electron": "electron .",
+    "start:electron:dev": "electron . --dev",
     "start:api": "python api_server.py",
-    "dev": "concurrently \"python api_server.py\" \"wait-on http://localhost:8788 && electron . --dev\"",
+    "dev": "concurrently \"python api_server.py\" \"wait-on http://localhost:8788 && npx electron . --dev\"",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",

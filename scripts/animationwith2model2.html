@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js GLB Animation Mapping</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://unpkg.com/three@0.129.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.129.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://fastly.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // 初始化场景、相机和渲染器
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+
+        // 添加环境光和聚光灯
+const ambientLight = new THREE.AmbientLight(0xffffff, 4.5);
+scene.add(ambientLight);
+
+// 添加平行光
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.25);
+    directionalLight.position.set(-1, -1, -1); // 光源位置设置在模型的背面
+    scene.add(directionalLight);
+
+const spotLight = new THREE.SpotLight(0xffffff, 1);
+spotLight.position.set(15, 40, 35);
+spotLight.castShadow = true;
+scene.add(spotLight);
+
+ // 轨道控制器
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // 启用阻尼效果
+            controls.dampingFactor = 0.25;
+            controls.minDistance = 2; // 设置最小缩放距离
+            controls.maxDistance = 10; // 设置最大缩放距离
+            controls.target.set(0, 1, 0); // 聚焦的目标位置
+
+
+
+
+
+
+        // 初始化 GLTFLoader
+        const loader = new THREE.GLTFLoader();
+
+        // 加载带皮肤和骨骼的模型
+        let modelWithSkinAndSkeleton;
+        loader.load('bluegirl.glb', (gltf) => {
+            modelWithSkinAndSkeleton = gltf.scene;
+            scene.add(modelWithSkinAndSkeleton);
+
+            // 加载带动画的模型
+            loader.load('male-idle-animation.glb', (gltfWithAnimation) => {
+                // 获取动画数据
+                const animations = gltfWithAnimation.animations;
+
+                // 将动画数据应用到带皮肤和骨骼的模型
+                const mixer = new THREE.AnimationMixer(modelWithSkinAndSkeleton);
+                animations.forEach((clip) => {
+                    const action = mixer.clipAction(clip);
+                    action.play();
+                });
+
+                // 设置相机位置
+                camera.position.set(5, 5, 5);
+                camera.lookAt(0, 0, 0);
+
+                // 动画循环
+                const clock = new THREE.Clock();
+                const animate = () => {
+                    requestAnimationFrame(animate);
+
+                    // 更新动画混合器
+                    const delta = clock.getDelta();
+                    if (mixer) mixer.update(delta);
+
+                    renderer.render(scene, camera);
+
+                };
+                animate();
+            }, undefined, (error) => {
+                console.error('Error loading animation model:', error);
+            });
+        }, undefined, (error) => {
+            console.error('Error loading skin and skeleton model:', error);
+        });
+
+        // 处理窗口大小变化
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

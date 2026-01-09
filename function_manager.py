@@ -1,15 +1,17 @@
 import sys
 import os
 import datetime
-from PyQt5.QtWidgets import (
+
+from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTableWidget,
-    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QHBoxLayout, QCheckBox,QLineEdit
+    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QHBoxLayout, QCheckBox, QLineEdit, QAbstractItemView
 )
-from PyQt5.QtCore import Qt
+from PyQt6.QtCore import Qt
 from db.DBFactory import query_function_mng_all,delete_function_mng
 from code_editor import CodeEditor
 # from workflow_design import WorkFlowDesign
-
+from i18n import lt
 
 class FunctionManager(QWidget):
     def __init__(self,type_str=""):
@@ -31,15 +33,15 @@ class FunctionManager(QWidget):
         self.file_table = QTableWidget(0, 5)  # 创建一个5列的表格
 
         # 设置列标签
-        self.file_table.setHorizontalHeaderLabels(["选择", "函数名称","文件名", "编辑时间","简介"])
+        self.file_table.setHorizontalHeaderLabels([lt("Select","选择"), lt("Name","函数名称"),lt("Desc","简介"),lt("Instruction","指令"), lt("Used in SNS","用于SNS")])
 
         # 设置标题背景颜色
         # self.file_table.horizontalHeader().setStyleSheet("QHeaderView::section {background-color: #c0c0c0;}")
 
         # 设置选择行为为选中整行
-        self.file_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.file_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         # 设置表格不可编辑
-        self.file_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.file_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         # 连接双击事件
         self.file_table.itemDoubleClicked.connect(self.open_file)
 
@@ -49,21 +51,24 @@ class FunctionManager(QWidget):
         # 创建按钮布局，用于放置全选复选框和操作按钮
         button_layout = QHBoxLayout()
 
-        self.select_all_checkbox = QCheckBox("全选")
+        self.select_all_checkbox = QCheckBox(lt("All","全选"))
         self.select_all_checkbox.stateChanged.connect(self.toggle_select_all)
 
         # 创建 QLineEdit 实例，用于输入搜索关键词
         self.searchLineEdit = QLineEdit(self)
         #"Search in Function..."
-        self.searchLineEdit.setPlaceholderText("搜索...")
+        self.searchLineEdit.setPlaceholderText(lt("Search...","搜索..."))
+        palette = self.searchLineEdit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.searchLineEdit.setPalette(palette)
         self.searchLineEdit.setFixedWidth(400)  # 设置固定宽度为150像素
         # 或者使用最小宽度
         #self.searchLineEdit.setMinimumWidth(100)  # 设置最小宽度为100像素
         self.searchLineEdit.textChanged.connect(self.filterTable)
 
-        self.add_button = QPushButton("新增")
-        self.delete_button = QPushButton("删除")
-        self.reload_button = QPushButton("刷新")
+        self.add_button = QPushButton(lt("Add","新增"))
+        self.delete_button = QPushButton(lt("Delete","删除"))
+        self.reload_button = QPushButton(lt("Refresh","刷新"))
         self.add_button.clicked.connect(self.add_file)
         self.delete_button.clicked.connect(self.delete_file)
         self.reload_button.clicked.connect(self.reload)
@@ -84,9 +89,9 @@ class FunctionManager(QWidget):
 
         # 使表格铺满窗口
         self.file_table.horizontalHeader().setStretchLastSection(True)
-        # self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         # 允许用户手动调整列宽
-        self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.adjust_column_widths()
         self.add_records()
         self.code_editor = None
@@ -111,17 +116,17 @@ class FunctionManager(QWidget):
 
     def adjust_column_widths(self):
         """调整列宽，确保列宽为整数"""
-        total_width = self.file_table.viewport().width()
+        total_width = self.width()
         if total_width <= 0:
             return
 
         # 设置列宽，确保使用整数
         self.file_table.setColumnWidth(0, 50)  # 选择列宽
-        self.file_table.setColumnWidth(1, int(total_width * 0.4))  # 标题列宽
-        self.file_table.setColumnWidth(2, int(total_width * 0.2))  # 说明列宽
+        self.file_table.setColumnWidth(1, int(total_width * 0.35))  # 标题列宽
+        self.file_table.setColumnWidth(2, int(total_width * 0.35))  # 说明列宽
         self.file_table.setColumnWidth(3, int(total_width * 0.2))  # 类型列宽
 
-        self.file_table.setColumnWidth(4, int(total_width * 0.2))  # 编辑时间列宽
+        self.file_table.setColumnWidth(4,150)  # 编辑时间列宽
         # self.file_table.setColumnWidth(5, 0)  # 编辑时间列宽
 
     def add_records(self):
@@ -133,8 +138,8 @@ class FunctionManager(QWidget):
 
             # 在第一列添加复选框
             checkbox_item = QTableWidgetItem()
-            checkbox_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            checkbox_item.setCheckState(Qt.Unchecked)
+            checkbox_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable |  Qt.ItemFlag.ItemIsEnabled)
+            checkbox_item.setCheckState(Qt.CheckState.Unchecked)
             self.file_table.setItem(row_position, 0, checkbox_item)
 
             # 创建 QTableWidgetItem 实例
@@ -142,13 +147,14 @@ class FunctionManager(QWidget):
             # 将文本值设置为单元格显示的内容
             item.setText(record.name)
             # 将数据值设置为单元格的内部数据
-            item.setData(Qt.UserRole, record.function_id)  # 使用 Qt.UserRole 存储自定义数据
+            item.setData(Qt.ItemDataRole.UserRole, record.function_id)  # 使用 Qt.ItemDataRole.UserRole 存储自定义数据
             # 设置单元格的项
 
             self.file_table.setItem(row_position, 1, item)  # 标题
-            self.file_table.setItem(row_position, 2, QTableWidgetItem(record.file_path))  # 说明
-            self.file_table.setItem(row_position, 3, QTableWidgetItem(str(record.create_time)))  # 类型
-            self.file_table.setItem(row_position, 4, QTableWidgetItem(str(record.description)))  # 编辑时间
+            self.file_table.setItem(row_position, 2, QTableWidgetItem(str(record.description)))  # 编辑时间
+            self.file_table.setItem(row_position, 3, QTableWidgetItem(record.instruction))  # 说明
+            self.file_table.setItem(row_position, 4, QTableWidgetItem("Y" if record.used_in_sns else "N"))
+
 
         self.file_table.setSortingEnabled(True)
 
@@ -156,7 +162,7 @@ class FunctionManager(QWidget):
         """全选或全不选复选框的状态改变时执行"""
         for row in range(self.file_table.rowCount()):
             checkbox_item = self.file_table.item(row, 0)
-            checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+            checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
 
     def filterTable(self, text):
@@ -185,7 +191,7 @@ class FunctionManager(QWidget):
 
     def delete_file(self):
         """删除所选文件"""
-        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.Checked]
+        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.CheckState.Checked]
         if not selected_rows:
             QMessageBox.warning(self, "警告", "请先选择一个文件进行删除。")
             return
@@ -201,7 +207,7 @@ class FunctionManager(QWidget):
 
             item = self.file_table.item(row, 1)
             if item:
-                function_id = item.data(Qt.UserRole)  # 使用 Qt.UserRole 获取数据
+                function_id = item.data(Qt.ItemDataRole.UserRole)  # 使用 Qt.ItemDataRole.UserRole 获取数据
 
             delete_function_mng(function_id=function_id)
 
@@ -225,7 +231,7 @@ class FunctionManager(QWidget):
             # 获取文本值
             function_name = item.text()
             # 获取数据值
-            function_id = item.data(Qt.UserRole)  # 使用 Qt.UserRole 获取数据
+            function_id = item.data(Qt.ItemDataRole.UserRole)  # 使用 Qt.ItemDataRole.UserRole 获取数据
 
         print("function_name", function_name)
         print("function_id",function_id)
@@ -281,4 +287,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     file_manager = FunctionManager()
     file_manager.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

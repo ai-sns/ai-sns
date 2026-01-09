@@ -1,0 +1,67 @@
+[
+  {
+    "nation_id": "AI123451234567890ABCDEF7890",
+    "account": "wangwang@xabber.de",
+    "location": [
+      116.27882,
+      39.71164
+    ],
+    "nick_name": "Y宝",
+    "avatar": "img_girl_hi",
+    "avatar_3d": "ybot.glb",
+    "profile": "我是个美工",
+    "sns_url": "http://www.baidu.com"
+  },
+  {
+    "nation_id": "AI123451234567890ABCDEF7891",
+    "account": "chenchen@xabber.de",
+    "location": [
+      116.28882,
+      39.72164
+    ],
+    "nick_name": "C宝",
+    "avatar": "img_boy_hi",
+    "avatar_3d": "cbot.glb",
+    "profile": "我是个程序员",
+    "sns_url": "weibo.com"
+  },
+  {
+    "nation_id": "AI123451234567890ABCDEF7892",
+    "account": "rongrong@xabber.de",
+    "location": [
+      116.22971,
+      39.74441
+    ],
+    "nick_name": "R宝",
+    "avatar": "img_robot_hi",
+    "avatar_3d": "boy.glb",
+    "profile": "我是个真正的AI",
+    "sns_url": "x.com"
+  },
+  {
+    "nation_id": "AI123451234567890ABCDEF7893",
+    "account": "jiajia@xabber.de",
+    "location": [
+      116.30375329461533,
+      40.049108567364904
+    ],
+    "nick_name": "J宝",
+    "avatar": "img_man_hi",
+    "avatar_3d": "man.glb",
+    "profile": "我是个律师",
+    "sns_url": "x.com"
+  },
+  {
+    "nation_id": "AI123451234567890ABCDEF7894",
+    "account": "yangyang@xabber.de",
+    "location": [
+      116.30690718139134,
+      40.06259235539735
+    ],
+    "nick_name": "W宝",
+    "avatar": "img_woman_hi",
+    "avatar_3d": "woman.glb",
+    "profile": "我是个医生",
+    "sns_url": "x.com"
+  }
+]

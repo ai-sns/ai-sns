@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from flaml.automl.logger import logger_formatter
 from autogen.io.base import IOStream
 from autogen.oai.openai_utils import OAI_PRICE1K, get_key, is_valid_api_key
-
+from autogen.oai.client import OpenAIWrapper
 TOOL_ENABLED = False
 try:
     import openai
@@ -116,7 +116,7 @@ class OpenAICompatibleLLMClient:
             completion_tokens = 0
 
             # Set the terminal text color to green
-            iostream.print("\033[32m", end="")
+            # iostream.print("\033[32m", end="")
 
             # Prepare for potential function call
             full_function_call: Optional[Dict[str, Any]] = None
@@ -124,6 +124,7 @@ class OpenAICompatibleLLMClient:
 
             # Send the chat completion request to OpenAI's API and process the response in chunks
             params.pop("model_client_cls")
+            params.pop("seed")
             for chunk in completions.create(**params):
                 # cjr to modified*******
                 if chunk.model is None:
@@ -131,9 +132,14 @@ class OpenAICompatibleLLMClient:
                 print("cjr get the chunk:", chunk)
                 if chunk.choices:
                     for choice in chunk.choices:
-                        content = choice.delta.content
+                        # content = choice.delta.content
+                        content = (
+                                        choice.delta.content if choice.delta.content
+                                        else getattr(choice.delta, 'reasoning_content', '') if hasattr(choice.delta, 'reasoning_content')
+                                        else ''
+                                    )
 
-                        print("cjr get the content:", content)
+                        print("cjr get the content11111:", content)
 
                         tool_calls_chunks = choice.delta.tool_calls
                         # finish_reasons[choice.index] = choice.finish_reason
@@ -195,6 +201,11 @@ class OpenAICompatibleLLMClient:
             model = chunk.model.replace("gpt-35", "gpt-3.5")  # hack for Azure API****讯飞，model这个值是none
             prompt_tokens = 10  # chatglm没有这个参数，所以要把它先写死
             # prompt_tokens = count_token(params["messages"], model)
+
+            if chunk.id is None:
+                #give a default id ,gemini has no id
+                chunk.id = "id0623700"
+
             response = ChatCompletion(
                 id=chunk.id,
                 model=chunk.model,

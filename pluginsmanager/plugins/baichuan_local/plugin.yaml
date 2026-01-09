@@ -1,21 +1,25 @@
-company: '北京百川信息'
-company_abbr: 'baichuan'
-name: '百川'
-alias: 'Baichuan-13B'
-plugin_type: 'LLM_Connector'
-creator: 'Photon'
-runtime:
-  main: 'application.py'
-  tests:
-    - 'tests/core.py'
-repository: 'https://github.com/Photon/plugin-connector-baichuan2-13B'
-plugin_directory: 'baichuan_connector'
-description: '用来连接baichuan-13B模型'
-version: '1.0.0'
-model_type: 'gpt-4o,gpt-4o-mini,baichuan-inc/Baichuan-7B-Chat, 
-baichuan-inc/Baichuan-13B-Chat, baichuan-inc/Baichuan2-7B-Chat, baichuan-inc/Baichuan2-13B-Chat'
+alias: Baichuan-13B
+company: "\u5317\u4EAC\u767E\u5DDD\u4FE1\u606F"
+company_abbr: baichuan
+creator: Photon
+description: "\u7528\u6765\u8FDE\u63A5baichuan-13B\u6A21\u578B"
+model_type: 'gemini-1.5-flash,gpt-4o,gpt-4o-mini,o3,
+
+  gpt-4o-mini-search-preview,
+
+  gpt-4o-search-preview,o4-mini,gpt-5,baichuan-inc/Baichuan-7B-Chat, baichuan-inc/Baichuan-13B-Chat,
+  baichuan-inc/Baichuan2-7B-Chat, baichuan-inc/Baichuan2-13B-Chat'
+name: "\u767E\u5DDD"
+plugin_directory: baichuan_connector
+plugin_type: LLM_Connector
+repository: https://github.com/Photon/plugin-connector-baichuan2-13B
 requirements:
-  - name: 'PyYAML'
-    version: '5.3.1'
-  - name: 'pytz'
-    version: '2019.3'
+- name: PyYAML
+  version: 5.3.1
+- name: pytz
+  version: '2019.3'
+runtime:
+  main: application.py
+  tests:
+  - tests/core.py
+version: 1.0.0

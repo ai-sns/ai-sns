@@ -1,9 +1,10 @@
 import sys
 import time
 
-from PyQt5.QtCore import pyqtSignal, QThread
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QDialog, QVBoxLayout, QTableWidget, \
-    QTableWidgetItem, QTextEdit, QLineEdit, QHBoxLayout, QHeaderView, QMessageBox, QFormLayout, QComboBox, QLabel
+from PyQt6.QtCore import pyqtSignal, QThread
+from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QDialog, QVBoxLayout, QTableWidget, \
+    QTableWidgetItem, QTextEdit, QLineEdit, QHBoxLayout, QHeaderView, QMessageBox, QFormLayout, QComboBox, QLabel, QAbstractItemView
 from db.DBFactory import Session, Question, query_PluginMng_All
 from globals import llm_ability as LLM_Ability_List, question_num, question_prompt, question_type
 from aichat import AI_spark
@@ -226,6 +227,9 @@ class QuestionManager(QDialog):
         # Search field
         self.search_field = QLineEdit()
         self.search_field.setPlaceholderText("搜索")
+        palette = self.search_field.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.search_field.setPalette(palette)
         self.search_field.textChanged.connect(self.search_questions)
         layout.addWidget(self.search_field)
 
@@ -235,8 +239,8 @@ class QuestionManager(QDialog):
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(['标签', '问题', 'ID'])
         # 设置选择行为为选中整行
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)  # 不允许编辑
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)  # 不允许编辑
         # 连接双击事件
         self.table.itemDoubleClicked.connect(self.modify_question)
 
@@ -327,7 +331,7 @@ class QuestionManager(QDialog):
 
         dialog.user_selected.connect(handle_user_selection)
         print("start dialog.exec")
-        if dialog.exec_():
+        if dialog.exec():
             print("dialog.exec")
             pass
 
@@ -339,7 +343,7 @@ class QuestionManager(QDialog):
     def add_question(self):
         session = Session()
         dialog = QuestionDialog(session)
-        if dialog.exec_():
+        if dialog.exec():
             self.refresh_table()
         session.close()
 
@@ -351,7 +355,7 @@ class QuestionManager(QDialog):
                 question_id = int(self.table.item(selected_row, 2).text())
                 question = session.query(Question).filter(Question.id == question_id).first()
                 dialog = QuestionDialog(session, question)
-                if dialog.exec_():
+                if dialog.exec():
                     self.refresh_table()
                 session.close()
             else:
@@ -405,7 +409,7 @@ class MainWindow(QMainWindow):
 
     def open_question_manager(self):
         self.question_manager = QuestionManager(self)
-        self.question_manager.exec_()
+        self.question_manager.exec()
 
     def update_questions_in_combobox(self):
         pass
@@ -424,4 +428,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     main_window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

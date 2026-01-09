@@ -1,16 +1,23 @@
 # plugins/code_editor.py
 import sys
 
+from PyQt6.QtCore import QUrl
+
+sys.path.append("../..")
+sys.path.append("../../..")
+sys.path.append("../../../..")
 
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QInputDialog
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QInputDialog
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins.mindmap import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
-
+from PyQt6.QtCore import QUrl
+from PyQt6.QtWebEngineWidgets import  QWebEngineView
+from i18n import lt
 class Main(QWidget, PluginInterface):
     def __init__(self, parent, plugin_cfg, content=""):
         super().__init__()
@@ -44,23 +51,33 @@ class Main(QWidget, PluginInterface):
         # 将编辑器添加到布局
         layout.addWidget(self.editor)
 
+        self.preview_webview = QWebEngineView()
+        self.preview_webview.setVisible(False)
+        layout.addWidget(self.preview_webview)
+
         # 创建按钮的水平布局
         button_layout = QHBoxLayout()
 
         # 创建添加按钮
-        hello_button = QPushButton("关闭")
+        hello_button = QPushButton(lt("Close","关闭"))
         hello_button.clicked.connect(self.close_tab)  # 连接按钮点击事件到添加函数
         button_layout.addWidget(hello_button)
 
         # 创建保存按钮
-        save_button = QPushButton("保存")
+        save_button = QPushButton(lt("Save","保存"))
         save_button.clicked.connect(self.save_file)  # 连接保存事件
         button_layout.addWidget(save_button)
 
         # 创建预览按钮
-        preview_button = QPushButton("预览")
-        preview_button.clicked.connect(self.preview_file)  # 连接预览事件
-        button_layout.addWidget(preview_button)
+        self.preview_button = QPushButton(lt("Preview","预览"))
+        self.preview_button.clicked.connect(self.preview_file)  # 连接预览事件
+        button_layout.addWidget(self.preview_button)
+
+        # 创建预览按钮
+        self.edit_button = QPushButton(lt("Edit","编辑"))
+        self.edit_button.setVisible(False)
+        self.edit_button.clicked.connect(self.edit_file)  # 连接预览事件
+        button_layout.addWidget(self.edit_button)
 
         # 将按钮布局添加到主布局
         layout.addLayout(button_layout)
@@ -74,6 +91,7 @@ class Main(QWidget, PluginInterface):
         self.file_name = ""
 
     def run(self, *args, **kwagrs):
+            self.edit_file()
             file_name = args[0]
             text = args[1]
             editor = self.editor
@@ -154,6 +172,10 @@ class Main(QWidget, PluginInterface):
         print(f"File saved: {file_path}")  # 控制台打印信息
 
     def preview_file(self):
+        self.editor.setVisible(False)
+        self.preview_webview.setVisible(True)
+        self.preview_button.setVisible(False)
+        self.edit_button.setVisible(True)
         """保存文件并在浏览器中打开"""
         # 创建目录
         directory = "coding"
@@ -174,4 +196,12 @@ class Main(QWidget, PluginInterface):
             file.write(html_file_content)  # 将文本写入文件
 
 
-        webbrowser.open(f"file://{os.path.abspath(file_path)}")  # 使用默认浏览器打开文件
+        # webbrowser.open(f"file://{os.path.abspath(file_path)}")  # 使用默认浏览器打开文件
+        self.preview_webview.load(QUrl("http://localhost:8900/coding/mindmap.html"))
+
+
+    def edit_file(self):
+        self.editor.setVisible(True)
+        self.preview_webview.setVisible(False)
+        self.preview_button.setVisible(True)
+        self.edit_button.setVisible(False)

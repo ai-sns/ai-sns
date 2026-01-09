@@ -1,12 +1,12 @@
 import sys
 import os
 import datetime
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTableWidget,
-    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QHBoxLayout, QMenu, QAction, QInputDialog
+    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QHBoxLayout, QMenu, QInputDialog, QAbstractItemView
 )
-from PyQt5.QtCore import Qt, QPoint
-
+from PyQt6.QtCore import Qt, QPoint
+from PyQt6.QtGui import  QAction
 
 class FileManager(QWidget):
     def __init__(self):
@@ -22,10 +22,10 @@ class FileManager(QWidget):
         # 创建文件表格
         self.file_table = QTableWidget(0, 5)  # 创建一个5列的表格
         self.file_table.setHorizontalHeaderLabels(["文件名称", "大小", "类型", "编辑时间", "路径"])
-        self.file_table.setSelectionBehavior(QTableWidget.SelectRows)  # 设置选择行为为选中整行
-        self.file_table.setEditTriggers(QTableWidget.NoEditTriggers)  # 设置表格不可编辑
+        self.file_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)  # 设置选择行为为选中整行
+        self.file_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)  # 设置表格不可编辑
         self.file_table.itemDoubleClicked.connect(self.open_file)  # 连接双击事件
-        self.file_table.setContextMenuPolicy(Qt.CustomContextMenu)  # 设置右键菜单策略
+        self.file_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)  # 设置右键菜单策略
         self.file_table.customContextMenuRequested.connect(self.show_context_menu)  # 连接右键菜单事件
 
         # 创建按钮
@@ -50,7 +50,7 @@ class FileManager(QWidget):
 
         # 使表格铺满窗口
         self.file_table.horizontalHeader().setStretchLastSection(True)
-        self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
 
         # 根据窗口宽度设置列宽
         self.adjust_column_widths()
@@ -152,7 +152,7 @@ class FileManager(QWidget):
 
     def delete_filebak(self):
         """删除所选文件"""
-        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.Checked]
+        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.CheckState.Checked]
         if not selected_rows:
             QMessageBox.warning(self, "警告", "请先选择一个文件进行删除。")
             return
@@ -297,7 +297,7 @@ class FileManager(QWidget):
         context_menu.addAction(delete_action)
         context_menu.addAction(rename_action)
 
-        context_menu.exec_(self.file_table.mapToGlobal(pos))
+        context_menu.exec(self.file_table.mapToGlobal(pos))
 
     def rename_file(self):
         """重命名所选文件"""
@@ -329,4 +329,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     file_manager = FileManager()
     file_manager.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

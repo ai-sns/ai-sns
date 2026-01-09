@@ -1,5 +1,4 @@
 import datetime
-import os
 import random
 import string
 import re
@@ -10,9 +9,13 @@ import shutil
 # Format
 import subprocess
 import sys
+import threading
 
 import requests
+from mem0 import MemoryClient
 
+from i18n import lt
+from db.DBFactory import query_workflow_mng_all,query_PluginMng_All,query_PluginMng_All_Tool,query_function_mng_all,query_mcp_mng_all,query_skill_mng_all
 
 def convert_unicode_to_chinese(unicode_string):
     """
@@ -231,8 +234,8 @@ def get_myai_send_msg_title_formatted(page_index, createtime=None,show_checkbox=
     message = f"""
     <div style="display: flex; align-items: center;" id="{div_id}" data-value="{page_index}v" data-text="{page_index}t" data-index="{page_index}i" onmouseover='handleMouseOver(this)' onmouseleave='handleMouseLeave(event)'>
 		 <input class="styled-checkbox" style="display:{show_checkbox}" {checked} type="checkbox" id="msg_checkbox_{page_index}" data-id="{div_id}" data-value="{page_index}" onclick="add_to_selected_msg(this,'question')">
-		 <img src="file:///images/ybot.png" style="width:18px;height:31px">
-		 <span style='color: darkred;font-size:18px;margin-left:5px'>我的AI</span>
+		 <img src="/images/ybot.png" style="width:18px;height:31px">
+		 <span style='color: darkred;font-size:18px;margin-left:5px'>{lt("My","我的")}AI</span>
 		 <span style='color: #c0c0c0; font-size:18px;;margin-left:10px'>{createtime.strftime("%Y-%m-%d %H:%M:%S")}</span>
     </div>
         """
@@ -251,7 +254,7 @@ def get_user_ask_msg_title_formatted(page_index, createtime=None,show_checkbox="
     <div style="display: flex; align-items: center;" id="{div_id}" data-value="{page_index}v" data-text="{page_index}t" data-index="{page_index}i" onmouseover='handleMouseOver(this)' onmouseleave='handleMouseLeave(event)'>
 		 <input class="styled-checkbox" style="display:{show_checkbox}" {checked} type="checkbox" id="msg_checkbox_{page_index}" data-id="{div_id}" data-value="{page_index}" onclick="add_to_selected_msg(this,'question')">
 		 <img src="../images/user.png" style="width:18px;height:25px;">
-		 <span style='color: darkred;font-size:18px;margin-left:5px'>用户</span>
+		 <span style='color: darkred;font-size:18px;margin-left:5px'>{lt("User","用户")}</span>
 		 <span style='color: #c0c0c0; font-size:18px;;margin-left:10px'>{createtime.strftime("%Y-%m-%d %H:%M:%S")}</span>
     </div>
         """
@@ -303,7 +306,7 @@ def get_aifriend_msg_title_formatted(page_index,friend_name, createtime=None, sh
     message = f"""
     <div style='display: flex; align-items: center;' id="{div_id}" data-value="{page_index}v" data-text="{page_index}t" data-index="{page_index}i"  onmouseover='handleMouseOver(this)' onmouseleave='handleMouseLeave(event)'>
          <input class="styled-checkbox"  style="display:{show_checkbox}" {checked} type="checkbox" id="msg_checkbox_{page_index}" data-id="{div_id}" data-value="{page_index}" onclick="add_to_selected_msg(this,'answer')">
-         <img src="file:///images/robot.png" style="width:18px;height:24px">
+         <img src="/images/robot.png" style="width:18px;height:24px">
          <span style='color: darkblue; font-size:18px;margin-left:5px'>{friend_name}</span>
          <span style='color: #c0c0c0; font-size:18px;margin-left:10px'>{createtime.strftime("%Y-%m-%d %H:%M:%S")}</span>         
     </div>"""
@@ -593,3 +596,176 @@ def build_full_path(path_str):
     full_path = os.path.join(current_directory, *path_parts)
 
     return full_path
+
+
+def get_file_full_path(*args):
+    file_path = os.path.join(os.getcwd(), *args)
+    return file_path
+
+
+def add_memory_list(messages):
+        thread = threading.Thread(target=add_memory_thread, args=(messages,))
+        thread.start()  # Start the thread
+
+
+def add_memory_single(memory_content):
+    messages = [
+        {"role": "user", "content": f"{memory_content}"}
+    ]
+    thread = threading.Thread(target=add_memory_thread, args=(messages,))
+    thread.start()  # Start the thread
+
+
+def add_memory_thread(messages):
+        client = MemoryClient(api_key="m0-WGfOhPUE42VT18Kyn0g9IykpYjvYrXoBIrZ9kqWB")
+        client.add(messages, user_id="MyAI")
+
+
+def get_tool_list():
+
+    workflow_list = get_workflow_list()
+    # llm_list = get_llm_list()
+    plugin_list = get_plugin_list()
+    function_list = get_function_list()
+    skill_list = get_skill_list()
+    mcp_list = get_mcp_list()
+
+    tool_list = workflow_list+plugin_list+function_list+skill_list+mcp_list
+    print("tool_list:",tool_list)
+    return tool_list
+
+
+
+def get_workflow_list():
+
+    # 查询所有工作流程记录
+    records = query_workflow_mng_all()
+
+    # 如果没有记录，返回空列表
+    if not records:
+        return []
+
+    # 使用列表推导式构建字典列表
+    result_list = [
+        {
+            "id": record.workflow_id,  # 设置工作流程的ID
+            "name": record.title,  # 设置工作流程的名称
+            "description": record.description,  # 设置工作流程的描述
+            "type": "workflow"  # 设置工作流程的类型，固定为"workflow"
+        }
+        for record in records  # 遍历所有记录
+    ]
+
+    return result_list  # 返回构建好的字典列表
+
+def get_llm_list():
+
+    # 查询所有工作流程记录
+    records = query_PluginMng_All(plugin_type="LLM_Connector")
+
+    # 如果没有记录，返回空列表
+    if not records:
+        return []
+
+    # 使用列表推导式构建字典列表
+    result_list = [
+        {
+            "id": record.plugin_id,
+            "name": record.name,
+            "description": record.description,
+            "type": "llm"
+        }
+        for record in records  # 遍历所有记录
+    ]
+
+    return result_list  # 返回构建好的字典列表
+
+def get_plugin_list():
+
+    # 查询所有工作流程记录
+    records = query_PluginMng_All_Tool(is_delete=0)
+
+    # 如果没有记录，返回空列表
+    if not records:
+        return []
+
+    # 使用列表推导式构建字典列表
+    result_list = [
+        {
+            "id": record.plugin_id,
+            "name": record.name,
+            "description": record.description,
+            "type": "plugin"
+        }
+        for record in records  # 遍历所有记录
+    ]
+
+    return result_list  # 返回构建好的字典列表
+
+def get_function_list():
+
+    # 查询所有工作流程记录
+    records = query_function_mng_all(function_type="1")
+
+    # 如果没有记录，返回空列表
+    if not records:
+        return []
+
+    # 使用列表推导式构建字典列表
+    result_list = [
+        {
+            "id": record.function_id,  # 设置工作流程的ID
+            "name": record.name,  # 设置工作流程的名称
+            "description": record.description,  # 设置工作流程的描述
+            "type": "function"
+        }
+        for record in records  # 遍历所有记录
+    ]
+
+    return result_list  # 返回构建好的字典列表
+
+def get_mcp_list():
+
+    # 查询所有工作流程记录
+    records = query_mcp_mng_all(mcp_type="1")
+
+    # 如果没有记录，返回空列表
+    if not records:
+        return []
+
+    # 使用列表推导式构建字典列表
+    result_list = [
+        {
+            "id": record.mcp_id,  # 设置工作流程的ID
+            "name": record.name,  # 设置工作流程的名称
+            "description": record.description,  # 设置工作流程的描述
+            "type": "mcp"
+        }
+        for record in records  # 遍历所有记录
+    ]
+
+    return result_list  # 返回构建好的字典列表
+
+def get_skill_list():
+
+    # 查询所有工作流程记录
+    records = query_skill_mng_all(skill_type="1")
+
+    # 如果没有记录，返回空列表
+    if not records:
+        return []
+
+    # 使用列表推导式构建字典列表
+    result_list = [
+        {
+            "id": record.skill_id,
+            "name": record.name,
+            "description": record.description,
+            "type": "skill"
+        }
+        for record in records  # 遍历所有记录
+    ]
+
+    return result_list  # 返回构建好的字典列表
+
+

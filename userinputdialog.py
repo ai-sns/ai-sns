@@ -1,6 +1,6 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QDialog, QLabel, QComboBox, QPushButton, QVBoxLayout, QHBoxLayout
-from PyQt5.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QApplication, QDialog, QLabel, QComboBox, QPushButton, QVBoxLayout, QHBoxLayout
+from PyQt6.QtCore import pyqtSignal
 
 
 class UserInputDialog(QDialog):
@@ -86,9 +86,9 @@ if __name__ == '__main__':
     dialog.user_selected.connect(handle_user_selection)
 
     # 以模态方式显示对话框
-    if dialog.exec_() == QDialog.Accepted:
+    if dialog.exec() == QDialog.Accepted:
         # 这里不需要额外的代码，因为信号已经处理过了
         pass
         # else部分通常不需要，因为reject()不会传递用户选择
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

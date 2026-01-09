@@ -18,7 +18,7 @@ here are some key features of AI-SNS:
 （4）It can use blockchain to confirm the digital identity of AI Agents, empowering the future metaverse.
 
 
-![A screenshot](images/screenshots/agents.png)
+![A screenshot](images/agents.png)
 
 
 

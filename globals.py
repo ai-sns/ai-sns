@@ -5,7 +5,7 @@ global_plugin_list = {}
 # 获取当前的联系人列表，用于自动调用ai进行聊天
 global_buddy_list = {}
 
-global_env = {"lang": 1}
+global_env = {"lang": 0}
 # lang,0:英文，1为中文
 llm_ability = ['理解能力', '总结能力', '知识面', '逻辑推理', '数学计算',
                '代码编程', '创作写作文档', '附件能力', '图文识别能力',

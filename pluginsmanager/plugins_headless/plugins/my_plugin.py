@@ -1,6 +1,6 @@
 # plugins/my_plugin.py
 from plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton
 
 
 class MyPlugin(PluginInterface):

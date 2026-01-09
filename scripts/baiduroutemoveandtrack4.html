@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>轨迹视角动画暂停与继续</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <style>
+        body, html, #container {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font-family: "微软雅黑";
+        }
+        ul li {
+            list-style: none;
+        }
+        .drawing-panel {
+            z-index: 999;
+            position: fixed;
+            bottom: 3.5rem;
+            margin-left: 3rem;
+            padding: 1rem 1rem;
+            border-radius: .25rem;
+            background-color: #fff;
+            box-shadow: 0 2px 6px 0 rgba(27, 142, 236, 0.5);
+        }
+        .btn {
+            width: 90px;
+            height: 30px;
+            float: left;
+            background-color: #fff;
+            color: rgba(27, 142, 236, 1);
+            font-size: 14px;
+            border:1px solid rgba(27, 142, 236, 1);
+            border-radius: 5px;
+            margin: 0 5px;
+            text-align: center;
+            line-height: 30px;
+        }
+        .btn:hover {
+            background-color: rgba(27, 142, 236, 0.8);
+            color: #fff;
+        }
+    </style>
+    <script src="//mapopen.bj.bcebos.com/github/BMapGLLib/TrackAnimation/src/TrackAnimation.min.js"></script>
+    <script src="//api.map.baidu.com/api?type=webgl&v=1.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX"></script>
+</head>
+<body>
+    <div id="container"></div>
+    <ul class="drawing-panel" style="z-index: 99;">
+        <li class="btn" onclick="pauseAni()">暂停</li>
+        <li class="btn" onclick="continueAni()">继续</li>
+    </ul>
+</body>
+</html>
+<script>
+    // 初始化地图实例
+    var bmap = new BMapGL.Map("container");
+    bmap.centerAndZoom(new BMapGL.Point(116.297611, 40.047363), 17);
+    bmap.enableScrollWheelZoom(true);
+
+    // 定义路径点
+    var path = [
+        { 'lng': 116.297611, 'lat': 40.047363 },
+        { 'lng': 116.302839, 'lat': 40.048219 },
+        { 'lng': 116.308301, 'lat': 40.050566 },
+        { 'lng': 116.305732, 'lat': 40.054957 },
+        { 'lng': 116.304754, 'lat': 40.057953 },
+        { 'lng': 116.306487, 'lat': 40.058312 },
+        { 'lng': 116.307223, 'lat': 40.056379 }
+    ];
+
+    // 将路径点转换为BMapGL.Point对象
+    var points = path.map(p => new BMapGL.Point(p.lng, p.lat));
+
+    // 创建折线对象
+    var polyline = new BMapGL.Polyline(points);
+
+    // 延时启动动画
+    setTimeout(start, 3000);
+
+    // 初始化轨迹动画
+    var trackAni = new BMapGLLib.TrackAnimation(bmap, polyline, {
+        overallView: true,
+        tilt: 30,
+        duration: 20000,
+        delay: 300
+    });
+
+    // 启动动画
+    function start() {
+        trackAni.start();
+    }
+
+    // 暂停动画，并显示当前地理位置点
+    function pauseAni() {
+        trackAni.pause();
+        var lastPoint = trackAni.getLastPoint()[0]; // 获取最后一个点
+        if (lastPoint) {
+            alert(`当前位置: 经度 ${lastPoint.lng}, 纬度 ${lastPoint.lat}`);
+        }
+    }
+
+    // 继续动画
+    function continueAni() {
+        trackAni.continue();
+    }
+</script>

@@ -1,0 +1,289 @@
+/* indicator css */
+:root {
+    --status-bg: rgba(40, 40, 40, 0.95);
+    --status-color: #f0f0f0;
+    --status-radius: 1.2rem;
+    --status-elevation: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --thinking-color: #6c5ce7;
+    --talking-color: #00b894;
+    --moving-color: #0984e3;
+    --using-tool-color: #e17055;
+    --idling-color: #a29bfe;
+    --watching-color: #fd79a8;
+}
+
+/* 基础布局样式 */
+.status-indicator {
+    position: fixed;
+    top: 0.5rem;
+    left: 1.5rem;
+    z-index: 999;
+    transition: all 0.3s ease;
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.status-indicator.visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.status-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1.2rem;
+    background: var(--status-bg);
+    color: var(--status-color);
+    border-radius: var(--status-radius);
+    box-shadow: var(--status-elevation);
+    backdrop-filter: blur(8px);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* 通用活动指示器样式 */
+.activity-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 思考状态 - 波浪点动画 */
+.thinking .dots-container {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.thinking .dot {
+    width: 6px;
+    height: 6px;
+    background: var(--thinking-color);
+    border-radius: 50%;
+    animation: wave 1.2s ease-in-out infinite;
+}
+
+.thinking .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.thinking .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* 说话状态 - 脉冲条动画 */
+.talking .voice-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.2rem;
+    height: 12px;
+}
+
+.talking .bar {
+    width: 3px;
+    background: var(--talking-color);
+    border-radius: 2px;
+    animation: pulseBar 1.2s ease infinite;
+}
+
+.talking .bar:nth-child(1) {
+    height: 6px;
+    animation-delay: 0s;
+}
+
+.talking .bar:nth-child(2) {
+    height: 10px;
+    animation-delay: 0.2s;
+}
+
+.talking .bar:nth-child(3) {
+    height: 8px;
+    animation-delay: 0.4s;
+}
+
+.talking .bar:nth-child(4) {
+    height: 12px;
+    animation-delay: 0.1s;
+}
+
+/* 移动状态 - 箭头动画 */
+.moving .arrow-container {
+    position: relative;
+    width: 20px;
+    height: 12px;
+}
+
+.moving .arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 8px solid var(--moving-color);
+    animation: moveArrow 1.5s ease-in-out infinite;
+}
+
+.moving .arrow:nth-child(2) {
+    animation-delay: 0.5s;
+    opacity: 0.6;
+}
+
+/* 使用工具状态 - 工具旋转动画 */
+.using-tool .tool-icon {
+    width: 16px;
+    height: 16px;
+    position: relative;
+}
+
+.using-tool .tool-icon::before,
+.using-tool .tool-icon::after {
+    content: '';
+    position: absolute;
+    background: var(--using-tool-color);
+    border-radius: 2px;
+}
+
+.using-tool .tool-icon::before {
+    width: 2px;
+    height: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.using-tool .tool-icon::after {
+    width: 100%;
+    height: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.using-tool .tool-icon {
+    animation: toolRotate 2s linear infinite;
+}
+
+/* 空闲状态 - 呼吸圆点 */
+.standby .idle-dot {
+    width: 6px;
+    height: 6px;
+    margin: 2px;
+    background: var(--idling-color);
+    border-radius: 50%;
+    animation: breathe 3s ease-in-out infinite;
+
+}
+
+/* 观察状态 - 全新眼球移动动画 */
+.watching .eyes-container {
+    display: flex;
+    gap: 0.4rem;
+    width: 24px;
+    height: 12px;
+    position: relative;
+}
+
+.watching .eye {
+    width: 8px;
+    height: 8px;
+    background: var(--watching-color);
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+}
+
+.watching .eye::before {
+    content: '';
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    animation: lookAround 4s ease-in-out infinite;
+}
+
+.watching .eye.left::before {
+    animation-delay: 0s;
+}
+
+.watching .eye.right::before {
+    animation-delay: 0.2s;
+}
+
+/* 动画定义 */
+@keyframes wave {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-6px);
+    }
+}
+
+@keyframes pulseBar {
+    0%, 100% {
+        transform: scaleY(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scaleY(1.5);
+        opacity: 1;
+    }
+}
+
+@keyframes moveArrow {
+    0%, 100% {
+        transform: translateX(0);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translateX(5px);
+        opacity: 1;
+    }
+}
+
+@keyframes toolRotate {
+    0% {
+        transform: rotate(0);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.5);
+    }
+}
+
+@keyframes lookAround {
+    0%, 100% {
+        transform: translateX(0) translateY(0);
+    }
+    25% {
+        transform: translateX(2px) translateY(1px);
+    }
+    50% {
+        transform: translateX(0) translateY(2px);
+    }
+    75% {
+        transform: translateX(-2px) translateY(1px);
+    }
+}

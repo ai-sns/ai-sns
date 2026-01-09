@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>自定义Marker图标</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+        <style>
+        body,
+        html,
+        #container {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            font-family: "微软雅黑";
+        }
+        </style>
+        <script src="https://api.map.baidu.com/api?type=webgl&v=1.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX"></script>
+    </head>
+<body>
+    <div id="container"></div>
+</body>
+</html>
+<script type="text/javascript">
+var map = new BMapGL.Map('container');
+var point = new BMapGL.Point(116.404, 39.915);
+map.centerAndZoom(point, 15);
+// 创建小车图标
+var myIcon = new BMapGL.Icon("markerred2.png", new BMapGL.Size(35, 35));
+// 创建Marker标注，使用小车图标
+var pt = new BMapGL.Point(116.417, 39.909);
+var marker = new BMapGL.Marker(pt, {
+    icon: myIcon
+});
+// 将标注添加到地图
+map.addOverlay(marker);
+</script>

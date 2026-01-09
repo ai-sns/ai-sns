@@ -1,13 +1,13 @@
 # plugins/code_editor.py
 import sys
 
-from PyQt5.QtCore import QSize
+from PyQt6.QtCore import QSize
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QDialog, QInputDialog, QLineEdit, QMessageBox
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QDialog, QInputDialog, QLineEdit, QMessageBox
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
 import autogen
@@ -273,7 +273,7 @@ class CodeEditor(QWidget,PluginInterface):
 
             self.console.setWindowTitle("Output Console")
             self.console.resize(QSize(1024, 500))
-            self.console.exec_()
+            self.console.exec()
             # self.console.raise_()
 
 
@@ -285,4 +285,4 @@ if __name__ == "__main__":
     editor_widget = CodeEditor(content="def cjrok():")
     editor_widget.create_widget("def cjrok():")
     editor_widget.show()  # 显示窗口
-    app.exec_()  # 运行应用程序的事件循环
+    app.exec()  # 运行应用程序的事件循环

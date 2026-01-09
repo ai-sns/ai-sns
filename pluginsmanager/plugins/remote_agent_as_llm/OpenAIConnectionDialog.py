@@ -2,14 +2,14 @@ import sys
 import json
 import os
 import yaml
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QGroupBox, QGridLayout,
     QLabel, QLineEdit, QCheckBox, QSlider, QTextEdit,
     QDialogButtonBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSettings
-from PyQt5.QtGui import QIcon
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt, pyqtSignal, QSettings
+from PyQt6.QtGui import QIcon
+from PyQt6 import QtCore, QtGui, QtWidgets
 from .ui_OpenAIConnectionDialog import ui_OpenAIConnectionDialog
 
 class OpenAIConnectionDialog(QDialog, ui_OpenAIConnectionDialog):

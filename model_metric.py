@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
     QVBoxLayout,
@@ -15,14 +15,14 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
 )
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from db.DBFactory import Session, ModelMetrics
 from llmrecodialog import EvalApp
-
+from i18n import lt
 session = Session()
 
 # Add some initial data if the database is empty
@@ -38,7 +38,7 @@ if not session.query(ModelMetrics).first():
 class SliderWidget(QWidget):
     def __init__(self, min_value=0, max_value=100, initial_value=50, parent=None):
         super(SliderWidget, self).__init__(parent)
-        self.slider = QSlider(Qt.Horizontal, self)
+        self.slider = QSlider(Qt.Orientation.Horizontal, self)
         self.slider.setRange(min_value, max_value)
         self.slider.setValue(initial_value)
         self.label = QLabel(str(initial_value), self)
@@ -63,7 +63,7 @@ class SliderWidget(QWidget):
 class ModelEvaluationDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("模型评测")
+        self.setWindowTitle(lt("Model Evaluation","模型评测"))
 
         screen = QApplication.primaryScreen().availableGeometry()
         screen_width = screen.width()
@@ -73,13 +73,13 @@ class ModelEvaluationDialog(QDialog):
 
         self.model = QStandardItemModel(0, 18)
         self.model.setHorizontalHeaderLabels([
-            "连接器名称", "模型名称", "价格", "速度", "理解能力", "总结能力", "知识面", "逻辑推理", "数学计算",
-            "代码编程", "创作写作文档", "附件能力", "图文识别能力", "图片生成能力", "视频生成能力", "视频识别能力", "搜索能力", "工具能力"
+            lt("Connector","连接器名称"),lt("Model","模型名称"),lt("Price","价格"),lt("Speed","速度"),lt("Cognition","理解能力"),lt("Summarization","总结能力"),lt("Knowledge","知识面"),lt("Logic","逻辑推理"),lt("Math","数学计算"),
+            lt("Coding","代码编程"),lt("Writing","创作写作文档"),lt("Attachment","附件能力"),lt("Image recognition","图文识别"),lt("Image creation","图像生成"),lt("Video creation","视频生成能力"),lt("Video recognition","视频识别能力"),lt("Search","搜索能力"),lt("Tools","工具能力")
         ])
 
         self.tableView = QTableView(self)
         self.tableView.setModel(self.model)
-        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tableView.setEditTriggers(QAbstractItemView.DoubleClicked)
 
@@ -87,24 +87,24 @@ class ModelEvaluationDialog(QDialog):
         layout.addWidget(self.tableView)
 
         button_layout = QHBoxLayout()
-        self.add_button = QPushButton("添加新记录")
+        self.add_button = QPushButton(lt("Add","添加新记录"))
         self.add_button.clicked.connect(self.add_record)
         button_layout.addWidget(self.add_button)
 
         # button_layout = QHBoxLayout()
-        self.edit_button = QPushButton("编辑记录")
+        self.edit_button = QPushButton(lt("Edit","编辑记录"))
         self.edit_button.clicked.connect(self.edit_record)
         button_layout.addWidget(self.edit_button)
 
-        self.delete_button = QPushButton("删除记录")
+        self.delete_button = QPushButton(lt("Delete","删除记录"))
         self.delete_button.clicked.connect(self.delete_record)
         button_layout.addWidget(self.delete_button)
 
         layout.addLayout(button_layout)
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.button(QDialogButtonBox.Ok).setText("确定")
-        button_box.button(QDialogButtonBox.Cancel).setText("取消")
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box.button(QDialogButtonBox.StandardButton.Ok).setText(lt("OK","确定"))
+        button_box.button(QDialogButtonBox.StandardButton.Cancel).setText(lt("Cancel","取消"))
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
@@ -182,7 +182,7 @@ class ModelEvaluationDialog(QDialog):
 
     def add_record(self):
         dialog = EvalApp()
-        if dialog.exec_():
+        if dialog.exec():
             result = dialog.get_result()  # 通过get_result方法获取对话框返回的值
             print(result)  # 打印结果
         res_list = result.split(",")
@@ -273,10 +273,10 @@ class ModelEvaluationDialog(QDialog):
                 )
                 # self.res = metric
                 dialog = EvalApp(res=metric)
-                if dialog.exec_():
+                if dialog.exec():
                     res = dialog.get_result()
                     result = res.split(",")  # 通过get_result方法获取对话框返回的值
-                    role = Qt.DisplayRole
+                    role = Qt.ItemDataRole.DisplayRole
                     new_values = {
                         0: result[0],
                         1: result[1],
@@ -301,7 +301,7 @@ class ModelEvaluationDialog(QDialog):
                     # 遍历所有列
                     for column, new_value in new_values.items():
                         # 设置新值，这里使用Qt.EditRole，也可以根据需要使用Qt.DisplayRole
-                        # self.tableView.model().setData(index.sibling(index.row(), column), new_value, Qt.EditRole)
+                        # self.tableView.model().setData(index.sibling(index.row(), column), new_value, Qt.ItemDataRole.EditRole)
 
                         if column > 2 and column < 17:
                             slider_widget = SliderWidget(initial_value=int(new_value.strip()))
@@ -454,11 +454,11 @@ class MainWindow(QMainWindow):
 
     def show_dialog(self):
         dialog = ModelEvaluationDialog()
-        dialog.exec_()
+        dialog.exec()
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

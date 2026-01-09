@@ -1,10 +1,10 @@
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QPoint
-
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtCore import Qt, QPoint
+from i18n import lt
 from BuddyItemHuman import BuddyItemHuman
 from BuddyGroupHuman import BuddyGroupHuman
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 
 class BuddyListHuman(QTreeWidget):
@@ -37,14 +37,14 @@ class BuddyListHuman(QTreeWidget):
 
         #QTreeWidgetItem configuration
         #self.header().setSectionHidden(0, True)
-        self.setHeaderLabel("联系人列表")#需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Contact List","联系人列表"))#需要设置此处的值，否则缺省值为1
         self.setSortingEnabled(True)
-        self.sortItems(0, Qt.AscendingOrder)
+        self.sortItems(0, Qt.SortOrder.AscendingOrder)
         self.buddies = {}
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         self.rename_action = QAction(QIcon("images/rename.png"), "Rename", self)
         self.rename_action.triggered.connect(self.rename)
@@ -139,7 +139,7 @@ class BuddyListHuman(QTreeWidget):
     def context(self, pos):
         item = self.itemAt(pos)
         if item:
-            if item.type() == QTreeWidgetItem.UserType + 1:
+            if item.type() == QTreeWidgetItem.ItemType.UserType + 1:
                 self.currentItem = item
                 self.menu.popup(self.mapToGlobal(pos))
 

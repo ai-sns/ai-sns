@@ -27,7 +27,7 @@ class Main():
 
     def open_config_dialog(self):
         connection = OpenAIConnectionDialog(self)
-        connection.exec_()
+        connection.exec()
 
     def run(self,*args,**kwargs):
         data_json=args[0]
@@ -101,7 +101,7 @@ class Connector_OpenAI_Plugin(PluginCore):
 
         if command[0] == "open_config_dialog":
             print("opendialogue")
-            connection.exec_()
+            connection.exec()
         else:
             headers = {
                 'Authorization': f'Bearer {api_key}',

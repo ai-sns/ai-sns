@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QTreeWidgetItem, QApplication, QDialog, QVBoxLayout, QMenu
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QVariant, QSettings
+from PyQt6.QtWidgets import QTreeWidgetItem, QApplication, QDialog, QVBoxLayout, QMenu
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import Qt,  QSettings
 
 from MessageBox import MessageBox
 from AddBuddyDialog import AddBuddyDialog
@@ -19,14 +19,14 @@ class KMItem(QTreeWidgetItem):
     msg = None
 
     def __init__(self, parent, name,kmrecord):
-        super(KMItem, self).__init__(parent,  [name], QTreeWidgetItem.UserType + 1)
+        super(KMItem, self).__init__(parent,  [name], QTreeWidgetItem.ItemType.UserType + 1)
 
         # QTreeWidgetItem configuration
-        self.setFlags(Qt.ItemIsDragEnabled | Qt.ItemIsEnabled)  # we can move a contact
+        self.setFlags(Qt.ItemFlag.ItemIsDragEnabled |  Qt.ItemFlag.ItemIsEnabled)  # we can move a contact
         self.parent = parent
         self.kmrecord = kmrecord
         self.name = name
-        
+
 
 
 
@@ -34,13 +34,7 @@ class KMItem(QTreeWidgetItem):
         self.status = status
         if self.status not in range(6):
             self.status = STATUS.unavailable
-        settings = QSettings("Trunat", "PyTalk")
-        settings.beginGroup("preferences")
-        repStatus = str(settings.value("images_status", QVariant("images/status/")))
-        #fileStatus = str(settings.value(str(self.status), QVariant(STATUS_IMAGE[self.status])))
-        fileStatus = str(settings.value(str(self.status), QVariant(STATUS_IMAGE[0])))
-        settings.endGroup()
-        self.setIcon(0, QIcon(repStatus + fileStatus))
+
 
     def setName(self, name):
         if name:
@@ -73,10 +67,10 @@ class KMItem(QTreeWidgetItem):
         #self.dialog.show() #orgok
         #self.dialog.raise_() #orgok
         print("goingaddconver")
-        self.mainwindow.conversation_pages.addWidget(self.dialog)
+        self.mainwindow.stack_main_widget.addWidget(self.dialog)
         print("goingaddconver2")
         #self.mainwindow.conversation_pages.setCurrentIndex(2) #setCurrentWidget
-        self.mainwindow.conversation_pages.setCurrentWidget(self.dialog)
+        self.mainwindow.stack_main_widget.setCurrentWidget(self.dialog)
         print("goingaddconver3")
 
     def receiveMessage(self, event):

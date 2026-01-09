@@ -1,1 +1,0 @@
-pip uninstall PyQt5

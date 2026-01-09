@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QTreeWidgetItem
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QTreeWidgetItem
+from PyQt6.QtCore import Qt
 
 class BuddyGroup(QTreeWidgetItem):
     """
@@ -7,11 +7,11 @@ class BuddyGroup(QTreeWidgetItem):
     """
 
     def __init__(self, name):
-        QTreeWidgetItem.__init__(self, [name], QTreeWidgetItem.UserType + 1)
+        QTreeWidgetItem.__init__(self, [name], QTreeWidgetItem.ItemType.UserType + 1)
 
         self.name = name
         # QTreeWidgetItem configuration
-        self.setFlags(Qt.ItemIsDropEnabled | Qt.ItemIsEnabled)  # We can move a contact into
+        self.setFlags(Qt.ItemFlag.ItemIsDropEnabled |  Qt.ItemFlag.ItemIsEnabled)  # We can move a contact into
 
     def isAway(self):
         for child in self.takeChildren():

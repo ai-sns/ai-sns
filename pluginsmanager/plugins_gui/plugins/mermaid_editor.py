@@ -3,11 +3,11 @@ import sys
 
 
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QInputDialog
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QInputDialog
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
 

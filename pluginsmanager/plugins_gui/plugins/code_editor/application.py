@@ -1,13 +1,13 @@
 # plugins/code_editor.py
 import sys
 
-from PyQt5.QtCore import QSize
+from PyQt6.QtCore import QSize
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QDialog, QInputDialog, QLineEdit, QMessageBox
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QDialog, QInputDialog, QLineEdit, QMessageBox
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins.code_editor import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
 import autogen
@@ -219,16 +219,19 @@ class Main(QWidget, PluginInterface):
         if ok and name:
             function_id = generate_random_id()
             function_id = function_id
-            filename = os.path.join(os.getcwd(),"pluginsmanager","plugins_function",function_id+".py")
+            # filename = os.path.join(os.getcwd(),"pluginsmanager","plugins_function",function_id+".py")
+            filename = os.path.join(os.getcwd(), "coding",   name + ".py")
             description=""
             detail=""
-            file_path = function_id
+            instruction = ""
+            file_path = name
             requirement = ""
             parameter = ""
             function_type="0"
             function_event = ""
             creator = ""
-            record_id=add_function_mng(function_id, name, file_path, requirement, parameter,description, detail, function_type, function_event, creator)
+            record_id=add_function_mng(function_id, name,instruction, file_path, requirement, parameter,description, detail, function_type, function_event, creator)
+
 
             if filename:
                 with open(filename, 'w', encoding='utf-8') as file:
@@ -292,7 +295,7 @@ class Main(QWidget, PluginInterface):
 
             self.console.setWindowTitle("Output Console")
             self.console.resize(QSize(1024, 500))
-            self.console.exec_()
+            self.console.exec()
             # self.console.raise_()
 
 
@@ -304,4 +307,4 @@ if __name__ == "__main__":
     editor_widget = Main(content="def cjrok():")
     editor_widget.create_widget("def cjrok():")
     editor_widget.show()  # 显示窗口
-    app.exec_()  # 运行应用程序的事件循环
+    app.exec()  # 运行应用程序的事件循环

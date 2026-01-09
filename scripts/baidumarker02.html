@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+        body, html {width: 100%;height: 100%;margin:0;font-family:"微软雅黑";}
+        #allmap {height: 500px;width: 100%;}
+        /* 关键样式：定义图钉样式 */
+        .custom-marker {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background-color: #4285F4; /* 图钉背景颜色 */
+            border-radius: 50% 50% 0 0; /* 上半部分圆形 */
+            transform: rotateX(45deg); /* 倾斜效果 */
+        }
+        .custom-marker::before { /* 图钉尖角 */
+            content: '';
+            position: absolute;
+            bottom: -8px; /* 调整尖角位置 */
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent; /* 尖角大小 */
+            border-top-color: #4285F4; /* 尖角颜色与背景相同 */
+        }
+
+        .custom-marker img { /* 头像样式 */
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotateX(-45deg); /* 抵消倾斜 */
+        }
+    </style>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX"></script>
+</head>
+<body>
+    <div id="allmap"></div>
+    <script type="text/javascript">
+        // 百度地图API功能
+        var map = new BMap.Map("allmap");
+        var point = new BMap.Point(116.404, 39.915);
+        map.centerAndZoom(point, 14);
+
+        // 创建自定义marker
+        var markerContainer = document.createElement("div");
+        markerContainer.className = "custom-marker";
+
+        var avatarImg = document.createElement("img");
+        avatarImg.src = "a.jpg"; // 替换为头像图片地址
+        markerContainer.appendChild(avatarImg);
+
+        var marker = new BMap.Marker(point, {
+            icon: new BMap.Icon(markerContainer, new BMap.Size(40, 48), { // 注意高度包含尖角
+                anchor: new BMap.Size(20, 48) // 锚点设置到底部中心
+            })
+        });
+        map.addOverlay(marker);
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 custom_params: false
 description: ''
 max_tokens: 400
-model: "\u8FDC\u7A0BAgent"
+model: hunyuan-standard
 parameters: ''
 plugin_name: "\u8FDC\u7A0BAgent"
 secret_id: AKIDsz7ObuAWo298yw3nW2aDvfN8630440Ro

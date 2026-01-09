@@ -1,1 +1,0 @@
-     pip show requests python-dotenv

@@ -1,12 +1,13 @@
 import datetime
-
-from PyQt5.QtCore import QSize
+from i18n import lt
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QPalette, QColor
 
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QTextEdit, QHBoxLayout, QGroupBox, QLineEdit, QRadioButton, QLabel, QDialog, QFormLayout, QComboBox
+from PyQt6.QtWidgets import QTextEdit, QHBoxLayout, QGroupBox, QLineEdit, QRadioButton, QLabel, QDialog, QFormLayout, QComboBox, QCheckBox
 from pluginsmanager.plugins_gui.plugins.code_editor import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
 from db.DBFactory import query_skill_mng,add_skill_mng,update_skill_mng,query_AgentCfg_All
@@ -36,8 +37,10 @@ class SkillEditor(QWidget,PluginInterface):
         self.is_first = False
         self.editor.setPlainText("")
         self.skill_name_input.setText("")
+        self.instruction_input.setText("")
         self.skill_description_input.setText("")
-        self.publish_radio.setChecked(False)
+        self.publish_check.setChecked(False)
+        self.sns_check.setChecked(False)
         self.detail_text_edit.setPlainText("")
 
     def create_widget(self, *args, **kwagrs):
@@ -80,22 +83,38 @@ class SkillEditor(QWidget,PluginInterface):
         # 创建单行输入框（函数名）
         self.skill_name_input = QLineEdit()
         self.skill_name_input.setPlaceholderText("请输入名称")
+        palette = self.skill_name_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.skill_name_input.setPalette(palette)
 
         skill_layout.addWidget(self.skill_name_input)
 
 
+        self.instruction_input = QLineEdit()
+        self.instruction_input.setPlaceholderText(lt("Input instrunction and how to call,for example  tq:the city to search","请输入指令及格式如：tq:要查询的城市"))
+        palette = self.instruction_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.instruction_input.setPalette(palette)
 
+        skill_layout.addWidget(self.instruction_input)
+
+        group_layout.addLayout(skill_layout)
+
+        skill_desc_layout = QHBoxLayout()
         skill_description_label = QLabel("简介:")
-        skill_layout.addWidget(skill_description_label)
+        skill_desc_layout.addWidget(skill_description_label)
 
         # 创建单行输入框（函数名）
         self.skill_description_input = QLineEdit()
         self.skill_description_input.setPlaceholderText("简明扼要")
+        palette = self.skill_description_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.skill_description_input.setPalette(palette)
         self.skill_description_input.setMaxLength(350)
 
-        skill_layout.addWidget(self.skill_description_input)
+        skill_desc_layout.addWidget(self.skill_description_input)
 
-
+        group_layout.addLayout(skill_desc_layout)
         # # 创建状态标签（状态）
         # status_label = QLabel("状态:")
         # skill_layout.addWidget(status_label)
@@ -104,7 +123,7 @@ class SkillEditor(QWidget,PluginInterface):
         # self.publish_radio = QRadioButton("发布")
         # skill_layout.addWidget(self.publish_radio)
         # # 将函数布局添加到 GroupBox 布局中
-        group_layout.addLayout(skill_layout)
+
         #
         # if self.skill_manager.type_str=="2":
         #     status_label.setHidden(True)
@@ -115,7 +134,10 @@ class SkillEditor(QWidget,PluginInterface):
 
         self.detail_text_edit = QTextEdit()
         self.detail_text_edit.setPlaceholderText("请输入关于该函数的描述")
-        self.detail_text_edit.setFixedHeight(60)  # 设置多行文本框的高度
+        palette = self.detail_text_edit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.detail_text_edit.setPalette(palette)
+        self.detail_text_edit.setFixedHeight(70)  # 设置多行文本框的高度
         detail_layout.addWidget(skill_detail_label)
 
         detail_layout.addWidget(self.detail_text_edit)
@@ -123,7 +145,7 @@ class SkillEditor(QWidget,PluginInterface):
         group_layout.addLayout(detail_layout)
         # 将 GroupBox 的布局应用到 QGroupBox
         group_box.setLayout(group_layout)
-        group_box.setFixedHeight(150)  # 限制 QGroupBox 的高度
+        group_box.setFixedHeight(170)  # 限制 QGroupBox 的高度
 
         # 将 QGroupBox 添加到主布局
         layout.addWidget(group_box)
@@ -157,17 +179,18 @@ class SkillEditor(QWidget,PluginInterface):
         # status_label = QLabel("状态:")
         # skill_layout.addWidget(status_label)
 
-        self.publish_radio = QRadioButton("发布")
+        self.publish_check = QCheckBox(lt("Published", "发布"))
 
         # 将函数布局添加到 GroupBox 布局中
         # button_layout.addWidget(status_label)
-        button_layout.addWidget(self.publish_radio)
+        button_layout.addWidget(self.publish_check)
 
         if self.skill_manager.type_str == "2":
             # status_label.setHidden(True)
-            self.publish_radio.setHidden(True)
+            self.publish_check.setHidden(True)
 
-
+        self.sns_check = QCheckBox(lt("Used in SNS","能被用于SNS"))
+        button_layout.addWidget(self.sns_check)
 
         # 将按钮布局添加到主布局
         layout.addLayout(button_layout)
@@ -212,6 +235,7 @@ class SkillEditor(QWidget,PluginInterface):
         if not self.filename:
             skill_id = generate_random_id()
             name = self.skill_name_input.text()
+            instruction = self.instruction_input.text()
             self.skill_id = skill_id
             filename = "steps.txt"
             filename = os.path.join(os.getcwd(), "skilllearning", "data", skill_id, filename)
@@ -222,7 +246,7 @@ class SkillEditor(QWidget,PluginInterface):
             file_path = name
             requirement = ""
             parameter = ""
-            if self.publish_radio.isChecked():
+            if self.publish_check.isChecked():
                 skill_type = "1"
             else:
                 skill_type="0"
@@ -231,19 +255,25 @@ class SkillEditor(QWidget,PluginInterface):
                 skill_type = "2"
                 self.filename = os.path.join(os.getcwd(), "agent", "tools.py")
 
+            if self.sns_check.isChecked():
+                used_in_sns = 1
+            else:
+                used_in_sns=0
+
             skill_event = ""
             creator = ""
-            record_id=add_skill_mng(skill_id, name, file_path,requirement,parameter, description,detail, skill_type, skill_event,
-                     creator)
+            record_id=add_skill_mng(skill_id, name,instruction, file_path,requirement,parameter, description,detail, skill_type, skill_event,
+                     creator,used_in_sns)
             self.is_first = True
         else:
             skill_id = self.skill_id
             name = self.skill_name_input.text()
+            instruction = self.instruction_input.text()
             description = self.skill_description_input.text()
             detail = self.detail_text_edit.toPlainText()
             requirement = ""
             parameter = ""
-            if self.publish_radio.isChecked():
+            if self.publish_check.isChecked():
                 skill_type = "1"
             else:
                 skill_type = "0"
@@ -252,8 +282,13 @@ class SkillEditor(QWidget,PluginInterface):
                 skill_type = "2"
                 self.filename = os.path.join(os.getcwd(), "agent", "tools.py")
 
+            if self.sns_check.isChecked():
+                used_in_sns = 1
+            else:
+                used_in_sns=0
+
             create_time = datetime.datetime.now()
-            update_skill_mng(skill_id,name=name,description=description,detail=detail,skill_type=skill_type,create_time=create_time)
+            update_skill_mng(skill_id,name=name,instruction=instruction,description=description,detail=detail,skill_type=skill_type,create_time=create_time,used_in_sns=used_in_sns)
 
         if self.filename:
 
@@ -315,10 +350,10 @@ class SkillEditor(QWidget,PluginInterface):
             transfer_dialog.setLayout(main_layout)
 
             # 显示对话框并处理结果
-            if transfer_dialog.exec_():
+            if transfer_dialog.exec():
                 agent_id = transfer_dialog.comboBox.currentData()
                 agent_name = transfer_dialog.comboBox.currentText()
-                self.skill_manager.app.ShowAiAssistantStack()
+                self.skill_manager.app.show_agent_toolbox_stack()
 
                 agent_item = self.skill_manager.app.toolBox_AgentChat.findChild(QWidget, agent_id)
 
@@ -355,9 +390,12 @@ class SkillEditor(QWidget,PluginInterface):
     def onBrowserLoadFinished(self, success):
         if success:
             taskpage = self.taskpage
+            taskpage.is_running_skill = True
             taskpage.messageEdit.setFocus()
 
-            taskpage.messageEdit.setPlainText(f"给我演示一下:{self.skill_name_input.text()},skill_id:{self.skill_id}")
+
+            # taskpage.messageEdit.setPlainText(f"给我演示一下:{self.skill_name_input.text()},skill_id:{self.skill_id}")
+            taskpage.messageEdit.setPlainText(f"@{self.instruction_input.text()}:run")
             taskpage.sendMessage()
 
 
@@ -380,7 +418,7 @@ class SkillEditor(QWidget,PluginInterface):
 
             popup.setDefaultButton(QtWidgets.QMessageBox.Save)
 
-            answer = popup.exec_()
+            answer = popup.exec()
 
             if answer == QtWidgets.QMessageBox.Save:
                 self.save_file()
@@ -408,19 +446,26 @@ class SkillEditor(QWidget,PluginInterface):
 
 
                 self.skill_name_input.setText(record.name)
+                self.instruction_input.setText(record.instruction)
                 self.skill_description_input.setText(record.description)
 
                 if record.skill_type=="1":
-                    self.publish_radio.setChecked(True)
+                    self.publish_check.setChecked(True)
                 else:
-                    self.publish_radio.setChecked(False)
+                    self.publish_check.setChecked(False)
+
+                if record.used_in_sns==1:
+                    self.sns_check.setChecked(True)
+                else:
+                    self.sns_check.setChecked(False)
 
 
                 self.detail_text_edit.setPlainText(record.detail)
 
         if filename:
-            with open(filename,"rt", encoding='utf-8') as file:
-                self.editor.setPlainText(file.read())
+            if os.path.exists(filename):
+                with open(filename,"rt", encoding='utf-8') as file:
+                    self.editor.setPlainText(file.read())
 
         self.changesSaved = True
 
@@ -432,4 +477,4 @@ if __name__ == "__main__":
     editor_widget = SkillEditor(content="def cjrok():")
     editor_widget.create_widget("def cjrok():")
     editor_widget.show()  # 显示窗口
-    app.exec_()  # 运行应用程序的事件循环
+    app.exec()  # 运行应用程序的事件循环

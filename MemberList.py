@@ -1,10 +1,10 @@
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QDialog
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QPoint
-
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QDialog
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtCore import Qt, QPoint
+from i18n import lt
 from BuddyItem import BuddyItem
 from BuddyGroup import BuddyGroup
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from langchainhandler import *
 from db.DBFactory import query_MutiAgentCfg, query_AgentCfg, query_AgentCfg_All, update_AgentCfg, delete_AgentCfg
@@ -43,14 +43,14 @@ class MemberList(QTreeWidget):
 
         # QTreeWidgetItem configuration
         # self.header().setSectionHidden(0, True)
-        self.setHeaderLabel("成员列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Member List","成员列表"))  # 需要设置此处的值，否则缺省值为1
         # self.setSortingEnabled(True)#去掉，否则会按字符串排序
-        # self.sortItems(0, Qt.AscendingOrder)#去掉，否则会按字符串排序
+        # self.sortItems(0, Qt.SortOrder.AscendingOrder)#去掉，否则会按字符串排序
         self.buddies = {}
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.itemDoubleClicked.connect(self.on_itemDoubleClicked)
         self.menu = QMenu()
         # self.rename_action = QAction(QIcon("images/rename.png"), "Rename", self)
@@ -76,7 +76,7 @@ class MemberList(QTreeWidget):
 
         if agentcommander_user_id:
             selected_agent_cfg = query_AgentCfg(user_id=agentcommander_user_id)
-            self.addAgentItem(f"群主-{selected_agent_cfg.name} ({selected_agent_cfg.memo})" if selected_agent_cfg.memo else f"群主-{selected_agent_cfg.name}", agentcommander_user_id)
+            self.addAgentItem(f"{lt('Group Head','群主')}-{selected_agent_cfg.name} ({selected_agent_cfg.memo})" if selected_agent_cfg.memo else f"{lt('Group Head','群主')}-{selected_agent_cfg.name}", agentcommander_user_id)
             i += 1
 
         if self.selected_agents:
@@ -91,7 +91,7 @@ class MemberList(QTreeWidget):
 
         if item_count == 0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "成员")
+            group_item.setText(0, lt("Members","成员"))
         else:
             group_item = self.topLevelItem(0)
         # print("adding item:",name)
@@ -100,7 +100,7 @@ class MemberList(QTreeWidget):
         top_item = QTreeWidgetItem()
         top_item.setText(0, name[0:50])
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -123,7 +123,7 @@ class MemberList(QTreeWidget):
         # top_item = QTreeWidgetItem(group_item)#不要这样设置，否则排序乱了
         top_item = QTreeWidgetItem()
         top_item.setText(0, name)
-        top_item.setData(0, Qt.UserRole, user_id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, user_id)
         group_item.addChild(top_item)
         top_item.setTextAlignment(0, 0)
 
@@ -213,7 +213,7 @@ class MemberList(QTreeWidget):
         item = self.currentItem
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
 
@@ -222,7 +222,7 @@ class MemberList(QTreeWidget):
 
             agentconfigdlg = AgentConfigDialog(self.mainwindow, agent)
 
-            if agentconfigdlg.exec_() == QDialog.Accepted:
+            if agentconfigdlg.exec() == QDialog.Accepted:
                 newitemtext = f"{agentconfigdlg.name} ({agentconfigdlg.memo})" if agentconfigdlg.memo else agentconfigdlg.name
 
                 if "群主-" in item.text(column):
@@ -233,7 +233,7 @@ class MemberList(QTreeWidget):
     def on_itemDoubleClicked(self, item, column):
         print("双击了：", item.text(column))
         print(column)
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("双击了：", id_value)
         if id_value == None:
             return (False)
@@ -245,7 +245,7 @@ class MemberList(QTreeWidget):
 
 
 
-        if agentconfigdlg.exec_() == QDialog.Accepted:
+        if agentconfigdlg.exec() == QDialog.Accepted:
             newitemtext=f"{agentconfigdlg.name} ({agentconfigdlg.memo})" if agentconfigdlg.memo else agentconfigdlg.name
 
             if "群主-" in item.text(column):

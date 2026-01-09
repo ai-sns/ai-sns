@@ -1,8 +1,8 @@
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate, QSize, Qt, QRect
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QDate, QSize, Qt, QRect
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
                              QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog)
@@ -19,9 +19,9 @@ class ConfigDialog(QDialog):
         super(ConfigDialog, self).__init__(parent)
 
         self.contentsWidget = QListWidget()
-        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setViewMode(QListView.ViewMode.IconMode)
         self.contentsWidget.setIconSize(QSize(96, 84))
-        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMovement(QListView.Movement.Static)
         self.contentsWidget.setMaximumWidth(128)
         self.contentsWidget.setSpacing(12)
 
@@ -64,10 +64,10 @@ class ConfigDialog(QDialog):
 
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
@@ -119,14 +119,14 @@ class ConfigDialog(QDialog):
         configButton = QListWidgetItem(self.contentsWidget)
         configButton.setIcon(QIcon(':/images/config.png'))
         configButton.setText("常规配置")
-        configButton.setTextAlignment(Qt.AlignHCenter)
-        configButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        configButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        configButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         techButton = QListWidgetItem(self.contentsWidget)
         techButton.setIcon(QIcon('images/technique.png'))
         techButton.setText("通知配置")
-        techButton.setTextAlignment(Qt.AlignHCenter)
-        techButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        techButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        techButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
 
 
@@ -267,4 +267,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

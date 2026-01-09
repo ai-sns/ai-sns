@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton, QDialog
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QPushButton, QDialog
+from PyQt6.QtCore import Qt
 
 class Ui_BuddiesListRequest(object):
     def setupUi(self, BuddiesListRequest):
@@ -19,18 +19,18 @@ class Ui_BuddiesListRequest(object):
         self.hboxlayout.addWidget(self.label)
 
         self.jid = QLabel(BuddiesListRequest)
-        self.jid.setTextFormat(Qt.AutoText)
+        self.jid.setTextFormat(Qt.TextFormat.AutoText)
         self.jid.setObjectName("jid")
         self.hboxlayout.addWidget(self.jid)
 
-        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Policy.Expanding, QtGui.QSizePolicy.Policy.Minimum)
         self.hboxlayout.addItem(spacerItem)
         self.vboxlayout.addLayout(self.hboxlayout)
 
         self.hboxlayout1 = QHBoxLayout()
         self.hboxlayout1.setObjectName("hboxlayout1")
 
-        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Policy.Minimum, QtGui.QSizePolicy.Policy.Minimum)
         self.hboxlayout1.addItem(spacerItem1)
 
         self.textEdit = QTextEdit(BuddiesListRequest)
@@ -41,7 +41,7 @@ class Ui_BuddiesListRequest(object):
         self.hboxlayout2 = QHBoxLayout()
         self.hboxlayout2.setObjectName("hboxlayout2")
 
-        spacerItem2 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        spacerItem2 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Policy.Expanding, QtGui.QSizePolicy.Policy.Minimum)
         self.hboxlayout2.addItem(spacerItem2)
 
         self.pushButton = QPushButton(BuddiesListRequest)

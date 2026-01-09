@@ -1,13 +1,13 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import (QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction,
+from PyQt6.QtCore import QFile, QFileInfo, Qt
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
+from PyQt6.QtWidgets import (QApplication, QDialog, QMenu, QTableView, QVBoxLayout,
                              QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox,
-                             QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy, QComboBox, QItemDelegate, QWidget, QInputDialog)
+                             QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy, QComboBox, QItemDelegate, QWidget, QInputDialog, QHeaderView)
 from model_metric import ModelEvaluationDialog
 from globals import global_plugin_list
 from frequentllmmng import FreezeTableDialog as FrequentFreezeTableDialog
 from db.DBFactory import query_llm_frequents,add_llm_frequent
-
+from i18n import lt
 
 class ComboBoxDelegate(QItemDelegate):
     def __init__(self, items_per_row, tableView, parent=None):
@@ -31,7 +31,7 @@ class ComboBoxDelegate(QItemDelegate):
         return self.combos.get(row, None)
 
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.EditRole)
+        value = index.model().data(index, Qt.ItemDataRole.EditRole)
         i = editor.findText(value)
         if i == -1:
             i = 0
@@ -40,7 +40,7 @@ class ComboBoxDelegate(QItemDelegate):
 
     def setModelData(self, editor, model, index):
         value = editor.currentText()
-        model.setData(index, value, Qt.EditRole)
+        model.setData(index, value, Qt.ItemDataRole.EditRole)
 
     def on_current_index_changed(self, combo, index):
         name_column_index = index.model().index(index.row(), 2)
@@ -71,7 +71,7 @@ class ComboBoxDelegate(QItemDelegate):
             row = index.row()
             items = self.items_per_row.get(row, ["Default"])  # 默认值防止未定义的行
             combo.addItems(items)
-            current_value = index.model().data(index, Qt.EditRole)
+            current_value = index.model().data(index, Qt.ItemDataRole.EditRole)
             i = combo.findText(current_value)
             if i == -1:
                 i = 0
@@ -90,13 +90,13 @@ class ButtonDelegate(QItemDelegate):
         self.dialog = dialog
 
     def createEditor(self, parent, option, index):
-        button = QPushButton("配置", parent)
+        button = QPushButton(lt("Setting","配置"), parent)
         button.clicked.connect(lambda: self.print_first_column_content(index.row()))
         return button
 
     def paint(self, painter, option, index):
         if not self.tableView.indexWidget(index):
-            button = QPushButton("配置", self.tableView)
+            button = QPushButton(lt("Setting","配置"), self.tableView)
             button.clicked.connect(lambda: self.print_first_column_content(index.row()))
             self.tableView.setIndexWidget(index, button)
 
@@ -124,13 +124,13 @@ class ButtonDelegateFrequent(QItemDelegate):
         self.dialog = dialog
 
     def createEditor(self, parent, option, index):
-        button = QPushButton("加入", parent)
+        button = QPushButton(lt("Add","加入"), parent)
         button.clicked.connect(lambda: self.add_to_frequent_list(index.row()))
         return button
 
     def paint(self, painter, option, index):
         if not self.tableView.indexWidget(index):
-            button = QPushButton("加入", self.tableView)
+            button = QPushButton(lt("Add","加入"), self.tableView)
             button.clicked.connect(lambda: self.add_to_frequent_list(index.row()))
             self.tableView.setIndexWidget(index, button)
 
@@ -175,7 +175,7 @@ class FreezeTableDialog(QDialog):
         # 隐藏第二列并设置第一列的宽度
         self.tableView.setColumnHidden(0, True)  # 隐藏 选择 列
         self.tableView.setColumnHidden(1, True)  # 隐藏 ID 列
-        self.tableView.setColumnWidth(0, 20)
+        # self.tableView.setColumnWidth(0, 20)
 
         # 最小宽度设置
 
@@ -191,57 +191,86 @@ class FreezeTableDialog(QDialog):
 
         # Add "Select All" checkbox and "模型评测" button
         h_layout = QHBoxLayout()
-        select_all_checkbox = QCheckBox("全选", self)
+        select_all_checkbox = QCheckBox(lt("All","全选"), self)
         select_all_checkbox.stateChanged.connect(self.toggle_select_all)
         select_all_checkbox.setVisible(False)
         # h_layout.addWidget(select_all_checkbox)
 
-        evaluate_button = QPushButton("模型评测", self)
-        evaluate_button.setFixedSize(80, 30)  # 固定按钮大小
+        evaluate_button = QPushButton(lt("Evaluation","模型评测"), self)
+        # evaluate_button.setFixedSize(80, 30)  # 固定按钮大小
         evaluate_button.clicked.connect(self.evaluate_model)
         h_layout.addWidget(evaluate_button)
 
-        button_frequent = QPushButton("常用模型列表", self)
+        button_frequent = QPushButton(lt("Favorate","常用模型列表"), self)
         button_frequent.clicked.connect(self.open_frequent_model_dialog)
         h_layout.addWidget(button_frequent)
 
+        self.multi_model_checkbox = QCheckBox(lt("Multi-model comparison", "多模型对比"), self)
+        self.multi_model_checkbox.stateChanged.connect(self.toggle_select_all)
+        self.multi_model_checkbox.setVisible(False)
+        h_layout.addWidget(self.multi_model_checkbox)
+
+
+
 
         # Add a spacer to ensure buttons are left-aligned
-        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         h_layout.addItem(spacer)
 
         layout.addLayout(h_layout)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
 
         layout.addWidget(button_box)
 
         self.setLayout(layout)
-        self.setWindowTitle("请选择模型")
+        self.setWindowTitle(lt("Select","请选择模型"))
         self.setWindowIcon(QIcon("images/aisns.png"))
         self.resize(1120, 680)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
+        self.tableView.setSelectionMode(QAbstractItemView.SingleSelection)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
 
-        # self.tableView.horizontalHeader().setStretchLastSection(True)  # 使最后一列填满剩余空间
-        # self.tableView.verticalHeader().setDefaultSectionSize(30)  # 设置行高
-        self.tableView.resizeColumnsToContents()  # 调整列宽以适应内容
+
+        # 使表格铺满窗口
+        self.tableView.horizontalHeader().setStretchLastSection(True)
+        # 允许用户手动调整列宽
+        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        # 调整列宽
+        self.adjust_column_widths()
+
+    def adjust_column_widths(self):
+        """调整列宽，确保列宽为整数"""
+        total_width = self.width() - 350
+        if total_width <= 0:
+            return
+
+        # 设置列宽，确保使用整数
+        # self.tableView.setColumnWidth(0, 20)  # 隐藏了
+        # self.tableView.setColumnWidth(1, int(total_width * 0.4))  # 隐藏
+        self.tableView.setColumnWidth(2, int(total_width * 0.15))  # 说明列宽
+        self.tableView.setColumnWidth(3, int(total_width * 0.15))  # 类型列宽
+        self.tableView.setColumnWidth(4, int(total_width * 0.3))  # 编辑时间列宽
+        self.tableView.setColumnWidth(5, int(total_width * 0.05))  # 编辑时间列宽
+        self.tableView.setColumnWidth(6, int(total_width * 0.35))  # 编辑时间列宽
+        self.tableView.setColumnWidth(7, 50)
+        self.tableView.setColumnWidth(8, 50)
 
     def toggle_select_all(self, state):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
             if checkbox_item:
-                checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+                checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
     def evaluate_model(self):
         print("pingce")
         dialog = ModelEvaluationDialog()
-        dialog.exec_()
+        dialog.exec()
 
 
     def add_to_frequent_list(self, row):
@@ -270,7 +299,7 @@ class FreezeTableDialog(QDialog):
 
         model = QStandardItemModel()
         records = query_llm_frequents(is_delete=0,belong_to_agent_id=self.taskpage.agent_cfg.user_id)
-        header = ["显示", "plugin_id", "连接器", "模型", "简称"]
+        header = [lt("Show","显示"), "plugin_id", lt("Connector","连接器"), lt("LLM","模型"), lt("abbrev","简称")]
         model.setHorizontalHeaderLabels(header)
         row = 0
         for record in records:
@@ -280,25 +309,25 @@ class FreezeTableDialog(QDialog):
 
             newItem = QStandardItem(str(record.id))#注意不能使用数字，否则后面会取不到值
             print("record.id:", str(record.id))
-            newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)  # Make items non-editable
+            newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make items non-editable
             model.setItem(row, 1, newItem)
 
             newItem = QStandardItem(record.name)
-            newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)  # Make items non-editable
+            newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make items non-editable
             model.setItem(row, 2, newItem)
 
             newItem2 = QStandardItem(record.model_type)
-            newItem2.setFlags(newItem2.flags() & ~Qt.ItemIsEditable)  # Make items non-editable
+            newItem2.setFlags(newItem2.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make items non-editable
             model.setItem(row, 3, newItem2)
 
             newItem3 = QStandardItem(record.alias_name)
-            newItem3.setFlags(newItem3.flags() & ~Qt.ItemIsEditable)  # Make items non-editable
+            newItem3.setFlags(newItem3.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make items non-editable
             model.setItem(row, 4, newItem3)
 
             row += 1
 
         dialog = FrequentFreezeTableDialog(model, self)
-        dialog.exec_()
+        dialog.exec()
 
 
     def accept_close(self):
@@ -347,7 +376,7 @@ class FreezeTableDialog(QDialog):
                 action.triggered.connect(action_method)
                 menu.addAction(action)
 
-            menu.exec_(self.mapToGlobal(pos))
+            menu.exec(self.mapToGlobal(pos))
 
     def deleteSelectedRows(self):
         selected_indexes = self.tableView.selectionModel().selectedRows()
@@ -426,7 +455,7 @@ def main(args):
                 model.setItem(row, 0, checkbox_item)
                 for col, field in enumerate(fields):
                     newItem = QStandardItem(field)
-                    newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)
+                    newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     model.setItem(row, col + 1, newItem)
 
                 # Create a combo box for '模型型号'
@@ -454,7 +483,7 @@ def main(args):
     dialog.tableView.setItemDelegateForColumn(5, combo_delegate)
     button_delegate = ButtonDelegate(dialog.tableView)
     dialog.tableView.setItemDelegateForColumn(6, button_delegate)
-    dialog.exec_()
+    dialog.exec()
 
 
 if __name__ == '__main__':

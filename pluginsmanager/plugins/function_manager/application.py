@@ -67,12 +67,12 @@ class Connector_LLM_Jiuzhou_yfd_Chatglm_Plugin(PluginCore):
         model = "glm-4"  # glm-4，glm-3-turbo
         if command[0] == "open_config_dialog":
             print("opendialogue")
-            # connection.exec_()
+            # connection.exec()
 
             fun_dialog = FunctionManager()
             app = app
-            app.conversation_pages.addWidget(fun_dialog)
-            app.conversation_pages.setCurrentWidget(fun_dialog)
+            app.stack_main_widget.addWidget(fun_dialog)
+            app.stack_main_widget.setCurrentWidget(fun_dialog)
 
         else:
             headers = {

@@ -199,7 +199,7 @@ class OpenAICustomizeV2LLMClient:
                             choice.delta.content   if hasattr(choice.delta, "content") else None
                         )
 
-                        print("cjr get the content:",content)
+                        print("cjr get the content6:",content)
                         # setattr(choice.delta, 'tool_calls', [])
                         tool_calls_chunks = (
                             choice.delta.tool_calls if hasattr(choice.delta, "tool_calls") else None

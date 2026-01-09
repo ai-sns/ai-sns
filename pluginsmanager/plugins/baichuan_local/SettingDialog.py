@@ -2,14 +2,14 @@ import sys
 import json
 import os
 import yaml
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QGroupBox, QGridLayout,
     QLabel, QLineEdit, QCheckBox, QSlider, QTextEdit,
     QDialogButtonBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSettings
-from PyQt5.QtGui import QIcon
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt, pyqtSignal, QSettings
+from PyQt6.QtGui import QIcon
+from PyQt6 import QtCore, QtGui, QtWidgets
 from .ui_SettingDialog import  ui_SettingDialog
 
 
@@ -17,8 +17,8 @@ class SettingDialog(QDialog, ui_SettingDialog):
     configured = pyqtSignal()
 
     def __init__(self, parent=None):
-        parent = None  # 程序调用没有parent
-        super(SettingDialog, self).__init__(parent)
+        self.parent = parent
+        super(SettingDialog, self).__init__(None)
         self.setupUi(self)
         self.accepted.connect(self.saveSettings)  # 点击确认了之后，将调用saveSettings函数
         self.readSettings()

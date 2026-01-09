@@ -5,9 +5,9 @@ import threading
 from datetime import datetime
 
 import jieba as jieba
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QCursor
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QDialog, \
+from PyQt6.QtCore import QThread, pyqtSignal, Qt
+from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QDialog, \
     QComboBox
 from openai import OpenAI
 from openai import OpenAI
@@ -403,7 +403,7 @@ class EvalApp(QDialog):
         # 打开设置窗口或执行设置相关操作
         print("设置按钮被点击")
         self.question_manager = QuestionManager(self)
-        self.question_manager.exec_()
+        self.question_manager.exec()
 
     def on_settings2(self):
         self.on_settings1()
@@ -446,7 +446,7 @@ class EvalApp(QDialog):
         print("测试按钮被点击")
         bt = self.sender()
         # bt.setEnabled(False)
-        bt.setCursor(QCursor(Qt.WaitCursor))
+        bt.setCursor(QCursor(Qt.CursorShape.WaitCursor))
         # question_type = llm_ability[0]
         question_num = 3
         self.thread = Worker(question_type, question_num, edit_obj)
@@ -523,7 +523,7 @@ class EvalApp(QDialog):
     def on_thread_finished1(self):
         print("线程完成")
         # self.button.setEnabled(True)
-        # self.button.setCursor(QCursor(Qt.ArrowCursor))
+        # self.button.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
         # print("线程完成")
 
     def on_ok(self):
@@ -680,4 +680,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = EvalApp()
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

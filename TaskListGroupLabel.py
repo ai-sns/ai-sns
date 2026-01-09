@@ -1,9 +1,9 @@
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QInputDialog, QMessageBox
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QInputDialog, QMessageBox
+from PyQt6.QtGui import QIcon, QPixmap, QAction
+from PyQt6.QtCore import Qt, QPoint
 
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import query_AgentTaskMulti, query_AgentTaskMulti_Content, AgentTaskMulti, update_AgentTaskMulti, \
     deleteMultiTasksFromDatabase, query_AgentTask_Search_Content, query_AgentTaskMulti_Search_First, \
@@ -56,14 +56,14 @@ class TaskListGroupLabel(TaskListGroup):
             if icon == True:
                 top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
             top_item.setToolTip(0, name)
-            top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+            top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
             top_item.setTextAlignment(0, 0)
             self.expandAll()
 
     def reload(self, key_word):
         self.clear()
 
-        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Chat List","对话列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}

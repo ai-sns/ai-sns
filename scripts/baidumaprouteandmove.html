@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>百度地图路线规划与轨迹模拟</title>
+    <style>
+        #map-container { width: 100%; height: 500px; }
+        #input-container { margin-bottom: 20px; }
+        input, button { margin: 5px; padding: 8px; }
+    </style>
+</head>
+<body>
+    <div id="input-container">
+        <input type="text" id="start" placeholder="起点（如：北京市海淀区上地10街）" value="清华大学">
+        <input type="text" id="end" placeholder="终点（如：北京市海淀区中关村）" value="北京大学">
+        <button onclick="planRoute()">规划路线</button>
+        <button onclick="startTrack()">轨迹模拟</button>
+    </div>
+    <div id="map-container"></div>
+
+    <script src="https://api.map.baidu.com/api?v=3.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX&type=webgl"></script>
+    <script>
+        let map, driving, gpsPositions = [], trackMarker;
+
+        // 初始化地图
+        function initMap() {
+            map = new BMapGL.Map("map-container");
+            map.centerAndZoom(new BMapGL.Point(116.404, 39.915), 11);
+            map.enableScrollWheelZoom(true);
+            driving = new BMapGL.DrivingRoute(map, {
+                renderOptions: {
+                    map: map,
+                    autoViewport: true
+                },
+                onSearchComplete: function (result){
+                        alert('complete');
+                        if (driving.getStatus() === BMAP_STATUS_SUCCESS) {
+                            console.log("规划成功，坐标数:", result);
+                            gpsPositions = getAllGpsPositions(result);
+                            console.log("规划成功，坐标数:", gpsPositions.length);
+                        } else {
+                            alert("路线规划失败，状态码: " + driving.getStatus());
+                        }
+                    }
+            });
+        }
+
+        // 地址转坐标（Promise封装）
+        function geocodeAddress(address, city) {
+            return new Promise((resolve, reject) => {
+                new BMapGL.Geocoder().getPoint(address, point => {
+                    if (point) resolve(point);
+                    else reject(`地址解析失败: \$\{address}`);
+                }, city);
+            });
+        }
+
+        // 规划路线（异步处理）
+        async function planRoute() {
+            const start = document.getElementById("start").value.trim();
+            const end = document.getElementById("end").value.trim();
+
+            if (!start || !end) {
+                alert("请输入起点和终点");
+                return;
+            }
+
+            try {
+                // 步骤1：地址转坐标
+                const [startPoint, endPoint] = await Promise.all([
+                    geocodeAddress(start, "北京市"),
+                    geocodeAddress(end, "北京市")
+                ]);
+
+                // 步骤2：清空地图并重新规划
+                map.clearOverlays();
+                gpsPositions = [];
+
+                // 步骤3：使用坐标进行路线规划
+                driving.search(startPoint, endPoint);
+
+                // var result=driving.getResults();
+                // console.log("规划成功，result:", result);
+                // gpsPositions = getAllGpsPositions(result);
+
+
+
+            } catch (error) {
+                alert(error); // 显示地址解析错误
+            }
+        }
+
+        // 提取所有路径点
+        function getAllGpsPositions(routeResult) {
+            a=routeResult.getPlan(0).getRoute(0).getPath();
+            console.log(a);
+            return a;
+        }
+
+        // 轨迹模拟
+        function startTrack() {
+            if (gpsPositions.length === 0) {
+                alert("请先规划路线");
+                return;
+            }
+
+            let index = 0;
+            trackMarker = new BMapGL.Marker(gpsPositions[0], {
+                title: "轨迹起点",
+                icon: new BMapGL.Icon('down.png', new BMapGL.Size(28, 40))
+            });
+            map.addOverlay(trackMarker);
+
+            const interval = setInterval(() => {
+                if (index >= gpsPositions.length) {
+                    clearInterval(interval);
+                    return;
+                }
+                trackMarker.setPosition(gpsPositions[index++]);
+            }, 500);
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>

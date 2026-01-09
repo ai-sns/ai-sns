@@ -3,13 +3,13 @@
 # Form implementation generated from reading ui file 'Ui_MessageWidgetHuman.ui'
 #
 # Created: Tue Jan 22 07:03:54 2008
-#      by: PyQt5 UI code generator 5.15.4
+#      by: PyQt6 UI code generator 5.15.4
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt5 import QtCore, QtGui,QtWidgets
-from PyQt5.QtWidgets import QCheckBox, QLabel
-from qtpy.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
+from PyQt6 import QtCore, QtGui,QtWidgets
+from PyQt6.QtWidgets import QCheckBox, QLabel
+from PyQt6.QtCore import Qt, QMetaObject, pyqtSignal, pyqtSlot, QEvent
 
 class Ui_MessageWidgetHuman(object):
     def setupUi(self, MessageWidget):
@@ -29,7 +29,7 @@ class Ui_MessageWidgetHuman(object):
         title_label.setFixedHeight(30)  # 影响间隙
 
 
-        self.vboxlayout.addWidget(title_label, alignment=Qt.AlignCenter)
+        self.vboxlayout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
 
         self.messageBrowser = QtWidgets.QTextBrowser(MessageWidget)
@@ -39,7 +39,7 @@ class Ui_MessageWidgetHuman(object):
         self.hboxlayout = QtWidgets.QHBoxLayout()
         self.hboxlayout.setObjectName("hboxlayout")
 
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.hboxlayout.addItem(spacerItem)
 
         self.fontButton = QtWidgets.QPushButton(MessageWidget)
@@ -56,7 +56,7 @@ class Ui_MessageWidgetHuman(object):
 
 
 
-        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.hboxlayout.addItem(spacerItem1)
         self.vboxlayout.addLayout(self.hboxlayout)
 
@@ -105,4 +105,4 @@ class Ui_MessageWidgetHuman(object):
         self.videoButton.setText(QtCore.QCoreApplication.translate("MessageWidget", "附件", None))
         self.sendButton.setText(QtCore.QCoreApplication.translate("MessageWidget", "发送", None))
         # self.sendButton.setShortcut(QtCore.QCoreApplication.translate("MessageWidget", "Return", None))
-        self.sendButton.setShortcut(QtGui.QKeySequence(Qt.ControlModifier + Qt.Key_Return))
+        self.sendButton.setShortcut(QtGui.QKeySequence(Qt.KeyboardModifier.ControlModifier | Qt.Key.Key_Return))

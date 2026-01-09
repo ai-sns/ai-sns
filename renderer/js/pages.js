@@ -1439,6 +1439,7 @@ const PageControllers = {
 
     // SNS 页面控制器
     initSNSPage() {
+        console.log('SNS 页面控制器初始化');
         this.loadBaiduMap();
         this.loadSNSData();
         this.initSNSPanelResizer();
@@ -1633,26 +1634,36 @@ const PageControllers = {
 
     loadBaiduMap() {
         const mapContainer = document.getElementById('mapContainer');
-        if (!mapContainer) return;
+        if (!mapContainer) {
+            console.error('地图容器未找到');
+            return;
+        }
 
-        // 直接加载 Google Map 3D 页面
-        this.initMap();
-    },
+        console.log('加载地图');
 
-    initMap() {
-        const mapContainer = document.getElementById('mapContainer');
-        if (!mapContainer) return;
+        // 立即显示地图内容，不显示加载动画
+        const placeholder = mapContainer.querySelector('.map-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
 
-        // 清除地图容器内容
-        mapContainer.innerHTML = '';
+        // 检查地图是否已经加载过
+        const existingIframe = mapContainer.querySelector('iframe');
+        if (existingIframe) {
+            console.log('地图已加载，直接显示');
+            return;
+        }
 
-        // 创建 iframe 加载 Google Map 3D 页面
+        // 创建 iframe 加载地图页面
         const iframe = document.createElement('iframe');
-        iframe.src = 'http://localhost:8900/scripts/map.html';
+        iframe.src = 'http://localhost:8788/scripts/map.html';
         iframe.style.width = '100%';
         iframe.style.height = '100%';
         iframe.style.border = 'none';
         iframe.style.display = 'block';
+        iframe.style.backgroundColor = 'white';
+        iframe.style.minHeight = '500px';
+        iframe.style.zIndex = '1';
 
         mapContainer.appendChild(iframe);
 
@@ -1668,17 +1679,41 @@ const PageControllers = {
                     timestamp: Date.now()
                 }
             };
-            iframe.contentWindow.postMessage(initialData, 'http://localhost:8900');
+
+            try {
+                iframe.contentWindow.postMessage(initialData, 'http://localhost:8788');
+                console.log('已发送初始化消息');
+            } catch (error) {
+                console.error('发送消息到地图页面失败:', error);
+            }
+        };
+
+        // 监听 iframe 加载失败
+        iframe.onerror = () => {
+            console.error('地图页面加载失败');
+            // 创建错误显示
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'map-placeholder';
+            errorDiv.style.zIndex = '10';
+            errorDiv.innerHTML = `
+                <div class="map-placeholder-icon">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93z"/>
+                    </svg>
+                </div>
+                <p class="map-placeholder-text">地图加载失败</p>
+                <p class="map-placeholder-desc">请检查地图服务器是否运行在 http://localhost:8788</p>
+                <button class="map-retry-btn" onclick="PageControllers.tryLoadMap()">重试</button>
+            `;
+            mapContainer.appendChild(errorDiv);
         };
 
         // 监听来自 iframe 的消息
-        window.addEventListener('message', (event) => {
-            // 验证消息来源
-            if (event.origin === 'http://localhost:8900') {
+        const handleMessage = (event) => {
+            if (event.origin === 'http://localhost:8788') {
                 const data = event.data;
                 console.log('收到地图页面消息:', data);
 
-                // 处理不同类型的消息
                 switch (data.type) {
                     case 'locationUpdate':
                         this.handleLocationUpdate(data.data);
@@ -1693,10 +1728,57 @@ const PageControllers = {
                         console.log('未知消息类型:', data.type);
                 }
             }
-        });
+        };
+
+        window.addEventListener('message', handleMessage);
+        iframe._messageListener = handleMessage;
     },
 
-    // 处理地图位置更新
+    tryLoadMap() {
+        const mapContainer = document.getElementById('mapContainer');
+        if (!mapContainer) return;
+
+        console.log('尝试重新加载地图');
+
+        // 移除现有的iframe（如果存在）
+        const existingIframe = mapContainer.querySelector('iframe');
+        if (existingIframe) {
+            // 移除事件监听器
+            if (existingIframe._messageListener) {
+                window.removeEventListener('message', existingIframe._messageListener);
+            }
+            existingIframe.remove();
+        }
+
+        // 移除现有的错误提示
+        const existingErrorDiv = mapContainer.querySelector('.map-placeholder');
+        if (existingErrorDiv) {
+            existingErrorDiv.remove();
+        }
+
+        // 创建新的加载动画
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'map-placeholder';
+        loadingDiv.innerHTML = `
+            <div class="map-placeholder-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93z"/>
+                </svg>
+            </div>
+            <p class="map-placeholder-text">正在加载地图...</p>
+            <div class="map-placeholder-loader">
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+            </div>
+        `;
+        mapContainer.appendChild(loadingDiv);
+
+        // 延迟调用initMap以显示加载动画
+        setTimeout(() => {
+            this.initMap();
+        }, 500);
+    },
     handleLocationUpdate(data) {
         console.log('位置更新:', data);
         // 可以更新 UI 显示当前位置
@@ -1731,7 +1813,7 @@ const PageControllers = {
                 type: type,
                 data: data
             };
-            iframe.contentWindow.postMessage(message, 'http://localhost:8900');
+            iframe.contentWindow.postMessage(message, 'http://localhost:8788');
         }
     },
 
@@ -2396,10 +2478,110 @@ if __name__ == "__main__":
             newKMBtn.addEventListener('click', () => this.showNewKMModal());
         }
 
-        // 工具栏按钮
-        document.querySelectorAll('.toolbar-btn').forEach(btn => {
+        // 工具栏按钮 - 修复按钮类名绑定
+        document.querySelectorAll('.km-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const action = btn.dataset.action;
+                // 确定按钮操作类型
+                let action = btn.dataset.action;
+                if (!action) {
+                    // 如果没有data-action属性，根据按钮的功能推测action
+                    if (btn.classList.contains('format-btn')) {
+                        action = btn.dataset.format;
+                    } else if (btn.dataset.align) {
+                        action = btn.dataset.align;
+                    } else {
+                        // 对于没有明确data-action的按钮，根据title属性判断
+                        const title = btn.getAttribute('title');
+                        switch(title) {
+                            case '粗体':
+                                action = 'bold';
+                                break;
+                            case '斜体':
+                                action = 'italic';
+                                break;
+                            case '下划线':
+                                action = 'underline';
+                                break;
+                            case '删除线':
+                                action = 'strikethrough';
+                                break;
+                            case '上标':
+                                action = 'superscript';
+                                break;
+                            case '下标':
+                                action = 'subscript';
+                                break;
+                            case '左对齐':
+                                action = 'justifyLeft';
+                                break;
+                            case '居中':
+                                action = 'justifyCenter';
+                                break;
+                            case '右对齐':
+                                action = 'justifyRight';
+                                break;
+                            case '两端对齐':
+                                action = 'justifyFull';
+                                break;
+                            case '无序列表':
+                                action = 'insertUnorderedList';
+                                break;
+                            case '有序列表':
+                                action = 'insertOrderedList';
+                                break;
+                            case '增加缩进':
+                                action = 'indent';
+                                break;
+                            case '减少缩进':
+                                action = 'outdent';
+                                break;
+                            case '保存':
+                                action = 'save';
+                                break;
+                            case '打印':
+                                action = 'print';
+                                break;
+                            case '复制':
+                                action = 'copy';
+                                break;
+                            case '剪切':
+                                action = 'cut';
+                                break;
+                            case '粘贴':
+                                action = 'paste';
+                                break;
+                            case '撤销':
+                                action = 'undo';
+                                break;
+                            case '重做':
+                                action = 'redo';
+                                break;
+                            case '搜索':
+                                action = 'search';
+                                break;
+                            case '日期':
+                                action = 'insertDate';
+                                break;
+                            case '表格':
+                                action = 'insertTable';
+                                break;
+                            case '图片':
+                                action = 'insertImage';
+                                break;
+                            case '链接':
+                                action = 'createLink';
+                                break;
+                            case '表情':
+                                action = 'insertEmoticon';
+                                break;
+                            case '符号':
+                                action = 'insertSpecialChar';
+                                break;
+                        }
+                    }
+                }
+
+                console.log('KM Editor Action:', action);
                 this.executeEditorAction(action);
             });
         });
@@ -2465,6 +2647,75 @@ if __name__ == "__main__":
         });
     },
 
+    // 保存笔记
+    saveNote() {
+        const noteContent = document.getElementById('noteContent');
+        const noteTitle = document.getElementById('noteTitle'); // 假设标题输入框的ID是noteTitle
+        if (!noteContent) return;
+
+        const content = noteContent.innerHTML;
+        const title = noteTitle ? noteTitle.value : 'Untitled';
+
+        // 这里可以添加保存逻辑，比如发送到后端API
+        console.log('保存笔记:', title, content);
+        Notification.success('笔记已保存');
+    },
+
+    // 显示搜索对话框
+    showSearchDialog() {
+        const searchTerm = prompt('请输入搜索内容:');
+        if (searchTerm) {
+            const noteContent = document.getElementById('noteContent');
+            if (noteContent) {
+                // 简单的搜索实现
+                const text = noteContent.innerText;
+                const index = text.indexOf(searchTerm);
+                if (index !== -1) {
+                    alert(`找到搜索内容在位置 ${index}`);
+                } else {
+                    alert('未找到搜索内容');
+                }
+            }
+        }
+    },
+
+    // 插入表格
+    insertTable() {
+        const rows = prompt('请输入行数:');
+        const cols = prompt('请输入列数:');
+
+        if (rows && cols) {
+            let tableHtml = '<table border="1" cellpadding="5" cellspacing="0">';
+            for (let i = 0; i < parseInt(rows); i++) {
+                tableHtml += '<tr>';
+                for (let j = 0; j < parseInt(cols); j++) {
+                    tableHtml += '<td>&nbsp;</td>';
+                }
+                tableHtml += '</tr>';
+            }
+            tableHtml += '</table>';
+
+            document.execCommand('insertHTML', false, tableHtml);
+        }
+    },
+
+    // 插入表情
+    insertEmoticon() {
+        const emoticon = prompt('请输入表情符号:');
+        if (emoticon) {
+            document.execCommand('insertText', false, emoticon);
+        }
+    },
+
+    // 插入特殊字符
+    insertSpecialChar() {
+        const specialChar = prompt('请输入特殊字符:');
+        if (specialChar) {
+            document.execCommand('insertText', false, specialChar);
+        }
+    },
+
+    // 执行编辑器操作
     executeEditorAction(action) {
         const noteContent = document.getElementById('noteContent');
         if (!noteContent) return;
@@ -2479,6 +2730,39 @@ if __name__ == "__main__":
             case 'underline':
                 document.execCommand('underline', false, null);
                 break;
+            case 'strikethrough':
+                document.execCommand('strikeThrough', false, null);
+                break;
+            case 'superscript':
+                document.execCommand('superscript', false, null);
+                break;
+            case 'subscript':
+                document.execCommand('subscript', false, null);
+                break;
+            case 'justifyLeft':
+                document.execCommand('justifyLeft', false, null);
+                break;
+            case 'justifyCenter':
+                document.execCommand('justifyCenter', false, null);
+                break;
+            case 'justifyRight':
+                document.execCommand('justifyRight', false, null);
+                break;
+            case 'justifyFull':
+                document.execCommand('justifyFull', false, null);
+                break;
+            case 'insertUnorderedList':
+                document.execCommand('insertUnorderedList', false, null);
+                break;
+            case 'insertOrderedList':
+                document.execCommand('insertOrderedList', false, null);
+                break;
+            case 'indent':
+                document.execCommand('indent', false, null);
+                break;
+            case 'outdent':
+                document.execCommand('outdent', false, null);
+                break;
             case 'h1':
                 document.execCommand('formatBlock', false, '<h1>');
                 break;
@@ -2487,12 +2771,6 @@ if __name__ == "__main__":
                 break;
             case 'h3':
                 document.execCommand('formatBlock', false, '<h3>');
-                break;
-            case 'list-ul':
-                document.execCommand('insertUnorderedList', false, null);
-                break;
-            case 'list-ol':
-                document.execCommand('insertOrderedList', false, null);
                 break;
             case 'link':
                 const url = prompt('输入链接地址:');
@@ -2505,6 +2783,46 @@ if __name__ == "__main__":
             case 'code':
                 document.execCommand('formatBlock', false, '<pre>');
                 break;
+            case 'save':
+                this.saveNote();
+                break;
+            case 'print':
+                window.print();
+                break;
+            case 'copy':
+                document.execCommand('copy', false, null);
+                break;
+            case 'cut':
+                document.execCommand('cut', false, null);
+                break;
+            case 'paste':
+                document.execCommand('paste', false, null);
+                break;
+            case 'undo':
+                document.execCommand('undo', false, null);
+                break;
+            case 'redo':
+                document.execCommand('redo', false, null);
+                break;
+            case 'search':
+                this.showSearchDialog();
+                break;
+            case 'insertDate':
+                const now = new Date();
+                const dateStr = now.toLocaleString('zh-CN');
+                document.execCommand('insertText', false, dateStr);
+                break;
+            case 'insertTable':
+                this.insertTable();
+                break;
+            case 'insertEmoticon':
+                this.insertEmoticon();
+                break;
+            case 'insertSpecialChar':
+                this.insertSpecialChar();
+                break;
+            default:
+                console.log('未知操作:', action);
         }
     },
 

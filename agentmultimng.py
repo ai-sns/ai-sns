@@ -1,6 +1,6 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox, QWidget, QPushButton
+from PyQt6.QtCore import QFile, QFileInfo, Qt
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox, QWidget, QPushButton
 from db.DBFactory import delete_MutiAgentCfg,update_MutiAgentCfg_by_group_id,query_MutiAgentCfg,query_AgentCfg
 from agentmuticonfigdialog import ConfigDialog as AgentMutiConfigDialog
 class FreezeTableDialog(QDialog):
@@ -30,8 +30,8 @@ class FreezeTableDialog(QDialog):
 
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Cancel)
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("关闭")
 
         button_box.rejected.connect(self.reject_close)
@@ -49,7 +49,7 @@ class FreezeTableDialog(QDialog):
         self.setWindowIcon(QIcon("images/aisns.png"))
         self.resize(560, 680)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.reorder_rows()
@@ -58,7 +58,7 @@ class FreezeTableDialog(QDialog):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
             if checkbox_item:
-                checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+                checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
     def accept_closebak(self):
         selected_rows = self.tableView.selectionModel().selectedRows()
@@ -83,7 +83,7 @@ class FreezeTableDialog(QDialog):
         checkbox_states_and_values = []
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
-            if checkbox_item and checkbox_item.checkState() == Qt.Checked:
+            if checkbox_item and checkbox_item.checkState() == Qt.CheckState.Checked:
                 second_column_data = self.model.index(row, 1).data()
                 checkbox_states_and_values.append((row, second_column_data))
 
@@ -116,7 +116,7 @@ class FreezeTableDialog(QDialog):
                     action.triggered.connect(action_method)
                     menu.addAction(action)
 
-                menu.exec_(self.mapToGlobal(pos))
+                menu.exec(self.mapToGlobal(pos))
 
     def deleteSelectedRows(self):
         # 获取用户选中的行
@@ -254,7 +254,7 @@ class FreezeTableDialog(QDialog):
 
             agentmulticonfigdlg = AgentMutiConfigDialog(self.app, agent_group_cfg)
 
-            if agentmulticonfigdlg.exec_() == QDialog.Accepted:
+            if agentmulticonfigdlg.exec() == QDialog.Accepted:
 
                 self.model.setItem(row, column, QStandardItem(agentmulticonfigdlg.name))
                 self.model.setItem(row, column+1, QStandardItem(agentmulticonfigdlg.memo))
@@ -276,8 +276,8 @@ class FreezeTableDialog(QDialog):
             all_rows.append(row_data)
 
         # 分离已选中和未选中的行
-        checked_rows = [row_data for row_data in all_rows if row_data[0].checkState() == Qt.Checked]
-        unchecked_rows = [row_data for row_data in all_rows if row_data[0].checkState() == Qt.Unchecked]
+        checked_rows = [row_data for row_data in all_rows if row_data[0].checkState() == Qt.CheckState.Checked]
+        unchecked_rows = [row_data for row_data in all_rows if row_data[0].checkState() == Qt.CheckState.Unchecked]
 
         # 清空模型
         self.model.removeRows(0, self.model.rowCount())
@@ -293,7 +293,7 @@ class FreezeTableDialog(QDialog):
             print(item.row())
             print(self.model.index(item.row(), 1).data())
 
-            if item.checkState()== Qt.Unchecked:
+            if item.checkState()== Qt.CheckState.Unchecked:
                 group_id = self.model.index(item.row(), 1).data()
                 item_to_move = self.app.toolBox_AgentChat.findChild(QWidget, group_id)
                 object_name = item_to_move.objectName()
@@ -338,13 +338,13 @@ def main(args):
                 model.setItem(row, 0, checkbox_item)
                 for col, field in enumerate(fields):
                     newItem = QStandardItem(field)
-                    newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)
+                    newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     model.setItem(row, col+1, newItem)
                 row += 1
     file.close()
 
     dialog = FreezeTableDialog(model)
-    dialog.exec_()
+    dialog.exec()
 
 if __name__ == '__main__':
     import sys

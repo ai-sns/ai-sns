@@ -1,9 +1,9 @@
 import pyautogui
-from PyQt5 import QtGui
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtWidgets import QWidget, QDialog, QScrollArea, QGridLayout, QPushButton, QVBoxLayout, QFileDialog
-from PyQt5.QtCore import QSettings, Qt, QUrl, pyqtSignal, QThread
-from PyQt5.QtGui import QIcon
+from PyQt6 import QtGui
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import QWidget, QDialog, QScrollArea, QGridLayout, QPushButton, QVBoxLayout, QFileDialog
+from PyQt6.QtCore import QSettings, Qt, QUrl, pyqtSignal, QThread
+from PyQt6.QtGui import QIcon
 from ui.ui_MessageWidget import Ui_MessageWidget
 import hashlib
 import webbrowser
@@ -174,13 +174,14 @@ class EmojiDialog(QDialog):
 class MessageBox(QWidget, Ui_MessageWidget):
     signal_msg_received = pyqtSignal()
 
-    def __init__(self, parent, con, jid, name, ai_chat_cfg):
+    def __init__(self, parent, con, jid, name, ai_chat_cfg,tree_item=None):
         super(MessageBox, self).__init__(parent)
         self.human_take_over = False
         self.jid = jid
         self.name = name
         self.con = con
         self.ai_chat_cfg = ai_chat_cfg
+        self.tree_item = tree_item
         self.conversation_id = ""
         self.messages = []
         self.page_index = 0
@@ -351,7 +352,7 @@ class MessageBox(QWidget, Ui_MessageWidget):
                         }
                     """)
             # self.messageEdit.setAcceptRichText(True)
-
+            self.tree_item.set_top()
     # ChatCompletions
     def sendMessage(self, content, by_click=False):
         if content:
@@ -577,14 +578,18 @@ class MessageBox(QWidget, Ui_MessageWidget):
 
         message = f"""\n<strong><em><span style="color: darkred; font-size:14px;">{self.tr("Me")} :</span></em></strong> <a href='{xmpp.url}'>{filename}</a>"""
         self.append_message(message)
-
     def humantakeoverhandle(self):
         self.human_take_over = self.humantakeoverCheckBox.isChecked()
 
     def toggle_output_checkbox(self, state):
-        if state == Qt.Checked:
-            self.splitter.setSizes([300, 1])
+        if state == Qt.CheckState.Checked.value:
+            # self.splitter.setSizes([300, 1])
+            self.splitter.setSizes([1, 280])
+            # 设置第一个窗口可伸缩（拉伸因子为1），第二个窗口固定（拉伸因子为0）
+            self.splitter.setStretchFactor(0, 1)  # 索引0（第一个窗口）可伸缩
+            self.splitter.setStretchFactor(1, 0)  # 索引1（第二个窗口）固定
         else:
+
             self.splitter.setSizes([1, ])
 
     def setOpenFileName(self):
@@ -618,8 +623,10 @@ class MessageBox(QWidget, Ui_MessageWidget):
         return openFileNamesLabel
 
     def showEmoji(self):
+
+
         dialog = EmojiDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             selected_emoji = dialog.accepted_emoji
             print(selected_emoji)
             self.messageEdit.insertPlainText(selected_emoji)

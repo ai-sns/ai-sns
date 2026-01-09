@@ -1,23 +1,28 @@
 import re
 import sys
-
-from PyQt5.QtCore import QUrl
+sys.path.append("../..")
+sys.path.append("../../..")
+sys.path.append("../../../..")
+from PyQt6.QtCore import QUrl
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout
+from PyQt6 import QtWidgets
 
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
-from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineFullScreenRequest, QWebEngineView, QWebEngineProfile, QWebEngineSettings
+from PyQt6.QtWebEngineWidgets import  QWebEngineView
+from PyQt6.QtWebEngineCore import  QWebEnginePage,QWebEngineFullScreenRequest,  QWebEngineProfile, QWebEngineSettings
+
 import sys
 import json
 
-from PyQt5.QtGui import QKeySequence
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTextEdit, QPushButton, QVBoxLayout, QWidget, QShortcut
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtCore import QUrl, pyqtSlot
+from PyQt6.QtGui import QKeySequence
+from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtCore import QUrl, pyqtSlot
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QUrl, pyqtSlot
 
 import os
 from typing import List
@@ -38,12 +43,12 @@ from pathlib import Path
 import aiohttp
 import requests
 import asyncio
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit, QPushButton, \
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit, QPushButton, \
     QStatusBar, QCheckBox
-from PyQt5.QtCore import QThread, pyqtSignal, QObject
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtCore import QUrl
-from PyQt5.QtWidgets import QDialog
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QUrl
+from PyQt6.QtWidgets import QDialog
 
 import pyttsx3
 import speech_recognition as sr
@@ -53,7 +58,7 @@ import speech_recognition as sr
 # from xf_voice.t5txt2voice import tospeech
 from pluginsmanager.plugins_gui.plugins.digital_human.xf_voice.t2totxt import listen
 from collections import deque
-
+from i18n import lt
 made_move = False
 
 def set_status_to_outside(new_data):
@@ -328,8 +333,12 @@ class Main(QWidget, PluginInterface):
         self.gifView = QWebEngineView()
         self.gifView.setObjectName("digital_human")
         # self.setGif("C:\\fastapi\\aisns\\PyTalk\\images\\boyin29.gif")  # 替换为你的 GIF 文件的绝对路径
-        self.setGif("images/boyin29.gif")
+        # self.setGif("images/boyin29.gif")
+
+        self.gifView.load(QUrl("http://localhost:8900/scripts/model_viewer.html"))
+
         # self.setGif(os.path.join(self.base_path, "images", "boyin29.gif"))
+
 
         # 聊天对话框部分
         self.chatLog = QTextEdit()
@@ -341,24 +350,30 @@ class Main(QWidget, PluginInterface):
         self.checkButton = QPushButton("文字")
         self.checkButton.clicked.connect(self.on_checkbutton_clicked)
 
-        self.checkbox = QCheckBox('语音播报', self)
+        self.checkbox = QCheckBox(lt('Show on desktop','显示在桌面'), self)
         self.checkbox.stateChanged.connect(self.checkbox_changed)
         self.status_bar = QStatusBar()
         self.status_bar.showMessage("状态栏...")
 
-        chatInputLayout.addWidget(self.chatInput)
-        chatInputLayout.addWidget(self.sendButton)
-        chatInputLayout.addWidget(self.checkButton)
+        # chatInputLayout.addWidget(self.chatInput)
+        self.chatInput.setVisible(False)
+        # chatInputLayout.addWidget(self.sendButton)
+        self.sendButton.setVisible(False)
+        # chatInputLayout.addWidget(self.checkButton)
+        self.checkButton.setVisible(False)
 
         checkInputLayout = QVBoxLayout()
         checkInputLayout.addWidget(self.checkbox)
 
+        self.checkbox.setVisible(True)
         # 将组件添加到主布局
         mainLayout.addWidget(self.gifView, 1)
-        mainLayout.addWidget(self.chatLog, 2)
+        self.chatLog.setVisible(False)
+        # mainLayout.addWidget(self.chatLog, 2)
         mainLayout.addLayout(chatInputLayout)
         mainLayout.addLayout(checkInputLayout)
-        mainLayout.addWidget(self.status_bar)
+        # mainLayout.addWidget(self.status_bar)
+        self.status_bar.setVisible(False)
 
         self.setLayout(mainLayout)
 
@@ -384,6 +399,8 @@ class Main(QWidget, PluginInterface):
         if not self.speech_start_flag:
             self.speech_thread.start()
             self.speech_start_flag = True
+
+        self.on_checkbutton_clicked()
 
     def handle_previous_to_send_b(self, *args, **kwagrs):
         parent=args[0]

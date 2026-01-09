@@ -4,6 +4,7 @@ from .customize import CustomizeClient
 from .spark import SparkAI
 from .openai_customize import OpenAICustomizeLLMClient
 from .openai_customize_v2 import OpenAICustomizeV2LLMClient
+from .anthropic import AnthropicClient
 
 __all__ = (
     "OpenAICompatibleLLMClient",
@@ -11,5 +12,6 @@ __all__ = (
     "CustomizeClient",
     "SparkAI",
     "OpenAICustomizeLLMClient",
-    "OpenAICustomizeV2LLMClient"
+    "OpenAICustomizeV2LLMClient",
+    "AnthropicClient"
 )

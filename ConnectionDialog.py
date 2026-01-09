@@ -1,12 +1,12 @@
-from PyQt5.QtWidgets import QDialog
-from PyQt5.QtCore import QSettings, QVariant, pyqtSignal, pyqtSlot
+from PyQt6.QtWidgets import QDialog
+from PyQt6.QtCore import QSettings,  pyqtSignal, pyqtSlot
 from ui.ui_ConnectionDialog import Ui_ConnectionDialog
 
 """
 流程说明：Application.py 的init中，创建并调用该对话框
         # Connection
         connection = ConnectionDialog(self)
-        self.actionConnection.triggered.connect(connection.exec_)#actionConnection是ui_mainwindow的菜单项，该项触发ConnectionDialog对象的运行
+        self.actionConnection.triggered.connect(connection.exec)#actionConnection是ui_mainwindow的菜单项，该项触发ConnectionDialog对象的运行
         self.actionDeconnection.triggered.connect(self.disconnect)
         connection.configured.connect(self.on_configured)
 

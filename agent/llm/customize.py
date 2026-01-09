@@ -78,11 +78,7 @@ from langchain_core.callbacks import (
 )
 from langchain_core.language_models.llms import LLM
 from langchain_core.outputs import GenerationChunk
-try:
-    from langchain_core.pydantic_v1 import Field, root_validator
-except ImportError:
-    from pydantic import Field
-    from pydantic import model_validator as root_validator
+from langchain_core.pydantic_v1 import Field, root_validator
 from langchain_core.utils import convert_to_secret_str, get_from_dict_or_env
 
 logger = logging.getLogger(__name__)
@@ -125,11 +121,7 @@ from langchain_core.output_parsers.openai_tools import (
     PydanticToolsParser,
 )
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
-try:
-    from langchain_core.pydantic_v1 import BaseModel, Field, SecretStr, root_validator
-except ImportError:
-    from pydantic import BaseModel, Field, SecretStr
-    from pydantic import model_validator as root_validator
+from langchain_core.pydantic_v1 import BaseModel, Field, SecretStr, root_validator
 from langchain_core.runnables import Runnable, RunnableMap, RunnablePassthrough
 from langchain_core.tools import BaseTool
 from langchain_core.utils import convert_to_secret_str, get_from_dict_or_env

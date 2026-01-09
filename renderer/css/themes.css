@@ -1772,6 +1772,21 @@ body.theme-light .map-placeholder-text {
     color: var(--text-secondary);
 }
 
+body.theme-light .map-placeholder-desc {
+    color: var(--text-tertiary);
+}
+
+body.theme-light .map-retry-btn {
+    background: rgba(79, 70, 229, 0.1);
+    border-color: rgba(79, 70, 229, 0.3);
+    color: var(--color-primary);
+}
+
+body.theme-light .map-retry-btn:hover {
+    background: rgba(79, 70, 229, 0.15);
+    border-color: rgba(79, 70, 229, 0.4);
+}
+
 body.theme-light .loader-dot {
     background: var(--color-primary);
 }

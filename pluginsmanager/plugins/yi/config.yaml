@@ -2,9 +2,14 @@ api_key: sk-6da5d3f61df7498f8d15c804f97e2bfc
 custom_params: false
 description: 'https://api.lingyiwanwu.com/v1/chat/completions
 
-  0b03bf2d806143ef82f603a8ad84b9ae'
+  0b03bf2d806143ef82f603a8ad84b9ae
+
+
+  deepseek-chat
+
+  deepseek-reasoner'
 max_tokens: 4000
-model: deepseek-chat
+model: yi-spark
 parameters: ''
 stream: true
 temperature: 0.8

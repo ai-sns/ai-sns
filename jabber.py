@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication
 from enum import Enum
 
 class STATUS(Enum):

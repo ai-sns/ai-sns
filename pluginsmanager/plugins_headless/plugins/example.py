@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets
+from PyQt6 import QtWidgets
 import syntax_pars
 
 app = QtWidgets.QApplication([])
@@ -15,4 +15,4 @@ editor.show()
 # infile = open('syntax_pars.py', 'r')
 # editor.setPlainText(infile.read())
 
-app.exec_()
+app.exec()

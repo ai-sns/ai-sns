@@ -1,0 +1,17 @@
+alias: "ChatGLM\u5728\u7EBF"
+creator: Photon
+description: "\u7528\u6765\u8FDE\u63A5ChatGLM\u5728\u7EBF\u6A21\u578B"
+model_type: gemini-2.0-flash-exp,gemini-1.5-flash,gemini-1.5-pro,gemini-3-pro-preview
+name: "ChatGLM\u5728\u7EBF"
+plugin_type: LLM_Connector
+repository: https://github.com/Photon/plugin-connector-llm-jiuzhou-yfd-chatglm
+requirements:
+- name: PyYAML
+  version: 5.3.1
+- name: pytz
+  version: '2019.3'
+runtime:
+  main: application.py
+  tests:
+  - tests/core.py
+version: 1.0.0

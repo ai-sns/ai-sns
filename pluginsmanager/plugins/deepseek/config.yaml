@@ -1,0 +1,17 @@
+api_key: sk-3e80aa3ae15e4e339c2c9b2e2f7ec2ac
+custom_params: false
+description: 'https://api.lingyiwanwu.com/v1/chat/completions
+
+  0b03bf2d806143ef82f603a8ad84b9ae
+
+
+  deepseek-chat
+
+  deepseek-reasoner'
+max_tokens: 655360
+model: deepseek-chat
+parameters: ''
+stream: true
+temperature: 0.8
+top_p: 0.7
+url: https://api.deepseek.com/v1/chat/completions

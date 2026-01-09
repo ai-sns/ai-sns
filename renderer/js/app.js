@@ -98,6 +98,12 @@ const App = {
                 console.log('Received chat response:', message);
             });
 
+            // 监听地图聊天消息
+            api.onWebSocketMessage('map_chat_message', (message) => {
+                console.log('Received map chat message:', message);
+                // TODO: 处理地图聊天消息，例如显示在地图聊天界面
+            });
+
             // 监听通知
             api.onWebSocketMessage('notification', (message) => {
                 if (typeof Notification !== 'undefined' && Notification.info) {
@@ -360,6 +366,15 @@ const App = {
         if (this.currentPage === page) return;
 
         console.log(`Navigating to: ${page}`);
+
+        // 保存当前页面状态（如果有）
+        if (this.currentPage) {
+            const currentPageElement = document.getElementById(`page-${this.currentPage}`);
+            if (currentPageElement) {
+                currentPageElement.classList.add('hidden');
+            }
+        }
+
         this.currentPage = page;
 
         // 更新导航栏状态
@@ -370,19 +385,23 @@ const App = {
         // 渲染侧边栏内容
         this.renderSidebar(page);
 
-        // 渲染主内容区
-        this.renderMainContent(page);
+        // 渲染或显示主内容区
+        this.renderOrShowMainContent(page);
 
-        // 初始化页面控制器
-        this.initPageController(page);
+        // 初始化页面控制器（只在首次渲染时调用）
+        const pageElement = document.getElementById(`page-${page}`);
+        if (!pageElement.dataset.initialized) {
+            this.initPageController(page);
+            pageElement.dataset.initialized = 'true';
+        }
     },
 
     renderSidebar(page) {
         const sidebar = document.getElementById('secondarySidebar');
         if (!sidebar) return;
 
+        // 渲染对应页面的侧边栏
         let sidebarContent = '';
-
         switch (page) {
             case 'home':
                 sidebarContent = PageRenderers.renderHomeSidebar();
@@ -407,47 +426,154 @@ const App = {
         }
 
         sidebar.innerHTML = sidebarContent;
+
+        // 绑定侧边栏事件（根据页面不同）
+        this.bindSidebarEvents(page);
     },
 
-    renderMainContent(page) {
+    bindSidebarEvents(page) {
+        switch (page) {
+            case 'home':
+                this.bindHomeSidebarEvents();
+                break;
+            case 'sns':
+                this.bindSNSSidebarEvents();
+                break;
+            case 'agent':
+                this.bindAgentSidebarEvents();
+                break;
+            case 'km':
+                this.bindKMSidebarEvents();
+                break;
+            case 'tools':
+                this.bindToolsSidebarEvents();
+                break;
+            case 'web':
+                this.bindWebSidebarEvents();
+                break;
+        }
+    },
+
+    bindHomeSidebarEvents() {
+        // Home 页面侧边栏事件
+        document.querySelectorAll('.setting-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                switch (action) {
+                    case 'initialization':
+                        PageControllers.showInitializationModal();
+                        break;
+                    case 'help':
+                        PageControllers.showHelpModal();
+                        break;
+                }
+            });
+        });
+    },
+
+    bindSNSSidebarEvents() {
+        // SNS 页面侧边栏事件
+        document.querySelectorAll('.sidebar-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.textContent.trim();
+                console.log('SNS sidebar tab clicked:', tabName);
+            });
+        });
+    },
+
+    bindAgentSidebarEvents() {
+        // Agent 页面侧边栏事件
+        document.querySelectorAll('.chat-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                console.log('Agent sidebar tab clicked:', tabName);
+            });
+        });
+    },
+
+    bindKMSidebarEvents() {
+        // KM 页面侧边栏事件
+        document.querySelectorAll('.km-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                console.log('KM sidebar tab clicked:', tabName);
+            });
+        });
+    },
+
+    bindToolsSidebarEvents() {
+        // Tools 页面侧边栏事件
+        const searchInput = document.getElementById('toolsSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                console.log('Tools search:', e.target.value);
+            });
+        }
+    },
+
+    bindWebSidebarEvents() {
+        // Web 页面侧边栏事件
+        const addLLMBtn = document.getElementById('addLLMBtn');
+        if (addLLMBtn) {
+            addLLMBtn.addEventListener('click', () => {
+                console.log('Add LLM clicked');
+            });
+        }
+    },
+    renderOrShowMainContent(page) {
         const mainContent = document.getElementById('mainContent');
         if (!mainContent) return;
 
-        let pageContent = '';
+        // 检查页面是否已渲染
+        let pageElement = document.getElementById(`page-${page}`);
 
-        switch (page) {
-            case 'home':
-                pageContent = PageRenderers.renderHomePage();
-                break;
-            case 'sns':
-                pageContent = PageRenderers.renderSNSPage();
-                break;
-            case 'agent':
-                pageContent = PageRenderers.renderAgentPage();
-                break;
-            case 'km':
-                pageContent = PageRenderers.renderKMPage();
-                break;
-            case 'tools':
-                pageContent = PageRenderers.renderToolsPage();
-                break;
-            case 'web':
-                pageContent = PageRenderers.renderWebPage();
-                break;
-            default:
-                pageContent = PageRenderers.renderHomePage();
+        if (!pageElement) {
+            // 页面未渲染，创建新的页面容器
+            pageElement = document.createElement('div');
+            pageElement.id = `page-${page}`;
+            pageElement.className = 'page-container';
+
+            let pageContent = '';
+            switch (page) {
+                case 'home':
+                    pageContent = PageRenderers.renderHomePage();
+                    break;
+                case 'sns':
+                    pageContent = PageRenderers.renderSNSPage();
+                    break;
+                case 'agent':
+                    pageContent = PageRenderers.renderAgentPage();
+                    break;
+                case 'km':
+                    pageContent = PageRenderers.renderKMPage();
+                    break;
+                case 'tools':
+                    pageContent = PageRenderers.renderToolsPage();
+                    break;
+                case 'web':
+                    pageContent = PageRenderers.renderWebPage();
+                    break;
+                default:
+                    pageContent = PageRenderers.renderHomePage();
+            }
+
+            pageElement.innerHTML = pageContent;
+            mainContent.appendChild(pageElement);
+        } else {
+            // 页面已渲染，直接显示
+            pageElement.classList.remove('hidden');
         }
-
-        mainContent.innerHTML = pageContent;
     },
-
     initPageController(page) {
+        console.log('开始初始化页面控制器:', page);
         switch (page) {
             case 'home':
                 PageControllers.initHomePage();
                 break;
             case 'sns':
+                console.log('初始化 SNS 页面');
                 PageControllers.initSNSPage();
+                console.log('SNS 页面初始化完成');
                 break;
             case 'agent':
                 PageControllers.initAgentPage();

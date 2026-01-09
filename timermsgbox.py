@@ -1,6 +1,6 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMessageBox
-from PyQt5.QtCore import QTimer
+from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import QTimer
 
 class AutoCloseMessageBox(QMessageBox):
     def __init__(self, timeout=3, parent=None):
@@ -22,5 +22,5 @@ class AutoCloseMessageBox(QMessageBox):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     messageBox = AutoCloseMessageBox()
-    messageBox.exec_()
-    sys.exit(app.exec_())
+    messageBox.exec()
+    sys.exit(app.exec())

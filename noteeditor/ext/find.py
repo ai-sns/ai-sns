@@ -1,11 +1,11 @@
-#PYQT5 PyQt4’s QtGui module has been split into PyQt5’s QtGui, QtPrintSupport and QtWidgets modules
+#PyQt6 PyQt4’s QtGui module has been split into PyQt6’s QtGui, QtPrintSupport and QtWidgets modules
 
-from PyQt5 import QtWidgets
-#PYQT5 QTextEdit, QDialog, QPushButton, QRadioButton, QGridLayout
+from PyQt6 import QtWidgets
+#PyQt6 QTextEdit, QDialog, QPushButton, QRadioButton, QGridLayout
 
 
-from PyQt5 import QtGui, QtCore
-from PyQt5.QtCore import Qt
+from PyQt6 import QtGui, QtCore
+from PyQt6.QtCore import Qt
 
 import re
 

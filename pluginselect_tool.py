@@ -1,12 +1,13 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import (QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction,
+from PyQt6.QtCore import QFile, QFileInfo, Qt
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
+from PyQt6.QtWidgets import (QApplication, QDialog, QMenu, QTableView, QVBoxLayout,
                              QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox,
-                             QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy, QComboBox, QItemDelegate, QWidget)
+                             QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy, QComboBox, QItemDelegate, QWidget, QHeaderView)
 from model_metric import ModelEvaluationDialog
 from globals import global_plugin_list
 from pluginsmanager.plugins_headless.plugin_mng import load_plugin as load_plugin_tool
 from db.DBFactory import query_PluginMng
+from i18n import lt
 class ComboBoxDelegate(QItemDelegate):
     def __init__(self, items_per_row, tableView, parent=None):
         super(ComboBoxDelegate, self).__init__(parent)
@@ -22,7 +23,7 @@ class ComboBoxDelegate(QItemDelegate):
         return combo
 
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.EditRole)
+        value = index.model().data(index, Qt.ItemDataRole.EditRole)
         i = editor.findText(value)
         if i == -1:
             i = 0
@@ -30,7 +31,7 @@ class ComboBoxDelegate(QItemDelegate):
 
     def setModelData(self, editor, model, index):
         value = editor.currentText()
-        model.setData(index, value, Qt.EditRole)
+        model.setData(index, value, Qt.ItemDataRole.EditRole)
 
     def on_current_index_changed(self, combo, index):
         name_column_index = index.model().index(index.row(), 2)
@@ -61,7 +62,7 @@ class ComboBoxDelegate(QItemDelegate):
             row = index.row()
             items = self.items_per_row.get(row, ["Default"])  # 默认值防止未定义的行
             combo.addItems(items)
-            current_value = index.model().data(index, Qt.EditRole)
+            current_value = index.model().data(index, Qt.ItemDataRole.EditRole)
             i = combo.findText(current_value)
             if i == -1:
                 i = 0
@@ -78,13 +79,13 @@ class ButtonDelegate(QItemDelegate):
         self.dialog = dialog
 
     def createEditor(self, parent, option, index):
-        button = QPushButton("配置", parent)
+        button = QPushButton(lt("Setting","配置"), parent)
         button.clicked.connect(lambda: self.print_first_column_content(index.row()))
         return button
 
     def paint(self, painter, option, index):
         if not self.tableView.indexWidget(index):
-            button = QPushButton("配置", self.tableView)
+            button = QPushButton(lt("Setting","配置"), self.tableView)
             button.clicked.connect(lambda: self.print_first_column_content(index.row()))
             self.tableView.setIndexWidget(index, button)
 
@@ -136,6 +137,7 @@ class FreezeTableDialog(QDialog):
         self.tableView.setModel(self.model)
         self.tableView.setColumnHidden(1, True)
         self.tableView.setColumnWidth(0, 20)  # 设置这一列否则第二列长度过长
+
         self.checkbox_states_and_values = []
         self.initUI()
 
@@ -145,52 +147,81 @@ class FreezeTableDialog(QDialog):
 
         # Add "Select All" checkbox and "模型评测" button
         h_layout = QHBoxLayout()
-        select_all_checkbox = QCheckBox("全选", self)
+        select_all_checkbox = QCheckBox(lt("All","全选"), self)
         select_all_checkbox.stateChanged.connect(self.toggle_select_all)
         h_layout.addWidget(select_all_checkbox)
 
-        evaluate_button = QPushButton("模型评测", self)
+        evaluate_button = QPushButton(lt("Model Evaluation","模型评测"), self)
         evaluate_button.setFixedSize(80, 30)  # 固定按钮大小
         evaluate_button.clicked.connect(self.evaluate_model)
+        evaluate_button.setVisible(False)
         h_layout.addWidget(evaluate_button)
 
         # Add a spacer to ensure buttons are left-aligned
-        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         h_layout.addItem(spacer)
 
         layout.addLayout(h_layout)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
 
         layout.addWidget(button_box)
 
         self.setLayout(layout)
-        self.setWindowTitle("请选择插件")
+        self.setWindowTitle(lt("Select","请选择插件"))
         self.setWindowIcon(QIcon("images/aisns.png"))
         self.resize(1120, 680)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+        # 使表格铺满窗口
+        self.tableView.horizontalHeader().setStretchLastSection(True)
+        # 允许用户手动调整列宽
+        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        # 调整列宽
+        self.adjust_column_widths()
+
+
+
+
+    def adjust_column_widths(self):
+        """调整列宽，确保列宽为整数"""
+        total_width = self.width()-150
+        if total_width <= 0:
+            return
+
+        # 设置列宽，确保使用整数
+        self.tableView.setColumnWidth(0, 20)  # 选择列宽
+        # self.tableView.setColumnWidth(1, int(total_width * 0.4))  # 隐藏
+        self.tableView.setColumnWidth(2, int(total_width * 0.2))  # 说明列宽
+        self.tableView.setColumnWidth(3, int(total_width * 0.2))  # 类型列宽
+        self.tableView.setColumnWidth(4, int(total_width * 0.05))  # 编辑时间列宽
+        self.tableView.setColumnWidth(5, int(total_width * 0.25))  # 编辑时间列宽
+        self.tableView.setColumnWidth(6, int(total_width * 0.3))  # 编辑时间列宽
+        self.tableView.setColumnWidth(7, 80)
+
+
 
     def toggle_select_all(self, state):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
             if checkbox_item:
-                checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+                checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
     def evaluate_model(self):
         print("pingce")
         dialog = ModelEvaluationDialog()
-        dialog.exec_()
+        dialog.exec()
 
     def accept_close(self):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
-            if checkbox_item and checkbox_item.checkState() == Qt.Checked:
+            if checkbox_item and checkbox_item.checkState() == Qt.CheckState.Checked:
                 pluginfullname = self.model.index(row, 1).data()
                 self.checkbox_states_and_values.append(pluginfullname)
 
@@ -219,7 +250,7 @@ class FreezeTableDialog(QDialog):
                 action.triggered.connect(action_method)
                 menu.addAction(action)
 
-            menu.exec_(self.mapToGlobal(pos))
+            menu.exec(self.mapToGlobal(pos))
 
     def deleteSelectedRows(self):
         selected_indexes = self.tableView.selectionModel().selectedRows()
@@ -291,7 +322,7 @@ def main(args):
                 model.setItem(row, 0, checkbox_item)
                 for col, field in enumerate(fields):
                     newItem = QStandardItem(field)
-                    newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)
+                    newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     model.setItem(row, col + 1, newItem)
 
                 # Create a combo box for '模型型号'
@@ -319,7 +350,7 @@ def main(args):
     dialog.tableView.setItemDelegateForColumn(5, combo_delegate)
     button_delegate = ButtonDelegate(dialog.tableView)
     dialog.tableView.setItemDelegateForColumn(7, button_delegate)
-    dialog.exec_()
+    dialog.exec()
 
 
 if __name__ == '__main__':

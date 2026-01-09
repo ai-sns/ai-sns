@@ -1,7 +1,6 @@
-api_key: sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26
+api_key: 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
 custom_params: false
-description: "\u7528\u6765\u753B\u753B\u3002\u53EF\u4EE5\u6839\u636E\u7528\u6237\u6307\
-  \u4EE4\u753B\u753B\u3002"
+description: ask the llm to draw for you
 max_tokens: 8000000
 model: gpt-4o
 parameters: "{\n    \"model\": \"gpt-4o\",\n    \"max_tokens\": 4000,\n    \"temperature\"\
@@ -10,4 +9,4 @@ parameters: "{\n    \"model\": \"gpt-4o\",\n    \"max_tokens\": 4000,\n    \"tem
 stream: true
 temperature: 0.8
 top_p: 0.7
-url: https://api.chatanywhere.tech/v1/images/generations
+url: https://api.openai.com/v1/images/generations

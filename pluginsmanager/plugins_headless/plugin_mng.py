@@ -1,7 +1,7 @@
 # main.py
 import sys
 import importlib
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTabWidget
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTabWidget
 
 
 
@@ -25,6 +25,7 @@ def load_plugin(parent,record, *args, **kwagrs):
         # 动态加载插件
 
         plugin_module = importlib.import_module(f'pluginsmanager.plugins_headless.plugins.{plugin_directory}.application')
+
         # 获取插件类
         plugin_class = getattr(plugin_module, "Main")
         plugin_instance = plugin_class(record)  # 创建插件实例
@@ -48,4 +49,4 @@ if __name__ == "__main__":
 
     tabs.show()
     load_plugin(tabs)
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

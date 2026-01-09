@@ -1,7 +1,7 @@
 import pyautogui
-from PyQt5.QtWidgets import QWidget, QDialog, QScrollArea, QGridLayout, QPushButton, QVBoxLayout, QFileDialog
-from PyQt5.QtCore import QSettings, Qt, QUrl, pyqtSignal
-from PyQt5.QtGui import QIcon
+from PyQt6.QtWidgets import QWidget, QDialog, QScrollArea, QGridLayout, QPushButton, QVBoxLayout, QFileDialog
+from PyQt6.QtCore import QSettings, Qt, QUrl, pyqtSignal
+from PyQt6.QtGui import QIcon
 from ui.ui_MessageWidgetHuman import Ui_MessageWidgetHuman
 import hashlib
 import webbrowser
@@ -312,7 +312,7 @@ class MessageBoxHuman(QWidget, Ui_MessageWidgetHuman):
 
     def showEmoji(self):
         dialog = EmojiDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.Accepted:
             selected_emoji = dialog.accepted_emoji
             print(selected_emoji)
             self.messageEdit.insertPlainText(selected_emoji)

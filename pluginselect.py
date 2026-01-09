@@ -1,6 +1,6 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import (QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction,
+from PyQt6.QtCore import QFile, QFileInfo, Qt
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
+from PyQt6.QtWidgets import (QApplication, QDialog, QMenu, QTableView, QVBoxLayout,
                              QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox,
                              QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy, QComboBox, QItemDelegate, QWidget)
 from model_metric import ModelEvaluationDialog
@@ -20,7 +20,7 @@ class ComboBoxDelegate(QItemDelegate):
         return combo
 
     def setEditorData(self, editor, index):
-        value = index.model().data(index, Qt.EditRole)
+        value = index.model().data(index, Qt.ItemDataRole.EditRole)
         i = editor.findText(value)
         if i == -1:
             i = 0
@@ -28,7 +28,7 @@ class ComboBoxDelegate(QItemDelegate):
 
     def setModelData(self, editor, model, index):
         value = editor.currentText()
-        model.setData(index, value, Qt.EditRole)
+        model.setData(index, value, Qt.ItemDataRole.EditRole)
 
     def on_current_index_changed(self, combo, index):
         name_column_index = index.model().index(index.row(), 2)
@@ -59,7 +59,7 @@ class ComboBoxDelegate(QItemDelegate):
             row = index.row()
             items = self.items_per_row.get(row, ["Default"])  # 默认值防止未定义的行
             combo.addItems(items)
-            current_value = index.model().data(index, Qt.EditRole)
+            current_value = index.model().data(index, Qt.ItemDataRole.EditRole)
             i = combo.findText(current_value)
             if i == -1:
                 i = 0
@@ -132,13 +132,13 @@ class FreezeTableDialog(QDialog):
         h_layout.addWidget(evaluate_button)
 
         # Add a spacer to ensure buttons are left-aligned
-        spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        spacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         h_layout.addItem(spacer)
 
         layout.addLayout(h_layout)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
 
@@ -149,7 +149,7 @@ class FreezeTableDialog(QDialog):
         self.setWindowIcon(QIcon("images/aisns.png"))
         self.resize(1120, 680)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
 
@@ -157,17 +157,17 @@ class FreezeTableDialog(QDialog):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
             if checkbox_item:
-                checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+                checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
     def evaluate_model(self):
         print("pingce")
         dialog = ModelEvaluationDialog()
-        dialog.exec_()
+        dialog.exec()
 
     def accept_close(self):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
-            if checkbox_item and checkbox_item.checkState() == Qt.Checked:
+            if checkbox_item and checkbox_item.checkState() == Qt.CheckState.Checked:
                 pluginfullname = self.model.index(row, 2).data() + ": " + self.model.index(row, 5).data()
                 self.checkbox_states_and_values.append(pluginfullname)
 
@@ -196,7 +196,7 @@ class FreezeTableDialog(QDialog):
                 action.triggered.connect(action_method)
                 menu.addAction(action)
 
-            menu.exec_(self.mapToGlobal(pos))
+            menu.exec(self.mapToGlobal(pos))
 
     def deleteSelectedRows(self):
         selected_indexes = self.tableView.selectionModel().selectedRows()
@@ -273,7 +273,7 @@ def main(args):
                 model.setItem(row, 0, checkbox_item)
                 for col, field in enumerate(fields):
                     newItem = QStandardItem(field)
-                    newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)
+                    newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     model.setItem(row, col + 1, newItem)
 
                 # Create a combo box for '模型型号'
@@ -301,7 +301,7 @@ def main(args):
     dialog.tableView.setItemDelegateForColumn(5, combo_delegate)
     button_delegate = ButtonDelegate(dialog.tableView)
     dialog.tableView.setItemDelegateForColumn(6, button_delegate)
-    dialog.exec_()
+    dialog.exec()
 
 
 if __name__ == '__main__':

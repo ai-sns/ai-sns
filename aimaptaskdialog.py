@@ -1,20 +1,21 @@
 import webbrowser
 
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate, QSize, Qt, QRect, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QDate, QSize, Qt, QRect, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
                              QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog, QSizePolicy, QMessageBox, QTextEdit, QPlainTextEdit)
 from db.DBFactory import add_AiChatCfg, query_AiChatCfg, query_AiChatCfg_All, update_AiChatCfg, add_map_task,update_map_task
-from db.DBFactory import add_AgentCfg,query_AgentCfg,query_AgentCfg_All,update_AgentCfg,delete_AgentCfg,add_map_task,update_map_task
+from db.DBFactory import add_AgentCfg,query_AgentCfg,query_AgentCfg_All,update_AgentCfg,delete_AgentCfg,add_map_task,update_map_task,query_single_map_task
 from agentconfigdialog import ConfigDialog as AgentConfigDialog
 import configdialog_rc
 import datetime
 import random
 import string
+from i18n import lt
 # from datetime import datetime
 
 
@@ -26,7 +27,7 @@ class ConfigDialog(QDialog):
     def __init__(self, parent=None, task_record=None):
         super(ConfigDialog, self).__init__(parent)
         print("initialing.....")
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         self.resize(600,100)
 
         # self.contentsWidget.setStyleSheet("QListWidget{margin-top: -150px; border: solid 1px red;}")
@@ -57,11 +58,11 @@ class ConfigDialog(QDialog):
         # mainLayout.addLayout(buttonsLayout)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
-        ok_button.setText("确定")
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
-        cancel_button.setText("取消")
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
+        ok_button.setText(lt("OK","确定"))
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        cancel_button.setText(lt("Cancel","取消"))
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
 
@@ -69,7 +70,7 @@ class ConfigDialog(QDialog):
 
         self.setLayout(mainLayout)
 
-        self.setWindowTitle("指派任务")
+        self.setWindowTitle(lt("Task","指派任务"))
 
 
 
@@ -109,9 +110,18 @@ class ConfigDialog(QDialog):
         # update_AiChatCfg(1, name, memo, borndate, borncontry, language, gender, joinfederation, syncfederation, specialization, plugins, kms, prompt, snsaccount, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, readfile, writefile, deletefile, execfile, autorunrounds)
         if self.task_record == None:
             idstr = self.generate_random_id()
-
+            record_start = query_single_map_task(status=1)
             record_id=add_map_task(task_id=idstr,title=title,detail=detail,result=result,comment=comment,rating=rating)
-            self.app.maptasklist.addItem(title,record_id,True)
+
+            if record_start:
+                self.app.maptasklist.addItem(title,record_id,True)
+            else:
+                self.app.maptasklist.addItem(title, record_id, True,1)
+
+                record = query_single_map_task(id=record_id)
+                self.app.map_message_box.set_current_task_record(record)
+                self.app.map_message_box.start_task()
+
 
             # add_AiChatCfg(idstr, account,password,nickname,sign,status,humantakeover,name,borndate,gender,area,city,address,mail,imaccount,phone,organization,title,orgposition,memo,serveraddress,port,ssl,resource,proxyused,proxyaddress,proxyport,proxyssl,savepasswordlocal,autoconnect,sendreceipt,sendreadflag,sendchatstatus,sendgroupchatstatus,agreeallfriendrequest)
             # ai_chat_cfg=query_AiChatCfg(user_id=idstr)
@@ -128,7 +138,7 @@ class ConfigDialog(QDialog):
             # 遍历第一个顶级 item 的所有子项
             for index in range(first_top_level_item.childCount()):
                 child_item = first_top_level_item.child(index)
-                if child_item.data(0, Qt.UserRole) == idstr:  # 检查子 item 的 data
+                if child_item.data(0, Qt.ItemDataRole.UserRole) == idstr:  # 检查子 item 的 data
                     item =child_item
                     break
 
@@ -170,11 +180,11 @@ class GeneralPage(QWidget):
 
 
 
-        taskGroup = QGroupBox("任务内容")
+        taskGroup = QGroupBox(lt("Task Content","任务内容"))
 
-        self.titleLabel = QLabel("标题:")
+        self.titleLabel = QLabel(lt("Title:","标题:"))
         self.titleEdit = QLineEdit()
-        self.detailLabel = QLabel("内容:")
+        self.detailLabel = QLabel(lt("Content:","内容:"))
         self.detailEdit = QPlainTextEdit()
         line_height = self.detailEdit.fontMetrics().height()  # 获取当前字体的一行高度
         self.detailEdit.setFixedHeight(line_height * 10)
@@ -196,45 +206,26 @@ class GeneralPage(QWidget):
         # 创建反馈标签
         self.resultLabel = QLabel("结果:")
         # 设置标签的大小策略为固定宽度
-        self.resultLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.resultLabel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
 
         # 创建反馈编辑框
         self.resultEdit = QTextEdit()
         # 设置编辑框的大小策略为扩展
-        self.resultEdit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.resultEdit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
         line_height = self.resultEdit.fontMetrics().height()  # 获取当前字体的一行高度
         self.resultEdit.setFixedHeight(line_height * 10)
 
+
+
+
         resultLayout.addWidget(self.resultLabel, 0, 0)
         resultLayout.addWidget(self.resultEdit, 0, 1,1,3)
-
-        resultGroup.setLayout(resultLayout)
-
-        commentGroup = QGroupBox("评价与评论:")
-
-        self.commentLabel = QLabel("评论:")
-        self.commentEdit = QPlainTextEdit()
-
-        self.commentLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        self.commentEdit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-
-        line_height = self.commentEdit.fontMetrics().height()  # 获取当前字体的一行高度
-        self.commentEdit.setFixedHeight(line_height * 10)
-
-
-
-
-        commentLayout = QGridLayout()
-        commentLayout.addWidget(self.commentLabel, 0, 0)
-        commentLayout.addWidget(self.commentEdit, 0, 1,1,3)
 
         # 创建人类接管聊天的标签
         self.humantakeoverLabel = QLabel("评分:")
 
-        self.humantakeoverLabel.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-
+        self.humantakeoverLabel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
 
         # 创建单选框选项：是
         self.notfinishRadio = QRadioButton("没有完成")
@@ -248,30 +239,36 @@ class GeneralPage(QWidget):
         self.goodjobRadio = QRadioButton("准确完成")
         self.goodjobRadio.setObjectName("goodjobRadio")
 
-        # self.humantakeoverNoRadio2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-
-        # if ai_chat_cfg != None:
-        #     if ai_chat_cfg.humantakeover==1:  # Assuming index 0 represents self.nameEdit text
-        #         self.humantakeoverYesRadio.setChecked(True)
-        #         self.humantakeoverNoRadio.setChecked(False)
-        #     else:  # Assuming index 0 represents self.nameEdit text
-        #         self.humantakeoverYesRadio.setChecked(False)
-        #         self.humantakeoverNoRadio.setChecked(True)
-        # else:
-        #     self.humantakeoverYesRadio.setChecked(False)
-        #     self.humantakeoverNoRadio.setChecked(True)
-
-
-
-
-
-
         # 将标签和单选框添加到布局中
-        commentLayout.addWidget(self.humantakeoverLabel, 1, 0)
-        commentLayout.addWidget(self.notfinishRadio, 1, 1)  # 添加“是”选项
-        commentLayout.addWidget(self.finishRadio, 1, 2)  # 添加“否”选项
-        commentLayout.addWidget(self.goodjobRadio, 1, 3)  # 添加“否”选项
+        resultLayout.addWidget(self.humantakeoverLabel, 1, 0)
+        resultLayout.addWidget(self.notfinishRadio, 1, 1)  # 添加“是”选项
+        resultLayout.addWidget(self.finishRadio, 1, 2)  # 添加“否”选项
+        resultLayout.addWidget(self.goodjobRadio, 1, 3)  # 添加“否”选项
+
+
+
+        resultGroup.setLayout(resultLayout)
+
+        commentGroup = QGroupBox("评价与评论:")
+
+        self.commentLabel = QLabel("评论:")
+        self.commentEdit = QPlainTextEdit()
+
+        self.commentLabel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        self.commentEdit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+
+        line_height = self.commentEdit.fontMetrics().height()  # 获取当前字体的一行高度
+        self.commentEdit.setFixedHeight(line_height * 10)
+
+
+
+
+        commentLayout = QGridLayout()
+        commentLayout.addWidget(self.commentLabel, 0, 0)
+        commentLayout.addWidget(self.commentEdit, 0, 1,1,3)
+
+
 
 
         commentGroup.setLayout(commentLayout)
@@ -314,7 +311,7 @@ class GeneralPage(QWidget):
 
         if task_record != None:
             resultGroup.setHidden(False)
-            commentGroup.setHidden(False)
+            # commentGroup.setHidden(False)
             self.titleEdit.setText(task_record.title)  # Assuming index 0 represents self.nameEdit text
             self.detailEdit.setPlainText(task_record.detail)  # Assuming index 1 represents memoEdit text
             self.resultEdit.setPlainText(task_record.result)  # Assuming index 2 represents self.dateEdit value
@@ -361,14 +358,14 @@ class GeneralPage(QWidget):
     def setAvatar(self, pixmap):
         size = QSize(70, 70)
         target = QPixmap(size)
-        target.fill(Qt.transparent)
+        target.fill(Qt.GlobalColor.transparent)
 
         # 绘制圆形头像
         painter = QPainter(target)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # 绘制圆形边框
-        pen = QPen(Qt.gray)
+        pen = QPen(Qt.GlobalColor.gray)
         pen.setWidth(2)
         painter.setPen(pen)
         painter.drawEllipse(1, 1, size.width() - 2, size.height() - 2)
@@ -377,11 +374,11 @@ class GeneralPage(QWidget):
         clip_path = QPainterPath()
         clip_path.addEllipse(2, 2, size.width() - 4, size.height() - 4)
         painter.setClipPath(clip_path)
-        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
         # 将原始图像缩放到适当大小，并放置在中心
         diameter = min(size.width(), size.height())
-        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.SmoothTransformation)
+        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.TransformationMode.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.TransformationMode.SmoothTransformation)
         target_rect = QRect((size.width() - scaled_pixmap.width()) // 2, (size.height() - scaled_pixmap.height()) // 2, scaled_pixmap.width(), scaled_pixmap.height())
         painter.drawPixmap(target_rect, scaled_pixmap)
 
@@ -393,4 +390,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

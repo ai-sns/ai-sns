@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown and Syntax Highlighting</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+    <link rel="stylesheet" href="default.min.css">
     <style>
         body {
             font-family: 'Microsoft YaHei';
@@ -334,6 +334,7 @@
             align-items: center;
             z-index: 1000; /* 确保对话框在最上层 */
         }
+
         .dialog {
             background-color: #121212; /* 深色背景 */
             padding: 20px;
@@ -341,14 +342,17 @@
             text-align: center;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); /* 增加阴影效果 */
         }
+
         .dialog h2 {
             color: #ffffff; /* 标题颜色 */
             margin: 0;
         }
+
         .dialog p {
             color: #aaaaaa; /* 消息颜色 */
             margin: 10px 0;
         }
+
         .button {
             margin: 5px;
             padding: 10px 20px;
@@ -359,6 +363,7 @@
             cursor: pointer;
             transition: background-color 0.3s; /* 添加过渡效果 */
         }
+
         .button:hover {
             background-color: #2b7ec9; /* 悬停时的背景颜色 */
         }
@@ -407,8 +412,8 @@
 <!-- 菜单模板 -->
 <div id="menu" class="menu" style="display:none; position:absolute;">
     <ul>
-        <li onclick="copyContent(this)">拷贝</li>
-        <li onclick="editContent(this)">编辑</li>
+        <li onclick="copyContent(this)" id="menu_copy">拷贝</li>
+        <li onclick="editContent(this)" id="menu_edit">编辑</li>
     </ul>
 </div>
 
@@ -416,22 +421,22 @@
 <div id="innermenu" class="innermenu" style="display: none; position: absolute;">
     <ul>
         <li onclick="copyMessage()" data-tooltip="拷贝">
-            <img src="../images/copy.png" alt="拷贝"> 拷贝
+            <img src="../images/copy.png" alt="拷贝"> <span id="toolbar_copy">拷贝</span>
         </li>
         <li onclick="editMessage()" data-tooltip="重新编辑问题">
-            <img src="../images/edit.png" alt="编辑"> 编辑
+            <img src="../images/edit.png" alt="编辑"> <span id="toolbar_edit">编辑</span>
         </li>
         <li onclick="deleteMessage()" data-tooltip="删除">
-            <img src="../images/delete.png" alt="删除"> 删除
+            <img src="../images/delete.png" alt="删除"> <span id="toolbar_delete">删除</span>
         </li>
         <li onclick="transferMessage()" data-tooltip="转发给ai好友">
-            <img src="../images/share.png" alt="转发给ai好友"> 转发
+            <img src="../images/share.png" alt="转发给ai好友"> <span id="toolbar_transfer">转发</span>
         </li>
-        <li onclick="collectMessage()" data-tooltip="收藏内容">
-            <img src="../images/bookmark.png" alt="收藏内容"> 收藏
+        <li onclick="collectMessage()" data-tooltip="另存为">
+            <img src="../images/save.png" alt="另存为"> <span id="toolbar_collect">另存为</span>
         </li>
         <li onclick="toggle_parent_menu()" data-tooltip="多选进行批处理">
-            <img src="../images/more.png" alt="多选进行批处理"> 多选
+            <img src="../images/more.png" alt="多选进行批处理"> <span id="toolbar_batch">多选</span>
         </li>
     </ul>
 </div>
@@ -441,19 +446,20 @@
 
 <!--确定消息框-->
 <div id="confirmDialog">
-        <div class="dialog">
-            <h2 id="dialogTitle"></h2>
-            <p id="dialogMessage"></p>
-            <button class="button" id="confirmButton">Yes</button>
-            <button class="button" id="cancelButton">No</button>
-        </div>
+    <div class="dialog">
+        <h2 id="dialogTitle"></h2>
+        <p id="dialogMessage"></p>
+        <button class="button" id="confirmButton">Yes</button>
+        <button class="button" id="cancelButton">No</button>
     </div>
+</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/python.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/javascript.min.js"></script>
+<script src="markdown-it.min.js"></script>
+<script src="highlight.min.js"></script>
+<script src="python.min.js"></script>
+<script src="javascript.min.js"></script>
 <script>
+    var lang =0;
     var api_object = null;
     var md = window.markdownit({
         highlight: function (str, lang) {
@@ -461,7 +467,7 @@
                 try {
                     return '<pre class="hljs"><span class="code-label">' +
                         lang.toUpperCase() +
-                        '</span><button class="copy-button" onclick="toggleMenu(event, this)">操作▼</button><code>' +
+                        '</span><button class="copy-button" onclick="toggleMenu(event, this)">'+lt("Menu▼","操作▼")+'</button><code>' +
                         hljs.highlight(str, {
                             language: lang,
                             ignoreIllegals: true
@@ -471,7 +477,7 @@
                 }
             }
             return
-            '<pre class="hljs"><button class="copy-button" onclick="toggleMenu(event, this)">操作▼</button><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+            '<pre class="hljs"><button class="copy-button" onclick="toggleMenu(event, this)">'+lt("Menu▼","操作▼")+'</button><code>' + md.utils.escapeHtml(str) + '</code></pre>';
         }
     });
 
@@ -485,11 +491,48 @@
     var selectedHistoryIndex = [];
     var k = 0;
 
-    function renderNextWord(currentMarkdown) {
+    function lt(...args) {
+    // 获取当前语言环境，默认为 0
+
+    let txt;
+    // 如果只有一个参数，则按 '|' 分隔该参数并根据 lang 选择
+    if (args.length === 1) {
+        txt = args[0].split("|")[lang];
+    } else {
+        // 否则根据 lang 选择 args 中的相应文本
+        txt = args[lang];
+    }
+
+    return txt;
+}
+
+   function rw(id, ...args) {
+    // 获取 DOM 中具有指定 id 的元素
+    const element = document.getElementById(id);
+    if (element) {
+        // 使用 lt 函数计算文本，并设置为元素的文本内容
+        element.textContent = lt(...args);
+    } else {
+        console.warn(`Element with id "${id}" not found.`);
+    }
+}
+    function translate(){
+        rw("menu_copy","Copy","拷贝");
+        rw("menu_edit","Edit","编辑");
+        rw("toolbar_copy","Copy","拷贝");
+        rw("toolbar_edit","Edit","编辑");
+        rw("toolbar_delete","Delete","删除");
+        rw("toolbar_transfer","Share","转发");
+        rw("toolbar_collect","Save as","另存为");
+        rw("toolbar_batch","Batch","多选");
+
+    }
+    translate();
+
+    function renderNextWordbak(currentMarkdown) {
 
         var result = md.render(currentMarkdown);
         handlingContentDiv.innerHTML = result;
-
 
         // document.querySelectorAll('pre code').forEach((block) => {
         //     hljs.highlightElement(block);
@@ -498,7 +541,26 @@
 
     }
 
+        function renderNextWord(currentMarkdown) {
+
+        const result = md.render(currentMarkdown);
+        // 创建文档片段
+const fragment = document.createDocumentFragment();
+const tempDiv = document.createElement('div');
+tempDiv.innerHTML = result;
+
+// 将临时节点的子元素转移到文档片段
+while (tempDiv.firstChild) {
+    fragment.appendChild(tempDiv.firstChild);
+}
+
+// 批量插入真实 DOM
+handlingContentDiv.replaceChildren(fragment);
+
+    }
+
     function renderNextWordv2(currentMarkdown) {
+
         var result = md.render(currentMarkdown);
         memDiv.innerHTML = result;
     }
@@ -506,17 +568,20 @@
 
     var add_message = function (word) {
         // alert(word);
+        // return false;
         if (word != "__end_speak__") {
             words += word;
             k += 1;
-            if (k === 1 || k % 6 === 0) {
+            if (k === 1 || k % 20 === 0) {
                 renderNextWord(words);
             }
 
         } else {
+            // cjr ="1";
+            // alert("__end_speak__new2__");
             renderNextWord(words);
             updatemaincontent();
-            window.scrollTo(0, document.body.scrollHeight);
+            window.scrollTo(0, document.body.scrollHeight);//#todo cjr 临时关了
         }
 
     }
@@ -694,6 +759,7 @@
     }
 
     function show_response_msgv2(words) {
+
 // 使用 replace 方法，并通过回调函数进行替换
         words = words.replace(regex, (match) => {
             // 返回对应的替换值，或者保持原样
@@ -703,8 +769,7 @@
         renderNextWordv2(words);
     }
 
-    function updatemaincontent() {
-
+    function updatemaincontentbak() {
         var contentDiv = document.getElementById('content');
 
         // 使用querySelectorAll选择该div内的所有pre code元素
@@ -725,6 +790,41 @@
         setCheckboxesBasedOnSelectedHistory();
         k = 0;
     }
+
+    function updatemaincontent() {
+        // return false;
+    // 使用文档片段来提高性能，避免多次重绘 DOM
+    const fragment = document.createDocumentFragment();
+    const newDiv = document.createElement('div');
+    newDiv.style.marginLeft = '24px';
+
+    // 将 memDiv 的内容移动到 newDiv，而不是复制 innerHTML
+    while (handlingContentDiv.firstChild) {
+        newDiv.appendChild(handlingContentDiv.firstChild);
+    }
+
+    // 将 newDiv 添加到文档片段
+    fragment.appendChild(newDiv);
+    allContentDiv.appendChild(fragment);
+
+
+    // 对代码块进行语法高亮显示
+    const codeBlocks = newDiv.querySelectorAll('pre code'); // 只查询 newDiv 内的代码块
+    codeBlocks.forEach(hljs.highlightBlock); // 直接使用 hljs.highlightBlock，因为它接受节点作为参数
+
+// 性能优化点 4：直接清空子节点（比 innerHTML 更高效）
+    while (handlingContentDiv.firstChild) {
+        handlingContentDiv.removeChild(handlingContentDiv.firstChild);
+    }
+    // 重置变量
+    currentWordIndex = 0;
+    currentMarkdown = '';
+    words = '';
+    setCheckboxesBasedOnSelectedHistory();
+    k = 0;
+}
+
+
 
     function updatemaincontentv2() {
 
@@ -891,7 +991,7 @@
             // api_object.Web2PyQt5Value("cjr from web");
             // alert(api_object.thevalue);
             api_object.on_message.connect(add_message);
-            api_object.on_set_div_id.connect(add_message);
+            // api_object.on_set_div_id.connect(add_message);
 
         });
     });
@@ -1105,6 +1205,8 @@
 
     // 用于动态创建工具提示
     document.querySelectorAll('#innermenu li').forEach(function (item) {
+        //暂时停了
+        return false;
         const tooltipText = item.getAttribute('data-tooltip');
         const tooltipElement = document.createElement('span');
 
@@ -1201,81 +1303,83 @@
 </script>
 
 <script>
-        // 显示自定义确认对话框
+    // 显示自定义确认对话框
 
-        function showConfirmDialog(title, message, onConfirm, onCancel) {
-            document.getElementById("dialogTitle").innerText = title; // 设置标题
-            document.getElementById("dialogMessage").innerText = message; // 设置消息
-            document.getElementById("confirmDialog").style.display = "flex"; // 显示对话框
+    function showConfirmDialog(title, message, onConfirm, onCancel) {
+        document.getElementById("dialogTitle").innerText = title; // 设置标题
+        document.getElementById("dialogMessage").innerText = message; // 设置消息
+        document.getElementById("confirmDialog").style.display = "flex"; // 显示对话框
 
-            // 确认按钮事件
-            document.getElementById("confirmButton").onclick = function() {
-                onConfirm(); // 调用确认回调
-                closeDialog();
-            };
+        // 确认按钮事件
+        document.getElementById("confirmButton").onclick = function () {
+            onConfirm(); // 调用确认回调
+            closeDialog();
+        };
 
-            // 取消按钮事件
-            document.getElementById("cancelButton").onclick = function() {
-                onCancel(); // 调用取消回调
-                closeDialog();
-            };
-        }
+        // 取消按钮事件
+        document.getElementById("cancelButton").onclick = function () {
+            onCancel(); // 调用取消回调
+            closeDialog();
+        };
+    }
 
-        // 关闭对话框的函数
-        function closeDialog() {
-            document.getElementById("confirmDialog").style.display = "none"; // 隐藏对话框
-        }
+    // 关闭对话框的函数
+    function closeDialog() {
+        document.getElementById("confirmDialog").style.display = "none"; // 隐藏对话框
+    }
 
-        // 示例确认和取消回调函数
+    // 示例确认和取消回调函数
 
-        function onConfirmDelete(){
-            const dataId = innermenu.getAttribute('data-id');
-            const dataValue = innermenu.getAttribute('data-value');
-            const dataText = innermenu.getAttribute('data-text');
-            const dataIndex = innermenu.getAttribute('data-index');
-            api_object.delete_message(dataId);
+    function onConfirmDelete() {
+        const dataId = innermenu.getAttribute('data-id');
+        const dataValue = innermenu.getAttribute('data-value');
+        const dataText = innermenu.getAttribute('data-text');
+        const dataIndex = innermenu.getAttribute('data-index');
+        api_object.delete_message(dataId);
 
 
-            // 获取起始 DIV 元素
-            const div1 = document.getElementById(dataId);
+        // 获取起始 DIV 元素
+        const div1 = document.getElementById(dataId);
 
-            let currentNode = div1.nextSibling;
+        let currentNode = div1.nextSibling;
 
-            // 遍历兄弟节点
-            while (currentNode) {
-                // 检查节点类型
-                if (currentNode.nodeType === Node.ELEMENT_NODE) {
-                    const id = currentNode.getAttribute('id');
+        // 遍历兄弟节点
+        while (currentNode) {
+            // 检查节点类型
+            if (currentNode.nodeType === Node.ELEMENT_NODE) {
+                const id = currentNode.getAttribute('id');
 
-                    // 检查 ID 是否以 'id_'
-                    if (id && (id.startsWith('id_') || id.startsWith('id_'))) {
-                        break; // 找到目标 <div>，停止删除
-                    }
-                    // 删除元素节点
-                    currentNode.parentNode.removeChild(currentNode);
-                } else if (currentNode.nodeType === Node.TEXT_NODE) {
-                    // 如果是文本节点，直接删除
-                    currentNode.parentNode.removeChild(currentNode);
+                // 检查 ID 是否以 'id_'
+                if (id && (id.startsWith('id_') || id.startsWith('id_'))) {
+                    break; // 找到目标 <div>，停止删除
                 }
-
-                // 移动到下一个兄弟节点
-                currentNode = div1.nextSibling; // 更新为下一个兄弟节点
+                // 删除元素节点
+                currentNode.parentNode.removeChild(currentNode);
+            } else if (currentNode.nodeType === Node.TEXT_NODE) {
+                // 如果是文本节点，直接删除
+                currentNode.parentNode.removeChild(currentNode);
             }
 
-            // 删除 div1
-            div1.parentNode.removeChild(div1);
-
-            // const brElement = document.createElement('br');
-            // div1.parentNode.insertBefore(brElement, div1.nextSibling);
-            // div1.parentNode.removeChild(div1);
-
-
-            // 可以在此处添加其他处理逻辑
+            // 移动到下一个兄弟节点
+            currentNode = div1.nextSibling; // 更新为下一个兄弟节点
         }
 
-        function onCancelDelete() {
-            return false;
-        }
-    </script>
+        // 删除 div1
+        div1.parentNode.removeChild(div1);
+
+        // const brElement = document.createElement('br');
+        // div1.parentNode.insertBefore(brElement, div1.nextSibling);
+        // div1.parentNode.removeChild(div1);
+
+
+        // 可以在此处添加其他处理逻辑
+    }
+
+    function onCancelDelete() {
+        return false;
+    }
+</script>
+
+
 </body>
 </html>

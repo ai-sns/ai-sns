@@ -1,105 +1,210 @@
 import os
-from typing import Union, List
-import jieba
-# from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter, CharacterTextSplitter
+from langchain_core.documents.base import Document
+import json
 os.environ['HUGGINGFACEHUB_API_TOKEN'] = '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'
-os.environ[
-    "OPENAI_API_KEY"] = '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'
+# os.environ["OPENAI_API_KEY"] = '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'
 os.environ["GOOGLE_CSE_ID"] = "53b9c3fd76d8d4cbb"
 os.environ["GOOGLE_API_KEY"] = "AIzaSyAYEpRPu24tU41bFn4QQB_2cZFmlOZxEEE"
-# from langchain_community.document_loaders import TextLoader, powerpoint, word_document, excel, PyPDFLoader, \
-#     markdown, html, csv_loader
-from langchain_openai import OpenAIEmbeddings
-# from langchain.text_splitter import TokenTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain.document_loaders import DirectoryLoader, TextLoader,powerpoint,word_document,excel,PyPDFLoader,PyMuPDFLoader,markdown,html,web_base,AsyncChromiumLoader,csv_loader
+# from langchain.chains import ConversationalRetrievalChain
+# from langchain.chat_models import ChatOpenAI
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.text_splitter import TokenTextSplitter
+from langchain.vectorstores.chroma import Chroma
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from util import image_to_base64
-
-
+from pinecone import Pinecone
+from db.DBFactory import query_KMCfg
+from typing import Any, Callable, Dict, List, Optional, Protocol, Tuple, Union, Literal, Annotated
 """
  pip install chromadb==0.4.24
  pip install tiktoken
 """
+#导入文档加载器
+from langchain.document_loaders import DirectoryLoader, TextLoader
+
+# Download the 'punkt' resource if it's not already available
 
 
-def savevector(filepath, persist_directory, embedding_model_name, emb_type="openai", chunk_size=500, chunk_overlap=20):
-    # 指定chroma持久化的目录，当我们不知道目录时,chroma会将数据存储在内存中，随着程序的关闭就会删除
+from nltk.tokenize import sent_tokenize
+from unstructured.partition.text_type import is_possible_narrative_text
+# import nltk
+# try:
+#     nltk.data.find('tokenizers/punkt')
+#     nltk.download('punkt')
+#     nltk.download('punkt_tab')
+#     nltk.download('all')
+# except LookupError:
+#     nltk.download('punkt')
+#     nltk.download('punkt_tab')
+#     nltk.download('all')
+def savevector(filepath,persist_directory,embedding_model_name,emb_type="openai",chunk_size=500, chunk_overlap=20):
+
+    #指定chroma持久化的目录，当我们不知道目录时,chroma会将数据存储在内存中，随着程序的关闭就会删除
     # persist_directory = "C:\\dev\\ai-sns\\PyTalk\\pytalk\\vector_store"
-    # 按目录加载文档
+    #按目录加载文档
     # loader = DirectoryLoader('C:\\0资料\\12.Omniverse\\青田项目\\经商局\\km\\cleaned\\', glob='**/*.txt')
     # docs = loader.load()
-    # 加载单个文档 可以自由选择
+    #加载单个文档 可以自由选择
     # loader = TextLoader(filepath, encoding='utf8')
     ext = os.path.splitext(filepath)[1].lower()  # 获取文件扩展名并转为小写
-    # loaders = {
-    #     '.txt': lambda path: TextLoader(path, encoding='utf8'),
-    #     '.js': lambda path: TextLoader(path, encoding='utf8'),
-    #     '.sql': lambda path: TextLoader(path, encoding='utf8'),
-    #     '.pdf': PyPDFLoader,
-    #     '.docx': word_document.UnstructuredWordDocumentLoader,
-    #     '.xls': excel.UnstructuredExcelLoader,
-    #     '.xlsx': excel.UnstructuredExcelLoader,
-    #     '.csv': csv_loader.UnstructuredCSVLoader,
-    #     '.pptx': powerpoint.UnstructuredPowerPointLoader,
-    #     '.md': markdown.UnstructuredMarkdownLoader,
-    #     '.html': html.UnstructuredHTMLLoader,
-    #     '.htm': html.UnstructuredHTMLLoader,
-    # }
-    #
-    # if ext in loaders:
-    #     loader = loaders[ext](filepath)
-    #     docs = loader.load()  # 数据转换
-    #
-    # func_name = f'extract_text_from_{ext}'
-    # params = (f"{filepath}")
-    # result = eval(f"{func_name}({', '.join(repr(param) for param in params))}")
-    full_text = get_file_content(filepath)
-    print(full_text)
+    loaders = {
+        '.txt': lambda path: TextLoader(path, encoding='utf8'),
+        '.js': lambda path: TextLoader(path, encoding='utf8'),
+        '.sql': lambda path: TextLoader(path, encoding='utf8'),
+        '.pdf': PyPDFLoader,
+        '.docx': word_document.UnstructuredWordDocumentLoader,
+        '.xls': excel.UnstructuredExcelLoader,
+        '.xlsx': excel.UnstructuredExcelLoader,
+        '.csv': csv_loader.UnstructuredCSVLoader,
+        '.pptx': powerpoint.UnstructuredPowerPointLoader,
+        '.md': markdown.UnstructuredMarkdownLoader,
+        '.html': html.UnstructuredHTMLLoader,
+        '.htm': html.UnstructuredHTMLLoader,
+    }
 
+    if ext in loaders:
+        loader = loaders[ext](filepath)
+        docs = loader.load()  # 数据转换
 
     file_name=os.path.basename(filepath)
 
 
-    file_name = os.path.basename(filepath)
+
 
     if emb_type == "openai":
         # 调用openai Embeddings  OPENAI_API_BASE
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ["OPENAI_API_KEY"])
-        embeddings = OpenAIEmbeddings(openai_api_key="sk-FgmkVGYRirTVzJrjDMZ5Wi27ekHKq57xGHL2lZO6lTMuUAj3",
-                                      openai_api_base="https://api.chatanywhere.tech/v1/")
+        embeddings = OpenAIEmbeddings(openai_api_key="sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26",openai_api_base="https://api.chatanywhere.tech/v1/")
         # embedding_model_name = 'shibing624/text2vec-bge-large-chinese'
     else:
         embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
 
+
     # 文档切块目的是为了防止超出GPTAPI的token限制 RecursiveCharacterTextSplitter,CharacterTextSplitter,TokenTextSplitter,CodeTextSplitter
-    # text_splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    text_splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     # text_splitter = RecursiveCharacterTextSplitter()
     # text_splitter = CharacterTextSplitter()
-
-    # doc_texts = text_splitter.split_documents(docs)   #分隔文本
-
-
-    text_splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    doc_texts = text_splitter.split_text(full_text)
+    doc_texts = text_splitter.split_documents(docs)
     for doc in doc_texts:
         print(doc)
-        doc.metadata["source"] = file_name
+        doc.metadata["source"]=file_name
     # 向量化
     vectordb = Chroma.from_documents(doc_texts, embeddings, persist_directory=persist_directory)
     # 持久化
     vectordb.persist()
-    # 执行到这里你会发现public目录下多了一些以parquest结尾的文件,这些文件就是chroma持久化本地的向量数据
+    #执行到这里你会发现public目录下多了一些以parquest结尾的文件,这些文件就是chroma持久化本地的向量数据
     del embeddings
 
 
-def update_vector(filepath, persist_directory, embedding_model_name, emb_type="openai", chunk_size=500,
-                  chunk_overlap=20):
+def savevector_pinecone(filepath,persist_directory,config,chunk_size=500, chunk_overlap=20):
+
+    ext = os.path.splitext(filepath)[1].lower()  # 获取文件扩展名并转为小写
+    loaders = {
+        '.txt': lambda path: TextLoader(path, encoding='utf8'),
+        '.js': lambda path: TextLoader(path, encoding='utf8'),
+        '.sql': lambda path: TextLoader(path, encoding='utf8'),
+        '.pdf': PyPDFLoader,
+        '.docx': word_document.UnstructuredWordDocumentLoader,
+        '.xls': excel.UnstructuredExcelLoader,
+        '.xlsx': excel.UnstructuredExcelLoader,
+        '.csv': csv_loader.UnstructuredCSVLoader,
+        '.pptx': powerpoint.UnstructuredPowerPointLoader,
+        '.md': markdown.UnstructuredMarkdownLoader,
+        '.html': html.UnstructuredHTMLLoader,
+        '.htm': html.UnstructuredHTMLLoader,
+    }
+
+    if ext in loaders:
+        loader = loaders[ext](filepath)
+        docs = loader.load()  # 数据转换
+
+    file_name=os.path.basename(filepath)
+
+    # 文档切块目的是为了防止超出GPTAPI的token限制 RecursiveCharacterTextSplitter,CharacterTextSplitter,TokenTextSplitter,CodeTextSplitter
+    text_splitter = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    # text_splitter = RecursiveCharacterTextSplitter()
+    # text_splitter = CharacterTextSplitter()
+    doc_texts = text_splitter.split_documents(docs)
+    for doc in doc_texts:
+        print(doc)
+        doc.metadata["source"]=file_name
+
+
+    pc = Pinecone(api_key=config.get("api_key"))
+
+    # Define index name
+    index_name = config.get("index_name")
+
+    # Check if the index already exists; if not, create it
+    if not pc.has_index(index_name):
+        pc.create_index_for_model(
+            name=index_name,
+            cloud=config.get("cloud"),
+            region=config.get("region"),
+            embed={
+                "model": config.get("embed_model"),
+                "field_map": config.get("embed_field_map")  # Mapping the 'text' field to 'chunk_text'
+            }
+        )
+
+    # Instantiate the index to interact with it
+    index = pc.Index(index_name)
+
+    # Prepare records to be upserted into the index
+    records = [
+        {
+            "_id": str(index + 1),  # 使用索引生成唯一的 id, 从 1 开始
+            "source":doc.metadata["source"],
+            "chunk_text": doc.page_content,  # 将每个文档的 page_content 作为 chunk_text
+            "category": "auto"
+        }
+        for index, doc in enumerate(doc_texts)  # 使用 enumerate 获取索引和文档对象
+    ]
+
+    # Upsert records into the index; specify the namespace for organization
+    index.upsert_records(namespace=config.get("namespace"), records=records)
+
+    print(index.describe_index_stats())
+
+
+
+def update_vector(filepath,persist_directory,embedding_model_name,emb_type="openai",chunk_size=500, chunk_overlap=20,vector_type=""):
+    km_path = extract_km_path(persist_directory)
+    km_record = query_KMCfg(kmpath=km_path)
+    vector_type = km_record.vectortype
+
+    if vector_type == "Pinecone":
+        delete_vector_pinecone(filepath, persist_directory, embedding_model_name, emb_type)
+        return
+
+    if vector_type == "Pinecone":
+        update_vector_pinecone(filepath,persist_directory,embedding_model_name,emb_type,chunk_size, chunk_overlap)
+        return
+
     delete_vector(filepath, persist_directory, embedding_model_name, emb_type)
     savevector(filepath, persist_directory, embedding_model_name, emb_type, chunk_size, chunk_overlap)
 
 
-def delete_vector(filepath, persist_directory, embedding_model_name, emb_type="openai"):
+def update_vector_pinecone(filepath,persist_directory,embedding_model_name,emb_type="openai",chunk_size=500, chunk_overlap=20):
+
+    delete_vector_pinecone(filepath, persist_directory, embedding_model_name, emb_type)
+    savevector_pinecone(filepath, persist_directory, embedding_model_name, emb_type, chunk_size, chunk_overlap)
+
+
+
+
+def delete_vector(filepath,persist_directory,embedding_model_name,emb_type = "openai",vector_type=""):
+    km_path = extract_km_path(persist_directory)
+    km_record = query_KMCfg(kmpath=km_path)
+    vector_type = km_record.vectortype
+
+
+    if vector_type == "Pinecone":
+        delete_vector_pinecone(filepath,persist_directory,embedding_model_name,emb_type)
+        return
     file_name = os.path.basename(filepath)
     # if emb_type == "openai":
     #     # 调用openai Embeddings
@@ -111,20 +216,69 @@ def delete_vector(filepath, persist_directory, embedding_model_name, emb_type="o
     # vectordb = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
     vectordb = Chroma(persist_directory=persist_directory)
     docs = vectordb.get(where={"source": file_name})
-    if len(docs["ids"]) > 0:
+    if len(docs["ids"])>0:
         vectordb.delete(ids=docs["ids"])
     # del embeddings
 
+def delete_vector_pinecone(filepath,persist_directory,embedding_model_name,emb_type):
+    file_name = os.path.basename(filepath)
+    km_path = extract_km_path(persist_directory)
+    km_record = query_KMCfg(kmpath=km_path)
+    config_param = km_record.config_param
+    # 将JSON字符串解析为Python字典
+    params = json.loads(config_param)
 
-def getvectorkm_String(question, persist_directory, embedding_model_name, emb_type="openai"):
+    # 提取各个参数
+    config = {
+        "api_key": params.get("api_key"),
+        "cloud": params.get("cloud"),
+        "region": params.get("region"),
+        "index_name": params.get("index_name"),
+        "namespace": params.get("namespace"),
+        "top_k": params.get("top_k"),
+        "embed_model": params["embed"].get("model"),
+        "embed_field_map": params["embed"].get("field_map"),
+        "rerank_model": params["rerank"].get("model"),
+        "rerank_top_n": params["rerank"].get("top_n"),
+        "rerank_fields": params["rerank"].get("rank_fields"),
+        "fields": params.get("fields")
+    }
+
+    # Initialize Pinecone client with the provided API key
+    pc = Pinecone(api_key=config.get("api_key"))
+
+    # Define index name
+    index_name = config.get("index_name")
+
+    # Instantiate the index to interact with it
+    index = pc.Index(index_name)
+
+    index.delete(
+        filter={
+            "source": {"$eq": file_name}
+        },
+        namespace=config.get("namespace")
+    )
+
+
+
+def getvectorkm_String(question,persist_directory,embedding_model_name,emb_type = "openai",vector_type=""):
+    km_path = extract_km_path(persist_directory)
+    km_record = query_KMCfg(kmpath=km_path)
+    config_param = km_record.config_param
+    vector_type = km_record.vectortype
+
+    if vector_type == "Pinecone":
+        docs = getvectorkm_String_pinecone(question,config_param)
+        return docs
     if emb_type == "openai":
         # 调用openai Embeddings
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ["OPENAI_API_KEY"])
-        embeddings = OpenAIEmbeddings(openai_api_key="sk-FgmkVGYRirTVzJrjDMZ5Wi27ekHKq57xGHL2lZO6lTMuUAj3",
-                                      openai_api_base="https://api.chatanywhere.tech/v1/")
+        embeddings = OpenAIEmbeddings(openai_api_key="sk-FgmkVGYRirTVzJrjDMZ5Wi27ekHKq57xGHL2lZO6lTMuUAj3", openai_api_base="https://api.chatanywhere.tech/v1/")
         # embedding_model_name = 'shibing624/text2vec-bge-large-chinese'
     else:
         embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
+
 
     # 搜索
     # question = "对经国家、省、市等有关部门认定的企业技术中心及制造业创新中心，奖补政策是怎样的？"
@@ -135,8 +289,119 @@ def getvectorkm_String(question, persist_directory, embedding_model_name, emb_ty
     # 向量搜索 根据你的问题进行本地向量搜索
     docs = vectordb.similarity_search_with_score(question, k=4)
     print(docs)
-    # 将搜索到的信息重新转换为向量 (直接查到向量数据还不会😑😑）
     return docs
+
+def getvectorkm_String_pinecone(question,config_param):
+
+    # 将JSON字符串解析为Python字典
+    params = json.loads(config_param)
+
+    # 提取各个参数
+    config = {
+        "api_key": params.get("api_key"),
+        "cloud": params.get("cloud"),
+        "region": params.get("region"),
+        "index_name": params.get("index_name"),
+        "namespace": params.get("namespace"),
+        "top_k": params.get("top_k"),
+        "embed_model": params["embed"].get("model"),
+        "embed_field_map": params["embed"].get("field_map"),
+        "rerank_model": params["rerank"].get("model"),
+        "rerank_top_n": params["rerank"].get("top_n"),
+        "rerank_fields": params["rerank"].get("rank_fields"),
+        "fields": params.get("fields")
+    }
+
+
+    # Initialize Pinecone client with the provided API key
+    pc = Pinecone(api_key=config.get("api_key"))
+
+    # Define index name
+    index_name = config.get("index_name")
+
+    # Instantiate the index to interact with it
+    index = pc.Index(index_name)
+
+    query = question
+
+    reranked_results = index.search(
+        namespace=config.get("namespace"),
+        query={
+            "top_k": config.get("top_k"),
+            "inputs": {
+                'text': query
+            }
+        },
+        rerank={
+            "model": config.get("rerank_model"),
+            "top_n": config.get("rerank_top_n"),
+            "rank_fields": config.get("rerank_fields")
+        },
+        fields=config.get("fields")
+    )
+
+    print(reranked_results)
+    docs = transform_reranked_results(reranked_results)
+
+
+
+
+    return docs
+
+
+
+# 提取 km_path 的函数
+def extract_km_path(persist_directory):
+    # 首先，确认 persist_directory 是当前工作目录的子路径
+    current_directory = os.getcwd()
+    if not persist_directory.startswith(current_directory):
+        raise ValueError("The provided persist_directory is not under the current working directory.")
+
+    # 去掉当前工作目录的部分
+    relative_path = persist_directory[len(current_directory) + 1:]  # +1 是为了去掉路径分隔符
+
+    # 分割路径并提取 km_path
+    path_parts = relative_path.split(os.path.sep)
+
+    # 检查路径格式
+    if len(path_parts) < 3 or path_parts[0] != "km":
+        raise ValueError("Invalid persist_directory format. It should contain 'km' followed by km_path.")
+
+    # 返回提取到的 km_path
+    return path_parts[1]  # km_path 是第二个部分
+
+
+def transform_reranked_results(reranked_results: Dict) -> List[Document]:
+    # Extract hits data from reranked_results
+    hits = reranked_results.get('result', {}).get('hits', [])
+
+    # Process each hit and transform to Document format
+    transformed_docs = []
+    for hit in hits:
+        # Extract necessary information
+        _id = hit.get('_id')
+        _score = hit.get('_score')
+        fields = hit.get('fields', {})
+        category = fields.get('category')
+        source = fields.get('source')
+        chunk_text = fields.get('chunk_text')
+
+        # Construct the metadata dictionary
+        metadata = {
+            # '_id': _id,
+            # '_score': _score,
+            # 'category': category,
+            'source': source
+        }
+
+        # Create a new Document object with transformed data
+        document = (Document(metadata=metadata, page_content=chunk_text),_score)
+
+        # Add the transformed document to the list
+        transformed_docs.append(document)
+
+    return transformed_docs
+
 
 
 def get_file_content_tuple(file_path):
@@ -158,250 +423,25 @@ def get_file_content_tuple(file_path):
 
 def get_file_content(file_path):
     ext = os.path.splitext(file_path)[1].lower()  # 获取文件扩展名并转为小写
-    exts = {
-        '.js': 'txt',
-        '.txt': 'txt',
-        '.sql': 'txt',
-        '.pdf': 'pdf',
-        '.docx': 'docx',
-        '.xls': 'xlsx',
-        '.xlsx': 'xlsx',
-        '.csv': 'csv',
-        '.pptx': 'pptx',
-        '.md': 'md',
-        '.html': 'html',
-        '.htm': 'html',
-    }
-    # func_name = f'extract_text_from_{ext}'
-    # params = (f"{file_path}")
-    # # result = eval(f"{func_name}({', '.join(repr(param) for param in params))}")
-    # result = eval(f"{func_name}({repr(params[0])}")
-    # print(result)
-    # return result
 
-    if ext in exts:
-        func_name = f'extract_text_from_{exts[ext]}'
-        result = eval(f"{func_name}({repr(f'{file_path}')})")
-        return result
+    loaders = {
+        '.js': lambda path: TextLoader(path, encoding='utf8'),
+        '.txt': lambda path: TextLoader(path, encoding='utf8'),
+        '.sql': lambda path: TextLoader(path, encoding='utf8'),
+        '.pdf': PyPDFLoader,
+        '.docx': word_document.UnstructuredWordDocumentLoader,
+        '.xls': excel.UnstructuredExcelLoader,
+        '.xlsx': excel.UnstructuredExcelLoader,
+        '.csv': csv_loader.UnstructuredCSVLoader,
+        '.pptx': powerpoint.UnstructuredPowerPointLoader,
+        '.md': markdown.UnstructuredMarkdownLoader,
+        '.html': html.UnstructuredHTMLLoader,
+        '.htm': html.UnstructuredHTMLLoader,
+    }
+
+    if ext in loaders:
+        loader = loaders[ext](file_path)
+        docs = loader.load()  # 数据转换
+        return ''.join(doc.page_content for doc in docs)  # 连接所有的 page_content
 
     raise ValueError(f"Unsupported file extension: {ext}")
-
-
-# def get_file_content(file_path):
-#     ext = os.path.splitext(file_path)[1].lower()  # 获取文件扩展名并转为小写
-#
-#     loaders = {
-#         '.js': lambda path: TextLoader(path, encoding='utf8'),
-#         '.txt': lambda path: TextLoader(path, encoding='utf8'),
-#         '.sql': lambda path: TextLoader(path, encoding='utf8'),
-#         '.pdf': PyPDFLoader,
-#         '.docx': word_document.UnstructuredWordDocumentLoader,
-#         '.xls': excel.UnstructuredExcelLoader,
-#         '.xlsx': excel.UnstructuredExcelLoader,
-#         '.csv': csv_loader.UnstructuredCSVLoader,
-#         '.pptx': powerpoint.UnstructuredPowerPointLoader,
-#         '.md': markdown.UnstructuredMarkdownLoader,
-#         '.html': html.UnstructuredHTMLLoader,
-#         '.htm': html.UnstructuredHTMLLoader,
-#     }
-#
-#     if ext in loaders:
-#         loader = loaders[ext](file_path)
-#         docs = loader.load()  # 数据转换
-#         return ''.join(doc.page_content for doc in docs)  # 连接所有的 page_content
-#
-#     raise ValueError(f"Unsupported file extension: {ext}")
-
-
-class SentenceSplitter:
-    def __init__(self, chunk_size: int = 250, chunk_overlap: int = 50):
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
-
-    def split_text(self, text: str) -> List[str]:
-        if self._is_has_chinese(text):
-            return self._split_chinese_text(text)
-        else:
-            return self._split_english_text(text)
-
-    def _split_chinese_text(self, text: str) -> List[str]:
-        sentence_endings = {'\n', '。', '！', '？', '；', '…'}  # 句末标点符号
-        chunks, current_chunk = [], ''
-        for word in jieba.cut(text):
-            if len(current_chunk) + len(word) > self.chunk_size:
-                chunks.append(current_chunk.strip())
-                current_chunk = word
-            else:
-                current_chunk += word
-            if word[-1] in sentence_endings and len(current_chunk) > self.chunk_size - self.chunk_overlap:
-                chunks.append(current_chunk.strip())
-                current_chunk = ''
-        if current_chunk:
-            chunks.append(current_chunk.strip())
-        if self.chunk_overlap > 0 and len(chunks) > 1:
-            chunks = self._handle_overlap(chunks)
-        return chunks
-
-    def _split_english_text(self, text: str) -> List[str]:
-        # 使用正则表达式按句子分割英文文本
-        sentences = re.split(r'(?<=[.!?])\s+', text.replace('\n', ' '))
-        chunks, current_chunk = [], ''
-        for sentence in sentences:
-            if len(current_chunk) + len(sentence) <= self.chunk_size or not current_chunk:
-                current_chunk += (' ' if current_chunk else '') + sentence
-            else:
-                chunks.append(current_chunk)
-                current_chunk = sentence
-        if current_chunk:  # Add the last chunk
-            chunks.append(current_chunk)
-
-        if self.chunk_overlap > 0 and len(chunks) > 1:
-            chunks = self._handle_overlap(chunks)
-
-        return chunks
-
-    def _is_has_chinese(self, text: str) -> bool:
-        # check if contains chinese characters
-        if any("\u4e00" <= ch <= "\u9fff" for ch in text):
-            return True
-        else:
-            return False
-
-    def _handle_overlap(self, chunks: List[str]) -> List[str]:
-        # 处理块间重叠
-        overlapped_chunks = []
-        for i in range(len(chunks) - 1):
-            chunk = chunks[i] + ' ' + chunks[i + 1][:self.chunk_overlap]
-            overlapped_chunks.append(chunk.strip())
-        overlapped_chunks.append(chunks[-1])
-        return overlapped_chunks
-
-
-@staticmethod
-def extract_text_from_pdf(file_path: str):
-    """Extract text content from a PDF file."""
-    import PyPDF2
-    contents = []
-    with open(file_path, 'rb') as f:
-        pdf_reader = PyPDF2.PdfReader(f)
-        for page in pdf_reader.pages:
-            page_text = page.extract_text().strip()
-            raw_text = [text.strip() for text in page_text.splitlines() if text.strip()]
-            new_text = ''
-            for text in raw_text:
-                new_text += text
-                if text[-1] in ['.', '!', '?', '。', '！', '？', '…', ';', '；', ':', '：', '”', '’', '）', '】', '》', '」',
-                                '』', '〕', '〉', '》', '〗', '〞', '〟', '»', '"', "'", ')', ']', '}']:
-                    contents.append(new_text)
-                    new_text = ''
-            if new_text:
-                contents.append(new_text)
-    data = ','.join(contents)
-    return data
-
-
-@staticmethod
-def extract_text_from_txt(file_path: str):
-    """Extract text content from a TXT file."""
-    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-        contents = [text.strip() for text in f.readlines() if text.strip()]
-    data = ','.join(contents)
-    return data
-
-
-@staticmethod
-def extract_text_from_docx(file_path: str):
-    """Extract text content from a DOCX file."""
-    import docx
-    document = docx.Document(file_path)
-    contents = [paragraph.text.strip() for paragraph in document.paragraphs if paragraph.text.strip()]
-    data = ','.join(contents)
-    return data
-
-
-@staticmethod
-def extract_text_from_markdown(file_path: str):
-    """Extract text content from a Markdown file."""
-    import markdown
-    from bs4 import BeautifulSoup
-    with open(file_path, 'r', encoding='utf-8') as f:
-        markdown_text = f.read()
-    html = markdown.markdown(markdown_text)
-    soup = BeautifulSoup(html, 'html.parser')
-    contents = [text.strip() for text in soup.get_text().splitlines() if text.strip()]
-    data = ','.join(contents)
-    return data
-
-
-# 打开CSV文件
-@staticmethod
-def extract_text_from_csv(file_path: str):
-    import csv
-    contents = []
-    with open(file_path, newline='', encoding='utf-8') as csvfile:
-        # 创建一个csv阅读器
-        csvreader = csv.reader(csvfile)
-        # 遍历CSV文件中的每一行
-        for row in csvreader:
-            # 将每行的元素合并为一个字符串，元素之间用逗号分隔
-            text = ','.join(row)
-            # 打印或返回文本
-            contents.append(text)
-    data = ','.join(contents)
-    return data
-
-
-@staticmethod
-def extract_text_from_xlsx(file_path: str):
-    """Extract data from an Excel file."""
-    # 使用pandas读取Excel文件，默认读取第一个工作表
-    contents = []
-    import pandas as pd
-    df = pd.read_excel(file_path, engine='openpyxl')
-    # 将DataFrame转换为列表，其中每个元素是一行数据
-    res = df.values.tolist()
-    data = df.to_string(index=False)
-    # data = '\n'.join([','.join(map(str, row)) for row in res])
-    return data
-
-
-# 调用函数并传入PPTX文件路径
-@staticmethod
-def extract_text_from_pptx(file_path: str):
-    from pptx import Presentation
-    """Extract text content from a PPTX file."""
-    # 加载PPTX文件 python-pptx
-    presentation = Presentation(file_path)
-    # 初始化一个列表来存储文本内容
-    contents = []
-    # 遍历所有幻灯片
-    for slide in presentation.slides:
-        # 遍历幻灯片中的所有形状
-        for shape in slide.shapes:
-            # 如果形状包含文本框
-            if hasattr(shape, "text"):
-                # 获取文本框中的文本，并去除首尾空格
-                text = shape.text.strip()
-                # 如果文本不为空，则添加到列表中
-                if text:
-                    contents.append(text)
-
-    data = ','.join(contents)
-    return data
-
-
-@staticmethod
-def extract_text_from_html(file_path: str):
-    """Extract text content from an HTML file."""
-    # 打开HTML文件
-    from bs4 import BeautifulSoup
-    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-        # 读取文件内容
-        html_content = file.read()
-
-    # 使用BeautifulSoup解析HTML内容
-    soup = BeautifulSoup(html_content, 'lxml')
-
-    # 提取并返回文本内容
-    # .get_text() 方法可以提取标签内的文本，separator参数用于指定文本之间的分隔符
-    return soup.get_text(separator=' ', strip=True)

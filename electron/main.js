@@ -6,19 +6,21 @@ const { spawn } = require('child_process');
 // app.disableHardwareAcceleration();
 
 let mainWindow = null;
+let mapWindow = null;
 
-// Azure OpenAI 配置（OpenAI 兼容格式）
-const AZURE_OPENAI_CONFIG = {
-    baseUrl: 'https://fstock.openai.azure.com/openai/v1',
-    apiKey: '7Jd0HVW50YOKPpqK3Hywj6qiRdw4H1RBTlQWxF022vt5Eww7UwYlJQQJ99BIACHYHv6XJ3w3AAABACOGH9HI',
-    model: 'gpt-5-prod'
-};
+// Azure OpenAI 配置已移至后端 API Server（api_server.py）
+// 配置从数据库或环境变量读取
+// const AZURE_OPENAI_CONFIG = {
+//     baseUrl: 'https://api.chatanywhere.tech/v1',
+//     apiKey: 'sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26',
+//     model: 'gpt-4o-mini'
+// };
 let tray = null;
 let pythonProcess = null;
 let isQuitting = false;
 
 // API服务器配置
-const API_HOST = 'localhost';
+const API_HOST = '127.0.0.1';  // 明确使用 IPv4，避免 IPv6 解析问题
 const API_PORT = 8788;
 const API_BASE_URL = `http://${API_HOST}:${API_PORT}`;
 
@@ -36,7 +38,7 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
-            webSecurity: true,
+            webSecurity: false,  // 禁用跨域安全策略，允许加载本地服务器地图
             // 确保输入框可用
             enableBlinkFeatures: 'KeyboardFocusableScrollers'
         },
@@ -68,7 +70,10 @@ function createWindow() {
         mainWindow.webContents.focus();
 
         if (isDev) {
-            mainWindow.webContents.openDevTools();
+            console.log('开发模式：打开开发者工具');
+            mainWindow.webContents.openDevTools({
+                mode: 'right' // 在右侧打开开发者工具
+            });
         }
     });
 
@@ -91,6 +96,41 @@ function createWindow() {
     });
 }
 
+function createMapWindow() {
+    mapWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        minWidth: 800,
+        minHeight: 600,
+        icon: path.join(__dirname, '../images/logowithe.png'),
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
+            webSecurity: true
+        },
+        frame: true,
+        backgroundColor: '#f5f5f5',
+        show: false
+    });
+
+    // 加载地图页面
+    mapWindow.loadURL('http://localhost:8788/scripts/map.html');
+
+    // 窗口准备好后显示
+    mapWindow.once('ready-to-show', () => {
+        mapWindow.show();
+        mapWindow.focus();
+
+        if (isDev) {
+            mapWindow.webContents.openDevTools();
+        }
+    });
+
+    mapWindow.on('closed', () => {
+        mapWindow = null;
+    });
+}
 function createTray() {
     const iconPath = path.join(__dirname, '../images/logowithe.png');
     tray = new Tray(iconPath);
@@ -111,6 +151,12 @@ function createTray() {
                 if (mainWindow) {
                     mainWindow.hide();
                 }
+            }
+        },
+        {
+            label: '地图',
+            click: () => {
+                createMapWindow();
             }
         },
         { type: 'separator' },
@@ -168,6 +214,70 @@ ipcMain.on('set-title', (event, title) => {
     }
 });
 
+// 地图窗口控制 IPC
+ipcMain.on('open-map-window', () => {
+    createMapWindow();
+});
+
+ipcMain.on('close-map-window', () => {
+    if (mapWindow) {
+        mapWindow.close();
+    }
+});
+
+ipcMain.on('maximize-map-window', () => {
+    if (mapWindow) {
+        if (mapWindow.isMaximized()) {
+            mapWindow.unmaximize();
+        } else {
+            mapWindow.maximize();
+        }
+    }
+});
+
+ipcMain.on('minimize-map-window', () => {
+    if (mapWindow) {
+        mapWindow.minimize();
+    }
+});
+
+// 地图操作 IPC
+ipcMain.on('map-command', (event, data) => {
+    if (mapWindow) {
+        mapWindow.webContents.send('map-command', data);
+    }
+});
+
+// 地图配置 IPC
+ipcMain.handle('load-map-setting', async () => {
+    // TODO: 从配置文件或数据库加载地图设置
+    return {
+        mapType: 'baidu',
+        center: { lng: 116.3974, lat: 39.9093 },
+        zoom: 13,
+        homePosition: null,
+        route: null
+    };
+});
+
+ipcMain.handle('save-map-setting', async (event, setting) => {
+    // TODO: 保存地图设置到配置文件或数据库
+    console.log('Saving map setting:', setting);
+    return true;
+});
+
+// 地图聊天 IPC
+ipcMain.on('map-chat-message', (event, data) => {
+    if (mapWindow) {
+        mapWindow.webContents.send('map-chat-message', data);
+    }
+});
+
+// 打开链接 IPC
+ipcMain.on('open-url', (event, url) => {
+    shell.openExternal(url);
+});
+
 // 窗口控制 IPC
 ipcMain.on('window-minimize', () => {
     if (mainWindow) {
@@ -219,41 +329,33 @@ ipcMain.on('fix-input-focus', () => {
     }
 });
 
-// Azure OpenAI 流式聊天（使用 OpenAI 兼容格式）
+// Azure OpenAI 流式聊天（通过后端 API Server）
 ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
     try {
-        const https = require('https');
-
-        // 从 baseUrl 解析 hostname 和 path
-        const url = new URL(AZURE_OPENAI_CONFIG.baseUrl);
-        const hostname = url.hostname;
-        const apiPath = `${url.pathname}/chat/completions`;
-
-        console.log(`Connecting to Azure OpenAI: https://${hostname}${apiPath}`);
+        const http = require('http');
 
         const requestBody = JSON.stringify({
-            model: AZURE_OPENAI_CONFIG.model,
             messages: messages,
-            stream: true,
             temperature: 1.0,
-            max_completion_tokens: 4096
+            max_tokens: 4096
         });
 
+        console.log(`Sending chat request to backend: ${API_BASE_URL}/api/chat/stream`);
+
         const options = {
-            hostname: hostname,
-            port: 443,
-            path: apiPath,
+            hostname: API_HOST,
+            port: API_PORT,
+            path: '/api/chat/stream',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AZURE_OPENAI_CONFIG.apiKey}`,
+                'Accept': 'text/event-stream',
                 'Content-Length': Buffer.byteLength(requestBody)
             }
         };
 
-        const req = https.request(options, (res) => {
+        const req = http.request(options, (res) => {
             let buffer = '';
-            let fullResponse = '';
 
             console.log(`Response status: ${res.statusCode}`);
             console.log(`Response headers:`, res.headers);
@@ -274,10 +376,10 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
                 return;
             }
 
+            // 处理 SSE 流
             res.on('data', (chunk) => {
                 const chunkStr = chunk.toString();
                 buffer += chunkStr;
-                fullResponse += chunkStr;
 
                 // 处理 SSE 数据
                 const lines = buffer.split('\n');
@@ -285,39 +387,61 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
                 for (const line of lines) {
                     const trimmedLine = line.trim();
-                    if (trimmedLine.startsWith('data: ')) {
-                        const data = trimmedLine.slice(6);
-                        if (data === '[DONE]') {
-                            event.sender.send('chat-stream-end', { requestId });
-                            return;
-                        }
+
+                    // SSE 格式: event: message\ndata: {...}
+                    if (trimmedLine.startsWith('event:')) {
+                        // 跳过 event 行
+                        continue;
+                    }
+
+                    if (trimmedLine.startsWith('data:')) {
+                        const data = trimmedLine.slice(5).trim();
+
                         try {
                             const parsed = JSON.parse(data);
-                            const content = parsed.choices?.[0]?.delta?.content;
-                            if (content) {
-                                console.log(`Stream content: ${content}`);
-                                event.sender.send('chat-stream-data', { requestId, content });
+
+                            // 处理消息内容
+                            if (parsed.content) {
+                                console.log(`Stream content: ${parsed.content}`);
+                                event.sender.send('chat-stream-data', { requestId, content: parsed.content });
+                            }
+
+                            // 处理完成状态
+                            if (parsed.status === 'completed') {
+                                console.log('Stream completed');
+                                event.sender.send('chat-stream-end', { requestId });
+                                return;
+                            }
+
+                            // 处理错误
+                            if (parsed.error) {
+                                console.error(`Stream error: ${parsed.error}`);
+                                event.sender.send('chat-stream-error', { requestId, error: parsed.error });
+                                return;
                             }
                         } catch (e) {
-                            console.log(`Parse error for line: ${trimmedLine}`);
+                            console.log(`Parse error for line: ${trimmedLine}, error: ${e.message}`);
                         }
                     }
                 }
             });
 
             res.on('end', () => {
-                console.log(`Full response received, length: ${fullResponse.length}`);
+                console.log('Stream connection closed');
                 // 处理剩余的 buffer
                 if (buffer.trim()) {
-                    const trimmedLine = buffer.trim();
-                    if (trimmedLine.startsWith('data: ') && trimmedLine.slice(6) !== '[DONE]') {
-                        try {
-                            const parsed = JSON.parse(trimmedLine.slice(6));
-                            const content = parsed.choices?.[0]?.delta?.content;
-                            if (content) {
-                                event.sender.send('chat-stream-data', { requestId, content });
-                            }
-                        } catch (e) {}
+                    const lines = buffer.split('\n');
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (trimmedLine.startsWith('data:')) {
+                            const data = trimmedLine.slice(5).trim();
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (parsed.content) {
+                                    event.sender.send('chat-stream-data', { requestId, content: parsed.content });
+                                }
+                            } catch (e) {}
+                        }
                     }
                 }
                 event.sender.send('chat-stream-end', { requestId });
@@ -330,6 +454,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
         });
 
         req.on('error', (error) => {
+            console.error(`Request error: ${error.message}`);
             event.sender.send('chat-stream-error', { requestId, error: error.message });
         });
 
@@ -337,6 +462,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
         req.end();
 
     } catch (error) {
+        console.error(`Chat stream start error: ${error.message}`);
         event.sender.send('chat-stream-error', { requestId, error: error.message });
     }
 });

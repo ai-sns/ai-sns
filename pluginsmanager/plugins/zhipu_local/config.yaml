@@ -1,13 +1,29 @@
-api_key: sk-l2qbn7fNEsJfP9GEZaTgxTDqzsSCx3SfZmBxOiz3NMgHZOnw
+api_key: sk-xJDV70wInj8gpxjwBMsUGWDe62wJX7Mkq14GWx0jrdUTWZRA
 custom_params: false
 description: 'chatglm
 
   http://61.241.103.48:18000/v1/chat/completions
 
 
-  gpt-4o   gpt-4o-mini  claude-3-5-sonnet-20240620'
+  gpt-4o   gpt-4o-mini  claude-3-5-sonnet-20240620
+
+
+
+
+  https://api.chatanywhere.tech/v1/chat/completions
+
+
+  sk-l2qbn7fNEsJfP9GEZaTgxTDqzsSCx3SfZmBxOiz3NMgHZOnw
+
+
+
+  https://api.chatanywhere.tech/v1/chat/completions
+
+  sk-l2qbn7fNEsJfP9GEZaTgxTDqzsSCx3SfZmBxOiz3NMgHZOnw
+
+  '
 max_tokens: 4000
-model: THUDM/glm-4-9b-chat
+model: gemini-3-pro-preview
 parameters: "{\n    \"model\": \"chatglm3-6b\",\n    \"max_tokens\": 4000,\n    \"\
   temperature\": 0.8,\n    \"top_p\": 0.8,\n    \"stream\": true,\n    \"n\": 1,\n\
   \    \"stop\": null,\n    \"frequency_penalty\": 0.0,\n    \"presence_penalty\"\
@@ -15,4 +31,4 @@ parameters: "{\n    \"model\": \"chatglm3-6b\",\n    \"max_tokens\": 4000,\n    
 stream: true
 temperature: 0.8
 top_p: 0.7
-url: https://api.chatanywhere.tech/v1/chat/completions
+url: http://185.150.189.254:1818/v1/chat/completions

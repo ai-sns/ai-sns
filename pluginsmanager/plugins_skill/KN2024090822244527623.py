@@ -2,13 +2,13 @@
 import datetime
 import sys
 
-
+from PyQt6.QtGui import QPalette, QColor
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QGroupBox, QLineEdit, QRadioButton, QLabel
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QGroupBox, QLineEdit, QRadioButton, QLabel
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
 from db.DBFactory import query_function_mng,add_function_mng,update_function_mng
@@ -73,6 +73,9 @@ class CodeEditor(QWidget,PluginInterface):
         # 创建单行输入框（函数名）
         self.function_name_input = QLineEdit()
         self.function_name_input.setPlaceholderText("请输入名称")
+        palette = self.function_name_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.function_name_input.setPalette(palette)
 
         function_layout.addWidget(self.function_name_input)
 
@@ -89,6 +92,9 @@ class CodeEditor(QWidget,PluginInterface):
         # 创建多行文本框（描述）
         self.description_text_edit = QTextEdit()
         self.description_text_edit.setPlaceholderText("请输入关于该函数的描述")
+        palette = self.description_text_edit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.description_text_edit.setPalette(palette)
         self.description_text_edit.setFixedHeight(60)  # 设置多行文本框的高度
         group_layout.addWidget(self.description_text_edit)
 
@@ -230,7 +236,7 @@ class CodeEditor(QWidget,PluginInterface):
 
             popup.setDefaultButton(QtWidgets.QMessageBox.Save)
 
-            answer = popup.exec_()
+            answer = popup.exec()
 
             if answer == QtWidgets.QMessageBox.Save:
                 self.save_file()
@@ -275,4 +281,4 @@ if __name__ == "__main__":
     editor_widget = CodeEditor(content="def cjrok():")
     editor_widget.create_widget("def cjrok():")
     editor_widget.show()  # 显示窗口
-    app.exec_()  # 运行应用程序的事件循环
+    app.exec()  # 运行应用程序的事件循环

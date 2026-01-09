@@ -1,7 +1,7 @@
-from PyQt5.QtCore import QFile, QFileInfo, Qt
-from PyQt5.QtGui import QStandardItem, QStandardItemModel, QIcon
-from PyQt5.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAction, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox
-
+from PyQt6.QtCore import QFile, QFileInfo, Qt
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox, QHeaderView
+from i18n import lt
 
 class FreezeTableDialog(QDialog):
     def __init__(self, model):
@@ -19,38 +19,60 @@ class FreezeTableDialog(QDialog):
         layout.addWidget(self.tableView)
 
         # Add "Select All" checkbox
-        select_all_checkbox = QCheckBox("全选", self)
+        select_all_checkbox = QCheckBox(lt("All","全选"), self)
         select_all_checkbox.stateChanged.connect(self.toggle_select_all)
         layout.addWidget(select_all_checkbox)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
 
         layout.addWidget(button_box)
 
         self.setLayout(layout)
-        self.setWindowTitle("请选择知识库")
+        self.setWindowTitle(lt("Select a KB","请选择知识库"))
         self.setWindowIcon(QIcon("images/aisns.png"))
         self.resize(560, 680)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
         self.tableView.setSelectionBehavior(QAbstractItemView.SelectRows)
+        # 使表格铺满窗口
+        self.tableView.horizontalHeader().setStretchLastSection(True)
+        # 允许用户手动调整列宽
+        self.tableView.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        # 调整列宽
+        self.adjust_column_widths()
+
+    def adjust_column_widths(self):
+        """调整列宽，确保列宽为整数"""
+        total_width = self.width() - 100
+        if total_width <= 0:
+            return
+
+        # 设置列宽，确保使用整数
+        self.tableView.setColumnWidth(0, 10)  # 选择列宽
+        # self.tableView.setColumnWidth(1, int(total_width * 0.4))  # 隐藏
+        self.tableView.setColumnWidth(2, int(total_width * 0.3))  # 说明列宽
+        self.tableView.setColumnWidth(3, int(total_width * 0.4))  # 类型列宽
+        self.tableView.setColumnWidth(4, int(total_width * 0.15))  # 编辑时间列宽
+        self.tableView.setColumnWidth(5, int(total_width * 0.15))  # 编辑时间列宽
+
+
 
     def toggle_select_all(self, state):
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
             if checkbox_item:
-                checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+                checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
 
     def accept_close(self):
         checkbox_states_and_values = []
         for row in range(self.model.rowCount()):
             checkbox_item = self.model.item(row, 0)
-            if checkbox_item and checkbox_item.checkState() == Qt.Checked:
+            if checkbox_item and checkbox_item.checkState() == Qt.CheckState.Checked:
                 second_column_data = self.model.index(row, 1).data()
                 name = self.model.index(row, 2).data()
                 vector_path= self.model.index(row, 5).data()
@@ -89,7 +111,7 @@ class FreezeTableDialog(QDialog):
                     action.triggered.connect(action_method)
                     menu.addAction(action)
 
-                menu.exec_(self.mapToGlobal(pos))
+                menu.exec(self.mapToGlobal(pos))
 
     def deleteSelectedRows(self):
         selected_indexes = self.tableView.selectionModel().selectedRows()
@@ -140,13 +162,13 @@ def main(args):
                 model.setItem(row, 0, checkbox_item)
                 for col, field in enumerate(fields):
                     newItem = QStandardItem(field)
-                    newItem.setFlags(newItem.flags() & ~Qt.ItemIsEditable)
+                    newItem.setFlags(newItem.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     model.setItem(row, col+1, newItem)
                 row += 1
     file.close()
 
     dialog = FreezeTableDialog(model)
-    dialog.exec_()
+    dialog.exec()
 
 if __name__ == '__main__':
     import sys

@@ -1,13 +1,15 @@
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QPoint
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QTreeWidgetItemIterator
+from PyQt6.QtGui import QIcon, QAction, QPixmap
+from PyQt6.QtCore import Qt, QPoint
 
 from BuddyItem import BuddyItem
 from BuddyGroup import BuddyGroup
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
+from i18n import lt
 
-from db.DBFactory import query_AiChatCfg_Search_Content
+
+from db.DBFactory import query_AiChatCfg_Search_Content,query_AIFriend
 
 
 class BuddyList(QTreeWidget):
@@ -26,7 +28,7 @@ class BuddyList(QTreeWidget):
         #
         # # 添加顶层项
         top_item = QTreeWidgetItem(self)
-        top_item.setText(0, "尚未登录")
+        top_item.setText(0, lt("Not login yet","尚未登录"))
         #
         # # 添加子项
         # child_item = QTreeWidgetItem(top_item)
@@ -42,14 +44,14 @@ class BuddyList(QTreeWidget):
 
         #QTreeWidgetItem configuration
         #self.header().setSectionHidden(0, True)
-        self.setHeaderLabel("联系人列表")#需要设置此处的值，否则缺省值为1
-        self.setSortingEnabled(True)
-        self.sortItems(0, Qt.AscendingOrder)
+        self.setHeaderLabel(lt("Contact List","联系人列表"))#需要设置此处的值，否则缺省值为1
+        # self.setSortingEnabled(True)#不要设置这个值否则影响排序，影响顺序，会自动按字母排序
+        # self.sortItems(0, Qt.SortOrder.AscendingOrder)#不要设置这个值否则影响排序，影响顺序，会自动按字母排序
         self.buddies = {}
         self.groups = {}
         self.tree = {}
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
         self.rename_action.triggered.connect(self.rename)
@@ -60,15 +62,19 @@ class BuddyList(QTreeWidget):
 
         self.offline = True
         self.away = False
+        self.current_chat_item = None
 
     def re_init(self):
         self.connection = None
         top_item = QTreeWidgetItem(self)
         top_item.setText(0, "尚未登录")
 
+
         self.buddies = {}
         self.groups = {}
         self.tree = {}
+        self.current_chat_item = None
+        # self.mainwindow.show_ai_home()
 
 
 
@@ -85,17 +91,30 @@ class BuddyList(QTreeWidget):
                 if self.topLevelItem(0).text(0)=='等待登录加载中...':
                     self.takeTopLevelItem(0)
 
-            group = self.connection.getGroups(jid)[0]
+            # group = self.connection.getGroups(jid)[0]#帐号所属的group列表中的第一个
+            group = "Buddies"#统一指定这一个
             self.addGroup(group)
             if jid not in self.buddies.keys():
                 self.buddies[jid] = BuddyItem(self.groups[group], jid, self.connection,self.mainwindow,self.ai_chat_cfg,self.chat_type)
                 self.buddies[jid].setName(self.connection.getName(jid))
+                self.set_item_status(self.buddies[jid])
                 print("the jid:",jid)
                 # self.buddies[jid].setObjectName(jid)
             self.groups[group].addChild(self.buddies[jid])
             self.tree[group][jid] = self.buddies[jid]
             print(self.groups)
             print(self.tree)
+
+
+    def set_item_status(self,item):
+        red_icon = QIcon('images/redpoint.png')
+        account = item.jid
+        owner_sns_account=self.ai_chat_cfg.account
+        record = query_AIFriend(account=account,owner_sns_account=owner_sns_account)
+        if record.new_message_flag:
+            item.setIcon(0, red_icon)
+
+
 
     def addGroup(self, group):
         if group:
@@ -142,7 +161,11 @@ class BuddyList(QTreeWidget):
         print("buddyresource", buddy.resource)#gajim.CZ6PGQG0
         buddy = buddy.bare
         if buddy not in self.buddies.keys():
-            self.buddies[buddy] = BuddyItem(None, buddy)
+            # self.buddies[buddy] = BuddyItem(None, buddy)
+            group = "Buddies"  # 统一指定这一个
+            self.addGroup(group)
+            self.buddies[buddy] = BuddyItem(self.groups[group], buddy, self.connection, self.mainwindow, self.ai_chat_cfg, self.chat_type)
+
         self.buddies[buddy].receiveMessage(event)
 
 
@@ -162,7 +185,7 @@ class BuddyList(QTreeWidget):
     def context(self, pos):
         item = self.itemAt(pos)
         if item:
-            if item.type() == QTreeWidgetItem.UserType + 1:
+            if item.type() == QTreeWidgetItem.ItemType.UserType + 1:
                 self.currentItem = item
                 self.menu.popup(self.mapToGlobal(pos))
 
@@ -172,5 +195,11 @@ class BuddyList(QTreeWidget):
     def getInfo(self):
         pass
 
-
+    def deselect_all_items(self):
+        print("deselect all")
+        iterator = QTreeWidgetItemIterator(self)
+        while iterator.value():
+            print("deselect one")
+            iterator.value().setSelected(False)
+            iterator += 1
 

@@ -1,12 +1,12 @@
 import json
 import os
-
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, \
+from i18n import lt
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox, QInputDialog, \
     QTreeWidgetItemIterator
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
+from PyQt6.QtGui import QIcon, QPixmap, QAction
+from PyQt6.QtCore import Qt, QPoint
 
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 
 from TaskList import TaskList
 from db.DBFactory import query_AgentTask, query_AgentTask_Search_Content, query_AgentTask_Content, \
@@ -24,7 +24,7 @@ class TaskListLabel(TaskList):
         # 首先调用父类的初始化方法
 
         super(TaskListLabel, self).__init__(parent, agent)
-        self.setHeaderLabel("标签列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Tag List","标签列表"))  # 需要设置此处的值，否则缺省值为1
 
     # --> 加载 数据
     def load_data(self):
@@ -56,14 +56,14 @@ class TaskListLabel(TaskList):
             if icon == True:
                 top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
             top_item.setToolTip(0, name)
-            top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+            top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
             top_item.setTextAlignment(0, 0)
             self.expandAll()
 
     def reload(self, key_word):
         self.clear()
 
-        self.setHeaderLabel("标签列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Tag List","标签列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -163,7 +163,7 @@ class TaskListLabel(TaskList):
 #
 #         self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
 #         # self.setSortingEnabled(True)#排序
-#         # self.sortItems(0, Qt.AscendingOrder)#排序
+#         # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
 #         self.buddies = {}
 #         self.groups = {}
 #         self.tree = {}
@@ -179,7 +179,7 @@ class TaskListLabel(TaskList):
 #
 #     # --> 加载 右键菜单
 #     def load_pop_menu(self):
-#         self.setContextMenuPolicy(Qt.CustomContextMenu)
+#         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 #         self.menu = QMenu()
 #         # --> 增加置顶，取消置顶 操作
 #         self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
@@ -234,7 +234,7 @@ class TaskListLabel(TaskList):
 #             if icon == True:
 #                 top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
 #             top_item.setToolTip(0, name)
-#             top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+#             top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
 #             top_item.setTextAlignment(0, 0)
 #             self.expandAll()
 #
@@ -248,7 +248,7 @@ class TaskListLabel(TaskList):
 #     #         self.addItem(record.title.replace("\n", ""), record.id, icon=stick_icon)
 #
 #     def keyPressEvent(self, event):
-#         if event.key() == Qt.Key_Delete:
+#         if event.key() == Qt.Key.Key_Delete:
 #             item = self.currentItem()
 #             if item:
 #                 reply = QMessageBox.question(self, '删除确定',
@@ -256,7 +256,7 @@ class TaskListLabel(TaskList):
 #                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
 #                 if reply == QMessageBox.Yes:
 #                     column = 0
-#                     id_value = item.data(column, Qt.UserRole)
+#                     id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #                     # 从数据库中删除所有task_id相同的记录
 #                     deleteTasksFromDatabase(id_value)
 #
@@ -282,7 +282,7 @@ class TaskListLabel(TaskList):
 #     #
 #     #     if item_count == 0:
 #     #         group_item = QTreeWidgetItem(self)
-#     #         group_item.setText(0, "所有")
+#     #         group_item.setText(0, lt("All","所有"))
 #     #     else:
 #     #         group_item = self.topLevelItem(0)
 #     #     # print("adding item:",name)
@@ -293,7 +293,7 @@ class TaskListLabel(TaskList):
 #     #     if icon == True:
 #     #         top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
 #     #     top_item.setToolTip(0, name)
-#     #     top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+#     #     top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
 #     #     if is_top == False:
 #     #         # print("not top")
 #     #         group_item.addChild(top_item)
@@ -321,7 +321,7 @@ class TaskListLabel(TaskList):
 #         item = self.current_Item
 #
 #         column = 0
-#         id_value = item.data(column, Qt.UserRole)
+#         id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #
 #         if id_value:
 #
@@ -330,7 +330,7 @@ class TaskListLabel(TaskList):
 #             if ok and newName:
 #                 item.setText(0, newName)
 #                 column = 0
-#                 id_value = item.data(column, Qt.UserRole)
+#                 id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #                 update_AgentTask(id_value, title=newName)
 #         else:
 #             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
@@ -340,7 +340,7 @@ class TaskListLabel(TaskList):
 #         item = self.current_Item
 #
 #         column = 0
-#         id_value = item.data(column, Qt.UserRole)
+#         id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #
 #         if id_value:
 #             res = query_AgentTask_ById(id_value)
@@ -401,7 +401,7 @@ class TaskListLabel(TaskList):
 #
 #         item = self.current_Item
 #         column = 0
-#         id_value = item.data(column, Qt.UserRole)
+#         id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #         print("id_value", id_value)
 #
 #         if id_value:
@@ -429,7 +429,7 @@ class TaskListLabel(TaskList):
 #     def stick_item(self):
 #         item = self.current_Item
 #         column = 0
-#         id_value = item.data(column, Qt.UserRole)
+#         id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #         print("id_value", id_value)
 #         if id_value:
 #             if item:
@@ -458,7 +458,7 @@ class TaskListLabel(TaskList):
 #     def un_stick_item(self):
 #         item = self.current_Item
 #         column = 0
-#         id_value = item.data(column, Qt.UserRole)
+#         id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #         if id_value:
 #             if item:
 #                 reply = QMessageBox.question(self, '取消置顶确定',
@@ -491,7 +491,7 @@ class TaskListLabel(TaskList):
 #     def on_itemDoubleClicked(self, item, column):
 #         print("双击了：", item.text(column))
 #         print(column)
-#         id_value = item.data(column, Qt.UserRole)
+#         id_value = item.data(column, Qt.ItemDataRole.UserRole)
 #         print("双击了：", id_value)
 #         if id_value == None:
 #             return (False)
@@ -595,12 +595,12 @@ class TaskListLabel(TaskList):
 #     #
 #     #     self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
 #     #     # self.setSortingEnabled(True)#排序
-#     #     # self.sortItems(0, Qt.AscendingOrder)#排序
+#     #     # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
 #     #     self.buddies = {}
 #     #     self.groups = {}
 #     #     self.tree = {}
 #     #
-#     #     self.setContextMenuPolicy(Qt.CustomContextMenu)
+#     #     self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 #     #     self.menu = QMenu()
 #     #     self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
 #     #     self.rename_action.triggered.connect(self.rename)
@@ -627,12 +627,12 @@ class TaskListLabel(TaskList):
 #     #
 #     #     self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
 #     #     # self.setSortingEnabled(True)#排序
-#     #     # self.sortItems(0, Qt.AscendingOrder)#排序
+#     #     # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
 #     #     self.buddies = {}
 #     #     self.groups = {}
 #     #     self.tree = {}
 #     #
-#     #     self.setContextMenuPolicy(Qt.CustomContextMenu)
+#     #     self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 #     #     self.menu = QMenu()
 #     #     self.rename_action = QAction(QIcon("images/rename.png"), "重命名", self)
 #     #     self.rename_action.triggered.connect(self.rename)

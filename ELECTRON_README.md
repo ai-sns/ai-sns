@@ -73,6 +73,25 @@ ai-sns-el/
 
 ## 快速开始
 
+### ⚙️ AI 配置（重要）
+
+**好消息**：项目已包含默认的 AI 配置，无需额外设置即可使用！
+
+项目根目录的 `ai_config.yaml` 文件包含了预配置的 API 密钥和设置。如果你想使用自己的 OpenAI API 密钥：
+
+```bash
+# 1. 编辑配置文件
+nano ai_config.yaml  # 或使用其他编辑器
+
+# 2. 修改以下内容
+ai:
+  api_base: "https://api.openai.com/v1"
+  api_key: "sk-你的API密钥"  # 替换这里
+  model: "gpt-4o-mini"
+```
+
+📖 详细配置说明请参考：[AI_CONFIG_QUICKSTART.md](./AI_CONFIG_QUICKSTART.md)
+
 ### 前置要求
 
 - Node.js 18+

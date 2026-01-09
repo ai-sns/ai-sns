@@ -1,9 +1,12 @@
 # main.py
+
 import sys
+sys.path.append("../..")
+sys.path.append("../../..")
 import importlib
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTabWidget
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTabWidget
 
-
+from i18n import lt
 
 def initUI():
     layout = QVBoxLayout()
@@ -37,7 +40,7 @@ def load_plugin(parent, plugin_cfg, *args, **kwagrs):
 
         # 添加新的标签页
         # tab_index = self.tabs.addTab(plugin_widget, f"Plugin {self.tabs.count() + 1}")
-        tab_index = tabs.addTab(plugin_instance, plugin_cfg.plugin_title)
+        tab_index = tabs.addTab(plugin_instance, lt(plugin_cfg.plugin_title))
         #tab_index = self.tabs.insertTab(0,plugin_widget, f"Plugin {self.tabs.count() + 1}")
 
         # 自动切换到新添加的标签页
@@ -63,4 +66,4 @@ if __name__ == "__main__":
 
     tabs.show()
     load_plugin(tabs)
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

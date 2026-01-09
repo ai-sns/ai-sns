@@ -1,5 +1,5 @@
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QPlainTextEdit
 from pluginsmanager.plugins_gui.plugins.code_editor import syntax_pars
 import os
 import webbrowser
@@ -92,4 +92,4 @@ if __name__ == "__main__":
     # 创建代码编辑器窗口并设置初始内容
     editor_widget = CodeEditor(content="def cjrok():")
     editor_widget.show()  # 显示窗口
-    app.exec_()  # 运行应用程序的事件循环
+    app.exec()  # 运行应用程序的事件循环

@@ -1,6 +1,6 @@
 api_key: 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
 custom_params: false
-description: "\u64CD\u4F5Cppt"
+description: create a ppt with the response of llm
 max_tokens: 8000000
 model: gpt-4o
 parameters: "{\n    \"model\": \"gpt-4o\",\n    \"max_tokens\": 4000,\n    \"temperature\"\

@@ -65,7 +65,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.removeAllListeners('chat-stream-data');
         ipcRenderer.removeAllListeners('chat-stream-end');
         ipcRenderer.removeAllListeners('chat-stream-error');
-    }
+    },
+
+    // 地图窗口功能
+    openMapWindow: () => ipcRenderer.send('open-map-window'),
+    closeMapWindow: () => ipcRenderer.send('close-map-window'),
+    maximizeMapWindow: () => ipcRenderer.send('maximize-map-window'),
+    minimizeMapWindow: () => ipcRenderer.send('minimize-map-window'),
+
+    // 地图操作
+    sendMapCommand: (command, param1, param2) => {
+        ipcRenderer.send('map-command', { command, param1, param2 });
+    },
+    onMapCommand: (callback) => {
+        ipcRenderer.on('map-command', (event, data) => callback(data));
+    },
+
+    // 地图配置
+    loadMapSetting: () => ipcRenderer.invoke('load-map-setting'),
+    saveMapSetting: (setting) => ipcRenderer.invoke('save-map-setting', setting),
+
+    // 地图聊天
+    sendMapChatMessage: (from, to, msg) => {
+        ipcRenderer.send('map-chat-message', { from, to, msg });
+    },
+    onMapChatMessage: (callback) => {
+        ipcRenderer.on('map-chat-message', (event, data) => callback(data));
+    },
+
+    // 打开链接
+    openUrl: (url) => ipcRenderer.send('open-url', url)
 });
 
 // 暴露平台信息

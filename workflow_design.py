@@ -5,26 +5,34 @@ import datetime
 import time
 import threading
 
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import (
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTableWidget,
     QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QDialog, QFormLayout, QComboBox, QHBoxLayout
 )
-from PyQt5.QtCore import Qt, QUrl, pyqtSignal, pyqtSlot, pyqtProperty
-from PyQt5.QtWebChannel import QWebChannel
-from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineFullScreenRequest, QWebEngineView, QWebEngineProfile, QWebEngineSettings
+from PyQt6.QtCore import Qt, QUrl, pyqtSignal, pyqtSlot, pyqtProperty, QObject
+from PyQt6.QtWebChannel import QWebChannel
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineFullScreenRequest, QWebEngineProfile, QWebEngineSettings
 
 from pathlib import Path
-from db.DBFactory import query_workflow_mng,add_workflow_mng,update_workflow_mng,query_AgentCfg_All,add_task_schedule_mng,query_task_schedule,update_task_schedule,delete_task_schedule
+from db.DBFactory import query_workflow_mng, add_workflow_mng, update_workflow_mng, query_AgentCfg_All, add_task_schedule_mng, query_task_schedule, update_task_schedule, delete_task_schedule, query_function_mng_all, query_PluginMng_All_Tool, query_skill_mng_all, query_PluginMng_All, query_KMCfg_All,get_all_prompt,query_PluginMng_All_Tool_Search
 from globals import global_agent_list
 from TaskPage import TaskPage
 from util import generate_random_id
+from i18n import lt
 
-class MessageHandler(QWidget):
-    on_message_load_workflow = pyqtSignal(str,str,str,str,str,str,str,str,str)
-    on_message_save = pyqtSignal(str,str,str,str,str,str,str,str,str)
-    on_message_run = pyqtSignal(str,str)
-    on_message_set_timer =pyqtSignal()
+
+class MessageHandler(QObject):
+    on_message_load_workflow = pyqtSignal(str, str, str, str, str, str, str, str, str)
+    on_message_save = pyqtSignal(str, str, str, str, str, str, str, str, str)
+    on_message_run = pyqtSignal(str, str)
+    on_message_set_timer = pyqtSignal()
+    on_message_set_plugin_list = pyqtSignal(str)
+    on_message_set_plugin_search_list = pyqtSignal(str)
+    on_message_set_llm_list = pyqtSignal(str)
+    on_message_set_role_list = pyqtSignal(str)
+    on_message_set_km_list  = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -38,29 +46,50 @@ class MessageHandler(QWidget):
         self.theinnervalue = self.theinnervalue + tmpstr
         QMessageBox.information(self, "从网页来的信息", tmpstr)
 
-    @pyqtSlot(str,str,str,str,str,str,str, str,str, result=str)
-    def save_message(self,workflow_id,workflow_title,workflow_description,workflow_tags,data,timer_desc,timer_cron,run_agent_name,run_agent_id):
+    @pyqtSlot(str, str, str, str, str, str, str, str, str, result=str)
+    def save_message(self, workflow_id, workflow_title, workflow_description, instruction, data, timer_desc, timer_cron, run_agent_name, run_agent_id):
         print(data)
-        self.on_message_save.emit(workflow_id,workflow_title,workflow_description,workflow_tags,data,timer_desc,timer_cron,run_agent_name,run_agent_id)
+        self.on_message_save.emit(workflow_id, workflow_title, workflow_description, instruction, data, timer_desc, timer_cron, run_agent_name, run_agent_id)
 
     @pyqtSlot(str, str, result=str)
     def run_workflow(self, workflow_id, workflow_title):
-
         self.on_message_run.emit(workflow_id, workflow_title)
 
     @pyqtSlot()
     def set_timer(self):
         self.on_message_set_timer.emit()
 
+    @pyqtSlot(str)
+    def set_plugin_list(self, plugin):
+        self.on_message_set_plugin_list.emit(plugin)
+
+    @pyqtSlot(str)
+    def set_plugin_search_list(self, plugin):
+        self.on_message_set_plugin_search_list.emit(plugin)
+
+    @pyqtSlot(str)
+    def set_llm_list(self, llm):
+        self.on_message_set_llm_list.emit(llm)
+
+    @pyqtSlot(str)
+    def set_role_list(self, role):
+        self.on_message_set_role_list.emit(role)
+
+    @pyqtSlot(str)
+    def set_km_list(self, km):
+        self.on_message_set_km_list.emit(km)
+
+
+
     @pyqtSlot(str, str, result=str)
-    def edit_content_message(self,code_type,text):
-        print("codetype:",code_type)
-        print("text:",text)
-        self.on_edit_content_message.emit(code_type,text)
+    def edit_content_message(self, code_type, text):
+        print("codetype:", code_type)
+        print("text:", text)
+        self.on_edit_content_message.emit(code_type, text)
 
     @pyqtSlot(str, result=str)
-    def file_clicked_message(self,file_path):
-        print("file_path:",file_path)
+    def file_clicked_message(self, file_path):
+        print("file_path:", file_path)
         self.on_message_file_clicked.emit(file_path)
 
     @pyqtSlot(str, result=str)
@@ -68,20 +97,35 @@ class MessageHandler(QWidget):
         print("url:", url)
         self.on_message_open_link.emit(url)
 
-
-
-    def pass_message(self, messsage,workflow_title,workflow_description,workflow_id,workflow_tags,timer_desc,timer_cron,run_agent_name,run_agent_id):
+    def pass_message(self, messsage, workflow_title, workflow_description, workflow_id, instruction, timer_desc, timer_cron, run_agent_name, run_agent_id):
         print("passmessage")
-        self.on_message_load_workflow.emit(messsage,workflow_title,workflow_description,workflow_id,workflow_tags,timer_desc,timer_cron,run_agent_name,run_agent_id)
-        print("timer_desc",timer_desc)
+        self.on_message_load_workflow.emit(messsage, workflow_title, workflow_description, workflow_id, instruction, timer_desc, timer_cron, run_agent_name, run_agent_id)
+        print("timer_desc", timer_desc)
+
+    @pyqtSlot(str, result=str)
+    def get_function_from_js(self, function_type):
+        print("function_type:", function_type)
+        return "get the function result"
+
+    @pyqtSlot(str, result=str)
+    def send_data(self, request):
+        """
+        根据请求返回相应的数据
+        :param request: 请求类型
+        :return: 返回相应的数据
+        """
+        if request == "getData":
+            print("getData..")
+            return "Hello from Python!"
+        return "Unknown request"
 
     thevalue = pyqtProperty(str, fget=PyQt52WebValue, fset=Web2PyQt5Value)
 
 
 class WorkFlowDesign(QWidget):
-    def __init__(self,workflow_manager,workflow_id,workflow_title):
+    def __init__(self, workflow_manager, workflow_id, workflow_title):
         super().__init__()
-        print(workflow_manager,":",workflow_id,":",workflow_title)
+        print(workflow_manager, ":", workflow_id, ":", workflow_title)
 
         self.workflow_id = ""
         self.workflow_name = ""
@@ -95,24 +139,25 @@ class WorkFlowDesign(QWidget):
         self.vboxlayout.setObjectName("vboxlayout")
         self.vboxlayout.setContentsMargins(0, 0, 0, 0)  # 不留间隙
 
-
         self.frame = QtWidgets.QFrame()
         self.frame.setStyleSheet("QFrame { border: 1px solid #c0c0c0;}")
         self.frame_layout = QtWidgets.QVBoxLayout(self.frame)
 
-
         file_path = os.path.join(Path(__file__).resolve().parent, "scripts", "workflow_design.html")
         # file_path = os.path.join(Path(__file__).resolve().parent, "coding", "mycode.html")
 
-
-
-        self.workflow_manager=workflow_manager
+        self.workflow_manager = workflow_manager
 
         # self.messageBrowser = QtWidgets.QTextBrowser(TaskWidget)
         self.messageBrowser = QWebEngineView()
+        self.messageBrowser.setZoomFactor(0.75)
         self.messageBrowser.setObjectName("messageBrowser")
         print(file_path)
         url_string = QUrl.fromLocalFile(file_path)
+        if lt(0,1)==0:
+            url_string = QUrl("http://localhost:8900/scripts/workflow_design_en.html")
+        else:
+            url_string = QUrl("http://localhost:8900/scripts/workflow_design.html")
         self.messageBrowser.page().load(url_string)
         self.messageBrowser.page().loadFinished.connect(self.onLoadFinished)  # 第一次可能page没来得及load，所以需要在onload中处理
 
@@ -130,16 +175,18 @@ class WorkFlowDesign(QWidget):
         message_handler.on_message_save.connect(self.save_workflow)
         message_handler.on_message_run.connect(self.run_workflow)
         message_handler.on_message_set_timer.connect(self.set_timer)
-
-
-
+        message_handler.on_message_set_plugin_list.connect(self.set_plugin_list)
+        message_handler.on_message_set_plugin_search_list.connect(self.set_plugin_search_list)
+        message_handler.on_message_set_llm_list.connect(self.set_llm_list)
+        message_handler.on_message_set_role_list.connect(self.set_role_list)
+        message_handler.on_message_set_km_list.connect(self.set_km_list)
 
 
         # 创建布局和控件
         self.layout = QVBoxLayout()
         self.vboxlayout.addWidget(self.frame)
 
-        self.return_button = QPushButton("返回")
+        self.return_button = QPushButton(lt("Back","返回"))
 
         # 连接按钮的点击事件
         self.return_button.clicked.connect(self.go_back)
@@ -149,59 +196,56 @@ class WorkFlowDesign(QWidget):
         # self.layout.addLayout(self.frame_layout)
         self.frame_layout.addWidget(self.return_button)
 
-
         # 设置主窗口的布局
         self.setLayout(self.vboxlayout)
-        self.workflow_id=workflow_id
-        self.workflow_title=workflow_title
+        self.workflow_id = workflow_id
+        self.workflow_title = workflow_title
         self.workflow_description = ""
-        self.workflow_tags = ""
+        self.instruction = ""
         self.timer_desc = ""
         self.timer_cron = ""
-
+        self.run_agent_name = ""
+        self.run_agent_id = ""
 
     def onLoadFinished(self):
         self.is_browser_page_loaded = True
         # time.sleep(0.5)
         # self.load_workflow()
 
-        # 设置定时器，5秒后调用 my_function
         timer = threading.Timer(1, self.load_workflow)
 
         # 启动定时器
         timer.start()
 
-    def save_workflow(self,workflow_id,workflow_title,workflow_description,workflow_tags,data,timer_desc,timer_cron,run_agent_name,run_agent_id):
-
-        record=query_workflow_mng(workflow_id=workflow_id)
+    def save_workflow(self, workflow_id, workflow_title, workflow_description, instruction, data, timer_desc, timer_cron, run_agent_name, run_agent_id):
+        record = query_workflow_mng(workflow_id=workflow_id)
         if record:
-            update_workflow_mng(record.id,title=workflow_title,description=workflow_description,workflow_tags=workflow_tags,detail=data, timer_desc=timer_desc, timer_cron=timer_cron,run_agent_name=run_agent_name,run_agent_id=run_agent_id)
+            update_workflow_mng(record.id, title=workflow_title, description=workflow_description, instruction=instruction, detail=data, timer_desc=timer_desc, timer_cron=timer_cron, run_agent_name=run_agent_name, run_agent_id=run_agent_id)
         else:
-            add_workflow_mng(workflow_id=workflow_id,title=workflow_title,description=workflow_description,workflow_tags=workflow_tags,detail=data, timer_desc=timer_desc, timer_cron=timer_cron,run_agent_name=run_agent_name,run_agent_id=run_agent_id)
+            add_workflow_mng(workflow_id=workflow_id, title=workflow_title, description=workflow_description, instruction=instruction, detail=data, timer_desc=timer_desc, timer_cron=timer_cron, run_agent_name=run_agent_name, run_agent_id=run_agent_id)
 
         schedule_record = query_task_schedule(org_id=workflow_id)
 
-
         if timer_desc:
             if schedule_record:
-                update_task_schedule(schedule_record.id,title=workflow_title, description=workflow_description, timer_desc=timer_desc, timer_cron=timer_cron, run_agent_name=run_agent_name, run_agent_id=run_agent_id)
+                update_task_schedule(schedule_record.id, title=workflow_title, description=workflow_description, timer_desc=timer_desc, timer_cron=timer_cron, run_agent_name=run_agent_name, run_agent_id=run_agent_id)
             else:
                 task_type = "workflow"
                 task_id = generate_random_id()
-                org_id =workflow_id
+                org_id = workflow_id
                 parameter = ""
-                schedule_time=None
+                schedule_time = None
                 add_task_schedule_mng(workflow_title, workflow_description, task_type,
                                       task_id, org_id, parameter, schedule_time, timer_desc, timer_cron, run_agent_name, run_agent_id)
         else:
             if schedule_record:
-               delete_task_schedule(org_id=workflow_id)
+                delete_task_schedule(org_id=workflow_id)
 
         QMessageBox.information(self, "提示", "保存成功。")
 
     def load_workflow(self):
         print("loading workflow")
-        message=""
+        message = ""
         workflow_id = self.workflow_id
 
         record = query_workflow_mng(workflow_id=workflow_id)
@@ -210,14 +254,14 @@ class WorkFlowDesign(QWidget):
             self.workflow_title = record.title
             self.workflow_description = record.description
             self.workflow_id = record.workflow_id
-            self.workflow_tags = record.workflow_tags
-            self.timer_desc =  record.timer_desc
+            self.instruction = record.instruction
+            self.timer_desc = record.timer_desc
             self.timer_cron = record.timer_cron
             self.run_agent_name = record.run_agent_name
             self.run_agent_id = record.run_agent_id
 
-        print("message",message)
-        self.message_handler.pass_message(message,self.workflow_title,self.workflow_description,self.workflow_id,self.workflow_tags,self.timer_desc,self.timer_cron,self.run_agent_name,self.run_agent_id)
+        print("message", message)
+        self.message_handler.pass_message(message, self.workflow_title, self.workflow_description, self.workflow_id, self.instruction, self.timer_desc, self.timer_cron, self.run_agent_name, self.run_agent_id)
 
     def set_timer(self):
         # 获取未删除的记录
@@ -232,13 +276,85 @@ class WorkFlowDesign(QWidget):
         # 输出结果字符串
         print(result_string)
 
-
         self.messageBrowser.page().runJavaScript(f'toggleCronDerper(`{result_string}`)')
 
-    def run_workflow(self,workflow_id,workflow_name):
-        self.workflow_id =workflow_id
-        self.workflow_name = workflow_name
+    def set_plugin_list(self, plugin):
+        records = query_PluginMng_All_Tool()
 
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.name: record.plugin_id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_plugin = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+        records = query_skill_mng_all(skill_type="1")
+
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.name: record.skill_id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_skill = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+        records = query_function_mng_all(function_type="1")
+
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.name: record.function_id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_function = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+        self.messageBrowser.page().runJavaScript(f'set_plugin_list(`{result_string_plugin}`,`{result_string_skill}`,`{result_string_function}`,`{plugin}`)')
+
+    def set_plugin_search_list(self, plugin):
+        records = query_PluginMng_All_Tool_Search()
+
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.name: record.plugin_id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_plugin = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+
+        self.messageBrowser.page().runJavaScript(f'set_plugin_search_list(`{result_string_plugin}`,`{plugin}`)')
+
+
+    def set_llm_list(self, llm):
+        records = query_PluginMng_All(plugin_type='LLM_Connector')
+
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.name: record.plugin_id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_plugin = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+        self.messageBrowser.page().runJavaScript(f'set_llm_list(`{result_string_plugin}`,`{llm}`)')
+
+    def set_role_list(self, role):
+        records = get_all_prompt()
+
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.title: record.id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_plugin = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+        self.messageBrowser.page().runJavaScript(f'set_role_list(`{result_string_plugin}`,`{role}`)')
+
+
+    def set_km_list(self, km):
+        records = query_KMCfg_All(vectorization=1)
+
+        # 使用字典推导式将记录转换为所需的格式
+        result_dict = {record.name: record.km_id for record in records}
+
+        # 将字典转换为JSON字符串
+        result_string_plugin = json.dumps(result_dict, ensure_ascii=False)  # ensure_ascii=False可用于保留非ASCII字符
+
+        self.messageBrowser.page().runJavaScript(f'set_km_list(`{result_string_plugin}`,`{km}`)')
+
+    def run_workflow(self, workflow_id, workflow_name):
+        self.workflow_id = workflow_id
+        self.workflow_name = workflow_name
 
         # 创建对话框
         transfer_dialog = QDialog()
@@ -287,10 +403,10 @@ class WorkFlowDesign(QWidget):
 
         self.app = self.parent().parent().parent()
         # 显示对话框并处理结果
-        if transfer_dialog.exec_():
+        if transfer_dialog.exec():
             agent_id = transfer_dialog.comboBox.currentData()
             agent_name = transfer_dialog.comboBox.currentText()
-            self.app.ShowAiAssistantStack()
+            self.app.show_agent_toolbox_stack()
 
             agent_item = self.app.toolBox_AgentChat.findChild(QWidget, agent_id)
 
@@ -325,9 +441,7 @@ class WorkFlowDesign(QWidget):
             taskpage.messageEdit.setPlainText(f"请运行一下工作流:{self.workflow_name},//workflow_id:{self.workflow_id}")
             taskpage.sendMessage()
 
-
     def go_back(self):
-
         self.parent().setCurrentWidget(self.workflow_manager)
 
     def delete_file(self):
@@ -357,7 +471,7 @@ class WorkFlowDesign(QWidget):
     def get_file_info(self, file_path):
         """获取文件的详细信息"""
         try:
-            file_name =os.path.basename(file_path)
+            file_name = os.path.basename(file_path)
             file_size = os.path.getsize(file_path)  # 获取文件大小
             file_name = os.path.splitext(file_name)[0]  # 获取文件类型
             modified_time = os.path.getmtime(file_path)  # 获取最后编辑时间
@@ -370,11 +484,11 @@ class WorkFlowDesign(QWidget):
             modified_time_str = "N/A"
 
         # 返回文件信息的列表
-        return [file_name,f"{file_size}", modified_time_str,file_path]
+        return [file_name, f"{file_size}", modified_time_str, file_path]
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     file_manager = WorkFlowDesign()
     file_manager.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

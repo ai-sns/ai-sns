@@ -1,7 +1,7 @@
 # main.py
 import sys
 import importlib
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTabWidget
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QTabWidget
 
 
 class MainApp(QWidget):
@@ -58,4 +58,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     ex = MainApp()
     ex.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

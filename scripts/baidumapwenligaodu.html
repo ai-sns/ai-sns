@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>带高度的点纹理贴图</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <style>
+    body,
+    html,
+    #container {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        font-family: "微软雅黑";
+    }
+    </style>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?type=webgl&v=1.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX"></script>
+</head>
+<body>
+    <div id="container"></div>
+</body>
+</html>
+<script>
+var map = new BMapGL.Map('container');
+var point = new BMapGL.Point(116.443, 39.935);
+map.centerAndZoom(point, 13);
+map.enableScrollWheelZoom();
+map.setTilt(70);
+
+var citys = [{
+    name: '北京大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/beida.png'
+}, {
+    name: '清华大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/qinghua.png'
+}, {
+    name: '中央财经大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/zhongcai.png'
+}, {
+    name: '北京交通大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/beijiao.png'
+}, {
+    name: '北京工业大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/beigong.png'
+}, {
+    name: '北京邮电大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/beiyou.png'
+}, {
+    name: '北京理工大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/beili.png'
+}, {
+    name: '北京航空航天大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/beihang.png'
+}, {
+    name: '中国传媒大学',
+    img: 'https://lbs.baidu.com/jsdemo/img/zhongchuan.png'
+}];
+
+var cityGeo = new BMapGL.Geocoder();
+for (let i = 0; i < citys.length; i++) {
+    cityGeo.getPoint(citys[i].name, function (point) { // 地址解析获取对应经纬度
+        var pt = new BMapGL.Point(point.lng, point.lat);
+        var icon = new BMapGL.Icon(citys[i].img, new BMapGL.Size(40, 40));
+        var marker = new BMapGL.Marker3D(pt, Math.round(Math.random()) * 6000, {
+            size: 80,
+            icon: icon
+        });
+        map.addOverlay(marker);
+
+      // 创建信息窗口
+var opts = {
+    width: 200,
+    height: 100,
+    title: '故宫博物院'
+};
+var infoWindow = new BMapGL.InfoWindow('地址：北京市东城区王府井大街88号乐天银泰百货八层', opts);
+// 点标记添加点击事件
+marker.addEventListener('click', function () {
+    map.openInfoWindow(infoWindow, point); // 开启信息窗口
+});
+
+
+    });
+}
+</script>

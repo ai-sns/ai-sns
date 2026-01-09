@@ -26,7 +26,7 @@ class Connector_LLM_Jiuzhou_yfd_Chatglm_Plugin(PluginCore):
     def __init__(self, logger: Logger) -> None:
         super().__init__(logger)
         self.meta = Meta(
-            name='百度文心',
+            name='Baidu',
             description='用来连接百度文心大模型',
             version='1.0.0'
         )
@@ -56,7 +56,7 @@ class Connector_LLM_Jiuzhou_yfd_Chatglm_Plugin(PluginCore):
         model="glm-4"#glm-4，glm-3-turbo
         if command[0] == "open_config_dialog":
             print("opendialogue")
-            connection.exec_()
+            connection.exec()
         else:
             headers = {
                 "Content-Type": "application/json",

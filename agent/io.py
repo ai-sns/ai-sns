@@ -18,6 +18,7 @@ class AISNSIOStream(IOStream):
         self.speaker =speaker
 
 
+
     def printbak(self, *args: Any, **kwargs) -> None:
         # Remove 'flush' argument if present, as it's not supported by rich.console.Console.print
         kwargs.pop('flush', None)
@@ -35,7 +36,9 @@ class AISNSIOStream(IOStream):
     def print(self, *objects: Any, sep: str = " ", end: str = "\n", flush: bool = False) -> None:
 
         speaker=self.speaker
+
         speaker.speak(*objects, sep=sep, end=end, flush=flush)
+
 
 
     def input(self, prompt: str = "", *, password: bool = False) -> str:

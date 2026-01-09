@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "localmcpservertest": {
+            "command": "uv",
+            "args": [
+                "run",
+                "C:\\\\dev\\\\agi-ev\\\\ai-sns\\\\mcp\\\\server.py"
+            ]
+        }
+    }
+}

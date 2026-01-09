@@ -1,8 +1,8 @@
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate, QSize, Qt, QRect
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QDate, QSize, Qt, QRect
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
                              QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog, QMessageBox)
@@ -20,9 +20,9 @@ class ConfigDialog(QDialog):
         super(ConfigDialog, self).__init__(parent)
 
         self.contentsWidget = QListWidget()
-        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setViewMode(QListView.ViewMode.IconMode)
         self.contentsWidget.setIconSize(QSize(96, 84))
-        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMovement(QListView.Movement.Static)
         self.contentsWidget.setMaximumWidth(128)
         self.contentsWidget.setSpacing(12)
 
@@ -68,10 +68,10 @@ class ConfigDialog(QDialog):
 
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
@@ -90,7 +90,7 @@ class ConfigDialog(QDialog):
         # generalpage
         name = self.generalPage.nameEdit.text()
         memo = self.generalPage.memoEdit.text()
-        agents=",".join([item.data(Qt.UserRole) for item in self.generalPage.agentsList.selectedItems()])
+        agents=",".join([item.data(Qt.ItemDataRole.UserRole) for item in self.generalPage.agentsList.selectedItems()])
 
         if agents =="":
             QMessageBox.warning(self, "警告", "请选择至少一个群成员。")
@@ -132,7 +132,7 @@ class ConfigDialog(QDialog):
             tool_box_item = self.app.toolBox_AgentChat.findChild(QWidget, idstr)
             self.app.toolBox_AgentChat.setItemText(self.app.toolBox_AgentChat.indexOf(tool_box_item), f"{name} ({memo})" if memo else name)
             member_list = self.app.memberlist_group_list[self.agent.group_id]
-            member_list.reload()
+            member_list.reload("")
 
         self.name = name
         self.memo = memo
@@ -160,26 +160,26 @@ class ConfigDialog(QDialog):
         configButton = QListWidgetItem(self.contentsWidget)
         configButton.setIcon(QIcon(':/images/config.png'))
         configButton.setText("基本配置")
-        configButton.setTextAlignment(Qt.AlignHCenter)
-        configButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        configButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        configButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         techButton = QListWidgetItem(self.contentsWidget)
         techButton.setIcon(QIcon('images/technique.png'))
         techButton.setText("技能配置")
-        techButton.setTextAlignment(Qt.AlignHCenter)
-        techButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        techButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        techButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         queryButton = QListWidgetItem(self.contentsWidget)
         queryButton.setIcon(QIcon(':/images/update.png'))
         queryButton.setText("社交配置")
-        queryButton.setTextAlignment(Qt.AlignHCenter)
-        queryButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        queryButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        queryButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         updateButton = QListWidgetItem(self.contentsWidget)
         updateButton.setIcon(QIcon(':/images/query.png'))
         updateButton.setText("权限安全")
-        updateButton.setTextAlignment(Qt.AlignHCenter)
-        updateButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        updateButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        updateButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
 
 
@@ -203,7 +203,7 @@ class GeneralPage(QWidget):
         self.agent = agent
 
         self.avatar_label = ClickableAvatarLabel()
-        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setFixedSize(70, 70)
         # self.avatar_label.setStyleSheet("QLabel{border: 1px solid blue;}")
 
@@ -237,7 +237,7 @@ class GeneralPage(QWidget):
         for record in records:
             agent_item = QListWidgetItem(self.agentsList)
             agent_item.setText(f"{record.name} ({record.memo})" if record.memo else record.name)
-            agent_item.setData(Qt.UserRole, record.user_id)
+            agent_item.setData(Qt.ItemDataRole.UserRole, record.user_id)
             self.groupmasterCombo.addItem(f"{record.name} ({record.memo})" if record.memo else record.name,record.user_id)
 
 
@@ -248,7 +248,7 @@ class GeneralPage(QWidget):
             for i in range(self.agentsList.count()):
                 item = self.agentsList.item(i)
 
-                if item.data(Qt.UserRole) in selected_agents:
+                if item.data(Qt.ItemDataRole.UserRole) in selected_agents:
                     item.setSelected(True)
 
             # 遍历 QComboBox 的所有项，找到对应的 itemData 值并设置为当前选中项
@@ -292,14 +292,14 @@ class GeneralPage(QWidget):
     def setAvatar(self, pixmap):
         size = QSize(70, 70)
         target = QPixmap(size)
-        target.fill(Qt.transparent)
+        target.fill(Qt.GlobalColor.transparent)
 
         # 绘制圆形头像
         painter = QPainter(target)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # 绘制圆形边框
-        pen = QPen(Qt.gray)
+        pen = QPen(Qt.GlobalColor.gray)
         pen.setWidth(2)
         painter.setPen(pen)
         painter.drawEllipse(1, 1, size.width() - 2, size.height() - 2)
@@ -308,11 +308,11 @@ class GeneralPage(QWidget):
         clip_path = QPainterPath()
         clip_path.addEllipse(2, 2, size.width() - 4, size.height() - 4)
         painter.setClipPath(clip_path)
-        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
         # 将原始图像缩放到适当大小，并放置在中心
         diameter = min(size.width(), size.height())
-        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.SmoothTransformation)
+        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.TransformationMode.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.TransformationMode.SmoothTransformation)
         target_rect = QRect((size.width() - scaled_pixmap.width()) // 2, (size.height() - scaled_pixmap.height()) // 2, scaled_pixmap.width(), scaled_pixmap.height())
         painter.drawPixmap(target_rect, scaled_pixmap)
 
@@ -508,7 +508,7 @@ class SecurityPage(QWidget):
         self.setLayout(mainLayout)
 
 class ClickableAvatarLabel(QLabel):
-    clicked = PyQt5.QtCore.pyqtSignal()
+    clicked = PyQt6.QtCore.pyqtSignal()
 
     def mousePressEvent(self, event):
         self.clicked.emit()
@@ -519,4 +519,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

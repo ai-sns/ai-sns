@@ -1,16 +1,20 @@
 # plugins/code_editor.py
 import sys
-
+sys.path.append("../..")
+sys.path.append("../../..")
+sys.path.append("../../../..")
 
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QInputDialog
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QInputDialog
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins.mermaid import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
-
+from PyQt6.QtCore import QUrl
+from PyQt6.QtWebEngineWidgets import  QWebEngineView
+from i18n import lt
 class Main(QWidget, PluginInterface):
     def __init__(self, parent, plugin_cfg, content=""):
         super().__init__()
@@ -44,23 +48,35 @@ class Main(QWidget, PluginInterface):
         # 将编辑器添加到布局
         layout.addWidget(self.editor)
 
+        self.preview_webview = QWebEngineView()
+        self.preview_webview.setVisible(False)
+        layout.addWidget(self.preview_webview)
+
+
+
         # 创建按钮的水平布局
         button_layout = QHBoxLayout()
 
         # 创建添加按钮
-        hello_button = QPushButton("关闭")
+        hello_button = QPushButton(lt("Close","关闭"))
         hello_button.clicked.connect(self.close_tab)  # 连接按钮点击事件到添加函数
         button_layout.addWidget(hello_button)
 
         # 创建保存按钮
-        save_button = QPushButton("保存")
+        save_button = QPushButton(lt("Save","保存"))
         save_button.clicked.connect(self.save_file)  # 连接保存事件
         button_layout.addWidget(save_button)
 
         # 创建预览按钮
-        preview_button = QPushButton("预览")
-        preview_button.clicked.connect(self.preview_file)  # 连接预览事件
-        button_layout.addWidget(preview_button)
+        self.preview_button = QPushButton(lt("Preview","预览"))
+        self.preview_button.clicked.connect(self.preview_file)  # 连接预览事件
+        button_layout.addWidget(self.preview_button)
+
+        # 创建预览按钮
+        self.edit_button = QPushButton(lt("Edit","编辑"))
+        self.edit_button.setVisible(False)
+        self.edit_button.clicked.connect(self.edit_file)  # 连接预览事件
+        button_layout.addWidget(self.edit_button)
 
         # 将按钮布局添加到主布局
         layout.addLayout(button_layout)
@@ -74,9 +90,22 @@ class Main(QWidget, PluginInterface):
         self.file_name = ""
 
     def run(self, *args, **kwagrs):
+            self.edit_file()
             file_name = args[0]
             text = args[1]
-            text = text.replace("```mermaid", "")
+            # text = text.replace("```mermaid", "")
+
+            # 查找 '```mermaid' 的起始位置
+            mermaid_start_index = text.find('```mermaid')
+
+            # 如果未找到 '```mermaid'，则返回空字符串
+            if mermaid_start_index == -1:
+                return ""
+
+            # 提取 '```mermaid' 后的内容
+            content_after_mermaid = text[mermaid_start_index + len('```mermaid'):]
+            text=content_after_mermaid
+
             editor = self.editor
             editor.setPlainText(text)
             self.file_name = file_name
@@ -101,6 +130,7 @@ class Main(QWidget, PluginInterface):
                 # 使用 deleteLater() 方法安全地删除该 Widget
                 tab_widget.deleteLater()
                 tab.removeTab(current_index)  # 移除当前选中的 Tab
+
                 self.parent.plugin_tool_loaded_list.pop(self.plugin_cfg.name, None)
         else:
             print("没有父控件。")
@@ -137,6 +167,10 @@ class Main(QWidget, PluginInterface):
 
 
     def preview_file(self):
+        self.editor.setVisible(False)
+        self.preview_webview.setVisible(True)
+        self.preview_button.setVisible(False)
+        self.edit_button.setVisible(True)
         """保存文件并在浏览器中打开"""
         # 创建目录
         directory = "coding"
@@ -157,4 +191,15 @@ class Main(QWidget, PluginInterface):
             file.write(html_file_content)  # 将文本写入文件
 
 
-        webbrowser.open(f"file://{os.path.abspath(file_path)}")  # 使用默认浏览器打开文件
+        # webbrowser.open(f"file://{os.path.abspath(file_path)}")  # 使用默认浏览器打开文件
+
+
+
+        self.preview_webview.load(QUrl("http://localhost:8900/coding/mermaid.html"))
+
+    def edit_file(self):
+        self.editor.setVisible(True)
+        self.preview_webview.setVisible(False)
+        self.preview_button.setVisible(True)
+        self.edit_button.setVisible(False)
+

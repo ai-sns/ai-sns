@@ -1,13 +1,13 @@
 import json
 import os
 from datetime import datetime
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, \
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox, QInputDialog, \
     QTreeWidgetItemIterator, QDialog
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
-
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QAction
+from PyQt6.QtCore import Qt, QPoint
+from i18n import lt
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import query_AIChat_Content, query_AIChatMessages_All, query_AgentTask, \
     query_AgentTask_Search_Content, query_AgentTask_Content, query_AgentTask_Search_First, AgentTask, \
@@ -29,7 +29,8 @@ class ChatList(QTreeWidget):
 
         super(ChatList, self).__init__(parent)
         print("ChatList parent", parent)
-        self.jid = parent.jid
+
+        self.jid = "chenchen@xabber.de"
         self.connection = None
         self.parent = parent
         self.agent = agent
@@ -39,9 +40,9 @@ class ChatList(QTreeWidget):
         self.browser_page = None
         self.is_browser_page_loaded = False
 
-        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Chat List","对话列表"))  # 需要设置此处的值，否则缺省值为1
         # self.setSortingEnabled(True)#排序
-        # self.sortItems(0, Qt.AscendingOrder)#排序
+        # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -57,7 +58,7 @@ class ChatList(QTreeWidget):
 
     # --> 加载 数据
     def load_pop_menu(self):
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         # --> 增加置顶，取消置顶 操作
         self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
@@ -95,7 +96,7 @@ class ChatList(QTreeWidget):
             self.addItem(record.title.replace("\n", ""), record.id, icon=stick_icon)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             item = self.currentItem()
             if item:
                 reply = QMessageBox.question(self, '删除确定',
@@ -103,7 +104,7 @@ class ChatList(QTreeWidget):
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
                 if reply == QMessageBox.Yes:
                     column = 0
-                    id_value = item.data(column, Qt.UserRole)
+                    id_value = item.data(column, Qt.ItemDataRole.UserRole)
                     # 从数据库中删除所有conversation_id相同的记录
                     deleteTasksFromDatabase(id_value)
 
@@ -129,7 +130,7 @@ class ChatList(QTreeWidget):
 
         if item_count == 0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "所有")
+            group_item.setText(0, lt("All","所有"))
         else:
             group_item = self.topLevelItem(0)
         # print("adding item:",name)
@@ -140,7 +141,7 @@ class ChatList(QTreeWidget):
         if icon == True:
             top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -168,7 +169,7 @@ class ChatList(QTreeWidget):
         item = self.current_Item
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
 
@@ -177,7 +178,7 @@ class ChatList(QTreeWidget):
             if ok and newName:
                 item.setText(0, newName)
                 column = 0
-                id_value = item.data(column, Qt.UserRole)
+                id_value = item.data(column, Qt.ItemDataRole.UserRole)
                 update_AIChatMessages(id_value, title=newName)
         else:
             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
@@ -189,7 +190,7 @@ class ChatList(QTreeWidget):
     def reload(self, key_word):
         self.clear()
 
-        self.setHeaderLabel("对话列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Chat List","对话列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -239,7 +240,7 @@ class ChatList(QTreeWidget):
 
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
 
         if id_value:
@@ -286,7 +287,7 @@ class ChatList(QTreeWidget):
 
         print("双击了：", item.text(column))
         print(column)
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("双击了：", id_value)
         if id_value == None:
             return (False)
@@ -363,7 +364,7 @@ class ChatList(QTreeWidget):
     def stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
         if id_value:
             if item:
@@ -392,7 +393,7 @@ class ChatList(QTreeWidget):
     def un_stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         if id_value:
             if item:
                 reply = QMessageBox.question(self, '取消置顶确定',
@@ -412,7 +413,7 @@ class ChatList(QTreeWidget):
         item = self.current_Item
         oldName=None
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
             res = query_AIChatMessages_ById(id_value)
@@ -438,7 +439,7 @@ class ChatList(QTreeWidget):
 
             dialog.user_selected.connect(handle_user_selection)
             # 以模态方式显示对话框
-            if dialog.exec_() == QDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 # 这里不需要额外的代码，因为信号已经处理过了
                 pass
         else:

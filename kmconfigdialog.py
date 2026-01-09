@@ -1,28 +1,29 @@
 import os
 
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate, QSize, Qt, QRect
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QDate, QSize, Qt, QRect
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
-                             QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog)
+                             QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog, QTextEdit)
 from db.DBFactory import add_KMCfg,query_KMCfg,query_KMCfg_All,update_KMCfg,delete_KMCfg
 
 import configdialog_rc
 import datetime
 import random
 import string
+from i18n import lt
 # from datetime import datetime
 class ConfigDialog(QDialog):
     def __init__(self, parent=None,km_cfg=None):
         super(ConfigDialog, self).__init__(parent)
 
         self.contentsWidget = QListWidget()
-        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setViewMode(QListView.ViewMode.IconMode)
         self.contentsWidget.setIconSize(QSize(96, 84))
-        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMovement(QListView.Movement.Static)
         self.contentsWidget.setMaximumWidth(128)
         self.contentsWidget.setSpacing(12)
 
@@ -67,10 +68,10 @@ class ConfigDialog(QDialog):
 
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
@@ -102,11 +103,12 @@ class ConfigDialog(QDialog):
         textblocklength = self.settingPage.textblocklengthEdit.text()
         overlaplength = self.settingPage.overlaplengthEdit.text()
         titleaugment = self.settingPage.titleaugmentCheckBox.isChecked()
+        config_param = self.settingPage.config_param.toPlainText()
 
         if self.km_cfg == None:
             idstr = self.generate_random_id()
             kmpath = idstr
-            add_KMCfg(idstr, name, memo, label, kmpath,vectorization,stopvectorization,kmtype, vectortype, embeddingmodel, textblocklength, overlaplength, titleaugment)
+            add_KMCfg(idstr, name, memo, label, kmpath,vectorization,stopvectorization,kmtype, vectortype, embeddingmodel, textblocklength, overlaplength, titleaugment,config_param)
 
             km_cfg = query_KMCfg(km_id=idstr)
             if kmtype=="0":
@@ -125,7 +127,7 @@ class ConfigDialog(QDialog):
             os.makedirs(vector_path, exist_ok=True)
 
         else:
-            update_KMCfg(self.km_cfg.id, name=name, memo=memo, label=label, kmtype=kmtype, vectortype=vectortype,vectorization=vectorization,stopvectorization=stopvectorization, embeddingmodel=embeddingmodel, textblocklength=textblocklength, overlaplength=overlaplength, titleaugment=titleaugment)
+            update_KMCfg(self.km_cfg.id, name=name, memo=memo, label=label, kmtype=kmtype, vectortype=vectortype,vectorization=vectorization,stopvectorization=stopvectorization, embeddingmodel=embeddingmodel, textblocklength=textblocklength, overlaplength=overlaplength, titleaugment=titleaugment,config_param=config_param)
 
         self.accept()
         self.close()
@@ -145,14 +147,14 @@ class ConfigDialog(QDialog):
         configButton = QListWidgetItem(self.contentsWidget)
         configButton.setIcon(QIcon(':/images/config.png'))
         configButton.setText("基本信息")
-        configButton.setTextAlignment(Qt.AlignHCenter)
-        configButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        configButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        configButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         techButton = QListWidgetItem(self.contentsWidget)
         techButton.setIcon(QIcon('images/technique.png'))
         techButton.setText("参数配置")
-        techButton.setTextAlignment(Qt.AlignHCenter)
-        techButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        techButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        techButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
 
 
@@ -256,8 +258,11 @@ class SettingPage(QWidget):
         self.vectortypeCombo.addItem("faiss")
         self.vectortypeCombo.addItem("milvus")
         self.vectortypeCombo.addItem("zilliz")
+        self.vectortypeCombo.addItem("Pinecone")
         self.vectortypeCombo.addItem("pg")
         self.vectortypeCombo.addItem("es")
+        # 连接当前文本变化信号到处理函数
+        self.vectortypeCombo.currentTextChanged.connect(self.handle_vectortype_change)
 
 
         self.embeddingmodelLabel = QLabel("Embedding模型:")
@@ -279,6 +284,33 @@ class SettingPage(QWidget):
         self.overlaplengthEdit.setValidator(intValidator)
         self.titleaugmentLabel = QLabel("中文标题加强:")
         self.titleaugmentCheckBox = QCheckBox("开启")
+        self.config_param = QTextEdit()
+        self.config_param.setFixedHeight(200)  # 设置固定高度为100
+        self.config_param.setPlaceholderText(lt("Pinecone parameters","Pinecone配置参数"))  # 设置占位符文本
+        init_text ="""{
+    "api_key": "your_api_key_here",  
+    "cloud": "aws",
+    "region": "us-east-1",
+    "index_name": "codekb",
+    "namespace": "python_snippet",
+    "top_k": 5,
+    "embed": {
+        "model": "llama-text-embed-v2",  //embed model
+        "field_map": {
+            "text": "chunk_text"          //field map
+        }
+    },
+    "rerank": {
+        "model": "bge-reranker-v2-m3",  //rerank model
+        "top_n": 5,                      
+        "rank_fields": ["chunk_text"]  //rerank field
+    },
+    "fields": ["category", "chunk_text"] // return field
+}
+"""
+        self.config_param.setPlainText(init_text)
+        self.config_param.setVisible(False)
+
 
 
         packagesLayout = QGridLayout()
@@ -300,6 +332,7 @@ class SettingPage(QWidget):
         packagesLayout.addWidget(self.overlaplengthEdit, 6, 1)
         packagesLayout.addWidget(self.titleaugmentLabel, 7, 0)
         packagesLayout.addWidget(self.titleaugmentCheckBox, 7, 1)
+        packagesLayout.addWidget(self.config_param, 8, 0, 1, 2)  # 占据整行（跨两列）
 
         packagesGroup.setLayout(packagesLayout)
 
@@ -328,6 +361,7 @@ class SettingPage(QWidget):
             self.textblocklengthEdit.setText(str(agent.textblocklength))
             self.overlaplengthEdit.setText(str(agent.overlaplength))
             self.titleaugmentCheckBox.setChecked(agent.titleaugment)
+            self.config_param.setPlainText(agent.config_param)
 
             if agent.vectorization == 0:
                 self.stopvectorization_checkbox.setEnabled(False)
@@ -336,6 +370,9 @@ class SettingPage(QWidget):
                 self.textblocklengthEdit.setEnabled(False)
                 self.overlaplengthEdit.setEnabled(False)
                 self.titleaugmentCheckBox.setEnabled(False)
+
+            if self.vectortypeCombo.currentText()=="Pinecone":
+                self.config_param.setVisible(True)
 
 
 
@@ -347,6 +384,15 @@ class SettingPage(QWidget):
         mainLayout.addStretch(1)
         self.setLayout(mainLayout)
 
+    # 处理向量类型变化的函数
+    def handle_vectortype_change(self, new_type):
+        """处理向量类型的变化"""
+        # 在这里执行相应的操作，例如更新界面或处理逻辑
+        print(f"当前选择的向量类型: {new_type}")
+        if new_type=="Pinecone":
+            self.config_param.setVisible(True)
+        else:
+            self.config_param.setVisible(False)
 
     def selectFolder(self):
         # 打开文件夹选择框
@@ -361,4 +407,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

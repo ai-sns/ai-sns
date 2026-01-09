@@ -1,1 +1,0 @@
-tool_call(city='上海')

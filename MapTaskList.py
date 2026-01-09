@@ -1,16 +1,16 @@
 import json
 import os
-
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, \
+from i18n import lt
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox, QInputDialog, \
     QTreeWidgetItemIterator,QDialog
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
+from PyQt6.QtGui import QIcon, QPixmap, QAction, QShortcut, QKeySequence
+from PyQt6.QtCore import Qt, QPoint
 
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import query_AgentTask, query_AgentTask_Search_Content, query_AgentTask_Content, \
     query_AgentTask_Search_First, AgentTask, deleteTasksFromDatabase, update_AgentTask, update_AgentTask_stick, \
-    query_AgentTask_ById, query_AgentTask_ByLabel,query_map_tasks,query_single_map_task,delete_map_task
+    query_AgentTask_ById, query_AgentTask_ByLabel,query_map_tasks,query_single_map_task,delete_map_task,update_map_task
 from TaskPage import TaskPage
 from userinputdialog import UserInputDialog
 from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg_title_formatted, \
@@ -35,10 +35,12 @@ class MapTaskList(QTreeWidget):
         self.tasks_history = None
         self.browser_page = None
         self.is_browser_page_loaded = False
+        self.current_Item = None
 
-        self.setHeaderLabel("任务列表")  # 需要设置此处的值，否则缺省值为1
+
+        self.setHeaderLabel(lt("Task List","任务列表"))  # 需要设置此处的值，否则缺省值为1
         # self.setSortingEnabled(True)#排序
-        # self.sortItems(0, Qt.AscendingOrder)#排序
+        # self.sortItems(0, Qt.SortOrder.AscendingOrder)#排序
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -54,7 +56,7 @@ class MapTaskList(QTreeWidget):
 
     # --> 加载 右键菜单
     def load_pop_menu(self):
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         # --> 增加置顶，取消置顶 操作
         self.stick_action = QAction(QIcon("images/bookplus.png"), "置顶", self)
@@ -77,6 +79,31 @@ class MapTaskList(QTreeWidget):
         self.delete_action.triggered.connect(self.delete_item)
         self.menu.addAction(self.delete_action)
 
+        self.start_task_action = QAction(QIcon("images/startcircle.png"), "开始任务", self)
+        self.start_task_action.triggered.connect(self.start_task)
+        self.menu.addAction(self.start_task_action)
+
+        self.pause_task_action = QAction(QIcon("images/pause.png"), "暂停任务", self)
+        self.pause_task_action.triggered.connect(self.pause_task)
+        self.menu.addAction(self.pause_task_action)
+
+        self.end_task_action = QAction(QIcon("images/stop.png"), "结束任务", self)
+        self.end_task_action.triggered.connect(self.end_task)
+        self.menu.addAction(self.end_task_action)
+
+        self.reset_task_action = QAction(QIcon("images/stop.png"), "*重新开始", self)
+        self.reset_task_action.triggered.connect(self.re_plan_task_and_start)
+        self.menu.addAction(self.reset_task_action)
+
+        self.reset_plan_action = QAction(QIcon("images/stop.png"), "*重新执行", self)
+        self.reset_plan_action.triggered.connect(self.re_excecute_plan)
+        self.menu.addAction(self.reset_plan_action)
+
+        # Assign shortcuts using QShortcut
+        self.shortcut_reset_plan_action = QShortcut(QKeySequence("Ctrl+R"), self)
+        self.shortcut_reset_plan_action.activated.connect(self.re_excecute_plan)
+
+
         # self.menu.addAction(QIcon("images/infos.png"), "信息", self.delete_item)
 
         self.customContextMenuRequested.connect(self.context)
@@ -87,10 +114,12 @@ class MapTaskList(QTreeWidget):
 
         self.tasklist = query_map_tasks()
         for record in self.tasklist:
-            self.addItem(record.title.replace("\n", ""), record.id)
+
+            self.addItem(record.title.replace("\n", ""), record.id,False,record.status)
+
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key.Key_Delete:
             item = self.currentItem()
             if item:
                 reply = QMessageBox.question(self, '删除确定',
@@ -98,7 +127,7 @@ class MapTaskList(QTreeWidget):
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
                 if reply == QMessageBox.Yes:
                     column = 0
-                    id_value = item.data(column, Qt.UserRole)
+                    id_value = item.data(column, Qt.ItemDataRole.UserRole)
                     # 从数据库中删除所有task_id相同的记录
                     deleteTasksFromDatabase(id_value)
 
@@ -119,12 +148,12 @@ class MapTaskList(QTreeWidget):
         if self.verticalScrollBar().value() == self.verticalScrollBar().maximum():
             print("Reached bottom!")
 
-    def addItem(self, name, id, is_top=False, icon=False):
+    def addItem(self, name, id, is_top=False, icon=0):
         item_count = self.topLevelItemCount()
 
         if item_count == 0:
             group_item = QTreeWidgetItem(self)
-            group_item.setText(0, "所有")
+            group_item.setText(0, lt("All","所有"))
         else:
             group_item = self.topLevelItem(0)
         # print("adding item:",name)
@@ -132,10 +161,19 @@ class MapTaskList(QTreeWidget):
         # top_item = QTreeWidgetItem(group_item)#不要这样构造，这样排序会缺省按字符排序，排序乱了
         top_item = QTreeWidgetItem()
         top_item.setText(0, name[0:50])
-        if icon == True:
-            top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
+        if icon == 1:
+            item_icon = QIcon(QPixmap('images/bluepoint.svg'))  # --> 增加一个置顶图标
+            # item_icon = QIcon('images/bluepoint.png')  # --> 增加一个置顶图标
+
+        elif icon==0:
+            item_icon = QIcon(QPixmap('images/graypoint.svg'))  # --> 增加一个置顶图标
+        elif icon==2:
+            item_icon =   QIcon()  # --> 增加一个置顶图标
+
+        top_item.setIcon(0, item_icon)  # 设置第一列的图标
+
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -163,7 +201,7 @@ class MapTaskList(QTreeWidget):
         item = self.current_Item
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
 
@@ -172,7 +210,7 @@ class MapTaskList(QTreeWidget):
             if ok and newName:
                 item.setText(0, newName)
                 column = 0
-                id_value = item.data(column, Qt.UserRole)
+                id_value = item.data(column, Qt.ItemDataRole.UserRole)
                 update_AgentTask(id_value, title=newName)
         else:
             QMessageBox.critical(None, "警告", "分类名不能重命名", QMessageBox.Ok)
@@ -182,7 +220,7 @@ class MapTaskList(QTreeWidget):
         item = self.current_Item
         oldName = None
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
             res = query_AgentTask_ById(id_value)
@@ -204,7 +242,7 @@ class MapTaskList(QTreeWidget):
                     update_AgentTask(id_value, label=selection)
             dialog.user_selected.connect(handle_user_selection)
             # 以模态方式显示对话框
-            if dialog.exec_() == QDialog.Accepted:
+            if dialog.exec() == QDialog.Accepted:
                 # 这里不需要额外的代码，因为信号已经处理过了
                 pass
 
@@ -220,7 +258,7 @@ class MapTaskList(QTreeWidget):
     def reload(self, key_word):
         self.clear()
 
-        self.setHeaderLabel("任务列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Task List","任务列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}
@@ -262,7 +300,7 @@ class MapTaskList(QTreeWidget):
 
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
 
         if id_value:
@@ -290,7 +328,7 @@ class MapTaskList(QTreeWidget):
     def stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("id_value", id_value)
         if id_value:
             if item:
@@ -319,7 +357,7 @@ class MapTaskList(QTreeWidget):
     def un_stick_item(self):
         item = self.current_Item
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         if id_value:
             if item:
                 reply = QMessageBox.question(self, '取消置顶确定',
@@ -332,6 +370,227 @@ class MapTaskList(QTreeWidget):
 
         else:
             QMessageBox.critical(None, "警告", "分类不能取消置顶", QMessageBox.Ok)
+
+    def start_task(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            # if item:
+            #     reply = QMessageBox.question(self, '确定',
+            #                                  f"您确定要开始任务：'{item.text(0)}'?",
+            #                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            # if reply == QMessageBox.Yes:
+            #     update_map_task(id_value, status=1)
+            #     record = query_single_map_task(id=id_value)
+            #     self.mainwindow.map_message_box.set_current_task_record(record)
+            #     self.mainwindow.map_message_box.start_task()
+            #     item_icon = QIcon(QPixmap('images/bluepoint.svg'))
+            #     item.setIcon(0, item_icon)
+
+                update_map_task(id_value, status=1)
+                record = query_single_map_task(id=id_value)
+                self.mainwindow.map_message_box.set_current_task_record(record)
+                self.mainwindow.map_message_box.start_task()
+                item_icon = QIcon(QPixmap('images/bluepoint.svg'))
+                item.setIcon(0, item_icon)
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+    def pause_task(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            if item:
+                reply = QMessageBox.question(self, '确定',
+                                             f"您确定要暂停任务：'{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                update_map_task(id_value, status=0)
+
+
+                self.mainwindow.map_message_box.stop_task()
+                item_icon = QIcon(QPixmap('images/graypoint.svg'))
+                item.setIcon(0, item_icon)
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+    def end_task(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            if item:
+                reply = QMessageBox.question(self, '确定',
+                                             f"您确定要结束任务：'{item.text(0)}'?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply == QMessageBox.Yes:
+                update_map_task(id_value, status=2)
+                self.mainwindow.map_message_box.end_task()
+                item_icon = QIcon()
+                item.setIcon(0, item_icon)
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+    def re_plan_task_and_start(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            # if item:
+            #     reply = QMessageBox.question(self, '确定',
+            #                                  f"您确定要重置任务：'{item.text(0)}'?",
+            #                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            # if reply == QMessageBox.Yes:
+            #     update_map_task(id_value, status=0,sub_task_list="",current_sub_task="")
+            #     self.mainwindow.map_message_box.stop_task()
+            #     item_icon = QIcon()
+            #     item.setIcon(0, item_icon)
+            #     self.start_task()
+
+                    update_map_task(id_value, status=1, sub_task_list="", current_sub_task="")
+                    self.mainwindow.map_message_box.re_init_task()
+                    self.mainwindow.map_message_box.stop_task()
+                    item_icon = QIcon()
+                    item.setIcon(0, item_icon)
+                    self.start_task()
+
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+
+    def re_excecute_plan(self):
+        item = self.current_Item
+        if not item:
+            self.re_excecute_plan_no_item_selected()
+            return
+        column = 0
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            # if item:
+            #     reply = QMessageBox.question(self, '确定',
+            #                                  f"您确定要重置任务：'{item.text(0)}'?",
+            #                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            # if reply == QMessageBox.Yes:
+            #     update_map_task(id_value, status=0,sub_task_list="",current_sub_task="")
+            #     self.mainwindow.map_message_box.stop_task()
+            #     item_icon = QIcon()
+            #     item.setIcon(0, item_icon)
+            #     self.start_task()
+
+                    update_map_task(id_value, status=1, current_sub_task="")
+                    self.mainwindow.map_message_box.re_init_task()
+                    self.mainwindow.map_message_box.stop_task()
+                    item_icon = QIcon()
+                    item.setIcon(0, item_icon)
+                    self.restart_plan()
+
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+    def re_excecute_plan_no_item_selected(self):
+
+        id_value = 2
+
+        if id_value:
+            # if item:
+            #     reply = QMessageBox.question(self, '确定',
+            #                                  f"您确定要重置任务：'{item.text(0)}'?",
+            #                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            # if reply == QMessageBox.Yes:
+            #     update_map_task(id_value, status=0,sub_task_list="",current_sub_task="")
+            #     self.mainwindow.map_message_box.stop_task()
+            #     item_icon = QIcon()
+            #     item.setIcon(0, item_icon)
+            #     self.start_task()
+
+                    update_map_task(id_value, status=1, current_sub_task="")
+                    self.mainwindow.map_message_box.re_init_task()
+                    self.mainwindow.map_message_box.stop_task()
+                    self.restart_plan_no_item_selected(id_value)
+
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+    def restart_plan_no_item_selected(self,id_value):
+
+        if id_value:
+            # if item:
+            #     reply = QMessageBox.question(self, '确定',
+            #                                  f"您确定要开始任务：'{item.text(0)}'?",
+            #                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            # if reply == QMessageBox.Yes:
+            #     update_map_task(id_value, status=1)
+            #     record = query_single_map_task(id=id_value)
+            #     self.mainwindow.map_message_box.set_current_task_record(record)
+            #     self.mainwindow.map_message_box.start_task()
+            #     item_icon = QIcon(QPixmap('images/bluepoint.svg'))
+            #     item.setIcon(0, item_icon)
+
+                update_map_task(id_value, status=1)
+                record = query_single_map_task(id=id_value)
+                self.mainwindow.map_message_box.set_current_task_record(record)
+                self.mainwindow.map_message_box.restart_plan()
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
+
+    def restart_plan(self):
+        item = self.current_Item
+        column = 0
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
+        print("id_value", id_value)
+        if id_value:
+            # if item:
+            #     reply = QMessageBox.question(self, '确定',
+            #                                  f"您确定要开始任务：'{item.text(0)}'?",
+            #                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            # if reply == QMessageBox.Yes:
+            #     update_map_task(id_value, status=1)
+            #     record = query_single_map_task(id=id_value)
+            #     self.mainwindow.map_message_box.set_current_task_record(record)
+            #     self.mainwindow.map_message_box.start_task()
+            #     item_icon = QIcon(QPixmap('images/bluepoint.svg'))
+            #     item.setIcon(0, item_icon)
+
+                update_map_task(id_value, status=1)
+                record = query_single_map_task(id=id_value)
+                self.mainwindow.map_message_box.set_current_task_record(record)
+                self.mainwindow.map_message_box.restart_plan()
+                item_icon = QIcon(QPixmap('images/bluepoint.svg'))
+                item.setIcon(0, item_icon)
+
+        else:
+
+            QMessageBox.critical(None, "警告", "分类不能操作", QMessageBox.Ok)
+        print("")
+
 
     def getInfo(self):
         pass
@@ -352,7 +611,7 @@ class MapTaskList(QTreeWidget):
     def on_itemDoubleClicked(self, item, column):
         print("双击了：", item.text(column))
         print(column)
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
         print("双击了：", id_value)
         if id_value == None:
             return (False)
@@ -361,7 +620,7 @@ class MapTaskList(QTreeWidget):
 
         ai_map_task_dialog = AiMapTaskDialog(self,task_record)
         ai_map_task_dialog.configured.connect(self.mainwindow.on_configured_ai_map)
-        ai_map_task_dialog.exec_()
+        ai_map_task_dialog.exec()
 
 
     def get_record_problem_for_message(self, record):

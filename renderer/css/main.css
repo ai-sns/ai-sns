@@ -583,6 +583,18 @@ body.theme-dark .theme-toggle-btn .icon-moon {
     opacity: 1;
 }
 
+/* ========== Page Container ========== */
+.page-container {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: hidden;
+}
+
+.page-container.hidden {
+    display: none !important;
+}
+
 /* ========== Main Content ========== */
 .main-content {
     flex: 1;

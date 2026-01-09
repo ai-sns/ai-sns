@@ -1,1 +1,0 @@
-pip install -qqq yahoo_fin

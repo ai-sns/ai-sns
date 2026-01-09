@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baidu Maps Circular Avatar Marker</title>
+    <style>
+        /* 设置地图的高度 */
+        #map {
+            height: 100vh; /* 使用视口高度填充 */
+            width: 100%; /* 使用全宽度 */
+        }
+        /* 定义头像样式 */
+        .avatar-marker {
+            width: 40px; /* 设置标记宽度 */
+            height: 40px; /* 设置标记高度 */
+            border-radius: 50%; /* 确保头像是圆形 */
+            overflow: hidden; /* 确保超出部分隐藏 */
+            display: flex; /* 使用 flexbox 对齐 */
+            align-items: center; /* 垂直居中 */
+            justify-content: center; /* 水平居中 */
+            border: 2px solid white; /* 可选的白色边框 */
+            background: #4285F4; /* 设置背景色 */
+        }
+        /* 头像图像样式 */
+        .avatar-marker img {
+            width: 100%; /* 使头像填充容器 */
+            height: 100%; /* 使头像填充容器 */
+            object-fit: cover; /* 确保图片保持比例 */
+        }
+    </style>
+    <script src="https://api.map.baidu.com/api?v=3.0&ak=zYrMH3z70aK34tCtj7As1fWQsrzLL1wX"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // 自定义图钉类
+        function AvatarMarker(point, imageUrl) {
+            this._point = point;
+            this._imageUrl = imageUrl;
+            this._div = this.createMarkerDiv();
+        }
+
+        AvatarMarker.prototype = new BMap.Overlay();
+
+        AvatarMarker.prototype.initialize = function(map) {
+            map.getPanes().markerPane.appendChild(this._div);
+            return this._div;
+        };
+
+        AvatarMarker.prototype.draw = function() {
+            const position = this._map.pointToOverlayPixel(this._point);
+            this._div.style.left = position.x + 'px';
+            this._div.style.top = position.y + 'px';
+        };
+
+        AvatarMarker.prototype.createMarkerDiv = function() {
+            const div = document.createElement("div");
+            div.className = "avatar-marker";
+            const img = document.createElement("img");
+            img.src = this._imageUrl; // 头像图片地址
+            div.appendChild(img);
+            return div;
+        };
+
+        // 初始化地图
+        function initMap() {
+            // 创建地图实例
+            var map = new BMap.Map("map");
+            var point = new BMap.Point(116.404, 39.915); // 设置中心点（北京）
+            map.centerAndZoom(point, 13); // 设置缩放级别
+
+            // 创建带头像的图钉
+            const avatarUrl = "a.jpg"; // 替换为你的头像图片地址
+            const avatarMarker = new AvatarMarker(point, avatarUrl);
+            map.addOverlay(avatarMarker); // 将自定义标记添加到地图
+        }
+
+        // 执行初始化地图
+        initMap();
+    </script>
+</body>
+</html>

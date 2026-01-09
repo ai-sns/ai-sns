@@ -1,13 +1,20 @@
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QGroupBox, QGridLayout,
     QLabel, QLineEdit, QCheckBox, QSlider, QTextEdit,
     QDialogButtonBox, QComboBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSettings
-from PyQt5.QtGui import QIcon
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt, pyqtSignal, QSettings
+from PyQt6.QtGui import QIcon, QPalette, QColor
+from PyQt6 import QtCore, QtGui, QtWidgets
 import json
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+sys.path.append("../../..")
+sys.path.append("../../../..")
+sys.path.append("../../../../..")
+from i18n import lt
 class ui_OpenAIConnectionDialog(object):
     def setupUi(self, ConnectionDialog):
         ConnectionDialog.setObjectName("ConnectionDialog")
@@ -29,7 +36,10 @@ class ui_OpenAIConnectionDialog(object):
         self.gridlayout_basic.addWidget(self.instruction_label, 0, 0)
         self.instruction_edit = QLineEdit()
         self.gridlayout_basic.addWidget(self.instruction_edit, 1, 0)
-        self.instruction_edit.setPlaceholderText("输入调用该插件的文本")
+        self.instruction_edit.setPlaceholderText(lt("Input instrunction and how to call,for example  tq:the city to search","请输入指令及格式如：tq:要查询的城市"))
+        palette = self.instruction_edit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.instruction_edit.setPalette(palette)
 
         # Description
         self.description_label = QLabel("Description:")
@@ -38,7 +48,15 @@ class ui_OpenAIConnectionDialog(object):
         self.gridlayout_basic.addWidget(self.description_textedit, 3, 0)
         self.description_textedit.setEnabled(True)
 
+        # Call
+        self.arguments_label = QLabel("Arguments Schema:")
+        self.gridlayout_basic.addWidget(self.arguments_label, 4, 0)
+        self.arguments_textedit = QTextEdit()
+        self.gridlayout_basic.addWidget(self.arguments_textedit, 5, 0)
+        self.arguments_textedit.setEnabled(True)
 
+        self.sns_check = QCheckBox(lt("Used in SNS", "能被用于SNS"))
+        self.gridlayout_basic.addWidget(self.sns_check, 6, 0)
 
 
         # Group box for API configuration
@@ -81,7 +99,7 @@ class ui_OpenAIConnectionDialog(object):
         # Temperature slider
         self.temperature_label = QLabel("Temperature:")
         self.gridlayout.addWidget(self.temperature_label, 4, 0)
-        self.temperature_slider = QSlider(Qt.Horizontal)
+        self.temperature_slider = QSlider(Qt.Orientation.Horizontal)
         self.temperature_slider.setMinimum(0)
         self.temperature_slider.setMaximum(100)
         self.temperature_slider.setEnabled(True)  # Make it editable by default
@@ -92,7 +110,7 @@ class ui_OpenAIConnectionDialog(object):
         # Top P slider
         self.top_p_label = QLabel("Top P:")
         self.gridlayout.addWidget(self.top_p_label, 5, 0)
-        self.top_p_slider = QSlider(Qt.Horizontal)
+        self.top_p_slider = QSlider(Qt.Orientation.Horizontal)
         self.top_p_slider.setMinimum(0)
         self.top_p_slider.setMaximum(100)
         self.top_p_slider.setEnabled(True)  # Make it editable by default
@@ -133,12 +151,12 @@ class ui_OpenAIConnectionDialog(object):
 
         # Button box
         self.buttonBox = QDialogButtonBox(ConnectionDialog)
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+        self.buttonBox.setOrientation(Qt.Orientation.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok)
         self.buttonBox.setObjectName("buttonBox")
-        ok_button = self.buttonBox.button(QDialogButtonBox.Ok)
+        ok_button = self.buttonBox.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
-        cancel_button = self.buttonBox.button(QDialogButtonBox.Cancel)
+        cancel_button = self.buttonBox.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
         self.vboxlayout.addWidget(self.buttonBox)
 
@@ -164,7 +182,7 @@ class ui_OpenAIConnectionDialog(object):
 
 
     def toggle_parameters_edit(self, state):
-        enabled = state == Qt.Checked
+        enabled = state == Qt.CheckState.Checked.value
         # self.api_key_edit.setEnabled(not enabled)
         self.model_combobox.setEnabled(not enabled)
         self.max_tokens_edit.setEnabled(not enabled)

@@ -99,7 +99,7 @@ class OpenAICustomizeLLMClient:
         os.environ["QIANFAN_SK"] = "EAYpXlgVEglOA5tZ9O1LF8bCunwp6XeV"
 
 
-        self.llm_client = OpenAIApdater()
+        self.llm_client = OpenAIApdater()#从adapter.py中导入
 
     def message_retrieval(
         self, response: Union[ChatCompletion, Completion]
@@ -185,7 +185,7 @@ class OpenAICustomizeLLMClient:
                     for choice in chunk.choices:
                         content = choice.delta.content
 
-                        print("cjr get the content:",content)
+                        print("cjr get the content5:",content)
                         # setattr(choice.delta, 'tool_calls', [])
                         tool_calls_chunks = (
                             choice.delta.tool_calls if hasattr(choice.delta, "tool_calls") else None

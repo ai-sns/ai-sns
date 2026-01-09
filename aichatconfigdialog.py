@@ -1,11 +1,11 @@
 import re
 import webbrowser
 
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QDate, QSize, Qt, QRect, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QDate, QSize, Qt, QRect, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QPen, QPainterPath, QIntValidator
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
                              QListView, QListWidget, QListWidgetItem, QPushButton, QSpinBox,
                              QStackedWidget, QVBoxLayout, QWidget, QDialogButtonBox, QRadioButton, QFileDialog, QSizePolicy, QMessageBox, QTextEdit, QPlainTextEdit)
@@ -28,9 +28,9 @@ class ConfigDialog(QDialog):
         super(ConfigDialog, self).__init__(parent)
         print("initialing.....")
         self.contentsWidget = QListWidget()
-        self.contentsWidget.setViewMode(QListView.IconMode)
+        self.contentsWidget.setViewMode(QListView.ViewMode.IconMode)
         self.contentsWidget.setIconSize(QSize(96, 84))
-        self.contentsWidget.setMovement(QListView.Static)
+        self.contentsWidget.setMovement(QListView.Movement.Static)
         self.contentsWidget.setMaximumWidth(128)
         self.contentsWidget.setSpacing(12)
         # self.contentsWidget.setStyleSheet("QListWidget{margin-top: -150px; border: solid 1px red;}")
@@ -75,10 +75,10 @@ class ConfigDialog(QDialog):
         # mainLayout.addLayout(buttonsLayout)
 
         # Add OK and Cancel buttons
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        ok_button = button_box.button(QDialogButtonBox.Ok)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        ok_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
         ok_button.setText("确定")
-        cancel_button = button_box.button(QDialogButtonBox.Cancel)
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("取消")
         button_box.accepted.connect(self.accept_close)
         button_box.rejected.connect(self.reject_close)
@@ -153,16 +153,27 @@ class ConfigDialog(QDialog):
             gender = 1
         else:
             gender = 0
-        area = self.userinfoPage.areaCombo.currentText()
+        # area = self.userinfoPage.areaCombo.currentText()
+        area = ""
+        state = self.userinfoPage.stateEdit.text()
         city = self.userinfoPage.cityEdit.text()
+        community = self.userinfoPage.communityEdit.text()
+        street_block = self.userinfoPage.streetblockEdit.text()
         address = self.userinfoPage.addressEdit.text()
-        mail = self.userinfoPage.mailEdit.text()
-        imaccount = self.userinfoPage.imaccountEdit.text()
-        phone = self.userinfoPage.phoneEdit.text()
-        organization = self.userinfoPage.organizationEdit.text()
-        title = self.userinfoPage.titleEdit.text()
-        orgposition = self.userinfoPage.positionEdit.text()
-        memo = self.userinfoPage.memoEdit.text()
+        # mail = self.userinfoPage.mailEdit.text()
+        # imaccount = self.userinfoPage.imaccountEdit.text()
+        # phone = self.userinfoPage.phoneEdit.text()
+        # organization = self.userinfoPage.organizationEdit.text()
+        # title = self.userinfoPage.titleEdit.text()
+        # orgposition = self.userinfoPage.positionEdit.text()
+        # memo = self.userinfoPage.memoEdit.text()
+        mail = ""
+        imaccount = ""
+        phone = ""
+        organization = ""
+        title = ""
+        orgposition = ""
+        memo = ""
 
         # SNS
 
@@ -197,7 +208,7 @@ class ConfigDialog(QDialog):
         # update_AiChatCfg(1, name, memo, borndate, borncontry, language, gender, joinfederation, syncfederation, specialization, plugins, kms, prompt, snsaccount, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, readfile, writefile, deletefile, execfile, autorunrounds)
         if self.ai_chat_cfg == None:
             idstr = self.generate_random_id()
-            add_AiChatCfg(idstr, account,password,nickname,sign,status,humantakeover,name,borndate,gender,area,city,address,mail,imaccount,phone,organization,title,orgposition,memo,islimittotalmessage,islimitmessagepp,totalmessages,ppmessages,serveraddress,port,ssl,resource,proxyused,proxyaddress,proxyport,proxyssl,savepasswordlocal,autoconnect,sendreceipt,sendreadflag,sendchatstatus,sendgroupchatstatus,agreeallfriendrequest)
+            add_AiChatCfg(idstr, account,password,nickname,sign,status,humantakeover,name,borndate,gender,area,state,city,community,street_block,address,mail,imaccount,phone,organization,title,orgposition,memo,islimittotalmessage,islimitmessagepp,totalmessages,ppmessages,serveraddress,port,ssl,resource,proxyused,proxyaddress,proxyport,proxyssl,savepasswordlocal,autoconnect,sendreceipt,sendreadflag,sendchatstatus,sendgroupchatstatus,agreeallfriendrequest)
             ai_chat_cfg=query_AiChatCfg(user_id=idstr)
             self.app.createToolBoxUnit_AiChat(ai_chat_cfg,1)
             self.app.toolBox_AiChat.setCurrentIndex(self.app.toolBox_AiChat.count()-2)
@@ -211,7 +222,10 @@ class ConfigDialog(QDialog):
 
         else:
             idstr = self.ai_chat_cfg.user_id
-            update_AiChatCfg(self.ai_chat_cfg.id, account = account, password = password, nickname = nickname, sign = sign, status = status,humantakeover=humantakeover, name = name, borndate = borndate, gender = gender, area = area, city = city, address = address, mail = mail, imaccount = imaccount, phone = phone, organization = organization, title = title, orgposition = orgposition, memo = memo,islimittotalmessage=islimittotalmessage,islimitmessagepp=islimitmessagepp,totalmessages=totalmessages,ppmessages=ppmessages, serveraddress = serveraddress, port = port, ssl = ssl, resource = resource, proxyused = proxyused, proxyaddress = proxyaddress, proxyport = proxyport, proxyssl = proxyssl, savepasswordlocal = savepasswordlocal, autoconnect = autoconnect, sendreceipt = sendreceipt, sendreadflag = sendreadflag, sendchatstatus = sendchatstatus, sendgroupchatstatus = sendgroupchatstatus, agreeallfriendrequest = agreeallfriendrequest)
+            update_AiChatCfg(self.ai_chat_cfg.id, account=account, password=password, nickname=nickname, sign=sign, status=status, humantakeover=humantakeover, name=name, borndate=borndate, gender=gender, area=area, state=state, city=city, community=community, street_block=street_block, address=address, mail=mail, imaccount=imaccount, phone=phone, organization=organization, title=title, orgposition=orgposition, memo=memo, islimittotalmessage=islimittotalmessage, islimitmessagepp=islimitmessagepp, totalmessages=totalmessages, ppmessages=ppmessages, serveraddress=serveraddress, port=port, ssl=ssl, resource=resource, proxyused=proxyused, proxyaddress=proxyaddress, proxyport=proxyport, proxyssl=proxyssl, savepasswordlocal=savepasswordlocal, autoconnect=autoconnect, sendreceipt=sendreceipt, sendreadflag=sendreadflag,
+                             sendchatstatus=sendchatstatus, \
+                             sendgroupchatstatus=sendgroupchatstatus, \
+                             agreeallfriendrequest=agreeallfriendrequest)
             tool_box_item = self.app.toolBox_AiChat.findChild(QWidget, idstr)
             self.app.toolBox_AiChat.setItemText(self.app.toolBox_AiChat.indexOf(tool_box_item),nickname)
 
@@ -260,33 +274,33 @@ class ConfigDialog(QDialog):
         configButton = QListWidgetItem(self.contentsWidget)
         configButton.setIcon(QIcon(':/images/config.png'))
         configButton.setText("基本配置")
-        configButton.setTextAlignment(Qt.AlignHCenter)
-        configButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        configButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        configButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         techButton = QListWidgetItem(self.contentsWidget)
         techButton.setIcon(QIcon('images/technique.png'))
         techButton.setText("个人资料")
-        techButton.setTextAlignment(Qt.AlignHCenter)
-        techButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        techButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        techButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         # queryButton = QListWidgetItem(self.contentsWidget)
         # queryButton.setIcon(QIcon(':/images/update.png'))
         # queryButton.setText("连接配置")
-        # queryButton.setTextAlignment(Qt.AlignHCenter)
-        # queryButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        # queryButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        # queryButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
         # queryButton.setHidden(True)#暂时先隐藏
 
         queryButton = QListWidgetItem(self.contentsWidget)
         queryButton.setIcon(QIcon(':/images/update.png'))
         queryButton.setText("社交配置")
-        queryButton.setTextAlignment(Qt.AlignHCenter)
-        queryButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        queryButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        queryButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         updateButton = QListWidgetItem(self.contentsWidget)
         updateButton.setIcon(QIcon(':/images/query.png'))
         updateButton.setText("隐私安全")
-        updateButton.setTextAlignment(Qt.AlignHCenter)
-        updateButton.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        updateButton.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+        updateButton.setFlags(Qt.ItemFlag.ItemIsSelectable |  Qt.ItemFlag.ItemIsEnabled)
 
         self.contentsWidget.adjustSize()
         self.contentsWidget.setFixedHeight(500)
@@ -310,7 +324,7 @@ class GeneralPage(QWidget):
         self.app =parent
 
         self.avatar_label = ClickableAvatarLabel()
-        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setFixedSize(70, 70)
 
         # 创建水平布局
@@ -328,7 +342,7 @@ class GeneralPage(QWidget):
         # self.accountEdit.setReadOnly(True)
         self.passwordLabel = QLabel("密码:")
         self.passwordEdit = QLineEdit()
-        self.passwordEdit.setEchoMode(QLineEdit.Password)
+        self.passwordEdit.setEchoMode(QLineEdit.EchoMode.Password)
         self.nicknameLabel = QLabel("昵称:")
         self.nicknameEdit = QLineEdit()
         self.signLabel = QLabel("自我介绍:")
@@ -355,7 +369,7 @@ class GeneralPage(QWidget):
         layout_belong_to_agent = QHBoxLayout()
         belong_to_agent_title = QLabel("还没有帐号?")
         self.belong_to_agent = ClickableLabel(agent_belonged, self)
-        self.belong_to_agent.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)  # 设置该标签顶到最左边
+        self.belong_to_agent.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)  # 设置该标签顶到最左边
 
         layout_belong_to_agent.addWidget(belong_to_agent_title)
         layout_belong_to_agent.addWidget(self.belong_to_agent)
@@ -506,14 +520,14 @@ class GeneralPage(QWidget):
     def setAvatar(self, pixmap):
         size = QSize(70, 70)
         target = QPixmap(size)
-        target.fill(Qt.transparent)
+        target.fill(Qt.GlobalColor.transparent)
 
         # 绘制圆形头像
         painter = QPainter(target)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # 绘制圆形边框
-        pen = QPen(Qt.gray)
+        pen = QPen(Qt.GlobalColor.gray)
         pen.setWidth(2)
         painter.setPen(pen)
         painter.drawEllipse(1, 1, size.width() - 2, size.height() - 2)
@@ -522,11 +536,11 @@ class GeneralPage(QWidget):
         clip_path = QPainterPath()
         clip_path.addEllipse(2, 2, size.width() - 4, size.height() - 4)
         painter.setClipPath(clip_path)
-        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # painter.drawPixmap(5, 5, size.width()-10, size.height()-10, pixmap.scaled(size.width()-10, size.height()-10, Qt.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
 
         # 将原始图像缩放到适当大小，并放置在中心
         diameter = min(size.width(), size.height())
-        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.SmoothTransformation)
+        scaled_pixmap = pixmap.scaledToWidth(diameter, Qt.TransformationMode.SmoothTransformation) if pixmap.width() < pixmap.height() else pixmap.scaledToHeight(diameter, Qt.TransformationMode.SmoothTransformation)
         target_rect = QRect((size.width() - scaled_pixmap.width()) // 2, (size.height() - scaled_pixmap.height()) // 2, scaled_pixmap.width(), scaled_pixmap.height())
         painter.drawPixmap(target_rect, scaled_pixmap)
 
@@ -552,31 +566,37 @@ class UserInfoPage(QWidget):
         self.gender_female = QRadioButton('女性')
         self.genderLayout.addWidget(self.gender_male)
         self.genderLayout.addWidget(self.gender_female)
-        self.areaLabel = QLabel("地区:")
-        self.areaCombo = QComboBox()
-        self.areaCombo.addItem("中国")
-        self.areaCombo.addItem("美国")
-        self.areaCombo.addItem("英国")
-        self.areaCombo.addItem("法国")
-        self.areaCombo.addItem("德国")
+        # self.areaLabel = QLabel("地区:")
+        # self.areaCombo = QComboBox()
+        # self.areaCombo.addItem("中国")
+        # self.areaCombo.addItem("美国")
+        # self.areaCombo.addItem("英国")
+        # self.areaCombo.addItem("法国")
+        # self.areaCombo.addItem("德国")
+        self.stateLabel = QLabel("联邦:")
+        self.stateEdit = QLineEdit()
         self.cityLabel = QLabel("城市:")
         self.cityEdit = QLineEdit()
+        self.communityLabel = QLabel("社区:")
+        self.communityEdit = QLineEdit()
+        self.streetblockLabel = QLabel("街区:")
+        self.streetblockEdit = QLineEdit()
         self.addressLabel = QLabel("地址:")
         self.addressEdit = QLineEdit()
-        self.mailLabel = QLabel("邮件:")
-        self.mailEdit = QLineEdit()
-        self.imaccountLabel = QLabel("其他IM:")
-        self.imaccountEdit = QLineEdit()
-        self.phoneLabel = QLabel("电话:")
-        self.phoneEdit = QLineEdit()
-        self.organizationLabel = QLabel("组织:")
-        self.organizationEdit = QLineEdit()
-        self.titleLabel = QLabel("头衔:")
-        self.titleEdit = QLineEdit()
-        self.positionLabel = QLabel("角色:")
-        self.positionEdit = QLineEdit()
-        self.memoLabel = QLabel("简介:")
-        self.memoEdit = QLineEdit()
+        # self.mailLabel = QLabel("邮件:")
+        # self.mailEdit = QLineEdit()
+        # self.imaccountLabel = QLabel("其他IM:")
+        # self.imaccountEdit = QLineEdit()
+        # self.phoneLabel = QLabel("电话:")
+        # self.phoneEdit = QLineEdit()
+        # self.organizationLabel = QLabel("组织:")
+        # self.organizationEdit = QLineEdit()
+        # self.titleLabel = QLabel("头衔:")
+        # self.titleEdit = QLineEdit()
+        # self.positionLabel = QLabel("角色:")
+        # self.positionEdit = QLineEdit()
+        # self.memoLabel = QLabel("简介:")
+        # self.memoEdit = QLineEdit()
 
         if agent != None:
             self.nameEdit.setText(agent.name)  # Assuming index 0 represents self.nameEdit text
@@ -587,16 +607,19 @@ class UserInfoPage(QWidget):
             else:
                 self.gender_male.setChecked(False)  # Assuming index 5 represents self.radio_male checked state
                 self.gender_female.setChecked(True)  # Assuming index 6 represents self.radio_female checked state
-            self.areaCombo.setCurrentText(agent.area)  # Assuming index 3 represents self.bornareaCombo current text
+            # self.areaCombo.setCurrentText(agent.area)  # Assuming index 3 represents self.bornareaCombo current text
+            self.stateEdit.setText(agent.state)
             self.cityEdit.setText(agent.city)
+            self.communityEdit.setText(agent.community)
+            self.streetblockEdit.setText(agent.street_block)
             self.addressEdit.setText(agent.address)
-            self.mailEdit.setText(agent.mail)
-            self.imaccountEdit.setText(agent.imaccount)
-            self.phoneEdit.setText(agent.phone)
-            self.organizationEdit.setText(agent.organization)
-            self.titleEdit.setText(agent.title)
-            self.positionEdit.setText(agent.orgposition)
-            self.memoEdit.setText(agent.memo)
+            # self.mailEdit.setText(agent.mail)
+            # self.imaccountEdit.setText(agent.imaccount)
+            # self.phoneEdit.setText(agent.phone)
+            # self.organizationEdit.setText(agent.organization)
+            # self.titleEdit.setText(agent.title)
+            # self.positionEdit.setText(agent.orgposition)
+            # self.memoEdit.setText(agent.memo)
 
 
         packagesLayout = QGridLayout()
@@ -606,26 +629,30 @@ class UserInfoPage(QWidget):
         packagesLayout.addWidget(self.borndateEdit, 1, 1)
         packagesLayout.addWidget(self.genderLabel, 2, 0)
         packagesLayout.addLayout(self.genderLayout, 2, 1)
-        packagesLayout.addWidget(self.areaLabel, 3, 0)
-        packagesLayout.addWidget(self.areaCombo, 3, 1)
+        packagesLayout.addWidget(self.stateLabel, 3, 0)
+        packagesLayout.addWidget(self.stateEdit, 3, 1)
         packagesLayout.addWidget(self.cityLabel, 4, 0)
         packagesLayout.addWidget(self.cityEdit, 4, 1)
-        packagesLayout.addWidget(self.addressLabel, 5, 0)
-        packagesLayout.addWidget(self.addressEdit, 5, 1)
-        packagesLayout.addWidget(self.mailLabel, 6, 0)
-        packagesLayout.addWidget(self.mailEdit, 6, 1)
-        packagesLayout.addWidget(self.imaccountLabel, 7, 0)
-        packagesLayout.addWidget(self.imaccountEdit, 7, 1)
-        packagesLayout.addWidget(self.phoneLabel, 8, 0)
-        packagesLayout.addWidget(self.phoneEdit, 8, 1)
-        packagesLayout.addWidget(self.organizationLabel, 9, 0)
-        packagesLayout.addWidget(self.organizationEdit, 9, 1)
-        packagesLayout.addWidget(self.titleLabel, 10, 0)
-        packagesLayout.addWidget(self.titleEdit, 10, 1)
-        packagesLayout.addWidget(self.positionLabel, 11, 0)
-        packagesLayout.addWidget(self.positionEdit, 11, 1)
-        packagesLayout.addWidget(self.memoLabel, 12, 0)
-        packagesLayout.addWidget(self.memoEdit, 12, 1)
+        packagesLayout.addWidget(self.communityLabel, 5, 0)
+        packagesLayout.addWidget(self.communityEdit, 5, 1)
+        packagesLayout.addWidget(self.streetblockLabel, 6, 0)
+        packagesLayout.addWidget(self.streetblockEdit, 6, 1)
+        packagesLayout.addWidget(self.addressLabel, 7, 0)
+        packagesLayout.addWidget(self.addressEdit, 7, 1)
+        # packagesLayout.addWidget(self.mailLabel, 6, 0)
+        # packagesLayout.addWidget(self.mailEdit, 6, 1)
+        # packagesLayout.addWidget(self.imaccountLabel, 7, 0)
+        # packagesLayout.addWidget(self.imaccountEdit, 7, 1)
+        # packagesLayout.addWidget(self.phoneLabel, 8, 0)
+        # packagesLayout.addWidget(self.phoneEdit, 8, 1)
+        # packagesLayout.addWidget(self.organizationLabel, 9, 0)
+        # packagesLayout.addWidget(self.organizationEdit, 9, 1)
+        # packagesLayout.addWidget(self.titleLabel, 10, 0)
+        # packagesLayout.addWidget(self.titleEdit, 10, 1)
+        # packagesLayout.addWidget(self.positionLabel, 11, 0)
+        # packagesLayout.addWidget(self.positionEdit, 11, 1)
+        # packagesLayout.addWidget(self.memoLabel, 12, 0)
+        # packagesLayout.addWidget(self.memoEdit, 12, 1)
 
         packagesGroup.setLayout(packagesLayout)
 
@@ -818,13 +845,13 @@ class SecurityPage(QWidget):
 
         self.oldpasswordLabel = QLabel("老密码:")
         self.oldpasswordEdit = QLineEdit()
-        self.oldpasswordEdit.setEchoMode(QLineEdit.Password)
+        self.oldpasswordEdit.setEchoMode(QLineEdit.EchoMode.Password)
         self.newpasswordLabel = QLabel("新密码:")
         self.newpasswordEdit = QLineEdit()
-        self.newpasswordEdit.setEchoMode(QLineEdit.Password)
+        self.newpasswordEdit.setEchoMode(QLineEdit.EchoMode.Password)
         self.confrimpasswordLabel = QLabel("确认密码:")
         self.confirmpasswordEdit = QLineEdit()
-        self.confirmpasswordEdit.setEchoMode(QLineEdit.Password)
+        self.confirmpasswordEdit.setEchoMode(QLineEdit.EchoMode.Password)
 
         if agent != None:
             self.savepasswordlocalCheckBox.setChecked(agent.savepasswordlocal)
@@ -870,7 +897,7 @@ class SecurityPage(QWidget):
 
 
 class ClickableAvatarLabel(QLabel):
-    clicked = PyQt5.QtCore.pyqtSignal()
+    clicked = PyQt6.QtCore.pyqtSignal()
 
     def mousePressEvent(self, event):
         self.clicked.emit()
@@ -884,7 +911,7 @@ class ClickableLabel(QLabel):
         self.parent = parent
         text="注册"
         super().__init__(text)
-        self.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.setTextInteractionFlags( Qt.TextInteractionFlag.TextSelectableByMouse)
         self.setStyleSheet("QLabel { color: blue; text-decoration: underline;font-family:微软雅黑;font-size:8pt;cursor: pointer;} QLabel:hover { color: red; text-decoration: underline;font-family:微软雅黑;font-size:8pt;cursor: pointer;}")
 
     def changeEvent(self, event):
@@ -899,4 +926,4 @@ if __name__ == '__main__':
 
     app = QApplication(sys.argv)
     dialog = ConfigDialog()
-    sys.exit(dialog.exec_())
+    sys.exit(dialog.exec())

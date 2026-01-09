@@ -3,17 +3,18 @@
 # Form implementation generated from reading ui file 'ui_MessageWidget.ui'
 #
 # Created: Tue Jan 22 07:03:54 2008
-#      by: PyQt5 UI code generator 5.15.4
+#      by: PyQt6 UI code generator 5.15.4
 #
 # WARNING! All changes made in this file will be lost!
 import os
 from pathlib import Path
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QUrl, pyqtSignal, pyqtSlot, pyqtProperty
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtWidgets import QCheckBox, QLabel, QSplitter, QTabWidget, QVBoxLayout, QWidget, QMessageBox, QLineEdit
-from qtpy.QtCore import Qt, QMetaObject, Signal, Slot, QEvent
-from PyQt5.QtWebChannel import QWebChannel
+from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import QUrl, pyqtSignal, pyqtSlot, pyqtProperty
+from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import QCheckBox, QLabel, QSplitter, QTabWidget, QVBoxLayout, QWidget, QMessageBox, QLineEdit
+from PyQt6.QtCore import Qt, QMetaObject, pyqtSignal, pyqtSlot, QEvent
+from PyQt6.QtWebChannel import QWebChannel
 
 from ChatListLabel import ChatListLabel
 from i18n import lt
@@ -90,11 +91,11 @@ class Ui_MessageWidget(object):
         # 添加标签到布局中
         self.hboxlayoutlabel = QtWidgets.QHBoxLayout()
 
-        spacerItem_label_left = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding,
-                                                      QtWidgets.QSizePolicy.Minimum)
+        spacerItem_label_left = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
+                                                      QtWidgets.QSizePolicy.Policy.Minimum)
         self.hboxlayoutlabel.addItem(spacerItem_label_left)  # 通过留空来居中
 
-        self.title_label = QLabel("聊天对象：" + self.name, MessageWidget)
+        self.title_label = QLabel(lt("Chat with:","聊天对象：") + self.name, MessageWidget)
         self.title_label.setStyleSheet("color: #146ebe;font-weight:bold")
         self.title_label.setContentsMargins(0, 0, 0, 0)  # 不留间隙
         self.title_label.setFixedHeight(30)  # 影响间隙
@@ -104,8 +105,8 @@ class Ui_MessageWidget(object):
         self.title_label.setContentsMargins(0, 0, 0, 0)  # 不留间隙
         self.hboxlayoutlabel.addWidget(self.title_label)
 
-        spacerItem_label_right = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding,
-                                                       QtWidgets.QSizePolicy.Minimum)
+        spacerItem_label_right = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding,
+                                                       QtWidgets.QSizePolicy.Policy.Minimum)
         self.hboxlayoutlabel.addItem(spacerItem_label_right)  # 通过留空来居中
 
         self.vboxlayout.addLayout(self.hboxlayoutlabel)
@@ -115,11 +116,12 @@ class Ui_MessageWidget(object):
         # self.vboxlayout.addWidget(self.messageBrowser)
 
         # 使用 QSplitter 来管理 self.frame 和 self.tabWidget
-        self.splitter = QSplitter(Qt.Horizontal, MessageWidget)
+        self.splitter = QSplitter(MessageWidget)
 
         # self.messageBrowser = QtWidgets.QTextBrowser(TaskWidget)
         # self.messageBrowser = QtWidgets.QTextBrowser(MessageWidget)
         self.messageBrowser = QWebEngineView()
+        self.messageBrowser.setZoomFactor(0.75)
         self.messageBrowser.setObjectName("messageBrowser")
 
         self.frame = QtWidgets.QFrame(self.splitter)
@@ -130,28 +132,31 @@ class Ui_MessageWidget(object):
         # 创建 QTabWidget 控件及其页签，设置页签在底部
         self.tabWidget = QTabWidget(self.splitter)
         self.tabWidget.setObjectName("tabWidget")
-        self.tabWidget.setTabPosition(QTabWidget.South)
+        self.tabWidget.setTabPosition(QTabWidget.TabPosition.South)
 
-        self.tab_output = QtWidgets.QWidget()
-        self.tab_output.setObjectName("tab_output")
-        self.tabLayout_output = QtWidgets.QVBoxLayout(self.tab_output)
-        self.tabLayout_output.setContentsMargins(0, 0, 0, 0)
-        self.output_webview = QWebEngineView(self.tab_output)
-        self.tabLayout_output.addWidget(self.output_webview)
-        self.tabWidget.addTab(self.tab_output, "输出")
-
-        self.tab_log = QtWidgets.QWidget()
-        self.tab_log.setObjectName("tab_log")
-        self.tabLayout_log = QVBoxLayout(self.tab_log)
-        self.tabLayout_log.setContentsMargins(0, 0, 0, 0)
-        self.textEdit_log = QtWidgets.QTextEdit(self.tab_log)
-        self.textEdit_log.setReadOnly(True)
-        self.tabLayout_log.addWidget(self.textEdit_log)
-        self.tabWidget.addTab(self.tab_log, "日志")
+        # self.tab_output = QtWidgets.QWidget()
+        # self.tab_output.setObjectName("tab_output")
+        # self.tabLayout_output = QtWidgets.QVBoxLayout(self.tab_output)
+        # self.tabLayout_output.setContentsMargins(0, 0, 0, 0)
+        # self.output_webview = QWebEngineView(self.tab_output)
+        # self.tabLayout_output.addWidget(self.output_webview)
+        # self.tabWidget.addTab(self.tab_output, "输出")
+        #
+        # self.tab_log = QtWidgets.QWidget()
+        # self.tab_log.setObjectName("tab_log")
+        # self.tabLayout_log = QVBoxLayout(self.tab_log)
+        # self.tabLayout_log.setContentsMargins(0, 0, 0, 0)
+        # self.textEdit_log = QtWidgets.QTextEdit(self.tab_log)
+        # self.textEdit_log.setReadOnly(True)
+        # self.tabLayout_log.addWidget(self.textEdit_log)
+        # self.tabWidget.addTab(self.tab_log, "日志")
 
         # Create search input
         textEdit = QLineEdit()
         textEdit.setPlaceholderText("关键词+回车搜索，空+回车复原")
+        palette = textEdit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        textEdit.setPalette(palette)
         textEdit.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
 
         tab_widget = QWidget()
@@ -169,17 +174,22 @@ class Ui_MessageWidget(object):
         # Create search input
         textEdit_label = QLineEdit()
         textEdit_label.setPlaceholderText("关键词+回车搜索，空+回车复原")
+        palette = textEdit_label.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        textEdit_label.setPalette(palette)
         textEdit_label.setToolTip("关键字以+++开头表示在搜索结果中继续搜索")
-        tab_widget_label = QWidget()
-        self.tab_chat_list_label = ChatListLabel(self, self.ai_chat_cfg)
-        self.tab_chat_list_label.setObjectName("chat_list_label")
-        self.tabLayout_chat_list_label = QVBoxLayout(tab_widget_label)
-        self.tabLayout_chat_list_label.addWidget(textEdit_label)
-        self.tabLayout_chat_list_label.addWidget(self.tab_chat_list_label)
-        self.tabLayout_chat_list_label.setContentsMargins(5, 5, 5, 5)
-        # Connect returnPressed signal to search function
-        textEdit_label.returnPressed.connect(lambda: self.tab_chat_list_label.search(textEdit_label.text()))
-        self.tabWidget.addTab(tab_widget_label, "聊天标签")
+
+
+        # tab_widget_label = QWidget()
+        # self.tab_chat_list_label = ChatListLabel(self, self.ai_chat_cfg)
+        # self.tab_chat_list_label.setObjectName("chat_list_label")
+        # self.tabLayout_chat_list_label = QVBoxLayout(tab_widget_label)
+        # self.tabLayout_chat_list_label.addWidget(textEdit_label)
+        # self.tabLayout_chat_list_label.addWidget(self.tab_chat_list_label)
+        # self.tabLayout_chat_list_label.setContentsMargins(5, 5, 5, 5)
+        # # Connect returnPressed signal to search function
+        # textEdit_label.returnPressed.connect(lambda: self.tab_chat_list_label.search(textEdit_label.text()))
+        # self.tabWidget.addTab(tab_widget_label, "聊天标签")
 
         self.splitter.setSizes([1, ])  # 设置初始状态不显示输出窗口
 
@@ -188,7 +198,7 @@ class Ui_MessageWidget(object):
         self.hboxlayout = QtWidgets.QHBoxLayout()
         self.hboxlayout.setObjectName("hboxlayout")
 
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.hboxlayout.addItem(spacerItem)
 
         self.fontButton = QtWidgets.QPushButton(MessageWidget)
@@ -201,7 +211,8 @@ class Ui_MessageWidget(object):
         self.videoButton.setObjectName("videoButton")
         self.hboxlayout.addWidget(self.videoButton)
 
-        self.humantakeoverCheckBox = QCheckBox("人类接管聊天")
+        self.humantakeoverCheckBox = QCheckBox(lt("Human take control",
+                                                  "人类接管聊天"))
         self.humantakeoverCheckBox.setObjectName("humantakeoverCheckBox")
         self.hboxlayout.addWidget(self.humantakeoverCheckBox)
 
@@ -211,7 +222,7 @@ class Ui_MessageWidget(object):
         self.output_checkbox.setChecked(False)
         self.hboxlayout.addWidget(self.output_checkbox)
 
-        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum)
         self.hboxlayout.addItem(spacerItem1)
         self.vboxlayout.addLayout(self.hboxlayout)
 
@@ -287,7 +298,11 @@ class Ui_MessageWidget(object):
         # self.output_webview.page().load(mind_url_string)
         print("url_string:", url_string)
 
-        self.messageBrowser.page().load(url_string)
+        qurl_remote_url = QUrl(
+            "http://localhost:8900/scripts/aichatmessagepage.html")
+
+        # self.messageBrowser.page().load(url_string)
+        self.messageBrowser.page().load(qurl_remote_url)
         global channel
         global message_handler
         channel = QWebChannel()
@@ -299,8 +314,8 @@ class Ui_MessageWidget(object):
         # self.messageBrowser.page().setWebChannel(channel)
         self.messageBrowser.page().setWebChannel(channel)
 
-        self.fontButton.setText(QtCore.QCoreApplication.translate("MessageWidget", "表情", None))
-        self.videoButton.setText(QtCore.QCoreApplication.translate("MessageWidget", "附件", None))
-        self.sendButton.setText(QtCore.QCoreApplication.translate("MessageWidget", "发送", None))
+        self.fontButton.setText(QtCore.QCoreApplication.translate("MessageWidget", lt("Emoji","表情"), None))
+        self.videoButton.setText(QtCore.QCoreApplication.translate("MessageWidget", lt("Attachment","附件"), None))
+        self.sendButton.setText(QtCore.QCoreApplication.translate("MessageWidget", lt("Send","发送"), None))
         # self.sendButton.setShortcut(QtCore.QCoreApplication.translate("MessageWidget", "Return", None))
-        self.sendButton.setShortcut(QtGui.QKeySequence(Qt.ControlModifier + Qt.Key_Return))
+        self.sendButton.setShortcut(QtGui.QKeySequence(Qt.KeyboardModifier.ControlModifier | Qt.Key.Key_Return))

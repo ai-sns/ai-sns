@@ -1,13 +1,13 @@
 import json
 import os
 from datetime import datetime
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox, QInputDialog, \
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox, QInputDialog, \
     QTreeWidgetItemIterator
-from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtCore import Qt, QPoint
+from PyQt6.QtGui import QIcon, QPixmap, QAction
+from PyQt6.QtCore import Qt, QPoint
 
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 
 from NoteList import NoteList
 from db.DBFactory import query_AgentTask, query_AgentTask_Search_Content, update_note_mng_by_recordid, \
@@ -20,7 +20,7 @@ from util import generate_random_id, add_msg_to_message_window, get_user_ask_msg
     add_agent_reply_msg_to_message_window, add_msg_to_message_window_with_markdown_and_highlight, \
     get_content_from_attachment_content_list, add_attachment_to_message_window
 from langchainhandler import savevector, delete_vector
-
+from i18n import lt
 
 class NoteListLabel(NoteList):
     """TaskList implements the view in a Tree of the Roster"""
@@ -30,6 +30,7 @@ class NoteListLabel(NoteList):
     def __init__(self, parent, km_cfg, type_str):
 
         super(NoteListLabel, self).__init__(parent, km_cfg, type_str)
+        self.setHeaderLabel(lt("Tag List", "标签列表")) #继承的需要改标题
 
     # --> 加载 数据
     def load_data(self):
@@ -57,14 +58,14 @@ class NoteListLabel(NoteList):
             if icon == True:
                 top_item.setIcon(0, self.stick_icon)  # 设置第一列的图标
             top_item.setToolTip(0, name)
-            top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+            top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
             top_item.setTextAlignment(0, 0)
             self.expandAll()
 
     def reload(self, key_word=""):
         self.clear()
 
-        self.setHeaderLabel("笔记列表")  # 需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Tag List","标签列表"))  # 需要设置此处的值，否则缺省值为1
         self.buddies = {}
         self.groups = {}
         self.tree = {}

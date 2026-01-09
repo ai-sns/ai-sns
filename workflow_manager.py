@@ -1,33 +1,37 @@
 import sys
 import os
 import datetime
-from PyQt5.QtWidgets import (
+
+from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QTableWidget,
-    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QCheckBox, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QComboBox
+    QTableWidgetItem, QPushButton, QFileDialog, QMessageBox, QHeaderView, QCheckBox, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QComboBox, QAbstractItemView
 )
-from PyQt5.QtCore import Qt
+from PyQt6.QtCore import Qt
 from workflow_design import WorkFlowDesign
 from db.DBFactory import query_workflow_mng_all,delete_workflow_mng,copy_workflow,query_AgentCfg_All
 from util import generate_random_id
 from globals import global_agent_list
 from TaskPage import TaskPage
+from i18n import lt
 
-
+from PyQt6.QtWidgets import QApplication, QDialog, QMenu, QTableView, QVBoxLayout, QAbstractItemView, QDialogButtonBox, QMessageBox, QCheckBox, QWidget
+from PyQt6.QtGui import QStandardItem, QStandardItemModel, QIcon, QAction
 class WorkFlowManager(QWidget):
-    def __init__(self, workflow_tags=""):
+    def __init__(self, instruction=""):
         super().__init__()
         self.workflow_id = ""
         self.workflow_name = ""
         self.taskpage = None
         self.app = None
 
-        self.workflow_tags = workflow_tags
-        if workflow_tags:
-            self.records = query_workflow_mng_all(workflow_tags=workflow_tags)
+        self.instruction = instruction
+        if instruction:
+            self.records = query_workflow_mng_all(instruction=instruction)
         else:
             self.records = query_workflow_mng_all()
 
-        self.setWindowTitle("工作流管理器")
+        self.setWindowTitle(lt("WorkFlow Management","工作流管理器"))
         self.setGeometry(100, 100, 800, 400)
 
         # 创建布局和控件
@@ -35,12 +39,12 @@ class WorkFlowManager(QWidget):
         self.file_table = QTableWidget(0, 5)  # 创建一个5列的表格，包括复选框和隐藏列
 
         # 设置列标签
-        self.file_table.setHorizontalHeaderLabels(["选择", "标题", "说明", "标签", "编辑时间"])
+        self.file_table.setHorizontalHeaderLabels([lt("Select","选择"), lt("Title","标题"), lt("Desc","说明"), lt("Instruction","指令"), lt("Modified","编辑时间")])
 
         # 设置选择行为为选中整行
-        self.file_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.file_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         # 设置表格不可编辑
-        self.file_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.file_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         # 连接双击事件
         self.file_table.itemDoubleClicked.connect(self.open_file)
 
@@ -49,23 +53,26 @@ class WorkFlowManager(QWidget):
         # 创建按钮布局，用于放置全选复选框和操作按钮
         button_layout = QHBoxLayout()
 
-        self.select_all_checkbox = QCheckBox("全选")
+        self.select_all_checkbox = QCheckBox(lt("All","全选"))
         self.select_all_checkbox.stateChanged.connect(self.toggle_select_all)
 
         # 创建 QLineEdit 实例，用于输入搜索关键词
         self.searchLineEdit = QLineEdit(self)
         #"Search in Title..."
-        self.searchLineEdit.setPlaceholderText("搜索...")
+        self.searchLineEdit.setPlaceholderText(lt("Search...","搜索..."))
+        palette = self.searchLineEdit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.searchLineEdit.setPalette(palette)
         self.searchLineEdit.setFixedWidth(400)  # 设置固定宽度为150像素
         # 或者使用最小宽度
         #self.searchLineEdit.setMinimumWidth(100)  # 设置最小宽度为100像素
         self.searchLineEdit.textChanged.connect(self.filterTable)
 
-        self.add_button = QPushButton("新增")
-        self.run_button = QPushButton("运行")
-        self.copy_button = QPushButton("拷贝")
-        self.delete_button = QPushButton("删除")
-        self.reload_button = QPushButton("刷新")
+        self.add_button = QPushButton(lt("New","新增"))
+        self.run_button = QPushButton(lt("Run","运行"))
+        self.copy_button = QPushButton(lt("Copy","拷贝"))
+        self.delete_button = QPushButton(lt("Delete","删除"))
+        self.reload_button = QPushButton(lt("Refresh","刷新"))
         self.add_button.clicked.connect(self.add_file)
         self.run_button.clicked.connect(self.run_workflow)
         self.copy_button.clicked.connect(self.copy_flow)
@@ -90,13 +97,19 @@ class WorkFlowManager(QWidget):
 
         # 使表格铺满窗口
         self.file_table.horizontalHeader().setStretchLastSection(True)
-        # self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         # 允许用户手动调整列宽
-        self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
 
         # 调整列宽
         self.adjust_column_widths()
         self.add_records()
+
+
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.showContextMenu)
+        self.file_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.workflow_design = None
 
     def reload(self):
         # 使用 clearContents() 方法清空所有单元格的内容
@@ -105,28 +118,46 @@ class WorkFlowManager(QWidget):
         # 使用 setRowCount(0) 方法设置行数为 0，删除所有行
         self.file_table.setRowCount(0)
 
-        workflow_tags = self.workflow_tags
-        if workflow_tags:
-            self.records = query_workflow_mng_all(workflow_tags=workflow_tags)
+        instruction = self.instruction
+        if instruction:
+            self.records = query_workflow_mng_all(instruction=instruction)
         else:
             self.records = query_workflow_mng_all()
 
         self.add_records()
 
+    def showContextMenu(self, pos):
+            selected_rows = self.file_table.selectionModel().selectedRows()
+
+            if selected_rows:
+                menu = QMenu(self)
+                actions = [(lt("Run", "运行"), self.run_workflow),
+                           (lt("Copy", "拷贝"), self.copy_flow),
+                           (lt("Delete", "删除"), self.delete_file)]
+
+                for action_text, action_method in actions:
+                    action = QAction(action_text, self)
+                    action.triggered.connect(action_method)
+                    menu.addAction(action)
+
+                menu.exec(self.mapToGlobal(pos))
+
+
 
     def adjust_column_widths(self):
         """调整列宽，确保列宽为整数"""
-        total_width = self.file_table.viewport().width()
+        total_width = self.width()
+        # print(self.width())
         if total_width <= 0:
             return
 
         # 设置列宽，确保使用整数
         self.file_table.setColumnWidth(0, 50)  # 选择列宽
-        self.file_table.setColumnWidth(1, int(total_width * 0.4))  # 标题列宽
-        self.file_table.setColumnWidth(2, int(total_width * 0.2))  # 说明列宽
-        self.file_table.setColumnWidth(3, int(total_width * 0.2))  # 类型列宽
+        self.file_table.setColumnWidth(1, int(total_width * 0.3))  # 标题列宽
+        self.file_table.setColumnWidth(2, int(total_width * 0.5))  # 说明列宽
+        self.file_table.setColumnWidth(3, int(total_width * 0.15))  # 类型列宽
 
-        self.file_table.setColumnWidth(4, int(total_width * 0.2))  # 编辑时间列宽
+        self.file_table.setColumnWidth(4, 180)  # 编辑时间列宽
         # self.file_table.setColumnWidth(5, 0)  # 编辑时间列宽
 
     def add_records(self):
@@ -138,8 +169,8 @@ class WorkFlowManager(QWidget):
 
             # 在第一列添加复选框
             checkbox_item = QTableWidgetItem()
-            checkbox_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            checkbox_item.setCheckState(Qt.Unchecked)
+            checkbox_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable |  Qt.ItemFlag.ItemIsEnabled)
+            checkbox_item.setCheckState(Qt.CheckState.Unchecked)
             self.file_table.setItem(row_position, 0, checkbox_item)
 
             # 创建 QTableWidgetItem 实例
@@ -147,13 +178,13 @@ class WorkFlowManager(QWidget):
             # 将文本值设置为单元格显示的内容
             item.setText(record.title)
             # 将数据值设置为单元格的内部数据
-            item.setData(Qt.UserRole, record.workflow_id)  # 使用 Qt.UserRole 存储自定义数据
+            item.setData(Qt.ItemDataRole.UserRole, record.workflow_id)  # 使用 Qt.ItemDataRole.UserRole 存储自定义数据
             # 设置单元格的项
 
             self.file_table.setItem(row_position, 1, item)  # 标题
             self.file_table.setItem(row_position, 2, QTableWidgetItem(record.description))  # 说明
-            self.file_table.setItem(row_position, 3, QTableWidgetItem(record.workflow_tags))  # 类型
-            self.file_table.setItem(row_position, 4, QTableWidgetItem(str(record.create_time)))  # 编辑时间
+            self.file_table.setItem(row_position, 3, QTableWidgetItem(record.instruction))  # 类型
+            self.file_table.setItem(row_position, 4, QTableWidgetItem(((record.create_time).strftime('%Y-%m-%d %H:%M:%S'))))  # 编辑时间
 
         self.file_table.setSortingEnabled(True)
 
@@ -161,7 +192,7 @@ class WorkFlowManager(QWidget):
         """全选或全不选复选框的状态改变时执行"""
         for row in range(self.file_table.rowCount()):
             checkbox_item = self.file_table.item(row, 0)
-            checkbox_item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+            checkbox_item.setCheckState(Qt.CheckState.Checked if state == Qt.CheckState.Checked.value else Qt.CheckState.Unchecked)
 
     def filterTable(self, text):
         # 根据输入框的内容过滤表格项的标题列
@@ -171,10 +202,24 @@ class WorkFlowManager(QWidget):
                 self.file_table.setRowHidden(row, text not in item.text())
 
     def add_file(self):
-        fun_dialog = WorkFlowDesign(self,"","")
-        fun_dialog.setObjectName("workflowdesign")
-        self.parent().addWidget(fun_dialog)
-        self.parent().setCurrentWidget(fun_dialog)
+        if not self.workflow_design:
+            self.workflow_design = WorkFlowDesign(self,"","")
+            self.workflow_design.setObjectName("workflowdesign")
+            self.parent().addWidget(self.workflow_design)
+            self.parent().setCurrentWidget(self.workflow_design)
+        else:
+            self.parent().setCurrentWidget(self.workflow_design)
+            self.workflow_design.workflow_id = ""
+            self.workflow_design.workflow_title = ""
+            self.workflow_design.workflow_description = ""
+            self.workflow_design.instruction = ""
+            self.workflow_design.timer_desc = ""
+            self.workflow_design.timer_cron = ""
+            self.workflow_design.run_agent_name = ""
+            self.workflow_design.run_agent_id = ""
+            self.workflow_design.onLoadFinished()
+
+
 
 
     def run_workflow(self):
@@ -184,13 +229,13 @@ class WorkFlowManager(QWidget):
             for row in reversed(rows_selected):
                 item = self.file_table.item(row, 1)
                 if item:
-                    workflow_id = item.data(Qt.UserRole)  # 使用 Qt.UserRole 获取数据
+                    workflow_id = item.data(Qt.ItemDataRole.UserRole)  # 使用 Qt.ItemDataRole.UserRole 获取数据
                     self.workflow_id=workflow_id
                     print(workflow_id)
 
                 name_item = self.file_table.item(row, 1)
                 if name_item:
-                    name = name_item.text()  # 使用 Qt.UserRole 获取数据
+                    name = name_item.text()  # 使用 Qt.ItemDataRole.UserRole 获取数据
                     print(name)
                     self.workflow_name = name
 
@@ -227,8 +272,8 @@ class WorkFlowManager(QWidget):
         button_layout.addStretch(1)
 
         # 创建确定和取消按钮
-        ok_button = QPushButton("确定")
-        cancel_button = QPushButton("取消")
+        ok_button = QPushButton(lt("OK","确定"))
+        cancel_button = QPushButton(lt("Cancel","取消"))
 
         # 连接按钮事件
         ok_button.clicked.connect(transfer_dialog.accept)
@@ -245,10 +290,10 @@ class WorkFlowManager(QWidget):
 
         self.app = self.parent().parent().parent()
         # 显示对话框并处理结果
-        if transfer_dialog.exec_():
+        if transfer_dialog.exec():
             agent_id = transfer_dialog.comboBox.currentData()
             agent_name = transfer_dialog.comboBox.currentText()
-            self.app.ShowAiAssistantStack()
+            self.app.show_agent_toolbox_stack()
 
             agent_item = self.app.toolBox_AgentChat.findChild(QWidget, agent_id)
 
@@ -286,7 +331,7 @@ class WorkFlowManager(QWidget):
 
     def copy_flow(self):
         """删除所选文件"""
-        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.Checked]
+        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.CheckState.Checked]
         if not selected_rows:
             QMessageBox.warning(self, "警告", "请先选择一个文件进行复制。")
             return
@@ -295,7 +340,7 @@ class WorkFlowManager(QWidget):
 
             item = self.file_table.item(row, 1)
             if item:
-                workflow_id = item.data(Qt.UserRole)  # 使用 Qt.UserRole 获取数据
+                workflow_id = item.data(Qt.ItemDataRole.UserRole)  # 使用 Qt.ItemDataRole.UserRole 获取数据
                 new_workflow_id = generate_random_id()
                 copy_workflow(workflow_id,new_workflow_id)
 
@@ -304,7 +349,7 @@ class WorkFlowManager(QWidget):
 
     def delete_file(self):
         """删除所选文件"""
-        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.Checked]
+        selected_rows = [row for row in range(self.file_table.rowCount()) if self.file_table.item(row, 0).checkState() == Qt.CheckState.Checked]
         if not selected_rows:
             QMessageBox.warning(self, "警告", "请先选择一个文件进行删除。")
             return
@@ -320,7 +365,7 @@ class WorkFlowManager(QWidget):
 
             item = self.file_table.item(row, 1)
             if item:
-                workflow_id = item.data(Qt.UserRole)  # 使用 Qt.UserRole 获取数据
+                workflow_id = item.data(Qt.ItemDataRole.UserRole)  # 使用 Qt.ItemDataRole.UserRole 获取数据
 
             delete_workflow_mng(workflow_id=workflow_id)
 
@@ -344,15 +389,24 @@ class WorkFlowManager(QWidget):
             # 获取文本值
             workflow_title = item.text()
             # 获取数据值
-            workflow_id = item.data(Qt.UserRole)  # 使用 Qt.UserRole 获取数据
+            workflow_id = item.data(Qt.ItemDataRole.UserRole)  # 使用 Qt.ItemDataRole.UserRole 获取数据
 
         print("workflow_name", workflow_title)
         print("workflow_id",workflow_id)
         # os.startfile(file_path)  # 在 Windows 上打开文件
-        fun_dialog = WorkFlowDesign(self,workflow_id,workflow_title)
-        fun_dialog.setObjectName("workflowdesign")
-        self.parent().addWidget(fun_dialog)
-        self.parent().setCurrentWidget(fun_dialog)
+        if not self.workflow_design:
+            self.workflow_design = WorkFlowDesign(self,workflow_id,workflow_title)
+            self.workflow_design.setObjectName("workflowdesign")
+            self.parent().addWidget(self.workflow_design)
+            self.parent().setCurrentWidget(self.workflow_design)
+        else:
+            # self.parent().addWidget(self.workflow_design)
+            self.parent().setCurrentWidget(self.workflow_design)
+            self.workflow_design.workflow_id = workflow_id
+            self.workflow_design.workflow_title = workflow_title
+
+            self.workflow_design.onLoadFinished()
+            # self.workflow_design.load_workflow()
 
     def get_file_info(self, file_path):
         """获取文件的详细信息"""
@@ -376,4 +430,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     file_manager = WorkFlowManager()
     file_manager.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

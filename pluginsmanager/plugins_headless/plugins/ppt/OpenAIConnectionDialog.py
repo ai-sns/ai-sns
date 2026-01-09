@@ -2,14 +2,14 @@ import sys
 import json
 import os
 import yaml
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QGroupBox, QGridLayout,
     QLabel, QLineEdit, QCheckBox, QSlider, QTextEdit,
     QDialogButtonBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QSettings
-from PyQt5.QtGui import QIcon
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6.QtCore import Qt, pyqtSignal, QSettings
+from PyQt6.QtGui import QIcon
+from PyQt6 import QtCore, QtGui, QtWidgets
 from .ui_OpenAIConnectionDialog import ui_OpenAIConnectionDialog
 sys.path.append("..")
 sys.path.append("../..")
@@ -34,6 +34,8 @@ class OpenAIConnectionDialog(QDialog, ui_OpenAIConnectionDialog):
 
             self.description_textedit.setPlainText(self.record.description)
             self.instruction_edit.setText(self.record.instruction)
+            self.arguments_textedit.setPlainText(self.record.detail)
+            self.sns_check.setChecked(self.record.used_in_sns)
 
             file_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
             with open(file_path, "r") as f:
@@ -57,7 +59,8 @@ class OpenAIConnectionDialog(QDialog, ui_OpenAIConnectionDialog):
         id = self.record.id
         description=self.description_textedit.toPlainText()
         instruction=self.instruction_edit.text()
-        update_PluginMng(id,description=description,instruction=instruction)
+        detail = self.arguments_textedit.toPlainText()
+        update_PluginMng(id, description=description, instruction=instruction, detail=detail, used_in_sns=self.sns_check.isChecked())
 
         config = {
             "url": self.url_edit.text(),

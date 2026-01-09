@@ -117,13 +117,14 @@ readyplayer.me
 https://demo.readyplayer.me/avatar?id=675fd1d74e9d591d3885e975
 https://models.readyplayer.me/675fd1d74e9d591d3885e975.glb   在线引用？？？
 数字人
-ReadyPlayerMe -- Talking Animation (viseni.com)
+ReadyPlayerMe -- Talking Animation (viseni.com) 重点
 ReadyPlayerMe Avatar -- Talking Animation (Morph Targets) - Tutorials and tips - Babylon.js (babylonjs.com)
 https://forum.babylonjs.com/t/readyplayerme-avatar-talking-animation-morph-targets/42387
 https://forum.babylonjs.com/t/readyplayerme-avatar-talking-animation-morph-targets/42387
 crazyramirez/readyplayer-talk: Babylon JS & ReadyPlayerMe -- Demo Talking Animation (github.com)
 crazyramirez/readyplayer-talk: Babylon JS & ReadyPlayerMe -- Demo Talking Animation (github.com)
 https://github.com/crazyramirez/readyplayer-talk
+ReadyPlayerMe -- Talking Animation (viseni.com) 
 数字人系列二：ReadyPlayerMe网站生成的数字人导入Unity环境使用_unity 根据图片生成数字人-CSDN博客
 https://blog.csdn.net/u011785316/article/details/131849694
 面部动画不可能 - 一般 - Ready Player Me 开发者论坛 --- Facial animation impossible - General - Ready Player Me Developer ForumsUnity 上的面部动画 - Unity - Ready Player Me 开发者论坛 --- Facial animation on Unity - Unity - Ready Player Me Developer Forums
@@ -144,6 +145,7 @@ blender·骨骼控制切换卡通表情教程_哔哩哔哩_bilibili
 https://www.youtube.com/watch?v=EzzcEL_1o9o
 https://www.youtube.com/watch?v=EzzcEL_1o9o重点
 https://www.youtube.com/watch?v=yjpGVIe_Gy8
+three.js webgl - morph targets - face (threejs.org) 脸部控制
 
 https://www.fab.com/
 How to Create an Interactive 3D Character with Three.js
@@ -157,6 +159,36 @@ glTF Viewer (donmccurdy.com)
 Babylon.js - player.glb (babylonjs.com)
 
 Custom 3D Facial Expression | Character Creator (reallusion.com)
+https://forum.readyplayer.me/t/guide-blendshapes-morph-targets-and-shape-keys/222
+https://3dpk.co.uk/morphtargets/
+https://threejs.org/examples/webgl_morphtargets_face
+
+https://threejs.org/examples/?q=morph#webgl_animation_skinning_morph
+机器人，各种动作
+
+https://blog.csdn.net/2305_79769490/article/details/144225717
+3d数字人详细步骤
+
+重点
+https://avatarview.netlify.app/
+https://medium.com/@israr46ansari/integrating-a-ready-player-me-3d-model-with-lipsyncing-in-react-for-beginners-af5b0c4977cd 
+Animaze Manual - Learn how to use Animaze by Facerig 
+IsrarAnsari01/avatar (github.com) 
+Lip Sync - React Three Fiber Tutorial - YouTube 
+Oculus OVR LipSync | Ready Player Me 
+https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png 
+重点上面的链接将带有嘴型
+https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png
+https://models.readyplayer.me/65a8dba831b23abb4f401bae.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png
+ https://avatarview.netlify.app/
+https://medium.com/@israr46ansari/integrating-a-ready-player-me-3d-model-with-lipsyncing-in-react-for-beginners-af5b0c4977cd 
+IsrarAnsari01/avatar (github.com)  
+met4citizen/TalkingHead at ef8edcbe79ac9a4be2959a04098ef35634bfcad0 (github.com)  
+Talking Head (3D) | AI-Controlled Moves - YouTube 
+Talking Head (3D) demo - YouTube 
+Talking Head (3D) demo - YouTube 
+例程
+
 
 公仔动画系列 说话 开口 模型 嘴巴 脸部动画
 https://sketchfab.com/sakuramoto/collections/roleplay-79296dcc1b3b41a3954897e6d5bd071c
@@ -168,3 +200,51 @@ https://sketchfab.com/3d-models/zelensky-hero-0a7af1a6b9b3457b9f21f19f79487457  
 天空盒
 Resting Place HDRI • Poly Haven
 https://www.tripo3d.ai/ 图片生成3d
+alloy-voice-assistant  gpt-4o复现
+https://github.com/svpino/alloy-voice-assistant/blob/main/assistant.py
+手绘风格流程图，手绘 流程图 workflow
+https://github.com/towersxu/draft-flow?tab=readme-ov-file
+基于LogicFlow和rough.js实现的手绘风格流程图。
+https://github.com/hlf20010508/gpts-code-analyst
+github代码分析 github代码阅读 阅读github
+https://chatgpt.com/g/g-KgRSRVuUn-code-analyst/c/d6209746-1188-4533-a1f8-dd66435af308
+https://chatgpt.com/g/g-KgRSRVuUn-code-analyst/c/d6209746-1188-4533-a1f8-dd66435af308
+https://chatgpt.com/g/g-JDon1J4Ww-ai-code-analyzer
+Code Analyst 
+https://github.com/hlf20010508/gpts-code-analyst 
+https://chat.openai.com/g/g-KgRSRVuUn-code-analyst 
+代码分析 代码阅读 github代码 github代码分析 github代码阅读
+
+机制图 sci机制图
+https://chatgpt.com/g/g-682c057563bc8191a43ec7955eae307a-sci-mechanism-diagram-generator 
+
+
+svg教程
+https://www.ruanyifeng.com/blog/2018/08/svg.html 
+手绘素材库
+https://excalidraw.com/
+https://github.com/rough-stuff/rough
+https://glitch.com/
+https://glitch.com/edit/#!/nervous-sandy-papaya?path=index.html%3A1%3A0
+diagrams
+https://sspai.com/post/80459
+https://github.com/ruanyf/weekly/issues/1501
+https://glitch.com/
+https://github.com/jingyaogong/minimind
+https://github.com/jingyaogong/minimind 
+https://pipipi-pikachu.github.io/PPTist/
+开源在线ppt
+
+qiniu,对应两个不同手机的微信号，302和3092两手机
+sk-b32f0b36c6bebeeeb228402329a3c5397d3f4154dc41f74a0d1a176d84d5cfec
+sk-36ea24275d53ce3caf6a0cf06556d8e01756e819a93269e7c66357b78043d5fd
+
+deepseek-chat
+deepseek-reasoner 
+emoji
+🧑 People Emoji List - All People, Gesture & Body Emojis (emojipedia.org) 
+https://www.emojiall.com/zh-hans/all-emojis?type=normal 
+readdy.ai
+https://readdy.ai/pricing 
+https://github.com/TencentEdgeOne/edgeone-pages-mcp 
+https://zread.ai/private/repo 仓库索引

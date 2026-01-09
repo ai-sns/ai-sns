@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+    <link rel="stylesheet" href="css/font_awesome.css">
+    <link rel="stylesheet" href="css/mainpage.css?002">
+    <link rel="stylesheet" href="css/function_component.css?002">
+    <link rel="stylesheet" href="css/indicator.css?001">
+    <link rel="stylesheet" href="css/plaza_message.css?001">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDPXsp-NFBn5AvyaYn71u4m3fgblsUjR8Y&callback=initMap&v=weekly&libraries=geometry" defer></script>
+    <script src="js/google/three.min.js"></script>
+    <script src="js/google/GLTFLoader.js"></script>
+    <script src="js/google/SkeletonUtils.js"></script>
+    <script src="js/google/v3_epoly.js" defer></script>
+    <script src="js/google/index.min.js"></script>
+    <script src="js/google/markerclustererplus.min.js"></script>
+    <script src="qwebchannel.js"></script>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="info" style="display: none">
+    <p class="info_title" id="info_title">All message</p>
+    <span class="close_btn" onclick="close_info_list()">×</span>
+    <ul id="info_list">
+
+    </ul>
+</div>
+<div id="info_chat" style="display: none">
+    <p class="info_title" id="info_title_chat">Chat messages</p>
+    <span class="close_btn" onclick="close_info_list_chat()">×</span>
+    <ul id="info_list_chat">
+
+    </ul>
+</div>
+<div id='setinitposition' style="display: none">
+    地址: <input id="address" type="text" value="复旦大学" placeholder="查询后可移动位置图标调整位置"/>
+    <button onclick="queryAddress()"/>
+    查询</button>
+    <button onclick="closeAddressSetting()"/>
+    关闭</button>
+</div>
+<div id="setroute" style="display: none; font-size: 14px; margin-top: 10px;">
+    <div style="display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; background: #f7f7f7; padding: 10px 12px; border-radius: 8px; border: 1px solid #ddd;">
+
+        <label for="start" style="color:black;font-weight: 500; margin-top: 5px;">起点:</label>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <input id="start" value="New York" type="text"
+                placeholder="路线规划后可移动位置图标调整位置"
+                style="height: 32px; width: 180px; border: 1px solid #ccc; border-radius: 5px; padding: 0 8px; outline: none;"
+                onfocus="this.style.borderColor='#409EFF'; this.style.boxShadow='0 0 3px rgba(64,158,255,0.5)';"
+                onblur="this.style.borderColor='#ccc'; this.style.boxShadow='none';" />
+            <div id="start_coord_link"
+                style="display: none; margin-top: 3px; font-size: 12px; text-align: center;">
+                <a href="javascript:void(0)" id="start_coord_link_element"
+                    onclick="startCoordinateCapture('start')"
+                    style="text-decoration: underline; color: #007bff; cursor: pointer;"
+                    onmouseover="this.style.color='#0056b3';"
+                    onmouseout="this.style.color='#007bff';">
+                    点此获取坐标
+                </a>
+            </div>
+        </div>
+
+        <label for="end" style="color:black;font-weight: 500; margin-top: 5px;">终点:</label>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <input id="end" value="Washington" type="text"
+                placeholder="路线规划后可移动位置图标调整位置"
+                style="height: 32px; width: 180px; border: 1px solid #ccc; border-radius: 5px; padding: 0 8px; outline: none;"
+                onfocus="this.style.borderColor='#409EFF'; this.style.boxShadow='0 0 3px rgba(64,158,255,0.5)';"
+                onblur="this.style.borderColor='#ccc'; this.style.boxShadow='none';" />
+            <div id="end_coord_link"
+                style="display: none; margin-top: 3px; font-size: 12px; text-align: center;">
+                <a href="javascript:void(0)" id="end_coord_link_element"
+                    onclick="startCoordinateCapture('end')"
+                    style="text-decoration: underline; color: #007bff; cursor: pointer;"
+                    onmouseover="this.style.color='#0056b3';"
+                    onmouseout="this.style.color='#007bff';">
+                    点此获取坐标
+                </a>
+            </div>
+        </div>
+
+        <select id="position_type"
+            style="height: 34px; border-radius: 5px; border: 1px solid #ccc; background: white; cursor: pointer; font-size: 14px; padding: 0 10px;">
+            <option value="address">地址</option>
+            <option value="coordinates">坐标</option>
+        </select>
+
+        <!-- 蓝色主按钮 -->
+        <button onclick="planRoute()"
+            style="height: 34px; border-radius: 5px; border: none; background: #409EFF; color: white; cursor: pointer; font-size: 14px; padding: 0 12px;"
+            onmouseover="this.style.background='#66b1ff';"
+            onmouseout="this.style.background='#409EFF';">确定</button>
+
+        <!-- 灰色次按钮 -->
+        <button onclick="startTrack()"
+            style="height: 34px; border-radius: 5px; border: none; background: #e0e0e0; color: #333; cursor: pointer; font-size: 14px; padding: 0 12px; display:none;"
+            onmouseover="this.style.background='#d5d5d5';"
+            onmouseout="this.style.background='#e0e0e0';">轨迹模拟</button>
+
+        <button onclick="stopTrack()"
+            style="height: 34px; border-radius: 5px; border: none; background: #e0e0e0; color: #333; cursor: pointer; font-size: 14px; padding: 0 12px; display:none;"
+            onmouseover="this.style.background='#d5d5d5';"
+            onmouseout="this.style.background='#e0e0e0';">清除路线</button>
+
+        <!-- 改为蓝色主按钮 -->
+        <button onclick="viewRoute()"
+            style="height: 34px; border-radius: 5px; border: none; background: #409EFF; color: white; cursor: pointer; font-size: 14px; padding: 0 12px; display:none;"
+            onmouseover="this.style.background='#66b1ff';"
+            onmouseout="this.style.background='#409EFF';">查看</button>
+
+        <button onclick="resetRoute()"
+            style="height: 34px; border-radius: 5px; border: none; background: #409EFF; color: white; cursor: pointer; font-size: 14px; padding: 0 12px; display:none;"
+            onmouseover="this.style.background='#66b1ff';"
+            onmouseout="this.style.background='#409EFF';">重设</button>
+
+        <!-- 灰色关闭按钮 -->
+        <button onclick="closeRouteSetting()"
+            style="height: 34px; border-radius: 5px; border: none; background: #e0e0e0; color: #333; cursor: pointer; font-size: 14px; padding: 0 12px;"
+            onmouseover="this.style.background='#d5d5d5';"
+            onmouseout="this.style.background='#e0e0e0';">关闭</button>
+
+    </div>
+</div>
+<div id="sethomeposition" style="display: none;">
+    <div class="sethomeposition-container">
+
+        <label for="home_address">地址:</label>
+        <div class="input-group">
+            <div style="display: flex; align-items: center;">
+                <input id="home_address" type="text" value="" placeholder="住址的地理位置坐标" class="form-input" style="border-radius: 5px 0 0 5px;" title="住址的地理位置坐标"/>
+                <a href="javascript:void(0)" id="home_address_coord_link_element" class="coord-link">
+                    点此获取坐标
+                </a>
+            </div>
+        </div>
+
+        <label for="home_scale">倍数:</label>
+        <input id="home_scale" type="text" value="" placeholder="放缩倍数" class="form-input" title="模型的放缩倍数"/>
+
+        <label for="home_rotation">旋转:</label>
+        <input id="home_rotation" type="text" value="" placeholder="x,y,z旋转度数" class="form-input" title="请输入模型x,y,z三个方向的旋转度数"/>
+
+        <!-- 蓝色主按钮 -->
+        <button onclick="updateHomePosition()" class="btn-primary">确定</button>
+
+        <!-- 灰色关闭按钮 -->
+        <button onclick="closeHomePositionSetting()" class="btn-secondary">关闭</button>
+
+    </div>
+</div>
+<div id="myAlert">
+    <span class="alert-close-btn" onclick="hideAlert()">&times;</span>  <!-- Close button -->
+    <span id="alertMessage"></span> <!-- Placeholder for dynamic message -->
+</div>
+<div class="status-indicator" aria-live="polite">
+    <div class="status-bubble">
+        <span class="status-text">Thinking</span>
+        <div class="activity-indicator thinking">
+            <div class="dots-container">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 顶部导航栏 -->
+<div class="top-bar">
+    <div class="logo">AI-SNS</div>
+    <div class="top-buttons">
+
+        <div class="top-btn" title="Notification" style="display:none" id="system_info_btn">
+            <i class="fas fa-bell" onclick="show_inform_message_in_info_list()"></i>
+        </div>
+
+        <div class="top-btn" title="Chat message" style="display:none" id="message_btn">
+            <i class="fas fa-comment-alt" onclick="show_talk_message_in_info_list()"></i>
+        </div>
+
+        <div class="top-btn" title="setting" style="display:none">
+            <i class="fas fa-cog" onclick="setInitPosition()"></i>
+        </div>
+
+
+
+        <div class="top-btn" title="refresh">
+            <i class="fas fa-refresh" onclick="refresh()"></i>
+        </div>
+
+
+        <div class="top-btn" title="maximize"  id="maximize">
+            <i class="fas fa-maximize" onclick="Maximize()"></i>
+        </div>
+
+        <div class="top-btn" title="minimize" id="minimize" style="display: none">
+            <i class="fas fa-minimize" onclick="Minimize()"></i>
+        </div>
+
+        <div class="top-btn" title="help">
+            <i class="fas fa-question-circle" onclick="open_url('http://www.ai-sns.org')"></i>
+        </div>
+    </div>
+    <div class="top-bar-toggle">
+        <i class="fas fa-angle-double-up"></i>
+    </div>
+</div>
+<div class="bottom-left-buttons">
+
+    <div class="map-btn" data-title="plaza">
+        <i class="fas fa-landmark"></i>
+        <span>Plaza</span>
+    </div>
+    <div class="map-btn" data-title="home">
+        <i class="fas fa-house-user"></i>
+        <span>Home</span>
+    </div>
+    <div class="map-btn active" data-title="AI">
+        <i class="fas fa-robot"></i>
+        <span>AI</span>
+    </div>
+
+    <div class="map-btn" data-title="move">
+        <i class="fas fa-map-marked-alt"></i>
+        <span>Move</span>
+    </div>
+    <div class="map-btn" data-title="activity" id="process_btn">
+        <i class="fas fa-scroll"></i>
+        <span>Board</span>
+    </div>
+
+</div>
+<div class="right-menu">
+    <div class="menu-toggle">
+        <i class="fas fa-angle-double-right"></i>
+    </div>
+
+    <div class="menu-section" id="menu-plaza-top" style="display: none">
+        <div class="menu-title">
+            <i class="fas fa-arrows-up-to-line"></i>
+            <span>置顶信息</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="startTrack()" onclick2="pauseTrack()" onclick3="continueTrack()">1.免费token领取</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="stopTrack()">2.申请模型使用</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="setRoute()">3.openai codex</span>
+        </div>
+        <div class="menu-item">
+
+            <span>4.Claude新发布</span>
+        </div>
+    </div>
+
+    <div class="menu-section" id="menu-plaza-middle" style="display: none">
+        <div class="menu-title">
+            <i class="fas fa-fire"></i>
+            <span>热点信息</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="startTrack()" onclick2="pauseTrack()" onclick3="continueTrack()">1.免费token领取</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="stopTrack()">2.申请模型使用</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="setRoute()">3.openai codex</span>
+        </div>
+        <div class="menu-item">
+
+            <span>4.Claude新发布</span>
+        </div>
+    </div>
+
+    <div class="menu-section" id="menu-plaza" style="display: none">
+        <div class="menu-title">
+            <i class="fas fa-list"></i>
+            <span>最新信息</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="startTrack()" onclick2="pauseTrack()" onclick3="continueTrack()">1.免费token领取</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="stopTrack()">2.申请模型使用</span>
+        </div>
+        <div class="menu-item">
+
+            <span onclick="setRoute()">3.openai codex</span>
+        </div>
+        <div class="menu-item">
+
+            <span>4.Claude新发布</span>
+        </div>
+    </div>
+
+    <div class="menu-section" id="menu-home" style="display: none">
+        <div class="menu-title">
+            <i class="fas fa-user-gear"></i>
+            <span>相关设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-user"></i>
+            <span onclick="userSetting()">个人设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-house"></i>
+            <span onclick="setInitPosition()">房屋设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-address-card"></i>
+            <span onclick="setInitPosition()">地址设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-circle-info"></i>
+            <span>使用指引</span>
+        </div>
+
+    </div>
+
+
+    <div class="menu-section" id="menu-ai-top" style="display: block">
+        <div class="menu-title">
+            <i class="fas fa-globe-asia"></i>
+            <span>地图设置</span>
+        </div>
+        <div class="menu-item">
+            <i id="track_icon" class="fas fa-map"></i>
+            <span onclick="mapcfgSetting()" id="route_opr">地图设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-image"></i>
+            <span onclick="toggleNavigate()">俯览景点</span>
+        </div>
+    </div>
+
+    <div class="menu-section" id="menu-ai-middle" style="display: block">
+        <div class="menu-title">
+            <i class="fas fa-gears"></i>
+            <span>系统设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-circle-user"></i>
+            <span onclick="userInfo()">用户配置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-house"></i>
+            <span onclick="setHomePosition()">住址设置</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-address-card"></i>
+            <span onclick="jobSetting()">角色职业</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-person-chalkboard"></i>
+            <span onclick="userSetting()">角色调教</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-laptop-code"></i>
+            <span onclick="advSetting()">高级控制</span>
+        </div>
+        <div class="menu-item">
+            <i class="fas fa-info-circle"></i>
+            <span onclick="showGameTarget()">任务目标</span>
+        </div>
+    </div>
+
+
+    <div class="menu-section" id="menu-ai" style="display: block">
+        <div class="menu-title">
+            <i class="fas fa-map-marked-alt"></i>
+            <span>移动模式</span>
+        </div>
+
+
+        <div class="menu-item">
+            <i class="fas fa-route"></i>
+            <span onclick="setRoute()" id="specified_route">指定路线</span>
+        </div>
+
+
+        <div class="menu-item">
+            <i class="fas fa-compass"></i>
+            <span onclick="setRouteRandom()" id="random_route">自由移动</span>
+        </div>
+
+    </div>
+
+
+</div>
+<div class="message-block">
+    <div class="message-container">
+
+    </div>
+</div>
+
+<!-- 确认对话框 -->
+<div id="confirmDialog">
+    <div class="dialog">
+        <h2 id="dialogTitle"></h2>
+        <p id="dialogMessage"></p>
+        <button class="button" id="confirmButton">Yes</button>
+        <button class="button" id="cancelButton">No</button>
+    </div>
+</div>
+
+</body>
+</html>
+<script src="js/google/global.js?004"></script>
+<script src="js/common_function.js?003"></script>
+<script src="js/plaza_message.js?004"></script>
+<script src="js/status_indicator.js?002"></script>
+<script src="js/page_ui_menu.js?005"></script>
+<script src="js/interact_python.js?0020"></script>
+<script src="js/google/map_common.js?007"></script>
+<script src="js/google/aisns_buidingvideookv2.js?013"></script>
+<script src="js/google/person_data.js?002"></script>
+<script src="js/google/cluster_marker.js?003"></script>
+<script src="js/google/route_planner.js?004"></script>
+<script src="js/google/operate_function.js?003"></script>
+<script src="js/init_setting.js?007"></script>
+

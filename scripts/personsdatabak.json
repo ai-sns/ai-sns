@@ -1,0 +1,118 @@
+{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [-140.17757285983473, -77.2510282978683]
+                },
+                "properties": {
+                    "nation_id": "AI123451234567890ABCDEF7890",
+                    "account": "wangwang@xabber.de",
+                    "nick_name": "Y宝",
+                    "avatar": "img_girl_hi",
+        		    "avatar_3d": "ybot.glb",
+                    "profile": "我是个美工",
+                    "talk_limit": 10,
+                    "talk_number": 5,
+                    "llm": "openai-4o",
+                    "level": 1,
+                    "credit": 100,
+                    "status": "1"
+
+                }
+            },
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [-138.58252812231956, -77.36705283746872]
+                },
+                "properties": {
+                    "nation_id": "AI123451234567890ABCDEF7891",
+                    "account": "chenchen@xabber.de",
+                    "nick_name": "C宝",
+                    "avatar": "img_boy_hi",
+    		    "avatar_3d": "playergirl.glb",
+                    "profile": "我是个程序员",
+                    "talk_limit": 10,
+                    "talk_number": 5,
+                    "llm": "openai-4o",
+                    "level": 1,
+                    "credit": 100,
+                    "status": "1"
+
+                }
+            }
+	    ,
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [116.22971, 39.74441]
+                },
+                "properties": {
+                    "nation_id": "AI123451234567890ABCDEF7892",
+                    "account": "rongrong@xabber.de",
+                    "nick_name": "R宝",
+                    "avatar": "img_robot_hi",
+    		    "avatar_3d": "boy.glb",
+                    "profile": "我是个真正的AI",
+                    "talk_limit": 10,
+                    "talk_number": 5,
+                    "llm": "openai-4o",
+                    "level": 1,
+                    "credit": 100,
+                    "status": "1"
+
+                }
+            }
+	    ,
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [116.30375329461533,40.049108567364904]
+                },
+                "properties": {
+                    "nation_id": "AI123451234567890ABCDEF7893",
+                    "account": "jiajia@xabber.de",
+                    "nick_name": "J宝",
+                    "avatar": "img_man_hi",
+    		    "avatar_3d": "man.glb",
+                    "profile": "我是个律师",
+                    "talk_limit": 10,
+                    "talk_number": 5,
+                    "llm": "openai-4o",
+                    "level": 1,
+                    "credit": 100,
+                    "status": "1"
+
+                }
+            }
+	    ,
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [116.30690718139134,40.06259235539735]
+                },
+                "properties": {
+                    "nation_id": "AI123451234567890ABCDEF7894",
+                    "account": "yangyang@xabber.de",
+                    "nick_name": "W宝",
+                    "avatar": "img_woman_hi",
+    		    "avatar_3d": "woman.glb",
+                    "profile": "我是个医生",
+                    "talk_limit": 10,
+                    "talk_number": 5,
+                    "llm": "openai-4o",
+                    "level": 1,
+                    "credit": 100,
+                    "status": "1"
+
+                }
+            }
+        ]
+    }

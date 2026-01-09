@@ -1,0 +1,313 @@
+/* mainpage css */
+html, body, * {
+    margin: 0;
+    padding: 0;
+}
+
+/* 使用通用选择器确保所有元素都采用 border-box 计算尺寸 */
+* {
+    box-sizing: border-box;
+}
+
+/* 为 body 元素设置特定属性，并覆盖共享属性 */
+body {
+    font-family: sans-serif; /* 使用无衬线字体以提高可读性 */
+    background-color: #121212; /* 设置深色背景以增强文本对比度 */
+    color: #e0e0e0; /* 浅色文本以获得良好的对比效果 */
+    height: 100vh; /* 使用整个视口高度 */
+    overflow: hidden; /* 禁止滚动 */
+    position: relative; /* 使子元素的绝对定位可用 */
+}
+
+/* 设置地图容器的大小 */
+#map {
+    height: 100vh; /* 设置为整个视口高度 */
+    width: 100vw; /* 设置为整个视口宽度 */
+}
+
+
+/* 顶部导航栏 */
+.top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background: rgba(00, 00, 00, 0.7);
+    border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 20px;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.5);
+    transition: transform 0.3s ease;
+}
+
+.top-bar.collapsed {
+    transform: translateY(-100%);
+}
+
+.top-bar-toggle {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 40px;
+    background: rgba(30, 40, 60, 0.7);
+    border: 1px solid rgba(100, 200, 255, 0.3);
+    border-radius: 0px 0px 8px 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    color: #4fc3f7;
+    font-size: 20px;
+    transition: all 0.3s ease;
+    z-index: 11;
+}
+
+.top-bar-toggle:hover {
+    background: rgba(50, 70, 100, 0.8);
+}
+
+.logo {
+    font-family: sans-serif, cursive;
+    font-size: 18px;
+    color: #4fc3f7;
+    text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+    letter-spacing: 2px;
+    flex-grow: 1;
+    text-align: center;
+}
+
+.top-buttons {
+    display: flex;
+    gap: 15px;
+    position: absolute;
+    right: 20px;
+}
+
+.top-btn {
+    width: 45px;
+    height: 45px;
+    background: rgba(30, 40, 60, 0.7);
+    border: 1px solid rgba(100, 200, 255, 0.3);
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #b3e5fc;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.top-btn:hover {
+    background: rgba(50, 70, 100, 0.8);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 150, 255, 0.3);
+}
+
+.top-btn.active {
+    background: rgba(79, 195, 247, 0.3);
+    border-color: rgba(79, 195, 247, 0.7);
+    color: white;
+    transform: translateY(0); /* 确保active状态下按钮回落到原来的位置 */
+    box-shadow: none; /* 移除active状态下的阴影 */
+}
+
+/* 左侧底部按钮组 */
+.bottom-left-buttons {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+    display: flex;
+    gap: 15px;
+}
+
+.map-btn {
+    width: 60px;
+    height: 60px;
+    background: rgba(00, 00, 00, 0.7);
+    border: 1px solid rgba(100, 200, 255, 0.3);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #b3e5fc;
+    cursor: pointer;
+    transform: translateY(0); /* 确保active状态下按钮回落到原来的位置 */
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.map-btn i {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.map-btn span {
+    font-size: 14px;
+    /*text-transform: uppercase;*/
+    letter-spacing: 1px;
+}
+
+.map-btn:hover {
+    background: rgba(50, 70, 100, 0.8);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 150, 255, 0.3);
+}
+
+.map-btn.active {
+    background: rgba(79, 195, 247, 0.3);
+    border-color: rgba(79, 195, 247, 0.7);
+    color: white;
+    transform: translateY(0); /* 确保active状态下按钮回落到原来的位置 */
+    box-shadow: none; /* 移除active状态下的阴影 */
+}
+
+/* 右侧菜单 */
+.right-menu {
+    position: absolute;
+    top: 80px;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 180px;
+    transition: transform 0.3s ease;
+}
+
+.right-menu.collapsed {
+    transform: translateX(100%);
+}
+
+.menu-toggle {
+    position: absolute;
+    left: -40px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 100px;
+    background: rgba(00, 00, 00, 0.7);
+    border: 1px solid rgba(100, 200, 255, 0.3);
+    border-radius: 8px 0 0 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    color: #4fc3f7;
+    font-size: 24px;
+    transition: all 0.3s ease;
+}
+
+.menu-toggle:hover {
+    background: rgba(50, 70, 100, 0.8);
+}
+
+.menu-section {
+    background: rgba(00, 00, 00, 0.7);
+    /*backdrop-filter: blur(10px);*/
+    border: 1px solid rgba(100, 200, 255, 0.2);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.3s ease;
+}
+
+.right-menu.collapsed .menu-section {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.menu-title {
+    font-size: 16px;
+    color: #4fc3f7;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.menu-item {
+    display: flex;
+    font-size: 14px;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 5px;
+    gap: 8px;
+}
+
+.menu-item:last-child {
+    margin-bottom: 0;
+}
+
+.menu-item:hover {
+    background: rgba(79, 195, 247, 0.2);
+}
+
+.menu-item.active {
+    background: rgba(79, 195, 247, 0.3);
+    color: white;
+}
+
+.menu-item.active i {
+    color: white;
+}
+
+/* 菜单项文本截断样式 */
+.menu-item span {
+    display: inline-block;
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.menu-divider {
+    height: 1px;
+    background: rgba(100, 200, 255, 0.1);
+    margin: 10px 0;
+}
+
+.glow-effect {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 2;
+    background: radial-gradient(
+            circle at center,
+            transparent 60%,
+            rgba(79, 195, 247, 0.03) 100%
+    );
+}
+
+@media (max-width: 768px) {
+    .right-menu {
+        width: 180px;
+    }
+
+    .map-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .map-btn span {
+        font-size: 8px;
+    }
+}

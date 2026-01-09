@@ -1,6 +1,6 @@
 import time
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtWidgets import QMessageBox
 from jabber import STATUS
 import xmpp
 import sys
@@ -8,70 +8,16 @@ import sys
 import slixmpp
 import asyncio
 import sys
-
-
-class SendMsgBot(slixmpp.ClientXMPP):
-
-    """
-    A basic Slixmpp bot that will log in, send a message,
-    and then log out.
-    """
-
-    def __init__(self, jid, password, recipient, message):
-        slixmpp.ClientXMPP.__init__(self, jid, password)
-
-        # The message we wish to send, and the JID that
-        # will receive it.
-        self.recipient = recipient
-        self.msg = message
-
-        # The session_start event will be triggered when
-        # the bot establishes its connection with the server
-        # and the XML streams are ready for use. We want to
-        # listen for this event so that we we can initialize
-        # our roster.
-        self.add_event_handler("session_start", self.start)
-
-    async def start(self, event):
-        """
-        Process the session_start event.
-
-        Typical actions for the session_start event are
-        requesting the roster and broadcasting an initial
-        presence stanza.
-
-        Arguments:
-            event -- An empty dictionary. The session_start
-                     event does not provide any additional
-                     data.
-        """
-        self.send_presence()
-        await self.get_roster()
-
-        self.send_message(mto=self.recipient,
-                          mbody=self.msg,
-                          mtype='chat')
-
-        self.disconnect()
-
-    def sendmessage(self,recipient,msg):
-        self.send_message(mto=recipient,
-                          mbody=msg,
-                          mtype='chat')
-        self.disconnect()
-
-
+from db.DBFactory import query_AIFriend,update_AIFriend,add_AIFriend
+import platform
 
 class MyXMPPClient(slixmpp.ClientXMPP):
 
-    def __init__(self, jid, password, recipient_jid, message, con):
+    def __init__(self, jid, password, con):
         super().__init__(jid, password)
         self.con = con
-        self.recipient_jid = recipient_jid
-        self.message = message
+        self.jid = jid
         self.add_event_handler("session_start", self.on_session_start)
-        # self.add_event_handler("message", self.receivemessage)
-        # self.add_event_handler("message", self.con.xmpp_message)
         self.add_event_handler("presence_subscribe", self.presence_subscribe)
         self.register_plugin('xep_0030')  # Service Discovery
         self.register_plugin('xep_0199')  # XMPP Ping
@@ -85,11 +31,9 @@ class MyXMPPClient(slixmpp.ClientXMPP):
 
     async def presence_subscribe(self, presence):
         # 获取订阅请求的 JID
-        print("the presence:",presence)
-        print("the status:", presence['status'])
+
         from_jid = presence['from']
         request_msg=presence['status']
-        print(f"Subscription request from: {from_jid}")
 
         self.con.friend_subscribe_request.emit(f"{from_jid}",request_msg)
 
@@ -103,15 +47,8 @@ class MyXMPPClient(slixmpp.ClientXMPP):
         # self.send_presence(pto=from_jid, ptype='unsubscribed')
         # print(f"Refused subscription request from: {from_jid}")
 
-    def receivemessage(self, msg):
-        print(msg)
-        print(msg['type'])
-        print(msg['body'])
-        if msg['type'] in ('chat', 'normal'):
-            msg.reply("你好，我是使用Slixmpp发送消息的机器人。").send()
 
     def sendmessage(self, tojid, msg):
-        print("im in sendmessage presence,going")
         self.send_presence()
         self.send_message(
             mto=tojid,
@@ -124,29 +61,46 @@ class MyXMPPClient(slixmpp.ClientXMPP):
         await self.get_roster()
         # 启动心跳任务--开关
         self.heartbeat_task = asyncio.create_task(self.heartbeat())
-        self.send_message(
-            mto=self.recipient_jid,
-            mbody=self.message,
-            mtype='chat'
-        )
+
 
     def roster_update(self, event):
-        # 打印所有联系人
-        print("Roster received:")
+
         groups = self.client_roster.groups()
-        print("groups", groups)
         rosters = self.client_roster
-        print("self.rosters", rosters)
         rosternames = list(self.client_roster.keys())
-        print("rosternames", rosternames)
-        print("rostername[0]", rosternames[0])
         self.rosternames = rosternames
         for group in groups:
             for jid in groups[group]:
-                print("self.client_roster[jid]", self.client_roster[jid])
+                self.update_roster_local(jid)
                 # status = "Online" if self.client_roster[jid]['presence'] else "Offline"
-                # print(f" - {jid} ({status})")
         self.con.connected.emit()
+
+    def update_roster_local(self,jid):
+        if jid != self.jid:
+            owner_sns_account = self.jid
+            roster_data= self.client_roster[jid]
+            account = jid
+            nick_name = roster_data["name"]
+            groups = ','.join(roster_data["groups"])
+            record = query_AIFriend(account=account,owner_sns_account=self.jid)
+            subscription = roster_data["subscription"]
+            if record:
+                update_AIFriend(record.id,owner_sns_account,nick_name=nick_name,groups=groups,subscription=subscription)
+            else:
+                memo =""
+                sign=""
+                name=""
+                borndate="1900-01-01"
+                gender=-1
+                area=""
+                city=""
+                address=""
+                mail=""
+                phone=""
+                organization=""
+                title=""
+                position=""
+                add_AIFriend(account, nick_name, groups, owner_sns_account, memo, sign, subscription, name, borndate, gender, area, city, address, mail, phone, organization, title, position)
 
     def isConnected(self):
         return self.is_connected()
@@ -159,10 +113,8 @@ class MyXMPPClient(slixmpp.ClientXMPP):
             # 发送 Ping 消息到服务器
             try:
                 await self['xep_0199'].ping()
-                print("Ping sent to the server.")
             except Exception as e:
                 print(f"Failed to ping server: {e}")
-
             # 等待指定的心跳间隔
             await asyncio.sleep(self.heartbeat_interval)
 
@@ -186,139 +138,68 @@ class ConnectorThread(QThread):
     friend_subscribe_request = pyqtSignal(str,str)
 
     def __init__(self, status,jid,password):
-        print("cjrok2")
         super(ConnectorThread, self).__init__()
         self.status = status
         self.jid = jid
         self.password = password
         self.xmpp=None
 
+    def set_jid(self,jid):
+        self.jid=jid
+
+    def set_password(self,password):
+        self.password=password
+
 
     def run(self):
-        print("cjrok3")
 
         # if  self.connect():#xmpp模式
         if self.connectslixmpp():
-            print("connect()1111")
             self.Terminated = False
             # self.connected.emit()
             self.connect()
         else:
-            print("connect()1111222")
+
             self.Terminated = False
             # self.connected.emit()
             # self.connect()
 
-        # while not self.Terminated:
-        # self.jabber.Process(1)#xmpp
-        # await asyncio.sleep(0)
         self.jabber.process(forever=False)  # slixmmp
-        # time.sleep(1)
-        # await asyncio.sleep(0)
-        # time.sleep(2.0)
-        # sys.stderr.write('Thread correctly stopped' + str(self.Terminated) + '\n\n')
+
 
     def connect(self):
-        print("inconncttreadconnect")
-        IP = "xabber.de"
+        IP = self.jid.split('@')[1]
         PORT = 5222
         from_user = self.jid.split('@')[0]
         password = self.password
         client = xmpp.Client(IP)  # 是否开启debug
         self.jabber_xmpp = client
-        # connection=client.connect(server=(IP, PORT))
-        # client.auth(from_user, password)
-        # client.RegisterHandler("message", self.message)
-        # client.sendInitPresence()
-
-        to_user = ["chenchen@xabber.de"]
-        msg = "测试！"
 
         client.connect(server=(IP, PORT))
-        # client.auth(from_user, password, "botty")
+
         client.auth(from_user, password)
 
         client.sendInitPresence()
-        # message = xmpp.Message(to_user[0], msg, typ="chat")
-        # client.send(message)
-        # client.RegisterHandler("message", self.xmpp_message)
 
-        # self.register_handlers()
-        # print("connecting cjrok666")
-        # self.jabber.sendInitPresence(requestRoster=1)
-
-        # while 1:
-        #       client.Process(1)
-        # return connection
 
     def connectslixmpp(self):
-        print("connect slixmpp--v2")
         if sys.platform == 'win32':
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         asyncio.set_event_loop(asyncio.new_event_loop())  # 需要创建一个loop，否则跑不起来，会报没有loop
 
-        print("inconncttreadconnect")
-        IP = "xabber.de"
-        PORT = 5222
         jid = self.jid
         password = self.password
-        recipient_jid = 'chenchen@xabber.de'
-        message = 'Hello, this is a test message from slixmpp.'
-        client = MyXMPPClient(jid, password, recipient_jid, message, self)
+        client = MyXMPPClient(jid, password, self)
         self.jabber = client
-
-
-
         client.connect()
-
-        print("onlysend222aaaa")
-
-        client.send_message(
-            mto="chenchen@xabber.de",
-            mbody="我的回复aaaabbb-测试！",
-            mtype='chat'
-        )
-        print("sndendaaaa")
-
         self.Terminated = False
         # self.connected.emit()
-
         # client.process(forever=True)
         asyncio.sleep(1)
-        # self.jabber.process(1)
         client.add_event_handler("message", self.xmpp_message)
-        print("end connect slixmpp")
-        # client.connect()
-        # client.process(forever=False)
-
-        # connection=client.connect(server=(IP, PORT))
-        # client.auth(from_user, password)
-        # client.RegisterHandler("message", self.message)
-        # client.sendInitPresence()
-
-        # while 1:
-        #       client.Process(1)
-        # return connection
-
-
-    def onlysendslixmpp(self):
-        print("onlysend222")
-
-        self.jabber.send_message(
-            mto="chenchen@xabber.de",
-            mbody="我的回复-测试！",
-            mtype='chat'
-        )
-        print("sndend")
-
-    def messagebak(sess, mess):
-        print("receiving msg..")
-        nick = mess.getFrom().getResource()
-        text = mess.getBody()
-        print("[Message]{}:{}".format(nick, text))
 
     def disconnect(self):
-        # self.onlysend()
+
         self.Terminated = True
         if self.jabber.isConnected():
             self.jabber.disconnect()
@@ -338,72 +219,23 @@ class ConnectorThread(QThread):
         self.debug.emit(str(packet) + "\n\n")
 
     def xmpp_message(self, msg):
-        print(msg)
-        print(msg['type'])
-        print(msg['body'])
+        print("xmpp message received.")
         if msg['type'] in ('chat', 'normal'):
-            message = msg['body']
-            print("receiving msg..")
-            nick = "wangwangget:"
-            text = msg['body']
-            print("[Message]{}:{}".format(nick, text))
-
-            if message:
+            body_content = msg['body']
+            if body_content:
                 self.message.emit(msg)
 
-    def xmpp_messagebak(self, con, event):
-        print("in xmpp_message")
-        self.debug.emit(str(event) + "\n\n")
-        type_ = event.getType()
-        if type_ and type_ in ['message', 'chat']:
-            message = event.getBody()
-            print("receiving msg..")
-            nick = event.getFrom().getResource()
-            text = event.getBody()
-            print("[Message]{}:{}".format(nick, text))
-
-            if message:
-                self.message.emit(event)
-
-    def send_messagebak(self, tojid, message):
-        print("cjrok send_message")
-        self.jabber.sendmessage(tojid, message)
-        print("sndendaaaa")
-
     def send_message_xmpp(self, tojid, message):
-        print("cjrok send_message by xmpp")
         m = xmpp.protocol.Message(to=tojid, body=message, typ='chat')
         self.debug.emit(str(m) + "\n\n")
         self.jabber_xmpp.send(m)
 
     def send_message(self, tojid, message):
-        print("cjrok send_message by slixmppnew")
-
         self.jabber.send_message(
             mto=tojid,
             mbody=message,
             mtype='chat'
         )
-
-
-
-    def send_message_slixmppbak(self, tojid, message):
-        print("cjrok send_message by slixmpp")
-        jid = self.jid
-        password = self.password
-        # recipient = "yangyang@xabber.de"
-        # message = "Hello from slixmpp!"
-        if self.xmpp==None:
-            xmpp = SendMsgBot(jid, password, tojid, message)
-        else:
-            xmpp =self.xmpp
-            xmpp.sendmessage(tojid, message)
-        xmpp.register_plugin('xep_0030')  # Service Discovery
-        xmpp.register_plugin('xep_0199')  # XMPP Ping
-
-        # Connect to the XMPP server and start processing XMPP stanzas.
-        xmpp.connect()
-        xmpp.process(forever=False)
 
 
     def changeStatus(self, showId, status):
@@ -419,8 +251,8 @@ class ConnectorThread(QThread):
     def handle_version(self, con, iq):
         self.debug.emit(str(iq) + "\n")
         reply = iq.buildReply('result')
-        reply.T.query.addChild(name="name", payload=settings.APPNAME)
-        reply.T.query.addChild(name="version", payload=settings.VERSION)
+        reply.T.query.addChild(name="name", payload="AI-SNS")
+        reply.T.query.addChild(name="version", payload="V1.0.0")
         if platform.mac_ver()[0]:
             plateforme = "Mac OS %s" % platform.mac_ver()[0]
         elif platform.win32_ver()[0]:
@@ -438,38 +270,23 @@ class ConnectorThread(QThread):
         self.debug.emit(str(reply) + "\n")
         self.jabber.send(reply)
 
-    # def getRoster(self):
-    #     #pass
-    #     self.roster = self.jabber.getRoster()
-    #     return self.roster.getItems()
 
     def getRoster_xmpp(self):
-        # pass
-        # self.roster = self.jabber.get_roster()#slixmmp
-        print("in getRoster")
         self.roster = self.jabber.getRoster()
-        print("self.roster", self.roster)
         return self.roster.getItems()
 
     def getRoster(self):
-        # pass
-        # self.roster = self.jabber.get_roster()#slixmmp
-        print("in getRoster")
         rosternames = self.jabber.rosternames
-        print("self.roster", rosternames)
         return rosternames
 
     def getGroups_xmpp(self, jid):
-        print("self.roster.getGroups", self.roster.getGroups)  # self.client_roster
-        return self.roster.getGroups(jid) if self.roster.getGroups(jid) else ['Buddies']
+         return self.roster.getGroups(jid) if self.roster.getGroups(jid) else ['Buddies']
 
     def getGroups(self, jid):
-
         return self.jabber.client_roster[jid]['groups'] if self.jabber.client_roster[jid]['groups'] else ['Buddies']
 
     def getName(self, jid):
         # return self.roster.getName(jid)#xmpp
-
         return self.jabber.client_roster[jid]['name']
 
     def getStatus(self, jid):
@@ -521,7 +338,6 @@ class ConnectorThread(QThread):
         self.jabber.send_presence(pto=jid, ptype='subscribed')
         self.jabber.send_presence(pto=jid, ptype='subscribe')
 
-
         # 如果需要拒绝订阅请求，可以使用下面的代码而不是上面的接受代码
         # self.send_presence(pto=from_jid, ptype='unsubscribed')
         # print(f"Refused subscription request from: {from_jid}")
@@ -530,4 +346,3 @@ class ConnectorThread(QThread):
         # 接受订阅请求
         self.jabber.send_presence(pto=jid, ptype='unsubscribed')
         self.jabber.send_presence(pto=jid, ptype='unsubscribe')
-

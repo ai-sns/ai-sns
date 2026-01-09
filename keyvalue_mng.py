@@ -1,6 +1,8 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QTextEdit, QLineEdit, QHBoxLayout, QHeaderView, QMessageBox, QFormLayout, QComboBox
-from PyQt5.QtCore import Qt
+
+from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton, QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QTextEdit, QLineEdit, QHBoxLayout, QHeaderView, QMessageBox, QFormLayout, QComboBox, QAbstractItemView
+from PyQt6.QtCore import Qt
 from db.DBFactory import Session, KeyValue
 
 class KeyValueDialog(QDialog):
@@ -86,6 +88,9 @@ class KeyValueManager(QDialog):
         # Search field
         self.search_field = QLineEdit()
         self.search_field.setPlaceholderText("通过关键字搜索")
+        palette = self.search_field.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.search_field.setPalette(palette)
         self.search_field.textChanged.connect(self.search_prompts)
         layout.addWidget(self.search_field)
 
@@ -95,8 +100,8 @@ class KeyValueManager(QDialog):
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(['键名', '数值'])
         # 设置选择行为为选中整行
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)  # 不允许编辑
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)  # 不允许编辑
         # 连接双击事件
         self.table.itemDoubleClicked.connect(self.modify_prompt)
 
@@ -156,7 +161,7 @@ class KeyValueManager(QDialog):
     def add_prompt(self):
         session = Session()
         dialog = KeyValueDialog(session)
-        if dialog.exec_():
+        if dialog.exec():
             self.refresh_table()
         session.close()
 
@@ -167,7 +172,7 @@ class KeyValueManager(QDialog):
             prompt_title = self.table.item(selected_row, 0).text()
             prompt = session.query(KeyValue).filter(KeyValue.key == prompt_title).first()
             dialog = KeyValueDialog(session, prompt)
-            if dialog.exec_():
+            if dialog.exec():
                 self.refresh_table()
             session.close()
         else:
@@ -218,7 +223,7 @@ class MainWindow(QMainWindow):
 
     def open_prompt_manager(self):
         self.prompt_manager = KeyValueManager(self)
-        self.prompt_manager.exec_()
+        self.prompt_manager.exec()
 
     def update_prompts_in_combobox(self):
         current_value = self.prompt_combobox.currentText()
@@ -246,4 +251,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     main_window = MainWindow()
     main_window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

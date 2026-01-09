@@ -7,7 +7,7 @@ import shutil
 
 import win32gui
 from PIL import ImageGrab, Image
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
 

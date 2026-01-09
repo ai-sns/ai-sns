@@ -1,11 +1,11 @@
 import os
 import sys
 import webbrowser
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5 import QtPrintSupport
-from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QUrl, QThread, pyqtSignal
+import PyQt6
+from PyQt6 import QtWidgets
+from PyQt6 import QtPrintSupport
+from PyQt6 import QtGui
+from PyQt6.QtCore import Qt, QUrl, QThread, pyqtSignal
 
 from datetime import datetime as sys_datetime
 
@@ -17,9 +17,9 @@ from db.DBFactory import query_note_mng, add_note_mng, update_note_mng, query_KM
 from util import generate_random_id
 from langchainhandler import savevector, update_vector
 
-from PyQt5.QtWidgets import QApplication, QTextEdit, QVBoxLayout, QWidget, QMessageBox
-from PyQt5.QtGui import QImage, QClipboard, QKeySequence, QDesktopServices, QTextDocument, QTextCharFormat
-from PyQt5.QtCore import Qt, QBuffer, QByteArray
+from PyQt6.QtWidgets import QApplication, QTextEdit, QVBoxLayout, QWidget, QMessageBox
+from PyQt6.QtGui import QImage, QClipboard, QKeySequence, QDesktopServices, QTextDocument, QTextCharFormat, QTextCursor
+from PyQt6.QtCore import Qt, QBuffer, QByteArray
 import sys
 import base64
 from i18n import lt
@@ -29,6 +29,7 @@ class CustomizedQTextEdit(QtWidgets.QTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.anchor = None
+        self.adjust_image_device_pixel_ratio()
 
     def mouseMoveEvent(self, e):
 
@@ -129,6 +130,23 @@ class CustomizedQTextEdit(QtWidgets.QTextEdit):
             # 处理其他按键事件
             super(CustomizedQTextEdit, self).keyPressEvent(event)
 
+    def adjust_image_device_pixel_ratio(self):
+        document = self.document()
+        cursor = QTextCursor(document)
+
+        # Iterate through the document to find images
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        while not cursor.atEnd():
+            cursor.movePosition(QTextCursor.MoveOperation.NextCharacter)
+            if cursor.charFormat().isImageFormat():
+                image_format = cursor.charFormat().toImageFormat()
+                # image_format.setDevicePixelRatio(2)  # Set devicePixelRatio to 1
+                image_format.setWidth(206.5*4)
+                image_format.setHeight(212.5*4)
+                cursor.setCharFormat(image_format)
+
+
+
 
 class Main(QtWidgets.QMainWindow):
 
@@ -157,89 +175,89 @@ class Main(QtWidgets.QMainWindow):
 
     def initToolbar(self):
 
-        self.newAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/new.png"), "New", self)
+        self.newAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/new.png"), "New", self)
         self.newAction.setShortcut("Ctrl+N")
         self.newAction.setStatusTip("Create a new document from scratch.")
         self.newAction.triggered.connect(self.new)
 
-        self.openAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/open.png"), "Open file", self)
+        self.openAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/open.png"), "Open file", self)
         self.openAction.setStatusTip("Open existing document")
         self.openAction.setShortcut("Ctrl+O")
         self.openAction.triggered.connect(self.open)
 
-        self.saveAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/save.png"), "Save", self)
+        self.saveAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/save.png"), "Save", self)
         self.saveAction.setStatusTip("Save document")
         self.saveAction.setShortcut("Ctrl+S")
         self.saveAction.triggered.connect(self.save)
 
-        self.printAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/print.png"), "Print document", self)
+        self.printAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/print.png"), "Print document", self)
         self.printAction.setStatusTip("Print document")
         self.printAction.setShortcut("Ctrl+P")
         self.printAction.triggered.connect(self.printHandler)
 
-        self.previewAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/preview.png"), "Page view", self)
+        self.previewAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/preview.png"), "Page view", self)
         self.previewAction.setStatusTip("Preview page before printing")
         self.previewAction.setShortcut("Ctrl+Shift+P")
         self.previewAction.triggered.connect(self.preview)
 
-        self.findAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/find.png"), "Find and replace", self)
+        self.findAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/find.png"), "Find and replace", self)
         self.findAction.setStatusTip("Find and replace words in your document")
         self.findAction.setShortcut("Ctrl+F")
         self.findAction.triggered.connect(find.Find(self).show)
 
-        self.cutAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/cut.png"), "Cut to clipboard", self)
+        self.cutAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/cut.png"), "Cut to clipboard", self)
         self.cutAction.setStatusTip("Delete and copy text to clipboard")
         self.cutAction.setShortcut("Ctrl+X")
         self.cutAction.triggered.connect(self.text.cut)
 
-        self.copyAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/copy.png"), "Copy to clipboard", self)
+        self.copyAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/copy.png"), "Copy to clipboard", self)
         self.copyAction.setStatusTip("Copy text to clipboard")
         self.copyAction.setShortcut("Ctrl+C")
         self.copyAction.triggered.connect(self.text.copy)
 
-        self.pasteAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/paste.png"), "Paste from clipboard", self)
+        self.pasteAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/paste.png"), "Paste from clipboard", self)
         self.pasteAction.setStatusTip("Paste text from clipboard")
         self.pasteAction.setShortcut("Ctrl+V")
         # self.pasteAction.triggered.connect(self.text.paste)
         self.pasteAction.triggered.connect(self.paste_image)
 
-        self.undoAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/undo.png"), "Undo last action", self)
+        self.undoAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/undo.png"), "Undo last action", self)
         self.undoAction.setStatusTip("Undo last action")
         self.undoAction.setShortcut("Ctrl+Z")
         self.undoAction.triggered.connect(self.text.undo)
 
-        self.redoAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/redo.png"), "Redo last undone thing", self)
+        self.redoAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/redo.png"), "Redo last undone thing", self)
         self.redoAction.setStatusTip("Redo last undone thing")
         self.redoAction.setShortcut("Ctrl+Y")
         self.redoAction.triggered.connect(self.text.redo)
 
-        dateTimeAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/calender.png"), "Insert current date/time",
+        dateTimeAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/calender.png"), "Insert current date/time",
                                            self)
         dateTimeAction.setStatusTip("Insert current date/time")
         dateTimeAction.setShortcut("Ctrl+D")
         dateTimeAction.triggered.connect(datetime.DateTime(self).show)
 
-        wordCountAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/count.png"), "See word/symbol count", self)
+        wordCountAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/count.png"), "See word/symbol count", self)
         wordCountAction.setStatusTip("See word/symbol count")
         wordCountAction.setShortcut("Ctrl+W")
         wordCountAction.triggered.connect(self.wordCount)
 
-        tableAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/table.png"), "Insert table", self)
+        tableAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/table.png"), "Insert table", self)
         tableAction.setStatusTip("Insert table")
         tableAction.setShortcut("Ctrl+T")
         tableAction.triggered.connect(table.Table(self).show)
 
-        imageAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/image.png"), "Insert image", self)
+        imageAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/image.png"), "Insert image", self)
         imageAction.setStatusTip("Insert image")
         imageAction.setShortcut("Ctrl+Shift+I")
         imageAction.triggered.connect(self.insertImage)
 
-        bulletAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/bullet.png"), "Insert bullet List", self)
+        bulletAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/bullet.png"), "Insert bullet List", self)
         bulletAction.setStatusTip("Insert bullet list")
         bulletAction.setShortcut("Ctrl+Shift+B")
         bulletAction.triggered.connect(self.bulletList)
 
-        numberedAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/number.png"), "Insert numbered List", self)
+        numberedAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/number.png"), "Insert numbered List", self)
         numberedAction.setStatusTip("Insert numbered list")
         numberedAction.setShortcut("Ctrl+Shift+L")
         numberedAction.triggered.connect(self.numberList)
@@ -328,48 +346,48 @@ class Main(QtWidgets.QMainWindow):
 
         fontSize.setValue(12)
 
-        fontColor = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/font-color.png"), "Change font color", self)
+        fontColor = QtGui.QAction(QtGui.QIcon("noteeditor/icons/font-color.png"), "Change font color", self)
         fontColor.triggered.connect(self.fontColorChanged)
 
-        boldAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/bold.png"), "Bold", self)
+        boldAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/bold.png"), "Bold", self)
         boldAction.triggered.connect(self.bold)
 
-        italicAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/italic.png"), "Italic", self)
+        italicAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/italic.png"), "Italic", self)
         italicAction.triggered.connect(self.italic)
 
-        underlAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/underline.png"), "Underline", self)
+        underlAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/underline.png"), "Underline", self)
         underlAction.triggered.connect(self.underline)
 
-        strikeAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/strike.png"), "Strike-out", self)
+        strikeAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/strike.png"), "Strike-out", self)
         strikeAction.triggered.connect(self.strike)
 
-        superAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/superscript.png"), "Superscript", self)
+        superAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/superscript.png"), "Superscript", self)
         superAction.triggered.connect(self.superScript)
 
-        subAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/subscript.png"), "Subscript", self)
+        subAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/subscript.png"), "Subscript", self)
         subAction.triggered.connect(self.subScript)
 
-        alignLeft = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/align-left.png"), "Align left", self)
+        alignLeft = QtGui.QAction(QtGui.QIcon("noteeditor/icons/align-left.png"), "Align left", self)
         alignLeft.triggered.connect(self.alignLeft)
 
-        alignCenter = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/align-center.png"), "Align center", self)
+        alignCenter = QtGui.QAction(QtGui.QIcon("noteeditor/icons/align-center.png"), "Align center", self)
         alignCenter.triggered.connect(self.alignCenter)
 
-        alignRight = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/align-right.png"), "Align right", self)
+        alignRight = QtGui.QAction(QtGui.QIcon("noteeditor/icons/align-right.png"), "Align right", self)
         alignRight.triggered.connect(self.alignRight)
 
-        alignJustify = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/align-justify.png"), "Align justify", self)
+        alignJustify = QtGui.QAction(QtGui.QIcon("noteeditor/icons/align-justify.png"), "Align justify", self)
         alignJustify.triggered.connect(self.alignJustify)
 
-        indentAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/indent.png"), "Indent Area", self)
+        indentAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/indent.png"), "Indent Area", self)
         indentAction.setShortcut("Ctrl+Tab")
         indentAction.triggered.connect(self.indent)
 
-        dedentAction = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/dedent.png"), "Dedent Area", self)
+        dedentAction = QtGui.QAction(QtGui.QIcon("noteeditor/icons/dedent.png"), "Dedent Area", self)
         dedentAction.setShortcut("Shift+Tab")
         dedentAction.triggered.connect(self.dedent)
 
-        backColor = QtWidgets.QAction(QtGui.QIcon("noteeditor/icons/highlight.png"), "Change background color", self)
+        backColor = QtGui.QAction(QtGui.QIcon("noteeditor/icons/highlight.png"), "Change background color", self)
         backColor.triggered.connect(self.highlight)
 
         self.formatbar = self.addToolBar("Format")
@@ -427,13 +445,13 @@ class Main(QtWidgets.QMainWindow):
         edit.addAction(self.findAction)
 
         # Toggling actions for the various bars
-        toolbarAction = QtWidgets.QAction("Toggle Toolbar", self)
+        toolbarAction = QtGui.QAction("Toggle Toolbar", self)
         toolbarAction.triggered.connect(self.toggleToolbar)
 
-        formatbarAction = QtWidgets.QAction("Toggle Formatbar", self)
+        formatbarAction = QtGui.QAction("Toggle Formatbar", self)
         formatbarAction.triggered.connect(self.toggleFormatbar)
 
-        statusbarAction = QtWidgets.QAction("Toggle Statusbar", self)
+        statusbarAction = QtGui.QAction("Toggle Statusbar", self)
         statusbarAction.triggered.connect(self.toggleStatusbar)
 
         view.addAction(toolbarAction)
@@ -514,33 +532,33 @@ class Main(QtWidgets.QMainWindow):
 
         if table:
 
-            menu = PyQt5.QtWidgets.QMenu(self)
+            menu = PyQt6.QtWidgets.QMenu(self)
 
-            appendRowAction = QtWidgets.QAction("Append row", self)
+            appendRowAction = QtGui.QAction("Append row", self)
             appendRowAction.triggered.connect(lambda: table.appendRows(1))
 
-            appendColAction = QtWidgets.QAction("Append column", self)
+            appendColAction = QtGui.QAction("Append column", self)
             appendColAction.triggered.connect(lambda: table.appendColumns(1))
 
-            removeRowAction = QtWidgets.QAction("Remove row", self)
+            removeRowAction = QtGui.QAction("Remove row", self)
             removeRowAction.triggered.connect(self.removeRow)
 
-            removeColAction = QtWidgets.QAction("Remove column", self)
+            removeColAction = QtGui.QAction("Remove column", self)
             removeColAction.triggered.connect(self.removeCol)
 
-            insertRowAction = QtWidgets.QAction("Insert row", self)
+            insertRowAction = QtGui.QAction("Insert row", self)
             insertRowAction.triggered.connect(self.insertRow)
 
-            insertColAction = QtWidgets.QAction("Insert column", self)
+            insertColAction = QtGui.QAction("Insert column", self)
             insertColAction.triggered.connect(self.insertCol)
 
-            mergeAction = QtWidgets.QAction("Merge cells", self)
+            mergeAction = QtGui.QAction("Merge cells", self)
             mergeAction.triggered.connect(lambda: table.mergeCells(cursor))
 
             if not cursor.hasSelection():
                 mergeAction.setEnabled(False)
 
-            splitAction = QtWidgets.QAction("Split cells", self)
+            splitAction = QtGui.QAction("Split cells", self)
 
             cell = table.cellAt(cursor)
 
@@ -577,13 +595,13 @@ class Main(QtWidgets.QMainWindow):
 
                 # Check if the selected text is a URL
                 if selected_text.startswith("http://") or selected_text.startswith("https://"):
-                    openLinkAction = QtWidgets.QAction("Open Link", self)
+                    openLinkAction = QtGui.QAction("Open Link", self)
                     openLinkAction.triggered.connect(lambda: webbrowser.open(selected_text))
                     menu.addAction(openLinkAction)
 
 
 #=======
-            cleanFormatAction = QtWidgets.QAction("Remove format behind", self)
+            cleanFormatAction = QtGui.QAction("Remove format behind", self)
             cleanFormatAction.triggered.connect(self.clean_format)
             menu.addAction(cleanFormatAction)
 # =======
@@ -617,11 +635,11 @@ class Main(QtWidgets.QMainWindow):
 
                 # Check if the selected text is a URL
                 if selected_text.startswith("http://") or selected_text.startswith("https://"):
-                    openLinkAction = QtWidgets.QAction("Open Link", self)
+                    openLinkAction = QtGui.QAction("Open Link", self)
                     openLinkAction.triggered.connect(lambda: webbrowser.open(selected_text))
                     menu.addAction(openLinkAction)
 
-            cleanFormatAction = QtWidgets.QAction("Remove format behind", self)
+            cleanFormatAction = QtGui.QAction("Remove format behind", self)
             cleanFormatAction.triggered.connect(self.clean_format)
             menu.addAction(cleanFormatAction)
 
@@ -732,6 +750,19 @@ class Main(QtWidgets.QMainWindow):
     #     record_id = 0
 #=======
     def save(self,title="",label=""):
+        if not label:
+            label=None
+        persist_directory = os.path.join(os.getcwd(), "km", self.km_id, "vector")
+        if not os.path.exists(persist_directory):
+            # 如果目录不存在，则创建目录
+            os.makedirs(persist_directory)
+
+        file_directory = os.path.join(os.getcwd(), "km", self.km_id, "doc")
+        if not os.path.exists(file_directory):
+            # 如果目录不存在，则创建目录
+            os.makedirs(file_directory)
+
+
         content = self.text.toPlainText()
         if not content.strip():
             return
@@ -850,10 +881,10 @@ class Main(QtWidgets.QMainWindow):
             # first_subitem.setSelected(True)
             notelist_all = application.notelist_all_list[self.km_id]
             notelist_all.deselect_all_items()
-            notelist_all.addItem(title.replace("\n", "")[:50], record_id, True)
-            first_toplevel_item = notelist_all.topLevelItem(0)
-            first_subitem = first_toplevel_item.child(0)
-            first_subitem.setSelected(True)
+            notelist_all.addItem(title.replace("\n", "")[:50], record_id, True, False, True)
+            # first_toplevel_item = notelist_all.topLevelItem(0)
+            # first_subitem = first_toplevel_item.child(0)
+            # first_subitem.setSelected(True)
             self.is_first = False
 
         if self.km_cfg.vectorization == 1 and self.km_cfg.stopvectorization == 0:
@@ -950,8 +981,81 @@ class Main(QtWidgets.QMainWindow):
             else:
 
                 cursor = self.text.textCursor()
+                device_pixel_ratio = self.text.devicePixelRatio()
+                print("device_pixel_ratio:",device_pixel_ratio)
+                image.setDevicePixelRatio(device_pixel_ratio)
 
                 cursor.insertImage(image, filename)
+
+    def insertImage_test(self):
+        # 获取文件路径并验证
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            'Insert image',
+            ".",
+            "Images (*.png *.xpm *.jpg *.bmp *.gif *.svg *.webp)"
+        )
+        if not filename:
+            return
+
+        # 加载图片并验证
+        image = QtGui.QImage(filename)
+        if image.isNull():
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Image Load Error",
+                f"Failed to load image: {filename}",
+                QtWidgets.QMessageBox.Ok
+            )
+            return
+
+        # 计算缩放尺寸（限制最大宽度为文本区域宽度的80%）
+        # viewport_width = self.text.viewport().width()
+        # max_display_width = int(viewport_width * 0.2)
+        #
+        # original_size = image.size()
+        # scaled_size = original_size.scaled(
+        #     int(image.width()*1),
+        #     int(image.height()*1),  # 保持宽高比
+        #     Qt.AspectRatioMode.KeepAspectRatio
+        # )
+        #
+        # # 高质量缩放
+        # scaled_image = image.scaled(
+        #     scaled_size,
+        #     Qt.AspectRatioMode.KeepAspectRatio,
+        #     Qt.TransformationMode.SmoothTransformation
+        # )
+        #
+        # # 插入带元数据的缩放图片
+        # cursor = self.text.textCursor()
+        # cursor.insertImage(
+        #     scaled_image,
+        #     filename
+        # )
+
+        pixmap = QtGui.QPixmap(filename)
+
+        # 根据设备像素比缩放
+        device_pixel_ratio = self.text.devicePixelRatio()
+        scaled_pixmap = pixmap.scaled(
+            int(image.width() * 1 * device_pixel_ratio),
+            int(image.height() * 1 * device_pixel_ratio),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        scaled_pixmap.setDevicePixelRatio(device_pixel_ratio)
+
+        # 转换为图片格式插入
+        cursor = self.text.textCursor()
+        cursor.insertImage(
+            scaled_pixmap.toImage(),
+            # 其他参数同上...,
+            filename
+        )
+
+        # 自动滚动到插入位置
+        self.text.ensureCursorVisible()
 
     def fontColorChanged(self):
 
@@ -1156,14 +1260,28 @@ class Main(QtWidgets.QMainWindow):
 
             if self.filename:
                 with open(self.filename, "rt", encoding='utf-8') as file:
-                    self.text.setText(file.read())
+                    # self.text.setText(file.read())
+                    self.text.setHtml(file.read())
+
+        self.text.adjust_image_device_pixel_ratio()
 
         self.changesSaved = True
 
     def vectorize(self, is_first):
         note_id = self.note_id
         embedding_model_name = self.km_cfg.embeddingmodel
+
         persist_directory = os.path.join(os.getcwd(), "km", self.km_id, "vector")
+        if not os.path.exists(persist_directory):
+            # 如果目录不存在，则创建目录
+            os.makedirs(persist_directory)
+
+        file_directory = os.path.join(os.getcwd(), "km", self.km_id, "doc")
+        if not os.path.exists(file_directory):
+            # 如果目录不存在，则创建目录
+            os.makedirs(file_directory)
+
+
         filepath = os.path.join(os.getcwd(), "km", self.km_id, "doc", note_id + ".txt")
 
         if embedding_model_name.lower() == "openai":

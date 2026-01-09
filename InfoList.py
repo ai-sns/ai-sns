@@ -1,10 +1,10 @@
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QAction, QHeaderView, QMessageBox
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, QPoint
-
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView, QMessageBox
+from PyQt6.QtGui import QIcon, QAction
+from PyQt6.QtCore import Qt, QPoint
+from i18n import lt
 from InfoItem import InfoItem
 from InfoGroup import InfoGroup
-from PyQt5.QtCore import QSettings, QThread, pyqtSignal
+from PyQt6.QtCore import QSettings, QThread, pyqtSignal
 import time
 from db.DBFactory import add_AIChatInform,query_AIChatInform_All,query_AIChatInform,update_AIChatInform,delete_AIChatInform
 from  util import generate_random_id
@@ -39,14 +39,14 @@ class InfoList(QTreeWidget):
 
         #QTreeWidgetItem configuration
         #self.header().setSectionHidden(0, True)
-        self.setHeaderLabel("通知列表")#需要设置此处的值，否则缺省值为1
+        self.setHeaderLabel(lt("Info List","通知列表"))#需要设置此处的值，否则缺省值为1
         self.setSortingEnabled(True)
-        self.sortItems(0, Qt.AscendingOrder)
+        self.sortItems(0, Qt.SortOrder.AscendingOrder)
         self.buddies = {}
         self.groups = {}
         self.tree = {}
 
-        # self.setContextMenuPolicy(Qt.CustomContextMenu)
+        # self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         # self.menu = QMenu()
         # self.rename_action = QAction(QIcon("images/rename.png"), "同意", self)
         # self.rename_action.triggered.connect(self.rename)
@@ -54,7 +54,7 @@ class InfoList(QTreeWidget):
         # self.menu.addAction(QIcon("images/infos.png"), "拒绝", self.getInfo)
         # self.customContextMenuRequested.connect(self.context)
 
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.menu = QMenu()
         self.rename_action = QAction(QIcon("images/accept.png"), "同意", self)
         self.rename_action.triggered.connect(self.accept_friend)
@@ -125,7 +125,7 @@ class InfoList(QTreeWidget):
         top_item = QTreeWidgetItem()
         top_item.setText(0, name[0:50])
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -150,7 +150,7 @@ class InfoList(QTreeWidget):
         top_item = QTreeWidgetItem()
         top_item.setText(0, name[0:50])
         top_item.setToolTip(0, name)
-        top_item.setData(0, Qt.UserRole, id)  # Qt.UserRole, id)
+        top_item.setData(0, Qt.ItemDataRole.UserRole, id)  # Qt.ItemDataRole.UserRole, id)
         if is_top == False:
             # print("not top")
             group_item.addChild(top_item)
@@ -225,7 +225,7 @@ class InfoList(QTreeWidget):
     def contextbak(self, pos):
         item = self.itemAt(pos)
         if item:
-            if item.type() == QTreeWidgetItem.UserType + 1:
+            if item.type() == QTreeWidgetItem.ItemType.UserType + 1:
                 self.currentItem = item
                 self.menu.popup(self.mapToGlobal(pos))
 
@@ -240,7 +240,7 @@ class InfoList(QTreeWidget):
         item = self.current_Item
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
             self.connection.accept_subscription(id_value)
@@ -252,7 +252,7 @@ class InfoList(QTreeWidget):
         item = self.current_Item
 
         column = 0
-        id_value = item.data(column, Qt.UserRole)
+        id_value = item.data(column, Qt.ItemDataRole.UserRole)
 
         if id_value:
             self.connection.reject_subscription(id_value)

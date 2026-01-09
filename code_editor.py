@@ -1,15 +1,18 @@
 # plugins/code_editor.py
 import datetime
 import sys
+from i18n import lt
 
-from PyQt5.QtCore import QSize
+
+from PyQt6.QtCore import QSize
+from PyQt6.QtGui import QPalette, QColor
 
 from pluginsmanager.plugins_gui.plugin_interface import PluginInterface
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QGroupBox, QLineEdit, QRadioButton, QLabel, QDialog
-from PyQt5 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QGroupBox, QLineEdit, QRadioButton, QLabel, QDialog, QCheckBox
+from PyQt6 import QtWidgets
 from pluginsmanager.plugins_gui.plugins import syntax_pars
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
+from PyQt6 import QtWidgets
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QPlainTextEdit
 import os
 import webbrowser
 from db.DBFactory import query_function_mng,add_function_mng,update_function_mng
@@ -38,8 +41,10 @@ class CodeEditor(QWidget,PluginInterface):
         self.is_first = False
         self.editor.setPlainText("")
         self.function_name_input.setText("")
+        self.instruction_input.setText("")
         self.function_description_input.setText("")
-        self.publish_radio.setChecked(False)
+        self.publish_check.setChecked(False)
+        self.sns_check.setChecked(False)
         self.detail_text_edit.setPlainText("")
 
     def create_widget(self, *args, **kwagrs):
@@ -76,27 +81,43 @@ class CodeEditor(QWidget,PluginInterface):
         function_layout = QHBoxLayout()
 
         # 创建标签（函数名）
-        function_label = QLabel("标题:")
+        function_label = QLabel("名称:")
         function_layout.addWidget(function_label)
 
         # 创建单行输入框（函数名）
         self.function_name_input = QLineEdit()
         self.function_name_input.setPlaceholderText("请输入名称")
+        palette = self.function_name_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.function_name_input.setPalette(palette)
 
         function_layout.addWidget(self.function_name_input)
 
+        self.instruction_input = QLineEdit()
+        self.instruction_input.setPlaceholderText(lt("Input instrunction and how to call,for example  tq:the city to search","请输入指令及格式如：tq:要查询的城市"))
+        palette = self.instruction_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.instruction_input.setPalette(palette)
 
+        function_layout.addWidget(self.instruction_input)
 
+        group_layout.addLayout(function_layout)
+
+        function_desc_layout = QHBoxLayout()
         function_description_label = QLabel("简介:")
-        function_layout.addWidget(function_description_label)
+        function_desc_layout.addWidget(function_description_label)
 
         # 创建单行输入框（函数名）
         self.function_description_input = QLineEdit()
         self.function_description_input.setPlaceholderText("简明扼要")
         self.function_description_input.setMaxLength(350)
+        palette = self.function_description_input.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.function_description_input.setPalette(palette)
 
-        function_layout.addWidget(self.function_description_input)
+        function_desc_layout.addWidget(self.function_description_input)
 
+        group_layout.addLayout(function_desc_layout)
 
         # # 创建状态标签（状态）
         # status_label = QLabel("状态:")
@@ -106,7 +127,7 @@ class CodeEditor(QWidget,PluginInterface):
         # self.publish_radio = QRadioButton("发布")
         # function_layout.addWidget(self.publish_radio)
         # # 将函数布局添加到 GroupBox 布局中
-        group_layout.addLayout(function_layout)
+
         #
         # if self.function_manager.type_str=="2":
         #     status_label.setHidden(True)
@@ -117,7 +138,10 @@ class CodeEditor(QWidget,PluginInterface):
 
         self.detail_text_edit = QTextEdit()
         self.detail_text_edit.setPlaceholderText("请输入关于该函数的描述")
-        self.detail_text_edit.setFixedHeight(60)  # 设置多行文本框的高度
+        palette = self.detail_text_edit.palette()
+        palette.setColor(QPalette.ColorRole.PlaceholderText, QColor("gray"))  # 可以改为其他颜色
+        self.detail_text_edit.setPalette(palette)
+        self.detail_text_edit.setFixedHeight(70)  # 设置多行文本框的高度
         detail_layout.addWidget(function_detail_label)
 
         detail_layout.addWidget(self.detail_text_edit)
@@ -125,7 +149,7 @@ class CodeEditor(QWidget,PluginInterface):
         group_layout.addLayout(detail_layout)
         # 将 GroupBox 的布局应用到 QGroupBox
         group_box.setLayout(group_layout)
-        group_box.setFixedHeight(150)  # 限制 QGroupBox 的高度
+        group_box.setFixedHeight(170)  # 限制 QGroupBox 的高度
 
         # 将 QGroupBox 添加到主布局
         layout.addWidget(group_box)
@@ -159,15 +183,18 @@ class CodeEditor(QWidget,PluginInterface):
         # status_label = QLabel("状态:")
         # function_layout.addWidget(status_label)
 
-        self.publish_radio = QRadioButton("发布")
+        self.publish_check = QCheckBox(lt("Published", "发布"))
 
         # 将函数布局添加到 GroupBox 布局中
         # button_layout.addWidget(status_label)
-        button_layout.addWidget(self.publish_radio)
+        button_layout.addWidget(self.publish_check)
 
         if self.function_manager.type_str == "2":
             # status_label.setHidden(True)
-            self.publish_radio.setHidden(True)
+            self.publish_check.setHidden(True)
+
+        self.sns_check = QCheckBox(lt("Used in SNS","能被用于SNS"))
+        button_layout.addWidget(self.sns_check)
 
 
 
@@ -214,15 +241,18 @@ class CodeEditor(QWidget,PluginInterface):
         if not self.filename:
             function_id = generate_random_id()
             name = self.function_name_input.text()
+            instruction = self.instruction_input.text()
             self.function_id = function_id
-            self.filename = os.path.join(os.getcwd(),"pluginsmanager","plugins_function",name+".py")
+            # self.filename = os.path.join(os.getcwd(),"pluginsmanager","plugins_function",name+".py")
+            self.filename = os.path.join(os.getcwd(), "coding",   name + ".py")
+            #coding
 
             description = self.function_description_input.text()
             detail = self.detail_text_edit.toPlainText()
             file_path = name
             requirement = ""
             parameter = ""
-            if self.publish_radio.isChecked():
+            if self.publish_check.isChecked():
                 function_type = "1"
             else:
                 function_type="0"
@@ -231,19 +261,25 @@ class CodeEditor(QWidget,PluginInterface):
                 function_type = "2"
                 self.filename = os.path.join(os.getcwd(), "agent", "tools.py")
 
+            if self.sns_check.isChecked():
+                used_in_sns = 1
+            else:
+                used_in_sns=0
+
             function_event = ""
             creator = ""
-            record_id=add_function_mng(function_id, name, file_path,requirement,parameter, description,detail, function_type, function_event,
-                     creator)
+            record_id=add_function_mng(function_id, name,instruction, file_path,requirement,parameter, description,detail, function_type, function_event,
+                     creator,used_in_sns)
             self.is_first = True
         else:
             function_id = self.function_id
             name = self.function_name_input.text()
+            instruction = self.instruction_input.text()
             description = self.function_description_input.text()
             detail = self.detail_text_edit.toPlainText()
             requirement = ""
             parameter = ""
-            if self.publish_radio.isChecked():
+            if self.publish_check.isChecked():
                 function_type = "1"
             else:
                 function_type = "0"
@@ -252,8 +288,13 @@ class CodeEditor(QWidget,PluginInterface):
                 function_type = "2"
                 self.filename = os.path.join(os.getcwd(), "agent", "tools.py")
 
+            if self.sns_check.isChecked():
+                used_in_sns = 1
+            else:
+                used_in_sns=0
+
             create_time = datetime.datetime.now()
-            update_function_mng(function_id,name=name,description=description,detail=detail,function_type=function_type,create_time=create_time)
+            update_function_mng(function_id,name=name,instruction=instruction,description=description,detail=detail,function_type=function_type,create_time=create_time,used_in_sns=used_in_sns)
 
         if self.filename:
 
@@ -315,7 +356,7 @@ class CodeEditor(QWidget,PluginInterface):
 
             self.console.setWindowTitle("Output Console")
             self.console.resize(QSize(1024, 500))
-            self.console.exec_()
+            self.console.exec()
             # self.console.raise_()
 
 
@@ -339,7 +380,7 @@ class CodeEditor(QWidget,PluginInterface):
 
             popup.setDefaultButton(QtWidgets.QMessageBox.Save)
 
-            answer = popup.exec_()
+            answer = popup.exec()
 
             if answer == QtWidgets.QMessageBox.Save:
                 self.save_file()
@@ -357,7 +398,8 @@ class CodeEditor(QWidget,PluginInterface):
             record =query_function_mng(function_id=function_id)
             if record:
                 filename=record.file_path
-                filename = os.path.join(os.getcwd(), "pluginsmanager", "plugins_function", filename + ".py")
+                # filename = os.path.join(os.getcwd(), "pluginsmanager", "plugins_function", filename + ".py")
+                filename = os.path.join(os.getcwd(), "coding", filename + ".py")
                 if record.function_type=="2":
                     filename = os.path.join(os.getcwd(), "agent", "tools.py")
 
@@ -366,19 +408,27 @@ class CodeEditor(QWidget,PluginInterface):
 
 
                 self.function_name_input.setText(record.name)
+                self.instruction_input.setText(record.instruction)
                 self.function_description_input.setText(record.description)
 
                 if record.function_type=="1":
-                    self.publish_radio.setChecked(True)
+                    self.publish_check.setChecked(True)
                 else:
-                    self.publish_radio.setChecked(False)
+                    self.publish_check.setChecked(False)
+
+
+                if record.used_in_sns==1:
+                    self.sns_check.setChecked(True)
+                else:
+                    self.sns_check.setChecked(False)
 
 
                 self.detail_text_edit.setPlainText(record.detail)
 
         if filename:
-            with open(filename,"rt", encoding='utf-8') as file:
-                self.editor.setPlainText(file.read())
+            if os.path.exists(filename):
+                with open(filename,"rt", encoding='utf-8') as file:
+                    self.editor.setPlainText(file.read())
 
         self.changesSaved = True
 
@@ -390,4 +440,4 @@ if __name__ == "__main__":
     editor_widget = CodeEditor(content="def cjrok():")
     editor_widget.create_widget("def cjrok():")
     editor_widget.show()  # 显示窗口
-    app.exec_()  # 运行应用程序的事件循环
+    app.exec()  # 运行应用程序的事件循环

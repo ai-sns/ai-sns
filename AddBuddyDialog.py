@@ -1,8 +1,9 @@
-from PyQt5.QtWidgets import QDialog
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QDialog
+from PyQt6.QtCore import Qt
+
 
 from ui.ui_AddBuddyDialog import Ui_AddBuddyDialog
-import xmpp
+
 
 class AddBuddyDialog(QDialog, Ui_AddBuddyDialog):
     def __init__(self, parent, jabber, groups, jid="", group=""):

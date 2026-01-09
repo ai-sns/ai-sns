@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Animation Retargeting with Controls</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, mixer, controls;
+
+        init();
+        loadModels();
+        animate();
+
+        function init() {
+            // 初始化场景
+            scene = new THREE.Scene();
+
+            // 初始化相机
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.5, 5);
+
+            // 初始化渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 添加环境光和聚光灯
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+
+            const spotLight = new THREE.SpotLight(0xffffff, 1);
+            spotLight.position.set(15, 40, 35);
+            spotLight.castShadow = true;
+            scene.add(spotLight);
+
+            // 轨道控制器
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // 启用阻尼效果
+            controls.dampingFactor = 0.25;
+            controls.minDistance = 2; // 设置最小缩放距离
+            controls.maxDistance = 10; // 设置最大缩放距离
+            controls.target.set(0, 1, 0); // 聚焦的目标位置
+
+            // 监听窗口大小调整
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function loadModels() {
+            const loader = new THREE.GLTFLoader();
+
+            // 使用Promise加载模型A和模型B
+            Promise.all([
+                loadModel(loader, 'a.glb'),
+                loadModel(loader, 'compressed_idle_nova_7.glb')
+            ]).then(([gltfA, gltfB]) => {
+                const modelA = gltfA.scene;
+                const modelB = gltfB.scene;
+
+                // 将模型A放置在场景中
+                modelA.position.set(-1.5, 0, 0);
+                scene.add(modelA);
+
+                // 获取并应用B模型的动画到A模型
+                mixer = new THREE.AnimationMixer(modelA);
+                gltfB.animations.forEach(clip => {
+                    const action = mixer.clipAction(clip);
+                    action.play();
+                });
+
+                // 可选：将模型B也放置在场景中作为对比
+                modelB.position.set(1.5, 0, 0);
+                scene.add(modelB);
+            }).catch(error => {
+                console.error('Error loading models:', error);
+            });
+        }
+
+        function loadModel(loader, url) {
+            return new Promise((resolve, reject) => {
+                loader.load(url, resolve, undefined, reject);
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 更新动画
+            if (mixer) mixer.update(0.016); // 假设60fps
+
+            // 更新控制器
+            controls.update();
+
+            // 渲染场景
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>

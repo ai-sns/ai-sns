@@ -1,1 +1,0 @@
-python get_shanghai_weather.py
