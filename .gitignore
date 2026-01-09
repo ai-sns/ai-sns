@@ -134,7 +134,7 @@ dmypy.json
 .DS_Store
 coding/
 download/
-km/
+/km/
 resource/
 skilllearning/screenshot/
 skilllearning/data/
