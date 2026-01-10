@@ -60,13 +60,13 @@ const KMPage = {
                         <button class="km-tool-btn format-btn" data-format="italic" title="斜体"><em>I</em></button>
                         <button class="km-tool-btn format-btn" data-format="underline" title="下划线"><u>U</u></button>
                         <button class="km-tool-btn format-btn" data-format="strikethrough" title="删除线"><s>S</s></button>
-                        <button class="km-tool-btn format-btn" title="上标">X<sup>1</sup></button>
-                        <button class="km-tool-btn format-btn" title="下标">X<sub>1</sub></button>
+                        <button class="km-tool-btn format-btn" data-format="superscript" title="上标">X<sup>1</sup></button>
+                        <button class="km-tool-btn format-btn" data-format="subscript" title="下标">X<sub>1</sub></button>
                         <div class="toolbar-divider"></div>
-                        <button class="km-tool-btn" data-align="left" title="左对齐"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/></svg></button>
-                        <button class="km-tool-btn" data-align="center" title="居中"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg></button>
-                        <button class="km-tool-btn" data-align="right" title="右对齐"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/></svg></button>
-                        <button class="km-tool-btn" data-align="justify" title="两端对齐"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zM3 3v2h18V3H3z"/></svg></button>
+                        <button class="km-tool-btn align-btn" data-action="justifyLeft" title="左对齐"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/></svg></button>
+                        <button class="km-tool-btn align-btn" data-action="justifyCenter" title="居中"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg></button>
+                        <button class="km-tool-btn align-btn" data-action="justifyRight" title="右对齐"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/></svg></button>
+                        <button class="km-tool-btn align-btn" data-action="justifyFull" title="两端对齐"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zM3 3v2h18V3H3z"/></svg></button>
                         <div class="toolbar-divider"></div>
                         <button class="km-tool-btn" title="减少缩进"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg></button>
                         <button class="km-tool-btn" title="增加缩进"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg></button>

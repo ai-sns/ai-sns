@@ -5480,3 +5480,209 @@ body.theme-dark .tip-item:hover {
     border-color: #38bdf8;
     box-shadow: 0 4px 12px rgba(56, 189, 248, 0.1);
 }
+
+/* ==================== KM Editor Search Highlight ==================== */
+.search-highlight {
+    background: #ffeb3b;
+    color: #000;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-weight: 500;
+}
+
+body.theme-dark .search-highlight {
+    background: #fbbf24;
+    color: #000;
+}
+
+/* ==================== KM Editor Improved Styles ==================== */
+.km-editor-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0;
+}
+
+.km-editor-content table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    min-width: 50px;
+}
+
+.km-editor-content table tr:hover {
+    background: #f5f5f5;
+}
+
+body.theme-dark .km-editor-content table td {
+    border-color: #444;
+}
+
+body.theme-dark .km-editor-content table tr:hover {
+    background: #2a2a2a;
+}
+
+/* 编辑器图片样式 */
+.km-editor-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+/* 编辑器链接样式 */
+.km-editor-content a {
+    color: var(--color-primary);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--color-primary);
+}
+
+.km-editor-content a:hover {
+    border-bottom-style: solid;
+}
+
+/* ==================== Modal Button Styles ==================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: #1a73e8;
+    color: #fff;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #1557b0;
+    border-color: #1557b0;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+    background: #0d47a1;
+    border-color: #0d47a1;
+}
+
+.btn-secondary {
+    background: #fff;
+    color: #5f6368;
+    border-color: #dadce0;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #f1f3f4;
+    border-color: #dadce0;
+}
+
+.btn-secondary:active:not(:disabled) {
+    background: #e8eaed;
+    border-color: #dadce0;
+}
+
+/* Modal footer button spacing */
+.modal-footer .btn {
+    min-width: 80px;
+}
+
+.modal-footer .btn + .btn {
+    margin-left: 12px;
+}
+
+/* Form elements in modal */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.form-input,
+.form-select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid #dadce0;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text-primary);
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.form-input::placeholder {
+    color: #80868b;
+}
+
+/* Dark theme support */
+body.theme-dark .modal {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+body.theme-dark .modal-header {
+    border-bottom-color: #334155;
+}
+
+body.theme-dark .modal-footer {
+    border-top-color: #334155;
+}
+
+body.theme-dark .modal-title {
+    color: #e2e8f0;
+}
+
+body.theme-dark .btn-secondary {
+    background: #334155;
+    color: #e2e8f0;
+    border-color: #475569;
+}
+
+body.theme-dark .btn-secondary:hover:not(:disabled) {
+    background: #475569;
+    border-color: #64748b;
+}
+
+body.theme-dark .form-input,
+body.theme-dark .form-select {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body.theme-dark .form-input:focus,
+body.theme-dark .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
