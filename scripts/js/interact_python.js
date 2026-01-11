@@ -177,13 +177,12 @@ var handle_command = function (command, param_1, param_2) {
 
 async function loadMapSetting() {
     const result = await jsonrpcRequest("get_map_settings");
-    alert(2);
-    alert(JSON.stringify(result));
+
     
     if (result && result.success) {
         // 将配置转换为原格式
         const data = result.data;
-alert(data);
+
         // 处理当前位置：服务器返回数组，需要转换为对象格式
         let current_position_obj;
         if (Array.isArray(data.current_position) && data.current_position.length === 2) {

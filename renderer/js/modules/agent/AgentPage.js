@@ -98,7 +98,168 @@ const AgentPage = {
                         </div>
                     </div>
                 </div>
+
+                <!-- 右侧面板分隔条 -->
+                <div class="agent-panel-resizer" id="agentPanelResizer">
+                    <div class="panel-resizer-handle">
+                        <div class="panel-resizer-line"></div>
+                    </div>
+                    <button class="panel-collapse-btn" id="agentPanelCollapseBtn" title="折叠设置面板">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="9,6 15,12 9,18"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 右侧设置面板 -->
+                <div class="agent-settings-panel" id="agentSettingsPanel">
+                    <!-- 页签内容区域 -->
+                    <div class="settings-tab-content" id="settingsTabContent">
+                        <!-- Param 页签内容 -->
+                        <div class="tab-pane active" data-tab="param">
+                            <div class="settings-section">
+                                <div class="settings-section-title">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                                        <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                                    </svg>
+                                    <span>模型参数</span>
+                                </div>
+                                <div class="param-group">
+                                    <label class="param-label">
+                                        <span>Temperature</span>
+                                        <input type="number" class="param-input" value="0.7" min="0" max="2" step="0.1">
+                                    </label>
+                                    <label class="param-label">
+                                        <span>Max Tokens</span>
+                                        <input type="number" class="param-input" value="2048" min="1" max="8192" step="1">
+                                    </label>
+                                    <label class="param-label">
+                                        <span>Top P</span>
+                                        <input type="number" class="param-input" value="0.9" min="0" max="1" step="0.1">
+                                    </label>
+                                    <label class="param-label">
+                                        <span>Frequency Penalty</span>
+                                        <input type="number" class="param-input" value="0" min="-2" max="2" step="0.1">
+                                    </label>
+                                    <label class="param-label">
+                                        <span>Presence Penalty</span>
+                                        <input type="number" class="param-input" value="0" min="-2" max="2" step="0.1">
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="settings-section">
+                                <div class="settings-section-title">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                                        <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                                    </svg>
+                                    <span>高级设置</span>
+                                </div>
+                                <div class="param-group">
+                                    <label class="param-toggle">
+                                        <span>Stream 模式</span>
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <label class="param-toggle">
+                                        <span>显示 Token 用量</span>
+                                        <input type="checkbox">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prompt 页签内容 -->
+                        <div class="tab-pane" data-tab="prompt">
+                            <div class="settings-section">
+                                <div class="settings-section-title">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                                    </svg>
+                                    <span>System Prompt</span>
+                                </div>
+                                <div class="prompt-editor">
+                                    <textarea class="prompt-textarea" id="systemPrompt" placeholder="输入系统提示词...">你是一个资深的程序员，精通多种编程语言和框架。</textarea>
+                                    <button class="prompt-save-btn">保存</button>
+                                </div>
+                            </div>
+                            <div class="settings-section">
+                                <div class="settings-section-title">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                                    </svg>
+                                    <span>预设 Prompt</span>
+                                </div>
+                                <div class="preset-list">
+                                    <div class="preset-item" data-preset="developer">
+                                        <span class="preset-name">资深程序员</span>
+                                        <button class="preset-use-btn">使用</button>
+                                    </div>
+                                    <div class="preset-item" data-preset="writer">
+                                        <span class="preset-name">创意写作</span>
+                                        <button class="preset-use-btn">使用</button>
+                                    </div>
+                                    <div class="preset-item" data-preset="analyst">
+                                        <span class="preset-name">数据分析</span>
+                                        <button class="preset-use-btn">使用</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File 页签内容 -->
+                        <div class="tab-pane" data-tab="file">
+                            <div class="settings-section">
+                                <div class="settings-section-title">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                                        <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
+                                    </svg>
+                                    <span>聊天文件</span>
+                                    <button class="file-upload-btn" title="上传文件">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="file-list" id="chatFileList">
+                                    <div class="empty-state">
+                                        <svg viewBox="0 0 24 24" width="48" height="48" fill="#ccc">
+                                            <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                                        </svg>
+                                        <p>暂无文件</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 插件页签将在此处动态添加 -->
+                    </div>
+
+                    <!-- 底部页签按钮 -->
+                    <div class="settings-tabs" id="settingsTabs">
+                        <button class="settings-tab active" data-tab="param">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                            </svg>
+                            <span>Param</span>
+                        </button>
+                        <button class="settings-tab" data-tab="prompt">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                            </svg>
+                            <span>Prompt</span>
+                        </button>
+                        <button class="settings-tab" data-tab="file">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                            </svg>
+                            <span>File</span>
+                        </button>
+                    </div>
+                </div>
+
             </div>
+
         `;
     }
 };

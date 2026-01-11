@@ -2155,18 +2155,6 @@
     color: white;
 }
 
-/* 收缩状态 */
-.sns-panel-resizer.collapsed .panel-collapse-btn {
-    opacity: 1;
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: white;
-}
-
-.sns-panel-resizer.collapsed .panel-collapse-btn svg {
-    transform: rotate(180deg);
-}
-
 /* 右侧状态面板 */
 .sns-status-panel {
     width: 280px;
@@ -5729,4 +5717,833 @@ body.theme-dark .form-input:focus,
 body.theme-dark .form-select:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ========== Agent 右侧设置面板 ========== */
+.agent-panel-resizer {
+    width: 8px;
+    background: transparent;
+    cursor: col-resize;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+}
+
+.agent-panel-resizer:hover {
+    background: rgba(26, 115, 232, 0.1);
+}
+
+.panel-resizer-handle {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-resizer-line {
+    width: 1px;
+    height: 40px;
+    background: var(--border-light);
+    transition: background 0.2s ease;
+}
+
+.agent-panel-resizer:hover .panel-resizer-line {
+    background: var(--color-primary);
+}
+
+.panel-collapse-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 32px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.agent-panel-resizer:hover .panel-collapse-btn {
+    opacity: 1;
+}
+
+.panel-collapse-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+}
+
+.panel-collapse-btn svg {
+    color: var(--text-secondary);
+}
+
+.panel-collapse-btn:hover svg {
+    color: var(--color-primary);
+}
+
+/* Agent panel 收缩状态 - 箭头翻转 */
+.agent-panel-resizer.collapsed .panel-collapse-btn {
+    opacity: 1;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.agent-panel-resizer.collapsed .panel-collapse-btn svg {
+    transform: rotate(180deg);
+}
+
+.agent-settings-panel {
+    width: 320px;
+    background: #fff;
+    border-left: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    flex-shrink: 0;
+}
+
+.agent-settings-panel.collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    opacity: 0;
+    border-left: none;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.settings-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-tab-content .tab-pane {
+    display: none;
+    flex: 1;
+}
+
+.settings-tab-content .tab-pane.active {
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.settings-section-title svg {
+    flex-shrink: 0;
+}
+
+.settings-section-title button {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-section-title button:hover {
+    background: var(--bg-hover);
+}
+
+/* Param 页签样式 */
+.param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.param-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.param-label span {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.param-input {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.param-input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.param-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    padding: 8px 0;
+}
+
+.param-toggle span:first-child {
+    color: var(--text-primary);
+}
+
+.param-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.param-toggle .toggle-slider {
+    width: 40px;
+    height: 22px;
+    background: #ccc;
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.param-toggle .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s ease;
+}
+
+.param-toggle input[type="checkbox"]:checked + .toggle-slider {
+    background: var(--color-primary);
+}
+
+.param-toggle input[type="checkbox"]:checked + .toggle-slider::before {
+    transform: translateX(18px);
+}
+
+/* Prompt 页签样式 */
+.prompt-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.prompt-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.2s ease;
+}
+
+.prompt-textarea:focus {
+    border-color: var(--color-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.prompt-save-btn {
+    align-self: flex-end;
+    padding: 6px 16px;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.prompt-save-btn:hover {
+    background: #1557b0;
+}
+
+.preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.preset-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+}
+
+.preset-item:hover {
+    background: var(--bg-hover);
+}
+
+.preset-name {
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.preset-use-btn {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--color-primary);
+    color: var(--color-primary);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.preset-use-btn:hover {
+    background: var(--color-primary);
+    color: #fff;
+}
+
+/* File 页签样式 */
+.file-upload-btn {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+.file-upload-btn:hover {
+    background: rgba(26, 115, 232, 0.1);
+}
+
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+}
+
+.file-item:hover {
+    background: var(--bg-hover);
+}
+
+.file-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+.file-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.file-name {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.file-size {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.file-remove-btn {
+    padding: 4px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-remove-btn:hover {
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+}
+
+/* Plugins 页签样式 */
+.plugin-add-btn {
+    margin-left: auto;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+}
+
+.plugin-add-btn:hover {
+    background: rgba(26, 115, 232, 0.1);
+}
+
+.plugin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.plugin-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+    transition: all 0.2s ease;
+}
+
+.plugin-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.plugin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.plugin-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.plugin-remove-btn {
+    padding: 4px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plugin-remove-btn:hover {
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+}
+
+.plugin-description {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.plugin-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+/* 空状态样式 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.empty-state svg {
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.add-plugin-hint-btn {
+    padding: 6px 16px;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-plugin-hint-btn:hover {
+    background: #1557b0;
+}
+
+/* 底部页签按钮 */
+.settings-tabs {
+    display: flex;
+    border-top: 1px solid var(--border-light);
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
+.settings-tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-top: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.settings-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.settings-tab.active {
+    color: var(--color-primary);
+    border-top-color: var(--color-primary);
+    font-weight: 500;
+}
+
+.settings-tab svg {
+    flex-shrink: 0;
+}
+
+/* 展开按钮 */
+.settings-expand-btn {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    z-index: 100;
+    transition: all 0.2s ease;
+}
+
+.settings-expand-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.settings-expand-btn svg {
+    color: var(--text-secondary);
+}
+
+.settings-expand-btn:hover svg {
+    color: var(--color-primary);
+}
+
+/* Agent 设置面板展开按钮 */
+.agent-settings-expand-btn {
+    position: fixed;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    background: var(--bg-content, #fff);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    z-index: 1000;
+    transition: all 0.2s ease;
+}
+
+.agent-settings-expand-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-md);
+}
+
+.agent-settings-expand-btn svg {
+    color: var(--text-secondary);
+}
+
+.agent-settings-expand-btn:hover svg {
+    color: var(--color-primary);
+}
+
+.agent-page-layout {
+    position: relative;
+}
+/* ========== Agent 右侧设置面板主题修复 ========== */
+
+.agent-settings-panel {
+    width: 320px;
+    background: var(--bg-content);
+    border-left: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    flex-shrink: 0;
+}
+
+.settings-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+/* Param 输入框 */
+.param-input {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    width: 100%;
+    transition: all 0.2s ease;
+    background: var(--bg-content);
+    color: var(--text-primary);
+}
+
+/* Prompt 编辑器 */
+.prompt-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-family: inherit;
+    resize: vertical;
+    transition: all 0.2s ease;
+    background: var(--bg-content);
+    color: var(--text-primary);
+}
+
+.prompt-save-btn {
+    align-self: flex-end;
+    padding: 6px 16px;
+    background: var(--color-primary);
+    color: var(--text-inverse);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.prompt-save-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+.preset-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+}
+
+.preset-item:hover {
+    background: var(--bg-hover);
+}
+
+.preset-name {
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+/* File 和 Plugin 项 */
+.file-item, .plugin-item {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+}
+
+.file-item:hover, .plugin-item:hover {
+    border-color: var(--color-primary);
+}
+
+.file-name, .plugin-name {
+    color: var(--text-primary);
+}
+
+.file-size, .plugin-description {
+    color: var(--text-secondary);
+}
+
+/* Empty state */
+.empty-state p {
+    color: var(--text-secondary);
+}
+
+/* 底部页签 */
+.settings-tabs {
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-content);
+}
+
+.settings-tab {
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.settings-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.settings-tab.active {
+    color: var(--color-primary);
+    border-top-color: var(--color-primary);
+}
+
+/* Plugin tab close button */
+.settings-tab .tab-close-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    border-radius: 3px;
+}
+
+.settings-tab:hover .tab-close-btn {
+    opacity: 1;
+}
+
+.settings-tab .tab-close-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.settings-tab {
+    position: relative;
+}
+
+/* Agent chat area */
+.agent-chat-area {
+    background: var(--bg-content);
+}
+
+.agent-chat-toolbar {
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-content);
+}
+
+.model-selector, .role-selector {
+    border: 1px solid var(--border-color);
+    background: var(--bg-content);
+    color: var(--text-primary);
+}
+
+.agent-chat-messages {
+    background: var(--bg-content);
+}
+
+/* 展开按钮 */
+.agent-settings-expand-btn {
+    background: var(--bg-content);
+    border: 1px solid var(--border-light);
+}
+
+.agent-settings-expand-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+}
+
+.agent-settings-expand-btn svg {
+    color: var(--text-secondary);
+}
+
+.agent-settings-expand-btn:hover svg {
+    color: var(--color-primary);
 }
