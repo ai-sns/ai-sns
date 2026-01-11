@@ -46,6 +46,7 @@ class Modal {
         this.content = options.content || '';
         this.onConfirm = options.onConfirm || null;
         this.onCancel = options.onCancel || null;
+        this.onOpen = options.onOpen || null;  // 添加onOpen支持
         this.confirmText = options.confirmText || '确认';
         this.cancelText = options.cancelText || '取消';
         this.showCancel = options.showCancel !== false;
@@ -76,6 +77,12 @@ class Modal {
         this.element = container.querySelector('.modal-overlay');
 
         this.bindEvents();
+
+        // 在渲染完成后调用onOpen回调
+        if (this.onOpen) {
+            this.onOpen(this);
+        }
+
         return this;
     }
 

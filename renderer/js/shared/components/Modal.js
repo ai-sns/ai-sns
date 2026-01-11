@@ -8,9 +8,11 @@ class Modal {
         this.content = options.content || '';
         this.onConfirm = options.onConfirm || null;
         this.onCancel = options.onCancel || null;
+        this.onOpen = options.onOpen || null;
         this.confirmText = options.confirmText || '确认';
         this.cancelText = options.cancelText || '取消';
         this.showCancel = options.showCancel !== false;
+        this.width = options.width || '500px';
         this.element = null;
         this.handleKeydown = null;
     }
@@ -18,7 +20,7 @@ class Modal {
     render() {
         const html = `
             <div class="modal-overlay">
-                <div class="modal">
+                <div class="modal" style="max-width: ${this.width};">
                     <div class="modal-header">
                         <h3 class="modal-title">${this.title}</h3>
                         <button class="modal-close" data-action="close">&times;</button>
@@ -44,6 +46,15 @@ class Modal {
         this.element = container.querySelector('.modal-overlay');
 
         this.bindEvents();
+
+        // 调用 onOpen 回调(在 DOM 元素已经渲染后)
+        if (this.onOpen) {
+            // 使用 setTimeout 确保 DOM 完全渲染
+            setTimeout(() => {
+                this.onOpen();
+            }, 0);
+        }
+
         return this;
     }
 

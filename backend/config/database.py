@@ -57,8 +57,8 @@ def init_db():
     Creates all tables if they don't exist
     """
     try:
-        # Import all models to register them with Base
-        from db.base import Base as OldBase
+        # Import all new backend models to register them with Base
+        from backend.database.models import agent, chat, km, map, system
 
         # Create all tables
         Base.metadata.create_all(bind=engine)

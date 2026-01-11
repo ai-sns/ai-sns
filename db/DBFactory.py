@@ -686,7 +686,7 @@ class AgentCfg(Base):
     user_id = Column(String(100), doc="")
     name = Column(String(200), doc="")
     memo = Column(String(200), doc="")
-    borndate = Column(DateTime, default=datetime.now, doc="")
+    borndate = Column(DateTime, nullable=True, default=None, doc="")
     borncontry = Column(String(100), doc="")
     language = Column(String(100), doc="")
     gender = Column(Integer, doc="")

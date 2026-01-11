@@ -1250,3 +1250,10 @@ api_server.py 提供了以下与地图相关的接口：
 1.请给ai大模型做个管理界面，可以增删查改，要求兼容openai，claude，gemini，以及类openai四种不同的大模型接口访问模式
 2.请给角色做个管理界面，可以增删查改，给不同角色设置不同的提示词。
 3.agent栏目，聊天主界面上的modelSelector,role-selector这两个选择框内的选项要从上述配置好的数据中加载。
+
+优化一下electron的agent栏目左边栏上的Setting功能，renderer/js/modules/agent/AgentSidebar.js
+1.点击Setting按钮后，系统能够提供一个配置界面，对当前agent进行配置。
+2.配置的内容要包含google a2a协议所要求的所有字段。
+3.另外还必须有：使用的llm大模型，使用的角色，区块链电子钱包地址(如果没有，允许直接在配置界面上创建)
+
+注意:前端是electron，后端由api_server.py及backend目录提供

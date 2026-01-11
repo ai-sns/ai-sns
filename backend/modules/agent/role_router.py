@@ -10,13 +10,17 @@ router = APIRouter(prefix="/role-configs", tags=["Role Configuration"])
 
 @router.get("", response_model=dict)
 async def get_role_configs(
-    active_only: bool = Query(True, description="Only return active configurations"),
+    active_only: Optional[bool] = Query(None, description="Only return active configurations"),
     category: Optional[str] = Query(None, description="Filter by category")
 ):
     """Get all role configurations."""
     try:
         service = RoleConfigService()
-        configs = service.get_all(active_only=active_only, category=category)
+        # 如果没有指定 active_only，默认返回所有活跃的配置
+        configs = service.get_all(
+            active_only=active_only if active_only is not None else True,
+            category=category
+        )
         return {"success": True, "data": configs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

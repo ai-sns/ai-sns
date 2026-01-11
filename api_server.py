@@ -38,6 +38,7 @@ from backend.modules.map.router import router as map_router
 from backend.modules.km.router import router as km_router
 from backend.modules.system.router import router as system_router
 from backend.modules.plugins.router import router as plugins_router
+from backend.modules.wallet.router import router as wallet_router
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -77,14 +78,16 @@ except Exception as e:
     logger.warning(f"Failed to mount static files: {e}")
 
 # 注册所有模块路由
-app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
+# IMPORTANT: Register more specific routes BEFORE general routes to avoid path conflicts
 app.include_router(llm_router, prefix="/api/agent", tags=["Agent-LLM"])
 app.include_router(role_router, prefix="/api/agent", tags=["Agent-Role"])
+app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
 app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
 app.include_router(map_router, prefix="/api/map", tags=["Map"])
 app.include_router(km_router, prefix="/api/km", tags=["Knowledge Base"])
 app.include_router(system_router, prefix="/api/system", tags=["System"])
 app.include_router(plugins_router, prefix="/api/plugins", tags=["Plugins"])
+app.include_router(wallet_router, prefix="/api/wallet", tags=["Blockchain Wallet"])
 
 # 健康检查端点（保持向后兼容）
 @app.get("/health")

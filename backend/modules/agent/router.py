@@ -31,6 +31,32 @@ async def get_agents(service: AgentService = Depends(get_agent_service)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{agent_id}", response_model=dict)
+async def get_agent(
+    agent_id: int,
+    service: AgentService = Depends(get_agent_service)
+):
+    """
+    Get a single agent by ID
+
+    Args:
+        agent_id: Agent ID
+
+    Returns:
+        Agent configuration
+    """
+    try:
+        agent = service.get_agent(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        return {"success": True, "data": agent}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting agent: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("", response_model=dict)
 async def create_agent(
     config: AgentConfig,
@@ -46,15 +72,9 @@ async def create_agent(
         Created agent ID
     """
     try:
-        agent_id = service.create_agent(
-            name=config.name,
-            description=config.description,
-            model=config.model,
-            api_key=config.api_key,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            system_prompt=config.system_prompt
-        )
+        # 将 Pydantic 模型转换为字典，排除未设置的字段
+        agent_data = config.dict(exclude_unset=True)
+        agent_id = service.create_agent(**agent_data)
         return {"success": True, "data": {"id": agent_id}}
     except Exception as e:
         logger.error(f"Error creating agent: {e}")
@@ -78,8 +98,11 @@ async def update_agent(
         Success status
     """
     try:
-        service.update_agent(agent_id, **config.dict(exclude_unset=True))
+        agent_data = config.dict(exclude_unset=True)
+        service.update_agent(agent_id, **agent_data)
         return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error updating agent: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -105,3 +128,4 @@ async def delete_agent(
     except Exception as e:
         logger.error(f"Error deleting agent: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+

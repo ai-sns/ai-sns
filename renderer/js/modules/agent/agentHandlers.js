@@ -839,9 +839,16 @@ const agentHandlers = {
      * 绑定管理按钮的事件
      */
     bindManagementButtonEvents() {
+        // 移除旧的事件监听器，避免重复绑定
         document.querySelectorAll('.agent-management[data-page]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const page = btn.dataset.page;
+            // 克隆并替换节点以移除旧事件监听器
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            // 添加新的事件监听器
+            newBtn.addEventListener('click', () => {
+                const page = newBtn.dataset.page;
+                console.log('Management button clicked:', page);
                 this.navigateToManagementPage(page);
             });
         });
@@ -1036,56 +1043,17 @@ const agentHandlers = {
      * 处理设置
      */
     handleSettings() {
-        if (typeof Modal === 'undefined') {
-            console.error('Modal component not loaded');
-            return;
+        // 使用新的 Agent Settings Dialog
+        if (typeof AgentSettingsDialog !== 'undefined') {
+            // 传入 null 表示创建新 Agent
+            // 如果要编辑现有 Agent，可以传入 agent 对象
+            AgentSettingsDialog.show(null);
+        } else {
+            console.error('AgentSettingsDialog not loaded');
+            if (typeof Notification !== 'undefined') {
+                Notification.error('配置对话框未加载');
+            }
         }
-
-        Modal.show({
-            title: 'Agent设置',
-            content: `
-                <div class="form-group">
-                    <label>温度 (Temperature)</label>
-                    <input type="range" class="form-range" id="temperature" min="0" max="1" step="0.1" value="0.7">
-                    <span id="temperatureValue">0.7</span>
-                </div>
-                <div class="form-group">
-                    <label>最大令牌数 (Max Tokens)</label>
-                    <input type="number" class="form-input" id="maxTokens" value="2000">
-                </div>
-                <div class="form-group">
-                    <label>Top P</label>
-                    <input type="range" class="form-range" id="topP" min="0" max="1" step="0.1" value="0.9">
-                    <span id="topPValue">0.9</span>
-                </div>
-            `,
-            confirmText: '保存',
-            showCancel: true,
-            onConfirm: () => {
-                if (typeof Notification !== 'undefined') {
-                    Notification.success('设置已保存');
-                }
-            }
-        });
-
-        // 绑定滑动条事件
-        setTimeout(() => {
-            const temperatureSlider = document.getElementById('temperature');
-            const temperatureValue = document.getElementById('temperatureValue');
-            if (temperatureSlider && temperatureValue) {
-                temperatureSlider.addEventListener('input', (e) => {
-                    temperatureValue.textContent = e.target.value;
-                });
-            }
-
-            const topPSlider = document.getElementById('topP');
-            const topPValue = document.getElementById('topPValue');
-            if (topPSlider && topPValue) {
-                topPSlider.addEventListener('input', (e) => {
-                    topPValue.textContent = e.target.value;
-                });
-            }
-        }, 100);
     },
 
     /**
@@ -1507,23 +1475,36 @@ if __name__ == "__main__":
      * 导航到管理页面
      */
     async navigateToManagementPage(page) {
-        // 先销毁之前打开的管理页面
-        if (this.currentManagementPage) {
-            if (this.currentManagementPage.destroy) {
-                this.currentManagementPage.destroy();
+        try {
+            console.log('Navigating to management page:', page);
+
+            // 先销毁之前打开的管理页面
+            if (this.currentManagementPage) {
+                if (this.currentManagementPage.destroy) {
+                    this.currentManagementPage.destroy();
+                }
+                this.currentManagementPage = null;
             }
-            this.currentManagementPage = null;
-        }
 
-        // Import management pages dynamically
-        const { ModelManagementPage, RoleManagementPage } = await import('./index.js').then(m => m.default);
+            // Import management pages dynamically
+            const module = await import('./index.js');
+            const { ModelManagementPage, RoleManagementPage } = module.default;
 
-        if (page === 'model-management' && ModelManagementPage) {
-            this.currentManagementPage = ModelManagementPage;
-            await ModelManagementPage.init();
-        } else if (page === 'role-management' && RoleManagementPage) {
-            this.currentManagementPage = RoleManagementPage;
-            await RoleManagementPage.init();
+            console.log('Imported pages:', { ModelManagementPage, RoleManagementPage });
+
+            if (page === 'model-management' && ModelManagementPage) {
+                this.currentManagementPage = ModelManagementPage;
+                await ModelManagementPage.init();
+                console.log('Model management page initialized');
+            } else if (page === 'role-management' && RoleManagementPage) {
+                this.currentManagementPage = RoleManagementPage;
+                await RoleManagementPage.init();
+                console.log('Role management page initialized');
+            } else {
+                console.error('Page not found:', page);
+            }
+        } catch (error) {
+            console.error('Error navigating to management page:', error);
         }
     },
 

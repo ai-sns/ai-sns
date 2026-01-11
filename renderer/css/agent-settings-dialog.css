@@ -1,0 +1,217 @@
+/**
+ * Agent Settings Dialog Styles
+ * Agent 配置对话框样式
+ */
+
+.agent-settings-form {
+    padding: 0;
+}
+
+/* 页签导航 */
+.settings-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.settings-tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #666);
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.settings-tab-btn:hover {
+    color: var(--primary-color, #1a73e8);
+    background: var(--hover-bg, #f5f5f5);
+}
+
+.settings-tab-btn.active {
+    color: var(--primary-color, #1a73e8);
+    border-bottom-color: var(--primary-color, #1a73e8);
+    font-weight: 500;
+}
+
+/* 页签内容 */
+.settings-tab-pane {
+    display: none;
+}
+
+.settings-tab-pane.active {
+    display: block;
+}
+
+/* 表单样式 */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary, #333);
+}
+
+.form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    font-size: 13px;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary-color, #1a73e8);
+}
+
+.form-input[readonly] {
+    background: var(--bg-secondary, #f5f5f5);
+    cursor: not-allowed;
+}
+
+textarea.form-input {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary, #666);
+}
+
+/* 表单行 */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+/* 复选框组 */
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-primary, #333);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+}
+
+/* 带按钮的输入框 */
+.input-with-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.input-with-buttons .form-input {
+    flex: 1;
+}
+
+.btn-secondary {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color, #ddd);
+    background: white;
+    color: var(--text-primary, #333);
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: var(--hover-bg, #f5f5f5);
+    border-color: var(--primary-color, #1a73e8);
+    color: var(--primary-color, #1a73e8);
+}
+
+/* 钱包信息卡片 */
+.wallet-info {
+    margin-top: 16px;
+}
+
+.info-card {
+    padding: 16px;
+    background: var(--bg-secondary, #f9f9f9);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 4px;
+}
+
+.info-card h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary, #333);
+}
+
+.info-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.info-label {
+    min-width: 60px;
+    font-weight: 500;
+    color: var(--text-secondary, #666);
+}
+
+.info-value {
+    flex: 1;
+    color: var(--text-primary, #333);
+    word-break: break-all;
+}
+
+.info-value.warning {
+    color: #d93025;
+    font-family: monospace;
+}
+
+/* 警告框 */
+.warning-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #856404;
+    line-height: 1.5;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+    }
+
+    .input-with-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-secondary {
+        width: 100%;
+    }
+}

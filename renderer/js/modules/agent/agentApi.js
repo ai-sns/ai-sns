@@ -294,6 +294,96 @@ const agentApi = {
             console.error('收藏操作失败:', error);
             throw error;
         }
+    },
+
+    /**
+     * 创建区块链钱包
+     */
+    async createWallet(label = '') {
+        try {
+            const response = await fetch('http://localhost:8788/api/wallet/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('创建钱包失败:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 导入区块链钱包
+     */
+    async importWallet(privateKey, label = '') {
+        try {
+            const response = await fetch('http://localhost:8788/api/wallet/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ private_key: privateKey, label })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('导入钱包失败:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 获取钱包列表
+     */
+    async listWallets() {
+        try {
+            const response = await fetch('http://localhost:8788/api/wallet/list');
+            return await response.json();
+        } catch (error) {
+            console.error('获取钱包列表失败:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 获取钱包信息
+     */
+    async getWallet(address) {
+        try {
+            const response = await fetch(`http://localhost:8788/api/wallet/${address}`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取钱包信息失败:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 更新 Agent 配置
+     */
+    async updateAgent(agentId, agentData) {
+        try {
+            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(agentData)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('更新 Agent 失败:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 获取单个 Agent 详情
+     */
+    async getAgent(agentId) {
+        try {
+            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取 Agent 详情失败:', error);
+            throw error;
+        }
     }
 };
 

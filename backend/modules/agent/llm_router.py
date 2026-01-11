@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """LLM configuration API router."""
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from .llm_schemas import (
     LlmConfigCreate, LlmConfigUpdate, LlmConfigResponse, LlmTestRequest
@@ -12,12 +12,13 @@ router = APIRouter(prefix="/llm-configs", tags=["LLM Configuration"])
 
 @router.get("", response_model=dict)
 async def get_llm_configs(
-    active_only: bool = Query(True, description="Only return active configurations")
+    active_only: Optional[bool] = Query(None, description="Only return active configurations")
 ):
     """Get all LLM configurations."""
     try:
         service = LlmConfigService()
-        configs = service.get_all(active_only=active_only)
+        # 如果没有指定 active_only，默认返回所有活跃的配置
+        configs = service.get_all(active_only=active_only if active_only is not None else True)
         return {"success": True, "data": configs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
