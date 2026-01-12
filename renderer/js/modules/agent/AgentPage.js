@@ -36,7 +36,7 @@ const AgentPage = {
      */
     createAgentPageHTML(agent, isActive = false) {
         return `
-            <div id="page-agent-${agent.id}" class="agent-page-layout" data-agent-id="${agent.id}" style="display: ${isActive ? 'block' : 'none'}">
+            <div id="page-agent-${agent.id}" class="agent-page-layout" data-agent-id="${agent.id}" style="display: ${isActive ? 'flex' : 'none'}">
                 <!-- 聊天主区域 -->
                 <div class="agent-chat-area">
                     <!-- 顶部工具栏 -->

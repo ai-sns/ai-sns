@@ -1100,7 +1100,7 @@
 }
 
 .modal {
-    background-color: #fff;
+    background-color: var(--bg-content);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     max-width: 600px;
@@ -2427,11 +2427,19 @@
 }
 
 /* === Agent 页面新样式 - 参照 agent.png === */
+#agent-pages-container {
+    height: 100%;
+    width: 100%;
+}
+
 .agent-page-layout {
     height: 100%;
-    display: flex;
+    width: 100%;
     overflow: hidden;
+    min-height: 0; /* 允许作为 flex 子元素时收缩 */
 }
+
+/* display: none 的元素不会占据空间，所以可以安全地设置 height: 100% */
 
 .agent-chat-area {
     flex: 1;
@@ -2439,6 +2447,8 @@
     flex-direction: column;
     background: #fff;
     overflow: hidden;
+    min-height: 0; /* 允许 flex 子元素收缩 */
+    max-height: 100%; /* 防止超出父容器 */
 }
 
 /* 顶部工具栏 */
@@ -2449,6 +2459,7 @@
     padding: 12px 20px;
     border-bottom: 1px solid var(--border-light);
     background: #fff;
+    flex-shrink: 0; /* 防止被压缩 */
 }
 
 .toolbar-left, .toolbar-right {
@@ -2482,8 +2493,10 @@
 .agent-chat-messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 20px 24px;
     background: #f8f9fa;
+    min-height: 0; /* 确保flex子元素可以缩小 */
 }
 
 .message-item {
@@ -2528,6 +2541,7 @@
     padding: 16px 24px;
     background: #fff;
     border-top: 1px solid var(--border-light);
+    flex-shrink: 0; /* 防止被压缩 */
 }
 
 .input-hint {
@@ -6365,9 +6379,6 @@ body.theme-dark .form-select:focus {
     color: var(--color-primary);
 }
 
-.agent-page-layout {
-    position: relative;
-}
 /* ========== Agent 右侧设置面板主题修复 ========== */
 
 .agent-settings-panel {
@@ -6616,7 +6627,7 @@ body.theme-dark .form-select:focus {
 
 .model-card,
 .role-card {
-    background: var(--surface-primary);
+    background: var(--bg-content);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
@@ -6707,7 +6718,7 @@ body.theme-dark .form-select:focus {
 }
 
 .btn-icon:hover {
-    background: var(--surface-secondary);
+    background: var(--bg-secondary);
 }
 
 .model-card-body,
@@ -6759,7 +6770,7 @@ body.theme-dark .form-select:focus {
 }
 
 .modal-dialog {
-    background: var(--surface-primary);
+    background: var(--bg-content);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);
     max-width: 600px;
@@ -6876,7 +6887,7 @@ body.theme-dark .form-select:focus {
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     color: var(--text-primary);
-    background: var(--surface-primary);
+    background: #ffffff;
     transition: border-color 0.2s ease;
 }
 
@@ -6887,7 +6898,7 @@ body.theme-dark .form-select:focus {
 }
 
 .form-control:disabled {
-    background: var(--surface-secondary);
+    background: var(--bg-secondary);
     cursor: not-allowed;
 }
 
@@ -6934,7 +6945,7 @@ body.theme-dark .form-select:focus {
     padding: var(--spacing-md);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    background: var(--surface-primary);
+    background: var(--bg-content);
     transition: border-color 0.2s ease;
 }
 
@@ -6984,7 +6995,7 @@ body.theme-dark .form-select:focus {
 .import-preview {
     margin-top: var(--spacing-md);
     padding: var(--spacing-md);
-    background: var(--surface-secondary);
+    background: var(--bg-secondary);
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
 }
@@ -7017,13 +7028,13 @@ body.theme-dark .form-select:focus {
 }
 
 .btn-secondary {
-    background: var(--surface-secondary);
+    background: var(--bg-secondary);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-    background: var(--surface-tertiary);
+    background: var(--bg-tertiary);
 }
 
 .btn-sm {

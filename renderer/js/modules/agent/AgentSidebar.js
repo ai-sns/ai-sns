@@ -1,6 +1,6 @@
 /**
- * Agent Sidebar - 侧边栏渲染（多Agent动态加载版本）
- * AI助手选择和聊天列表
+ * Agent Sidebar - 侧边栏渲染（多Agent动态加载版本 - 重构架构）
+ * 每个Agent有自己的展开/折叠section，直接显示在对应agent列表项下方
  */
 
 const AgentSidebar = {
@@ -9,7 +9,6 @@ const AgentSidebar = {
      */
     render() {
         return `
-            <div id="agent-sections-container"></div>
             <div class="sidebar-section agent-list-section">
                 <div class="agent-list" id="agentList"></div>
             </div>
@@ -32,21 +31,16 @@ const AgentSidebar = {
             return;
         }
 
-        // 2. 创建每个Agent的section
-        const container = document.getElementById('agent-sections-container');
-        if (container) {
-            agents.forEach((agent, index) => {
-                const sectionHTML = this.createAgentSectionHTML(agent, index === 0);
-                container.insertAdjacentHTML('beforeend', sectionHTML);
-            });
-            console.log('[AgentSidebar] 已创建所有Agent sections');
-        }
-
-        // 3. 渲染Agent列表
+        // 2. 渲染Agent列表（每个agent包含item + section）
         this.renderAgentList(agents);
 
-        // 4. 绑定事件
+        // 3. 绑定事件
         this.bindEvents();
+
+        // 4. 默认展开第一个agent
+        if (agents.length > 0) {
+            this.switchAgent(agents[0].id);
+        }
 
         console.log('[AgentSidebar] 初始化完成');
     },
@@ -70,17 +64,60 @@ const AgentSidebar = {
     },
 
     /**
-     * 创建单个Agent的section HTML
+     * 渲染Agent列表（新架构：每个agent item后面跟着它的section）
      */
-    createAgentSectionHTML(agent, isActive = false) {
+    renderAgentList(agents) {
+        const agentList = document.getElementById('agentList');
+        if (!agentList) return;
+
+        // 为每个agent创建：item + section
+        const agentItemsHTML = agents.map(agent => `
+            <!-- Agent列表项 -->
+            <div class="agent-item" data-agent-id="${agent.id}">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#5f6368">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span>${agent.name || 'Unnamed Agent'}</span>
+            </div>
+
+            <!-- Agent专属的可展开section（初始隐藏）-->
+            <div class="agent-section-container" data-agent-id="${agent.id}" style="display: none;">
+                ${this.createAgentSectionHTML(agent)}
+            </div>
+        `).join('');
+
+        // 添加管理按钮
+        const managementButtons = `
+            <div class="agent-item agent-management" data-page="model-management">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span>模型管理</span>
+            </div>
+            <div class="agent-item agent-management" data-page="role-management">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+                <span>角色管理</span>
+            </div>
+            <div class="agent-item agent-management">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/>
+                </svg>
+                <span>Agent Management</span>
+            </div>
+        `;
+
+        agentList.innerHTML = agentItemsHTML + managementButtons;
+        console.log('[AgentSidebar] Agent列表已渲染（新架构：item+section模式）');
+    },
+
+    /**
+     * 创建单个Agent的section HTML内容
+     */
+    createAgentSectionHTML(agent) {
         return `
-            <div class="sidebar-section agent-user-section" data-agent-id="${agent.id}" style="display: ${isActive ? 'block' : 'none'}">
-                <div class="agent-user-header">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="#5f6368">
-                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 9h-2V9h2v2zm0 4h-2v-2h2v2zM13 9V3.5L18.5 9H13z"/>
-                    </svg>
-                    <span class="agent-username">${agent.name || 'Unnamed Agent'}</span>
-                </div>
+            <div class="agent-user-section" data-agent-id="${agent.id}">
                 <!-- 大图标按钮 -->
                 <div class="agent-action-buttons">
                     <button class="agent-action-btn" data-action="new-chat" data-agent-id="${agent.id}">
@@ -139,48 +176,6 @@ const AgentSidebar = {
     },
 
     /**
-     * 渲染Agent列表
-     */
-    renderAgentList(agents) {
-        const agentList = document.getElementById('agentList');
-        if (!agentList) return;
-
-        const agentItems = agents.map(agent => `
-            <div class="agent-item" data-agent-id="${agent.id}">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#5f6368">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                <span>${agent.name || 'Unnamed Agent'}</span>
-            </div>
-        `).join('');
-
-        // 添加管理按钮
-        const managementButtons = `
-            <div class="agent-item agent-management" data-page="model-management">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                <span>模型管理</span>
-            </div>
-            <div class="agent-item agent-management" data-page="role-management">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                <span>角色管理</span>
-            </div>
-            <div class="agent-item agent-management">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
-                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/>
-                </svg>
-                <span>Agent Management</span>
-            </div>
-        `;
-
-        agentList.innerHTML = agentItems + managementButtons;
-        console.log('[AgentSidebar] Agent列表已渲染');
-    },
-
-    /**
      * 渲染空状态
      */
     renderEmptyState() {
@@ -201,7 +196,7 @@ const AgentSidebar = {
     bindEvents() {
         console.log('[AgentSidebar] 开始绑定事件...');
 
-        // 1. Agent列表项点击 - 切换Agent
+        // 1. Agent列表项点击 - 切换Agent（展开/折叠）
         document.querySelectorAll('#agentList .agent-item[data-agent-id]').forEach(item => {
             item.addEventListener('click', () => {
                 const agentId = parseInt(item.dataset.agentId);
@@ -245,25 +240,34 @@ const AgentSidebar = {
             });
         });
 
+        // 5. 管理按钮（模型管理、角色管理、Agent Management）
+        document.querySelectorAll('.agent-management[data-page]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = btn.dataset.page;
+                console.log('[AgentSidebar] 点击管理按钮:', page);
+                this.navigateToManagementPage(page);
+            });
+        });
+
         console.log('[AgentSidebar] 事件绑定完成');
     },
 
     /**
-     * 切换Agent
+     * 切换Agent（新架构：展开/折叠对应的section-container）
      */
     switchAgent(agentId) {
         console.log('[AgentSidebar] 切换到Agent:', agentId);
 
-        // 1. 隐藏所有agent-section
-        document.querySelectorAll('.agent-user-section').forEach(section => {
-            section.style.display = 'none';
+        // 1. 折叠所有agent-section-container
+        document.querySelectorAll('.agent-section-container').forEach(container => {
+            container.style.display = 'none';
         });
 
-        // 2. 显示选中的agent-section
-        const targetSection = document.querySelector(`.agent-user-section[data-agent-id="${agentId}"]`);
-        if (targetSection) {
-            targetSection.style.display = 'block';
-            console.log('[AgentSidebar] 已显示Agent section:', agentId);
+        // 2. 展开选中agent的section-container
+        const targetContainer = document.querySelector(`.agent-section-container[data-agent-id="${agentId}"]`);
+        if (targetContainer) {
+            targetContainer.style.display = 'block';
+            console.log('[AgentSidebar] 已展开Agent section container:', agentId);
         }
 
         // 3. 隐藏所有agent-page
@@ -274,7 +278,7 @@ const AgentSidebar = {
         // 4. 显示选中的agent-page
         const targetPage = document.getElementById(`page-agent-${agentId}`);
         if (targetPage) {
-            targetPage.style.display = 'block';
+            targetPage.style.display = 'flex'; // 使用flex而不是block以保持布局
             console.log('[AgentSidebar] 已显示Agent page:', agentId);
         }
 
@@ -330,6 +334,33 @@ const AgentSidebar = {
             }
         } catch (error) {
             console.error('[AgentSidebar] 加载Agent详情失败:', error);
+        }
+    },
+
+    /**
+     * 导航到管理页面
+     */
+    async navigateToManagementPage(page) {
+        try {
+            console.log('[AgentSidebar] 导航到管理页面:', page);
+
+            // Import management pages dynamically
+            const module = await import('./index.js');
+            const { ModelManagementPage, RoleManagementPage } = module.default;
+
+            console.log('[AgentSidebar] 已导入管理页面模块');
+
+            if (page === 'model-management' && ModelManagementPage) {
+                await ModelManagementPage.init();
+                console.log('[AgentSidebar] 模型管理页面已初始化');
+            } else if (page === 'role-management' && RoleManagementPage) {
+                await RoleManagementPage.init();
+                console.log('[AgentSidebar] 角色管理页面已初始化');
+            } else {
+                console.error('[AgentSidebar] 页面未找到:', page);
+            }
+        } catch (error) {
+            console.error('[AgentSidebar] 导航到管理页面失败:', error);
         }
     }
 };

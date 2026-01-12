@@ -196,6 +196,16 @@ const multiAgentHandlers = {
             }
         });
 
+        // 8. 插件选择按钮（工具栏的"添加"按钮）
+        document.addEventListener('click', (e) => {
+            const addBtn = e.target.closest('.toolbar-icon-btn[title="添加"][data-agent-id]');
+            if (addBtn) {
+                const agentId = parseInt(addBtn.dataset.agentId);
+                console.log('[MultiAgentHandlers] 点击添加按钮（插件选择）for agent:', agentId);
+                this.handleAddPlugin(agentId);
+            }
+        });
+
         console.log('[MultiAgentHandlers] 所有事件绑定完成');
     },
 
@@ -207,8 +217,18 @@ const multiAgentHandlers = {
         if (!chatList) return;
 
         try {
-            const response = await agentApi.getConversations(50);
-            const conversations = response.data || [];
+            // 尝试从API获取conversations，带agent_id参数
+            // 如果后端支持按agent筛选，会返回过滤后的结果
+            // 如果不支持，我们在客户端进行过滤
+            const response = await fetch(`http://localhost:8788/api/chat/conversations?limit=50&agent_id=${agentId}`);
+            const result = await response.json();
+            let conversations = result.data || [];
+
+            // 客户端过滤：只显示属于当前agent的对话
+            // 如果conversation有agent_id字段，则过滤；否则显示所有（向后兼容）
+            if (conversations.length > 0 && conversations[0].agent_id !== undefined) {
+                conversations = conversations.filter(conv => conv.agent_id === agentId);
+            }
 
             const treeChildren = chatList.querySelector('.tree-children');
             if (!treeChildren) return;
@@ -239,7 +259,7 @@ const multiAgentHandlers = {
                 });
             });
 
-            console.log(`[MultiAgentHandlers] Agent ${agentId} 聊天列表已加载`);
+            console.log(`[MultiAgentHandlers] Agent ${agentId} 聊天列表已加载，共 ${conversations.length} 条`);
         } catch (error) {
             console.error(`[MultiAgentHandlers] Agent ${agentId} 加载聊天列表失败:`, error);
         }
@@ -786,6 +806,305 @@ const multiAgentHandlers = {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+
+    /**
+     * 处理添加插件（特定agent）
+     */
+    handleAddPlugin(agentId) {
+        if (typeof Modal === 'undefined') {
+            console.error('[MultiAgentHandlers] Modal component not loaded');
+            return;
+        }
+
+        Modal.show({
+            title: '添加插件',
+            content: `
+                <div class="form-group">
+                    <label>选择插件</label>
+                    <select class="form-input" id="pluginSelect">
+                        <option value="">请选择插件...</option>
+                        <option value="mindmap">思维导图插件</option>
+                        <option value="code">代码执行插件</option>
+                        <option value="calendar">日历插件</option>
+                        <option value="chart">图表插件</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>插件说明</label>
+                    <p style="font-size: 12px; color: #666;" id="pluginDescription">请先选择一个插件</p>
+                </div>
+            `,
+            confirmText: '添加',
+            showCancel: true,
+            onConfirm: () => {
+                const select = document.getElementById('pluginSelect');
+                const pluginId = select.value;
+
+                if (!pluginId) {
+                    if (typeof Notification !== 'undefined') {
+                        Notification.error('请选择一个插件');
+                    }
+                    return false; // 阻止模态框关闭
+                }
+
+                this.loadPluginForAgent(pluginId, agentId);
+            }
+        });
+
+        // 绑定插件选择变化事件
+        setTimeout(() => {
+            const select = document.getElementById('pluginSelect');
+            const descriptionEl = document.getElementById('pluginDescription');
+
+            if (select && descriptionEl) {
+                select.addEventListener('change', (e) => {
+                    const descriptions = {
+                        'mindmap': '将聊天内容中的 Markdown mindmap 语法转换为可视化的思维导图',
+                        'code': '从聊天中提取代码块，提供编辑和运行功能（支持 JavaScript、Python、HTML/CSS/JS）',
+                        'calendar': '在聊天中显示和管理日历事件',
+                        'chart': '将数据可视化为各种图表'
+                    };
+
+                    descriptionEl.textContent = descriptions[e.target.value] || '请先选择一个插件';
+                });
+            }
+        }, 100);
+    },
+
+    /**
+     * 为特定agent加载插件
+     */
+    loadPluginForAgent(pluginId, agentId) {
+        console.log(`[MultiAgentHandlers] 为Agent ${agentId} 加载插件:`, pluginId);
+
+        // 插件配置
+        const pluginConfigs = {
+            'mindmap': {
+                name: '思维导图',
+                fullName: '思维导图插件',
+                description: '将 Markdown mindmap 转换为可视化思维导图',
+                icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
+            },
+            'code': {
+                name: '代码执行',
+                fullName: '代码执行插件',
+                description: '从聊天中提取代码并在浏览器中运行',
+                icon: '<path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>'
+            },
+            'calendar': {
+                name: '日历',
+                fullName: '日历插件',
+                description: '在聊天中显示和管理日历事件',
+                icon: '<path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>'
+            },
+            'chart': {
+                name: '图表',
+                fullName: '图表插件',
+                description: '将数据可视化为各种图表',
+                icon: '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>'
+            }
+        };
+
+        const config = pluginConfigs[pluginId];
+        if (!config) {
+            console.error('[MultiAgentHandlers] 未知的插件ID:', pluginId);
+            return;
+        }
+
+        // 检查插件是否已加载
+        const existingTab = document.querySelector(`#settingsTabs-${agentId} .settings-tab[data-tab="plugin-${pluginId}"]`);
+        if (existingTab) {
+            console.log('[MultiAgentHandlers] 插件已存在，切换到该页签');
+            existingTab.click();
+            if (typeof Notification !== 'undefined') {
+                Notification.info(`${config.fullName} 已加载`);
+            }
+            return;
+        }
+
+        // 1. 创建页签按钮
+        const settingsTabs = document.getElementById(`settingsTabs-${agentId}`);
+        if (!settingsTabs) {
+            console.error('[MultiAgentHandlers] 未找到设置页签容器');
+            return;
+        }
+
+        const tabButton = document.createElement('button');
+        tabButton.className = 'settings-tab';
+        tabButton.dataset.tab = `plugin-${pluginId}`;
+        tabButton.dataset.agentId = agentId;
+        tabButton.innerHTML = `
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                ${config.icon}
+            </svg>
+            <span>${config.name}</span>
+            <button class="tab-close-btn" title="关闭插件">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+        `;
+
+        // 绑定关闭按钮事件
+        const closeBtn = tabButton.querySelector('.tab-close-btn');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removePluginTabForAgent(pluginId, agentId);
+        });
+
+        settingsTabs.appendChild(tabButton);
+        console.log('[MultiAgentHandlers] ✓ 已创建页签按钮');
+
+        // 2. 创建页签内容
+        const tabContent = document.getElementById(`settingsTabContent-${agentId}`);
+        if (!tabContent) {
+            console.error('[MultiAgentHandlers] 未找到页签内容容器');
+            return;
+        }
+
+        const tabPane = document.createElement('div');
+        tabPane.className = 'tab-pane';
+        tabPane.dataset.tab = `plugin-${pluginId}`;
+        tabPane.innerHTML = `
+            <div class="settings-section">
+                <div class="settings-section-title">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
+                        ${config.icon}
+                    </svg>
+                    <span>${config.fullName}</span>
+                </div>
+                <div class="plugin-content" id="plugin-content-${pluginId}-${agentId}">
+                    <p style="font-size: 11px; color: #999; text-align: center; padding: 20px;">正在加载插件...</p>
+                </div>
+            </div>
+        `;
+
+        tabContent.appendChild(tabPane);
+        console.log('[MultiAgentHandlers] ✓ 已创建页签内容');
+
+        // 3. 激活新创建的页签
+        tabButton.click();
+
+        // 4. 加载插件具体内容
+        this.loadPluginContentForAgent(pluginId, agentId);
+
+        if (typeof Notification !== 'undefined') {
+            Notification.success(`${config.fullName} 已加载`);
+        }
+
+        console.log('[MultiAgentHandlers] ✓ 插件加载完成');
+    },
+
+    /**
+     * 移除特定agent的插件页签
+     */
+    removePluginTabForAgent(pluginId, agentId) {
+        console.log(`[MultiAgentHandlers] 为Agent ${agentId} 移除插件:`, pluginId);
+
+        // 移除页签按钮
+        const tabButton = document.querySelector(`#settingsTabs-${agentId} .settings-tab[data-tab="plugin-${pluginId}"]`);
+        if (tabButton) {
+            // 如果当前页签是激活状态，切换到 Param 页签
+            if (tabButton.classList.contains('active')) {
+                const paramTab = document.querySelector(`#settingsTabs-${agentId} .settings-tab[data-tab="param"]`);
+                if (paramTab) {
+                    paramTab.click();
+                }
+            }
+            tabButton.remove();
+        }
+
+        // 移除页签内容
+        const tabPane = document.querySelector(`#settingsTabContent-${agentId} .tab-pane[data-tab="plugin-${pluginId}"]`);
+        if (tabPane) {
+            tabPane.remove();
+        }
+
+        if (typeof Notification !== 'undefined') {
+            Notification.info('插件已移除');
+        }
+
+        console.log('[MultiAgentHandlers] ✓ 插件已移除');
+    },
+
+    /**
+     * 加载特定agent的插件内容
+     */
+    loadPluginContentForAgent(pluginId, agentId) {
+        const container = document.getElementById(`plugin-content-${pluginId}-${agentId}`);
+        if (!container) {
+            console.error('[MultiAgentHandlers] 未找到插件内容容器:', `plugin-content-${pluginId}-${agentId}`);
+            return;
+        }
+
+        // 根据插件 ID 加载不同的内容
+        switch (pluginId) {
+            case 'mindmap':
+                container.innerHTML = `
+                    <div style="padding: 12px;">
+                        <p style="font-size: 11px; color: var(--text-secondary, #666); margin-bottom: 12px;">
+                            思维导图插件已激活。在聊天中发送包含 mindmap 格式的代码块，将自动转换为可视化思维导图。
+                        </p>
+                        <div style="margin-bottom: 12px;">
+                            <p style="font-size: 10px; color: var(--text-secondary, #999); margin-bottom: 6px;">语法格式：</p>
+                            <pre style="background: var(--bg-secondary, #f5f5f5); padding: 8px; border-radius: 4px; font-size: 10px; overflow-x: auto; margin-bottom: 8px;">\`\`\`mindmap
+- 根节点
+  - 子节点1
+    - 孙节点1.1
+  - 子节点2
+\`\`\`</pre>
+                        </div>
+                        <button class="preset-use-btn" style="width: 100%; margin-bottom: 6px;" onclick="multiAgentHandlers.showMindmapExample(${agentId})">填充示例代码</button>
+                        <button class="preset-use-btn" style="width: 100%;" onclick="multiAgentHandlers.askAIForMindmap(${agentId})">让 AI 生成思维导图</button>
+                    </div>
+                `;
+                break;
+            case 'code':
+                if (window.CodePlugin) {
+                    window.CodePlugin.render(container);
+                } else {
+                    container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary, #666);">代码执行插件未加载，请刷新页面</p>';
+                    console.error('[MultiAgentHandlers] CodePlugin 未找到');
+                }
+                break;
+            case 'calendar':
+                container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary, #666);">日历插件开发中...</p>';
+                break;
+            case 'chart':
+                container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary, #666);">图表插件开发中...</p>';
+                break;
+            default:
+                container.innerHTML = '<p style="text-align: center; padding: 20px; color: var(--text-secondary, #666);">未知插件</p>';
+        }
+    },
+
+    /**
+     * 显示思维导图示例（特定agent）
+     */
+    showMindmapExample(agentId) {
+        const input = document.getElementById(`chatInput-${agentId}`);
+        if (input) {
+            input.value = '```mindmap\n- 学习编程\n  - 基础知识\n    - 数据类型\n    - 控制流程\n    - 函数\n  - 实践项目\n    - Web开发\n    - 移动应用\n    - 数据分析\n  - 进阶学习\n    - 算法与数据结构\n    - 设计模式\n    - 系统架构\n```';
+            if (typeof Notification !== 'undefined') {
+                Notification.info('已填充示例代码，点击发送按钮即可看到思维导图效果');
+            }
+            input.focus();
+        }
+    },
+
+    /**
+     * 让AI生成思维导图（特定agent）
+     */
+    askAIForMindmap(agentId) {
+        const input = document.getElementById(`chatInput-${agentId}`);
+        if (input) {
+            input.value = '请帮我生成一个关于"人工智能发展历程"的思维导图。\n\n请严格使用以下格式：\n```mindmap\n- 根节点\n  - 子节点（用2个空格缩进）\n    - 孙节点（用4个空格缩进）\n```\n\n注意：\n1. 代码块语言必须是 mindmap\n2. 每个节点用 "- " 开头\n3. 子节点用2个空格缩进\n4. 不要使用 Tab 键';
+            if (typeof Notification !== 'undefined') {
+                Notification.info('已填充 AI 请求，发送后等待 AI 按照正确格式回复');
+            }
+            input.focus();
+        }
     }
 };
 

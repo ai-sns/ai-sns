@@ -80,7 +80,12 @@ const RoleManagementPage = {
     renderHeader() {
         return `
             <div class="page-header">
-                <h2>角色管理</h2>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn btn-secondary" id="closeRoleManagementBtn" title="返回">
+                        <span>←</span>
+                    </button>
+                    <h2>角色管理</h2>
+                </div>
                 <div class="header-actions">
                     <button class="btn btn-secondary" id="importRolesBtn">
                         <span>📥</span> 导入
@@ -169,6 +174,10 @@ const RoleManagementPage = {
 
         document.getElementById('exportRolesBtn')?.addEventListener('click', () => {
             this.exportRoles();
+        });
+
+        document.getElementById('closeRoleManagementBtn')?.addEventListener('click', () => {
+            this.destroy();
         });
 
         // Delegate events for role cards

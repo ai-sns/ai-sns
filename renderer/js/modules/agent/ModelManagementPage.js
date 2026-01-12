@@ -65,7 +65,12 @@ const ModelManagementPage = {
     renderHeader() {
         return `
             <div class="page-header">
-                <h2>模型管理</h2>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn btn-secondary" id="closeModelManagementBtn" title="返回">
+                        <span>←</span>
+                    </button>
+                    <h2>模型管理</h2>
+                </div>
                 <div class="header-actions">
                     <button class="btn btn-secondary" id="importModelsBtn">
                         <span>📥</span> 导入
@@ -146,6 +151,10 @@ const ModelManagementPage = {
 
         document.getElementById('exportModelsBtn')?.addEventListener('click', () => {
             this.exportModels();
+        });
+
+        document.getElementById('closeModelManagementBtn')?.addEventListener('click', () => {
+            this.destroy();
         });
 
         // Delegate events for model cards

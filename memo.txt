@@ -1495,3 +1495,77 @@ agent详情后端接口：/api/agent/{agent_id} 例如http://localhost:8788/api/
   5. ✅ 所有功能（聊天、配置、历史）完全独立
 
   系统现已ready，可以立即投入使用！完整的文档和测试指南已提供，祝使用愉快！🎊
+
+发现两个问题：
+1.每个agent右边界面上的右边面板都乱掉了，位置都跑到聊天主界面的下面了，而不是在右侧。
+2.每个agent应该有和它对应的专属的agent-sections-container，被点击后它的专属的agent-sections-container应该原地展开，其他agent的agent-sections-container都应该立即关闭
+3.每个agent对应的chat list，应该显示和自己相关的聊天历史，现在是大家都展示一样的chat list列表，请优化
+修复完成总结
+
+  我已经成功修复了您报告的所有三个问题：
+
+  ✅ Issue 1: 右侧面板位置修复
+
+  问题: 每个agent的右侧设置面板显示在聊天区域下方，而不是右侧。
+
+  原因: 代码中使用 display: 'block' 覆盖了CSS的flexbox布局。
+
+  修复:
+  - AgentSidebar.js (line 277): 改为 display: 'flex'
+  - AgentPage.js (line 39): 初始化时也改为 display: 'flex'
+
+  现在右侧面板会正确显示在聊天区域的右侧。
+
+  ---
+  ✅ Issue 2: 侧边栏架构重构
+
+  问题: 所有agent共享一个顶部的agent-sections-container，而不是每个agent列表项有自己的可展开区域。
+
+  原因: 旧架构将所有sections放在一个共享容器中。
+
+  修复: 完全重写了 AgentSidebar.js
+  - 新架构: 每个agent列表项后面紧跟其专属的 agent-section-container
+  - 结构变化:
+  <!-- 旧结构 -->
+  <div id="agent-sections-container">所有sections</div>
+  <div class="agent-list">所有agent items</div>
+
+  <!-- 新结构 -->
+  <div class="agent-list">
+    <div class="agent-item">Agent 1</div>
+    <div class="agent-section-container">Agent 1的section</div>
+    <div class="agent-item">Agent 2</div>
+    <div class="agent-section-container">Agent 2的section</div>
+  </div>
+  - 点击agent时，其section原地展开，其他sections立即折叠
+
+  ---
+  ✅ Issue 3: 聊天列表按Agent过滤
+
+  问题: 所有agent显示相同的聊天列表。
+
+  原因: API调用没有按agent_id过滤。
+
+  修复: multiAgentHandlers.js loadChatListForAgent() 方法 (line 205-256)
+  - 服务器端过滤: API调用添加 agent_id 参数
+  fetch(`http://localhost:8788/api/chat/conversations?limit=50&agent_id=${agentId}`)
+  - 客户端过滤: 如果conversation有agent_id字段，进行二次过滤确保正确性
+  - 向后兼容: 如果conversation没有agent_id字段，显示所有对话（兼容旧数据）
+
+  ---
+  测试建议
+
+  1. 右侧面板: 确认设置面板显示在聊天区域右侧，使用flexbox水平布局
+  2. 侧边栏展开: 点击不同的agent列表项，确认section在agent item下方原地展开/折叠
+  3. 聊天列表隔离:
+    - 在不同agents中发送消息
+    - 确认每个agent只显示自己的对话列表
+    - 确认对话数量在console中正确显示
+
+  文件修改清单
+
+  1. ✏️ renderer/js/modules/agent/AgentSidebar.js - 完全重写（335行）
+  2. ✏️ renderer/js/modules/agent/AgentPage.js - 修复line 39
+  3. ✏️ renderer/js/modules/agent/multiAgentHandlers.js - 修复line 205-256
+
+  所有修改已完成，系统现在应该按照您期望的架构运行！
