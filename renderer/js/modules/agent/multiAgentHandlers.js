@@ -599,23 +599,39 @@ const multiAgentHandlers = {
                 if (models.length > 0) {
                     // 3. 确定要选中的模型
                     let selectedModel = null;
+                    let shouldShowPleaseSelect = false;
+
                     if (currentModelConfigId) {
-                        // 如果agent有保存的配置，使用该配置
+                        // 如果agent有保存的配置，尝试在列表中查找
                         selectedModel = models.find(m => m.config_id === currentModelConfigId);
-                    }
-                    // 如果没有找到或没有配置，使用默认模型
-                    if (!selectedModel) {
-                        selectedModel = models.find(m => m.is_default) || models[0];
+
+                        // 如果agent的配置不在可用列表中，显示 Please Select
+                        if (!selectedModel) {
+                            shouldShowPleaseSelect = true;
+                        }
+                    } else {
+                        // 如果agent没有配置，显示 Please Select
+                        shouldShowPleaseSelect = true;
                     }
 
                     // 4. 渲染选项
-                    modelSelector.innerHTML = models.map(model => `
-                        <option value="${model.config_id}" ${model.config_id === selectedModel.config_id ? 'selected' : ''}>
+                    let optionsHTML = '';
+
+                    // 添加 "Please Select" 选项
+                    if (shouldShowPleaseSelect) {
+                        optionsHTML = '<option value="" selected>Please Select</option>';
+                    }
+
+                    // 添加模型选项
+                    optionsHTML += models.map(model => `
+                        <option value="${model.config_id}" ${selectedModel && model.config_id === selectedModel.config_id ? 'selected' : ''}>
                             ${model.name}${model.provider ? ` (${model.provider})` : ''}
                         </option>
                     `).join('');
 
-                    // 5. 加载选中模型的配置（不自动保存到数据库）
+                    modelSelector.innerHTML = optionsHTML;
+
+                    // 5. 加载选中模型的配置（仅当有有效配置时）
                     if (selectedModel) {
                         agentState.setModel(selectedModel.config_id);
                         await this.loadAndApplyModelConfig(selectedModel.config_id, agentId, false);
@@ -651,23 +667,39 @@ const multiAgentHandlers = {
                 if (roles.length > 0) {
                     // 3. 确定要选中的角色
                     let selectedRole = null;
+                    let shouldShowPleaseSelect = false;
+
                     if (currentRoleId) {
-                        // 如果agent有保存的配置，使用该配置
+                        // 如果agent有保存的配置，尝试在列表中查找
                         selectedRole = roles.find(r => r.role_id === currentRoleId);
-                    }
-                    // 如果没有找到或没有配置，使用默认角色
-                    if (!selectedRole) {
-                        selectedRole = roles.find(r => r.is_default) || roles[0];
+
+                        // 如果agent的配置不在可用列表中，显示 Please Select
+                        if (!selectedRole) {
+                            shouldShowPleaseSelect = true;
+                        }
+                    } else {
+                        // 如果agent没有配置，显示 Please Select
+                        shouldShowPleaseSelect = true;
                     }
 
                     // 4. 渲染选项
-                    roleSelector.innerHTML = roles.map(role => `
-                        <option value="${role.role_id}" ${role.role_id === selectedRole.role_id ? 'selected' : ''}>
+                    let optionsHTML = '';
+
+                    // 添加 "Please Select" 选项
+                    if (shouldShowPleaseSelect) {
+                        optionsHTML = '<option value="" selected>Please Select</option>';
+                    }
+
+                    // 添加角色选项
+                    optionsHTML += roles.map(role => `
+                        <option value="${role.role_id}" ${selectedRole && role.role_id === selectedRole.role_id ? 'selected' : ''}>
                             ${role.name}${role.category ? ` - ${role.category}` : ''}
                         </option>
                     `).join('');
 
-                    // 5. 加载选中角色的配置（不自动保存到数据库）
+                    roleSelector.innerHTML = optionsHTML;
+
+                    // 5. 加载选中角色的配置（仅当有有效配置时）
                     if (selectedRole) {
                         agentState.setRole(selectedRole.role_id);
                         await this.loadAndApplyRoleConfig(selectedRole.role_id, agentId, false);
