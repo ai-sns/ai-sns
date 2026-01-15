@@ -24,25 +24,68 @@ from fastapi.staticfiles import StaticFiles
 
 # 导入配置
 from backend.config.settings import get_settings
+from backend.config.database import init_db
 
 # 导入 WebSocket 管理器 - 使用全局管理器
 from backend.shared.websocket_manager import ConnectionManager, manager as ws_manager
 
-# 导入所有模块路由
-from backend.modules.agent.router import router as agent_router
-from backend.modules.agent.llm_router import router as llm_router
-from backend.modules.agent.role_router import router as role_router
-from backend.modules.agent.chat_router import router as agent_chat_router
-from backend.modules.chat.router import router as chat_router
-from backend.modules.map.router import router as map_router
-from backend.modules.km.router import router as km_router
-from backend.modules.system.router import router as system_router
-from backend.modules.plugins.router import router as plugins_router
-from backend.modules.wallet.router import router as wallet_router
-
-# 配置日志
+# 配置日志（必须在使用 logger 之前）
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# 导入所有模块路由（使用 try-except 优雅处理依赖问题）
+# Tools module (必须加载)
+from backend.modules.tools.router import router as tools_router
+
+# 其他模块（可选加载）
+agent_router = None
+llm_router = None
+role_router = None
+agent_chat_router = None
+chat_router = None
+map_router = None
+km_router = None
+system_router = None
+plugins_router = None
+wallet_router = None
+
+try:
+    from backend.modules.agent.router import router as agent_router
+    from backend.modules.agent.llm_router import router as llm_router
+    from backend.modules.agent.role_router import router as role_router
+    from backend.modules.agent.chat_router import router as agent_chat_router
+except Exception as e:
+    logger.warning(f"⚠ Agent modules not available: {e}")
+
+try:
+    from backend.modules.chat.router import router as chat_router
+except Exception as e:
+    logger.warning(f"⚠ Chat module not available: {e}")
+
+try:
+    from backend.modules.map.router import router as map_router
+except Exception as e:
+    logger.warning(f"⚠ Map module not available: {e}")
+
+try:
+    from backend.modules.km.router import router as km_router
+except Exception as e:
+    logger.warning(f"⚠ KM module not available: {e}")
+
+try:
+    from backend.modules.system.router import router as system_router
+except Exception as e:
+    logger.warning(f"⚠ System module not available: {e}")
+
+try:
+    from backend.modules.plugins.router import router as plugins_router
+except Exception as e:
+    logger.warning(f"⚠ Plugins module not available: {e}")
+
+try:
+    from backend.modules.wallet.router import router as wallet_router
+except Exception as e:
+    logger.warning(f"⚠ Wallet module not available: {e}")
 
 # 获取配置
 settings = get_settings()
@@ -78,16 +121,51 @@ except Exception as e:
 
 # 注册所有模块路由
 # IMPORTANT: Register more specific routes BEFORE general routes to avoid path conflicts
-app.include_router(llm_router, prefix="/api/agent", tags=["Agent-LLM"])
-app.include_router(role_router, prefix="/api/agent", tags=["Agent-Role"])
-app.include_router(agent_chat_router, prefix="/api/agent", tags=["Agent-Chat"])
-app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
-app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
-app.include_router(map_router, prefix="/api/map", tags=["Map"])
-app.include_router(km_router, prefix="/api/km", tags=["Knowledge Base"])
-app.include_router(system_router, prefix="/api/system", tags=["System"])
-app.include_router(plugins_router, prefix="/api/plugins", tags=["Plugins"])
-app.include_router(wallet_router, prefix="/api/wallet", tags=["Blockchain Wallet"])
+
+# 优先注册 Tools 模块（必须可用）
+app.include_router(tools_router, prefix="/api/tools", tags=["Tools"])
+logger.info("✓ Tools Module registered")
+
+# 注册其他模块（如果可用）
+if llm_router:
+    app.include_router(llm_router, prefix="/api/agent", tags=["Agent-LLM"])
+    logger.info("✓ Agent LLM Module registered")
+
+if role_router:
+    app.include_router(role_router, prefix="/api/agent", tags=["Agent-Role"])
+    logger.info("✓ Agent Role Module registered")
+
+if agent_chat_router:
+    app.include_router(agent_chat_router, prefix="/api/agent", tags=["Agent-Chat"])
+    logger.info("✓ Agent Chat Module registered")
+
+if agent_router:
+    app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
+    logger.info("✓ Agent Module registered")
+
+if chat_router:
+    app.include_router(chat_router, prefix="/api/chat", tags=["Chat"])
+    logger.info("✓ Chat Module registered")
+
+if map_router:
+    app.include_router(map_router, prefix="/api/map", tags=["Map"])
+    logger.info("✓ Map Module registered")
+
+if km_router:
+    app.include_router(km_router, prefix="/api/km", tags=["Knowledge Base"])
+    logger.info("✓ KM Module registered")
+
+if system_router:
+    app.include_router(system_router, prefix="/api/system", tags=["System"])
+    logger.info("✓ System Module registered")
+
+if plugins_router:
+    app.include_router(plugins_router, prefix="/api/plugins", tags=["Plugins"])
+    logger.info("✓ Plugins Module registered")
+
+if wallet_router:
+    app.include_router(wallet_router, prefix="/api/wallet", tags=["Blockchain Wallet"])
+    logger.info("✓ Wallet Module registered")
 
 # 健康检查端点（保持向后兼容）
 @app.get("/health")
@@ -352,7 +430,9 @@ async def root():
             "map": "Location-based features module (with WebSocket)",
             "km": "Knowledge management module",
             "system": "System configuration module",
-            "plugins": "Plugin management module"
+            "plugins": "Plugin management module",
+            "tools": "Tools management module (Plugins, MCP, Functions, Skills)",
+            "wallet": "Blockchain wallet module"
         },
         "endpoints": {
             "health": "GET /health - Health check endpoint",
@@ -365,6 +445,7 @@ async def root():
             "knowledge_base": "GET /api/km - Knowledge management",
             "system_config": "GET /api/system/config - System configuration",
             "plugins": "GET /api/plugins - Plugin management",
+            "tools": "GET /api/tools/plugins - Tools management (Plugins, MCP, Functions, Skills)",
             "websocket": "WS /ws/{client_id} - WebSocket connection",
             "jsonrpc": "POST /jsonrpc - JSON-RPC 2.0 interface (legacy compatibility)"
         },
@@ -403,6 +484,8 @@ async def startup_event():
     logger.info("  - Knowledge Base Module")
     logger.info("  - System Module")
     logger.info("  - Plugins Module")
+    logger.info("  - Tools Module")
+    logger.info("  - Wallet Module")
     logger.info("="*60)
 
 # 关闭事件

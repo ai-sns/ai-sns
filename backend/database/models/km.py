@@ -1,7 +1,7 @@
 """Knowledge management ORM models."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
-from ..base import Base
+from backend.config.database import Base
 
 
 class KMCfg(Base):

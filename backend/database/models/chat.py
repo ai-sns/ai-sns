@@ -1,7 +1,7 @@
 """Chat and messaging ORM models."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Float
-from ..base import Base
+from backend.config.database import Base
 
 
 class AIChatMessages(Base):

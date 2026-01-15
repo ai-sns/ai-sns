@@ -1,7 +1,7 @@
 """Map-related ORM models."""
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Float
-from ..base import Base
+from backend.config.database import Base
 
 
 class MapCfg(Base):

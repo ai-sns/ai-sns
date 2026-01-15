@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import desc, asc, or_
 from .base import BaseRepository
 from ..models.km import KMCfg, KMData, NoteMng
-from ..base import get_session
+from backend.config.database import get_db_session as get_session
 
 
 class KMCfgRepository(BaseRepository[KMCfg]):

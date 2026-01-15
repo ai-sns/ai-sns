@@ -8,6 +8,7 @@ Extracted from db/database.py for better organization.
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.pool import NullPool
 from typing import Generator
 import logging
 
@@ -28,6 +29,7 @@ SQLALCHEMY_DATABASE_URL = f"sqlite:///{settings.database.full_path}"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},  # Needed for SQLite
+    poolclass=NullPool,  # No connection pooling - fresh connection each time
     echo=settings.debug  # Log SQL queries in debug mode
 )
 

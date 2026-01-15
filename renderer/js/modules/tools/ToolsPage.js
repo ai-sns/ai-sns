@@ -26,7 +26,16 @@ const ToolsPage = {
 
                 <!-- 插件列表区域 -->
                 <div class="plugin-market">
-                    <h1 class="plugin-list-title">Plugin List</h1>
+                    <div class="plugin-list-header">
+                        <h1 class="plugin-list-title">Plugin List</h1>
+                        <button class="tools-add-btn" onclick="toolsHandlers.showAddDialog(toolsHandlers.currentCategory)">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                            Add Tool
+                        </button>
+                    </div>
                     <div class="plugin-grid" id="pluginGrid">
                         ${this.renderPluginCards()}
                     </div>

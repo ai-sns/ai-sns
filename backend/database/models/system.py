@@ -2,7 +2,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from ..base import Base
+from backend.config.database import Base
 
 
 class SystemCfg(Base):

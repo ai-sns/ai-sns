@@ -88,6 +88,12 @@ class StorageConfig:
     ))
 
 
+@dataclass
+class ToolsConfig:
+    """Tools module configuration"""
+    page_size: int = 4  # Number of tools to load per page
+
+
 class Settings:
     """
     Application Settings Manager
@@ -113,6 +119,7 @@ class Settings:
         self.rate_limit = self._load_rate_limit_config()
         self.blockchain = self._load_blockchain_config()
         self.storage = self._load_storage_config()
+        self.tools = self._load_tools_config()
 
         # Ensure directories exist
         self._ensure_directories()
@@ -216,6 +223,30 @@ class Settings:
             config.max_upload_size = int(os.environ['MAX_UPLOAD_SIZE'])
         if os.environ.get('KM_BASE_DIR'):
             config.km_base_dir = os.environ['KM_BASE_DIR']
+
+        return config
+
+    def _load_tools_config(self) -> ToolsConfig:
+        """Load tools configuration"""
+        config = ToolsConfig()
+
+        # Try loading from config file
+        config_file = Path(__file__).parent.parent.parent / 'ai_config.yaml'
+        if config_file.exists():
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    yaml_config = yaml.safe_load(f)
+                    tools_config = yaml_config.get('tools', {})
+
+                    config.page_size = tools_config.get('page_size', config.page_size)
+
+                    logger.info(f"Loaded tools config from ai_config.yaml: page_size={config.page_size}")
+            except Exception as e:
+                logger.warning(f"Failed to load tools config from file: {e}")
+
+        # Override with environment variable if set
+        if os.environ.get('TOOLS_PAGE_SIZE'):
+            config.page_size = int(os.environ['TOOLS_PAGE_SIZE'])
 
         return config
 

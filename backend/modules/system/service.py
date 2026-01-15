@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any
 
 from db.DBFactory import query_SystemCfg, update_SystemCfg
+from backend.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +18,15 @@ class SystemService:
     def get_system_config() -> Dict[str, Any]:
         """Get system configuration"""
         config = query_SystemCfg()
+        settings = get_settings()
+
         return {
             "theme": getattr(config, 'theme', 'dark'),
             "language": getattr(config, 'language', 'zh'),
-            "minirunontray": getattr(config, 'minirunontray', True)
+            "minirunontray": getattr(config, 'minirunontray', True),
+            "tools": {
+                "page_size": settings.tools.page_size
+            }
         }
 
     @staticmethod

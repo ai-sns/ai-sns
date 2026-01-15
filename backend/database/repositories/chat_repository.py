@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import desc, asc, or_
 from .base import BaseRepository
 from ..models.chat import AIChatMessages, AIFriend, AIChatInform, AiChatCfg, HumanChatCfg
-from ..base import get_session
+from backend.config.database import get_db_session as get_session
 
 
 class AIChatMessagesRepository(BaseRepository[AIChatMessages]):

@@ -1,0 +1,358 @@
+/**
+ * Tools Management Page Styles
+ */
+
+.tools-management-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #f5f7fa;
+    overflow: hidden;
+}
+
+/* Header */
+.tools-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e4e7eb;
+}
+
+.tools-header-left {
+    flex: 1;
+}
+
+.tools-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 4px 0;
+}
+
+.tools-subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+.tools-header-right .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tools-header-right .btn-primary:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Tabs */
+.tools-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 16px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e4e7eb;
+}
+
+.tools-tab-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: transparent;
+    border: 1px solid #e4e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tools-tab-item:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.tools-tab-item.active {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.tools-tab-item svg {
+    flex-shrink: 0;
+}
+
+/* Content Area */
+.tools-content {
+    flex: 1;
+    padding: 24px 32px;
+    overflow-y: auto;
+}
+
+.tools-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* Tools Grid */
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+/* Tool Card */
+.tool-card {
+    background: #fff;
+    border: 1px solid #e4e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.tool-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.tool-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.tool-card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0;
+    flex: 1;
+}
+
+.tool-card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.tool-btn-edit,
+.tool-btn-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: 1px solid #e4e7eb;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tool-btn-edit:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.tool-btn-delete:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.tool-card-body {
+    margin-bottom: 16px;
+}
+
+.tool-card-description {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0 0 8px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tool-card-instruction {
+    font-size: 13px;
+    color: #475569;
+    margin: 8px 0 0 0;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+
+.tool-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tool-card-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 12px;
+}
+
+/* Empty State */
+.tools-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.tools-empty svg {
+    width: 120px;
+    height: 120px;
+    color: #cbd5e1;
+    margin-bottom: 24px;
+}
+
+.tools-empty-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 8px 0;
+}
+
+.tools-empty-text {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0 0 24px 0;
+}
+
+/* Sidebar Category Items */
+.tools-category-item {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tools-category-item:hover {
+    background-color: #f8fafc;
+    transform: translateX(2px);
+}
+
+.tools-category-item.active {
+    background-color: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+/* Dark Theme Support */
+body.dark-theme .tools-management-page {
+    background: #111827;
+}
+
+body.dark-theme .tools-header,
+body.dark-theme .tools-tabs {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+body.dark-theme .tools-title {
+    color: #f9fafb;
+}
+
+body.dark-theme .tools-subtitle {
+    color: #9ca3af;
+}
+
+body.dark-theme .tools-tab-item {
+    color: #9ca3af;
+    border-color: #374151;
+}
+
+body.dark-theme .tools-tab-item:hover {
+    background: #374151;
+}
+
+body.dark-theme .tools-tab-item.active {
+    background: #1e3a8a;
+    border-color: #3b82f6;
+    color: #60a5fa;
+}
+
+body.dark-theme .tool-card {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+body.dark-theme .tool-card:hover {
+    border-color: #3b82f6;
+}
+
+body.dark-theme .tool-card-title {
+    color: #f9fafb;
+}
+
+body.dark-theme .tool-card-description {
+    color: #9ca3af;
+}
+
+body.dark-theme .tool-card-instruction {
+    background: #111827;
+    color: #d1d5db;
+}
+
+body.dark-theme .tool-btn-edit,
+body.dark-theme .tool-btn-delete {
+    border-color: #374151;
+}
+
+body.dark-theme .tool-card-badge {
+    background: #374151;
+    color: #d1d5db;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .tools-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px 20px;
+    }
+
+    .tools-tabs {
+        overflow-x: auto;
+        padding: 12px 20px;
+    }
+
+    .tools-content {
+        padding: 16px 20px;
+    }
+
+    .tools-grid {
+        grid-template-columns: 1fr;
+    }
+}

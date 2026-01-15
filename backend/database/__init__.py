@@ -3,7 +3,7 @@
 This package contains the refactored database layer extracted from DBFactory.py.
 
 Structure:
-- base.py: Database session management and base configuration
+- base.py: OLD database session management (deprecated, use backend.config.database instead)
 - models/: ORM model definitions
   - agent.py: Agent-related models
   - chat.py: Chat and messaging models
@@ -20,26 +20,22 @@ Structure:
 
 Usage:
     from backend.database import models, repositories
-    from backend.database.base import get_session, create_all_tables
+    from backend.config.database import get_db, get_db_session, init_db
 
-    # Create tables
-    create_all_tables()
+    # Initialize database
+    init_db()
 
     # Use repositories
     agent_repo = repositories.AgentCfgRepository()
     agents = agent_repo.get_all()
 """
 
-from .base import Base, engine, SessionLocal, get_session, create_all_tables
+# Don't import from .base - it creates a duplicate engine!
+# Use backend.config.database instead
 from . import models
 from . import repositories
 
 __all__ = [
-    'Base',
-    'engine',
-    'SessionLocal',
-    'get_session',
-    'create_all_tables',
     'models',
     'repositories'
 ]

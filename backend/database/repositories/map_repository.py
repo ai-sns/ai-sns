@@ -7,7 +7,7 @@ from ..models.map import (
     MapCfg, MapTask, MapTool, MapTrade, MapVisit,
     MapActivity, MapPresetMsg, ChatPresetMsg
 )
-from ..base import get_session
+from backend.config.database import get_db_session as get_session
 
 
 class MapCfgRepository(BaseRepository[MapCfg]):

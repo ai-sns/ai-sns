@@ -9,7 +9,7 @@ from ..models.system import (
     TaskSchedule, Prompt, PromptFrequent, LlmFrequent,
     Question, ModelMetrics, ToolList
 )
-from ..base import get_session
+from backend.config.database import get_db_session as get_session
 
 
 class SystemCfgRepository(BaseRepository[SystemCfg]):

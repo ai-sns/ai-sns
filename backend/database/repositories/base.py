@@ -1,7 +1,7 @@
 """Base repository with common CRUD operations."""
 from typing import TypeVar, Generic, Type, List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from ..base import Base, get_session
+from backend.config.database import Base, get_db_session
 
 ModelType = TypeVar("ModelType", bound=Base)
 
@@ -15,7 +15,7 @@ class BaseRepository(Generic[ModelType]):
 
     def create(self, **kwargs) -> ModelType:
         """Create a new record."""
-        session = get_session()
+        session = get_db_session()
         try:
             obj = self.model(**kwargs)
             session.add(obj)
@@ -30,7 +30,7 @@ class BaseRepository(Generic[ModelType]):
 
     def get_by_id(self, id: int) -> Optional[ModelType]:
         """Get record by ID."""
-        session = get_session()
+        session = get_db_session()
         try:
             return session.query(self.model).filter_by(id=id).first()
         finally:
@@ -38,7 +38,7 @@ class BaseRepository(Generic[ModelType]):
 
     def get_all(self, **filters) -> List[ModelType]:
         """Get all records with optional filters."""
-        session = get_session()
+        session = get_db_session()
         try:
             query = session.query(self.model)
             if filters:
@@ -49,7 +49,7 @@ class BaseRepository(Generic[ModelType]):
 
     def get_one(self, **filters) -> Optional[ModelType]:
         """Get one record with filters."""
-        session = get_session()
+        session = get_db_session()
         try:
             return session.query(self.model).filter_by(**filters).first()
         finally:
@@ -57,7 +57,7 @@ class BaseRepository(Generic[ModelType]):
 
     def update(self, id: int, **kwargs) -> bool:
         """Update a record by ID."""
-        session = get_session()
+        session = get_db_session()
         try:
             obj = session.query(self.model).filter_by(id=id).first()
             if obj:
@@ -74,7 +74,7 @@ class BaseRepository(Generic[ModelType]):
 
     def update_by_filter(self, filters: Dict[str, Any], **kwargs) -> bool:
         """Update a record by custom filters."""
-        session = get_session()
+        session = get_db_session()
         try:
             obj = session.query(self.model).filter_by(**filters).first()
             if obj:
@@ -91,7 +91,7 @@ class BaseRepository(Generic[ModelType]):
 
     def delete(self, id: int) -> bool:
         """Delete a record by ID."""
-        session = get_session()
+        session = get_db_session()
         try:
             obj = session.query(self.model).filter_by(id=id).first()
             if obj:
@@ -107,7 +107,7 @@ class BaseRepository(Generic[ModelType]):
 
     def delete_by_filter(self, **filters) -> bool:
         """Delete a record by custom filters."""
-        session = get_session()
+        session = get_db_session()
         try:
             obj = session.query(self.model).filter_by(**filters).first()
             if obj:
@@ -123,7 +123,7 @@ class BaseRepository(Generic[ModelType]):
 
     def count(self, **filters) -> int:
         """Count records with optional filters."""
-        session = get_session()
+        session = get_db_session()
         try:
             query = session.query(self.model)
             if filters:
@@ -134,7 +134,7 @@ class BaseRepository(Generic[ModelType]):
 
     def exists(self, **filters) -> bool:
         """Check if record exists."""
-        session = get_session()
+        session = get_db_session()
         try:
             return session.query(self.model).filter_by(**filters).first() is not None
         finally:

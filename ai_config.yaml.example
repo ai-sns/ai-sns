@@ -49,3 +49,11 @@ ai:
 #     model: "deepseek-chat"
 #     temperature: 1.0
 #     max_tokens: 4096
+
+# Tools 模块配置
+tools:
+  # 每次加载的工具数量
+  # 默认值为 4，点击 More 按钮会再加载 4 个
+  # 可以根据需要调整
+  page_size: 4
+

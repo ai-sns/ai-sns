@@ -1,0 +1,585 @@
+/**
+ * Tools Module Enhanced Styles
+ * 增强的工具管理样式
+ */
+
+/* 加载状态 */
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+    font-size: 16px;
+    color: #64748b;
+}
+
+.loading-spinner::after {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-left: 12px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.spinner-small {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #e2e8f0;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 空状态 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-state svg {
+    color: #cbd5e1;
+    margin-bottom: 24px;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 8px 0;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0 0 24px 0;
+}
+
+.add-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-tool-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.add-tool-btn:active {
+    transform: translateY(0);
+}
+
+/* 错误状态 */
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.error-state h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #dc2626;
+    margin: 0 0 8px 0;
+}
+
+.error-state p {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0 0 24px 0;
+}
+
+.retry-btn {
+    padding: 10px 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    background: #2563eb;
+}
+
+/* 工具卡片指令 */
+.plugin-instruction {
+    padding: 12px;
+    margin-top: 12px;
+    background: #f8fafc;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.6;
+}
+
+.plugin-file-path {
+    padding: 8px 12px;
+    margin-top: 8px;
+    background: #fef3c7;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #92400e;
+}
+
+/* 工具卡片操作按钮 */
+.plugin-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e4e7eb;
+}
+
+.plugin-test-btn,
+.plugin-edit-btn,
+.plugin-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #e4e7eb;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+    flex: 1;
+    justify-content: center;
+}
+
+.plugin-test-btn {
+    color: #059669;
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.plugin-test-btn:hover {
+    background: #dcfce7;
+    border-color: #059669;
+    transform: translateY(-1px);
+}
+
+.plugin-test-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.plugin-edit-btn {
+    color: #3b82f6;
+}
+
+.plugin-edit-btn:hover {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.plugin-delete-btn {
+    color: #ef4444;
+}
+
+.plugin-delete-btn:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+}
+
+.plugin-edit-btn:active,
+.plugin-delete-btn:active,
+.plugin-test-btn:active {
+    transform: scale(0.95);
+}
+
+/* 工具卡片网格布局 */
+.plugin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+/* 工具卡片基础样式增强 */
+.tool-card {
+    background: white;
+    border: 1px solid #e4e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s;
+}
+
+.tool-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
+}
+
+/* Modal样式 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal-dialog {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e4e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #64748b;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background: #f1f5f9;
+    color: #1a202c;
+}
+
+.modal-body {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7eb;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+/* 测试结果对话框 */
+.test-result-dialog {
+    max-width: 800px;
+}
+
+.test-result-pre {
+    background: #1f2937;
+    color: #f3f4f6;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 深色主题支持 */
+body.theme-dark .empty-state h3,
+body.theme-dark .tool-card {
+    color: #f9fafb;
+    background: #1f2937;
+    border-color: #374151;
+}
+
+body.theme-dark .empty-state p {
+    color: #9ca3af;
+}
+
+body.theme-dark .empty-state svg {
+    color: #6b7280;
+}
+
+body.theme-dark .plugin-instruction {
+    background: #111827;
+    color: #d1d5db;
+}
+
+body.theme-dark .plugin-file-path {
+    background: #374151;
+    color: #fbbf24;
+}
+
+body.theme-dark .plugin-test-btn {
+    background: #064e3b;
+    border-color: #047857;
+    color: #34d399;
+}
+
+body.theme-dark .plugin-test-btn:hover {
+    background: #065f46;
+}
+
+body.theme-dark .plugin-edit-btn,
+body.theme-dark .plugin-delete-btn {
+    border-color: #374151;
+}
+
+body.theme-dark .plugin-edit-btn:hover {
+    background: #1e3a8a;
+}
+
+body.theme-dark .plugin-delete-btn:hover {
+    background: #7f1d1d;
+}
+
+body.theme-dark .tool-card:hover {
+    border-color: #3b82f6;
+    background: #1f2937;
+}
+
+body.theme-dark .plugin-actions {
+    border-top-color: #374151;
+}
+
+body.theme-dark .modal-dialog {
+    background: #1f2937;
+}
+
+body.theme-dark .modal-header {
+    border-bottom-color: #374151;
+}
+
+body.theme-dark .modal-header h2 {
+    color: #f3f4f6;
+}
+
+body.theme-dark .modal-footer {
+    border-top-color: #374151;
+}
+
+body.theme-dark .modal-close {
+    color: #9ca3af;
+}
+
+body.theme-dark .modal-close:hover {
+    background: #374151;
+    color: #f3f4f6;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .plugin-grid {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 16px;
+    }
+
+    .plugin-actions {
+        flex-direction: column;
+    }
+
+    .plugin-test-btn,
+    .plugin-edit-btn,
+    .plugin-delete-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .modal-dialog {
+        width: 95%;
+        max-height: 90vh;
+    }
+}
+
+/* 过渡动画 */
+.tool-card {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 工具徽章样式优化 */
+.plugin-badge-connector {
+    display: inline-block;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.author-official {
+    padding: 3px 8px;
+    background: #10b981;
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 10px;
+}
+
+/* 第一个卡片高亮 */
+.plugin-grid .tool-card:first-child {
+    border-color: #3b82f6;
+    background: linear-gradient(to bottom right, #ffffff, #eff6ff);
+}
+
+body.theme-dark .plugin-grid .tool-card:first-child {
+    background: linear-gradient(to bottom right, #1f2937, #1e3a8a);
+}
+
+/* 插件列表头部样式 */
+.plugin-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 0 24px;
+}
+
+.plugin-list-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0;
+}
+
+.tools-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tools-add-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.tools-add-btn:active {
+    transform: translateY(0);
+}
+
+/* 深色主题支持 */
+body.theme-dark .plugin-list-title {
+    color: #f9fafb;
+}
+
