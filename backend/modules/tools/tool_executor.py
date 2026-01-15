@@ -14,8 +14,18 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
 import traceback
+from contextlib import AsyncExitStack
 
 logger = logging.getLogger(__name__)
+
+# MCP client imports
+try:
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+    logger.warning("MCP library not available. Install with: pip install mcp")
 
 # Execution timeout in seconds
 EXECUTION_TIMEOUT = 60
@@ -558,56 +568,147 @@ if 'main' in dir():
             raise Exception(f"Shell script execution failed: {str(e)}")
 
     async def _test_mcp_server(self, file_path: str, mcp_type: str, parameter: str) -> dict:
-        """Test MCP server startup and basic connectivity"""
+        """Test MCP server by connecting and calling a tool"""
+
+        # Check if MCP library is available
+        if not MCP_AVAILABLE:
+            return {
+                "status": "library_missing",
+                "file_path": file_path,
+                "mcp_type": mcp_type,
+                "message": "MCP library not installed. Run: pip install mcp",
+                "tools": [],
+                "tool_call_result": None
+            }
+
         try:
             # Prepare environment with UTF-8 encoding (for Windows compatibility)
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
 
-            # Try to start the MCP server process
+            # Determine command to start server
             if file_path.endswith('.py'):
                 cmd = [sys.executable, file_path]
             else:
                 cmd = [file_path]
 
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+            # Set up MCP client parameters
+            server_params = StdioServerParameters(
+                command=cmd[0],
+                args=cmd[1:] if len(cmd) > 1 else [],
                 env=env
             )
 
-            # Wait a bit for server to start
-            await asyncio.sleep(0.5)
+            # Connect to MCP server and test
+            async with AsyncExitStack() as stack:
+                # Start stdio transport
+                stdio_transport = await stack.enter_async_context(
+                    stdio_client(server_params)
+                )
+                stdio, write = stdio_transport
 
-            # Check if process is still running
-            if process.returncode is None:
-                # Process is running, terminate it
-                process.terminate()
-                await asyncio.wait_for(process.wait(), timeout=2)
+                # Create client session
+                session = await stack.enter_async_context(
+                    ClientSession(stdio, write)
+                )
 
+                # Initialize connection
+                await session.initialize()
+
+                # List available tools
+                tools_result = await session.list_tools()
+                tools_list = []
+                for tool in tools_result.tools:
+                    tools_list.append({
+                        "name": tool.name,
+                        "description": tool.description
+                    })
+
+                # Try to call the first tool (or a specific tool)
+                tool_call_result = None
+                if tools_list:
+                    # Try to find get_weather or use first tool
+                    test_tool = None
+                    test_args = {}
+
+                    # Look for get_weather tool
+                    for tool in tools_result.tools:
+                        if tool.name == "get_weather":
+                            test_tool = "get_weather"
+                            test_args = {"city": "Beijing", "unit": "celsius"}
+                            break
+                        elif tool.name == "get_current_time":
+                            test_tool = "get_current_time"
+                            test_args = {"timezone": "UTC"}
+                            break
+                        elif tool.name == "calculate":
+                            test_tool = "calculate"
+                            test_args = {"expression": "10 + 20"}
+                            break
+
+                    # If no specific tool found, use first one with empty args
+                    if not test_tool and tools_result.tools:
+                        test_tool = tools_result.tools[0].name
+                        test_args = {}
+
+                    # Call the tool
+                    if test_tool:
+                        try:
+                            call_result = await session.call_tool(test_tool, test_args)
+
+                            # Extract text content
+                            result_text = ""
+                            for content in call_result.content:
+                                if hasattr(content, 'text'):
+                                    result_text += content.text
+
+                            tool_call_result = {
+                                "tool_name": test_tool,
+                                "arguments": test_args,
+                                "success": True,
+                                "result": result_text[:500]  # Limit to 500 chars
+                            }
+                        except Exception as e:
+                            tool_call_result = {
+                                "tool_name": test_tool,
+                                "arguments": test_args,
+                                "success": False,
+                                "error": str(e)
+                            }
+
+                # Return success with tool list and call result
                 return {
-                    "status": "started_and_stopped",
+                    "status": "success",
                     "file_path": file_path,
                     "mcp_type": mcp_type,
-                    "message": "MCP server started successfully and was stopped",
-                    "test_duration_ms": 500
-                }
-            else:
-                # Process exited immediately
-                stdout, stderr = await process.communicate()
-                return {
-                    "status": "failed_to_start",
-                    "file_path": file_path,
-                    "mcp_type": mcp_type,
-                    "message": "MCP server exited immediately",
-                    "stdout": stdout.decode('utf-8', errors='replace')[:500],
-                    "stderr": stderr.decode('utf-8', errors='replace')[:500]
+                    "message": "MCP server connected and tools tested successfully",
+                    "tools_count": len(tools_list),
+                    "tools": tools_list,
+                    "tool_call_result": tool_call_result
                 }
 
+        except asyncio.TimeoutError:
+            return {
+                "status": "timeout",
+                "file_path": file_path,
+                "mcp_type": mcp_type,
+                "message": "MCP server connection timeout",
+                "tools": [],
+                "tool_call_result": None
+            }
         except Exception as e:
-            raise Exception(f"MCP server test failed: {str(e)}")
+            error_msg = str(e)
+            error_trace = traceback.format_exc()
+            return {
+                "status": "error",
+                "file_path": file_path,
+                "mcp_type": mcp_type,
+                "message": f"MCP server test failed: {error_msg}",
+                "error": error_msg,
+                "traceback": error_trace[:1000],  # Limit traceback
+                "tools": [],
+                "tool_call_result": None
+            }
 
     async def _execute_screenshot(self, params: dict) -> dict:
         """Execute screenshot capture"""
