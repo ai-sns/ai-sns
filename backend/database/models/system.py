@@ -101,6 +101,7 @@ class PluginMng(Base):
     plugin_event = Column(String(100), doc="Plugin event")
     plugin_title = Column(Text, doc="Plugin title")
     detail = Column(Text, doc="Detail")
+    parameter = Column(Text, doc="Parameter schema (JSON)")
     confirm_needed = Column(Boolean, default=True, doc="Confirm needed")
     can_be_sold = Column(Boolean, default=False, doc="Can be sold")
     used_in_sns = Column(Boolean, default=False, doc="Used in SNS")

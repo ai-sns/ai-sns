@@ -424,9 +424,15 @@ if sys.platform == 'win32':
 
 # Read parameters from stdin
 try:
-    params = json.loads(sys.stdin.read()) if sys.stdin.read() else {{}}
+    stdin_content = sys.stdin.read()
+    params = json.loads(stdin_content) if stdin_content else {{}}
 except:
     params = {{}}
+
+# Also provide params as sys.argv for backward compatibility
+# Some plugins expect: json.loads(sys.argv[1])
+if params and len(sys.argv) == 1:
+    sys.argv.append(json.dumps(params))
 
 # User code
 {code}
@@ -724,21 +730,8 @@ if 'main' in dir():
                 "tools": [],
                 "tool_call_result": None
             }
-        except* Exception as eg:
-            # Handle ExceptionGroup (Python 3.11+)
-            error_msg = str(eg)
-            error_trace = traceback.format_exc()
-            return {
-                "status": "error",
-                "file_path": file_path,
-                "mcp_type": mcp_type,
-                "message": f"MCP server test failed: {error_msg}",
-                "error": error_msg,
-                "traceback": error_trace[:1000],  # Limit traceback
-                "tools": [],
-                "tool_call_result": None
-            }
         except Exception as e:
+            # Handle all exceptions including ExceptionGroup
             error_msg = str(e)
             error_trace = traceback.format_exc()
             return {
@@ -780,16 +773,15 @@ if 'main' in dir():
                 "error": "MCP library not installed. Run: pip install mcp"
             }
 
-        # Get MCP config from database (we need access to database here)
-        # For now, we'll need to be passed the file_path from the caller
-        # TODO: Better integration with database
-        from backend.database.repositories.system_repository import SystemRepository
+        # Get MCP config from database
+        from backend.database.repositories.system_repository import KeyValueRepository
         from backend.config.database import get_db_session
+        from backend.database.models.system import McpMng
 
         db = get_db_session()
         try:
-            repo = SystemRepository(db)
-            mcp_data = repo.get_mcp(mcp_id)
+            # Query MCP directly from database
+            mcp_data = db.query(McpMng).filter_by(mcp_id=mcp_id).first()
 
             if not mcp_data:
                 return {
@@ -797,8 +789,8 @@ if 'main' in dir():
                     "error": f"MCP {mcp_id} not found in database"
                 }
 
-            file_path = mcp_data.get('file_path')
-            mcp_type = mcp_data.get('mcp_type', 'stdio')
+            file_path = mcp_data.file_path
+            mcp_type = mcp_data.mcp_type or 'stdio'
 
             if not file_path or not os.path.exists(file_path):
                 return {

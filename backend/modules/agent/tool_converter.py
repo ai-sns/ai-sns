@@ -9,7 +9,7 @@ This allows agents to use any tool type through a unified interface.
 
 import json
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +325,7 @@ class ToolConverter:
         return openai_tools
 
     @staticmethod
-    def parse_function_name(function_name: str) -> tuple[str, str, Optional[str]]:
+    def parse_function_name(function_name: str) -> Tuple[str, str, Optional[str]]:
         """
         Parse OpenAI function name back to tool info
 

@@ -567,6 +567,51 @@ const agentApi = {
         }
     },
 
+    // ==================== Agent Tools Management ====================
+
+    /**
+     * 获取Agent的关联工具
+     */
+    async getAgentTools(agentId) {
+        try {
+            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/tools`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取Agent工具失败:', error);
+            return { success: false, data: { tools: [] } };
+        }
+    },
+
+    /**
+     * 更新Agent的关联工具
+     */
+    async updateAgentTools(agentId, tools) {
+        try {
+            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/tools`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tools)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('更新Agent工具失败:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * 获取所有可用工具
+     */
+    async getAvailableTools(agentId) {
+        try {
+            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/available-tools`);
+            return await response.json();
+        } catch (error) {
+            console.error('获取可用工具失败:', error);
+            return { success: false, data: {} };
+        }
+    },
+
     // ==================== 以下是旧的通用Chat API（保留兼容性） ====================
 };
 

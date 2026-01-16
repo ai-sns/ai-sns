@@ -285,6 +285,17 @@ class AgentService:
                         tool_detail = {c.name: getattr(tool_obj, c.name) for c in tool_obj.__table__.columns}
                         tool_detail["tool_type"] = "mcp"
 
+                        # 尝试从parameter字段加载缓存的工具列表
+                        parameter = tool_obj.parameter
+                        if parameter:
+                            try:
+                                param_data = json.loads(parameter) if isinstance(parameter, str) else parameter
+                                if isinstance(param_data, dict) and "tools" in param_data:
+                                    tool_detail["tools"] = param_data["tools"]
+                                    logger.info(f"从parameter加载MCP工具列表: {len(param_data['tools'])} 个工具")
+                            except Exception as parse_error:
+                                logger.warning(f"解析MCP parameter失败: {parse_error}")
+
                 elif tool_type == "function":
                     function_repo = FunctionMngRepository()
                     tool_obj = function_repo.get_one(function_id=tool_id)

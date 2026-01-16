@@ -113,7 +113,22 @@ class AgentInstance:
 
     def get_system_prompt(self) -> str:
         """获取系统提示词"""
-        return self.role_config.get('system_prompt', 'You are a helpful AI assistant.')
+        base_prompt = self.role_config.get('system_prompt', 'You are a helpful AI assistant.')
+
+        # 如果Agent有工具，添加工具使用指导
+        if self.db_tools or self.tools:
+            tool_guidance = """
+
+IMPORTANT Tool Usage Guidelines:
+- You have access to tools that can perform actions (screenshots, calculations, weather queries, etc.)
+- When a user requests an action that matches an available tool, ALWAYS call the tool first
+- DO NOT say "I cannot" or "I don't have the ability" if a matching tool exists
+- Wait for tool results before providing your final answer
+- Base your response on the actual tool execution results, not assumptions"""
+
+            return base_prompt + tool_guidance
+
+        return base_prompt
 
     def get_model_name(self) -> str:
         """获取模型名称"""
@@ -430,17 +445,21 @@ class AgentInstance:
                     logger.info(f"[AgentInstance] 调用工具: {tool_name}, 参数: {tool_args}")
                     tool_result = await self._execute_tool(tool_name, tool_args)
 
+                    # 格式化工具结果，使其对LLM更友好
+                    formatted_result = self._format_tool_result(tool_result)
+
                     tool_messages.append({
                         'role': 'tool',
                         'tool_call_id': tool_call.id,
                         'name': tool_name,
-                        'content': str(tool_result)
+                        'content': formatted_result
                     })
 
                 # 添加assistant消息和工具消息，再次调用LLM
+                # 清空第一次的文本内容，避免否定性回复影响上下文
                 messages.append({
                     'role': 'assistant',
-                    'content': assistant_message.content or '',
+                    'content': None,
                     'tool_calls': [
                         {
                             'id': tc.id,
@@ -562,9 +581,9 @@ class AgentInstance:
 
             stream = await self.client.chat.completions.create(**kwargs)
 
-            # 收集完整回复
+            # 收集完整回复和工具调用
             full_reply = ""
-            tool_calls_data = []
+            tool_calls_accumulator = {}
 
             async for chunk in stream:
                 if not chunk.choices:
@@ -577,15 +596,74 @@ class AgentInstance:
                     full_reply += delta.content
                     yield delta.content
 
-                # 处理工具调用
+                # 处理工具调用（累积delta）
                 if delta.tool_calls:
-                    tool_calls_data.extend(delta.tool_calls)
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index
+                        if idx not in tool_calls_accumulator:
+                            tool_calls_accumulator[idx] = {
+                                'id': tc_delta.id or '',
+                                'type': 'function',
+                                'function': {'name': '', 'arguments': ''}
+                            }
+                        if tc_delta.id:
+                            tool_calls_accumulator[idx]['id'] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                tool_calls_accumulator[idx]['function']['name'] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                tool_calls_accumulator[idx]['function']['arguments'] += tc_delta.function.arguments
 
             # 如果有工具调用，执行工具并获取最终回复
-            if tool_calls_data:
-                # TODO: 处理工具调用的流式场景
-                # 这里可以先执行工具，然后再次流式调用LLM
-                pass
+            if tool_calls_accumulator:
+                logger.info(f"检测到 {len(tool_calls_accumulator)} 个工具调用")
+
+                # 执行工具
+                tool_messages = []
+                for tc_data in tool_calls_accumulator.values():
+                    tool_name = tc_data['function']['name']
+                    tool_args = json.loads(tc_data['function']['arguments'])
+
+                    logger.info(f"[AgentInstance] 调用工具: {tool_name}, 参数: {tool_args}")
+                    tool_result = await self._execute_tool(tool_name, tool_args)
+                    logger.info(f"[AgentInstance] 工具执行结果: {tool_result[:500] if len(str(tool_result)) > 500 else tool_result}")
+
+                    # 格式化工具结果，使其对LLM更友好
+                    formatted_result = self._format_tool_result(tool_result)
+
+                    tool_messages.append({
+                        'role': 'tool',
+                        'tool_call_id': tc_data['id'],
+                        'name': tool_name,
+                        'content': formatted_result
+                    })
+
+                # 添加assistant消息和工具消息
+                # 注意：如果第一次LLM生成了否定性内容（如"我没有能力..."），
+                # 这会影响第二次调用的上下文。为了避免这个问题，在有工具调用时，
+                # 我们清空第一次的文本内容，只保留工具调用和工具结果。
+                messages.append({
+                    'role': 'assistant',
+                    'content': None,  # 清空第一次的文本内容，避免否定性回复影响上下文
+                    'tool_calls': list(tool_calls_accumulator.values())
+                })
+                messages.extend(tool_messages)
+
+                # 再次调用LLM获取最终回复（流式）
+                final_stream = await self.client.chat.completions.create(
+                    model=self.get_model_name(),
+                    messages=messages,
+                    temperature=self.get_temperature(),
+                    max_tokens=self.get_max_tokens(),
+                    stream=True
+                )
+
+                full_reply = ""
+                async for chunk in final_stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_reply += content
+                        yield content
 
             # 保存到memory
             if use_memory:
@@ -667,6 +745,117 @@ class AgentInstance:
         except Exception as e:
             logger.error(f"Agent流式问答失败: {e}", exc_info=True)
             yield f"Error: {str(e)}"
+
+    def _format_tool_result(self, tool_result: Any) -> str:
+        """
+        格式化工具结果，使其对LLM更友好
+
+        Args:
+            tool_result: 原始工具结果（可能是JSON字符串或字典）
+
+        Returns:
+            格式化后的字符串
+        """
+        try:
+            # 如果是字符串，尝试解析为JSON
+            if isinstance(tool_result, str):
+                try:
+                    result_dict = json.loads(tool_result)
+                except:
+                    # 不是JSON，直接返回字符串
+                    return tool_result
+            else:
+                result_dict = tool_result
+
+            # 如果不是字典，转为字符串返回
+            if not isinstance(result_dict, dict):
+                return str(tool_result)
+
+            # 提取关键信息，以更易读的格式呈现
+            formatted_parts = []
+
+            # 1. 状态信息
+            status = result_dict.get('status') or result_dict.get('success')
+            if status:
+                if status == 'success' or status is True:
+                    formatted_parts.append("✓ 执行成功")
+                else:
+                    formatted_parts.append(f"✗ 执行失败: {result_dict.get('error', '未知错误')}")
+
+            # 2. 主要消息
+            message = result_dict.get('message')
+            if message:
+                formatted_parts.append(f"消息: {message}")
+
+            # 3. 结果数据
+            result_data = result_dict.get('result')
+            if result_data:
+                if isinstance(result_data, dict):
+                    # 提取stdout（如果存在）
+                    stdout = result_data.get('stdout', '')
+                    if stdout:
+                        formatted_parts.append(f"输出:\n{stdout.strip()}")
+
+                    stderr = result_data.get('stderr', '')
+                    if stderr:
+                        formatted_parts.append(f"错误输出:\n{stderr.strip()}")
+                else:
+                    formatted_parts.append(f"结果: {result_data}")
+
+            # 4. 技能/插件特定的action数据
+            action = result_dict.get('action')
+            if action and isinstance(action, dict):
+                action_parts = []
+
+                # 截图相关
+                if action.get('performed') == 'screenshot_capture':
+                    filepath = action.get('filepath', '')
+                    size = action.get('size', '')
+                    action_parts.append(f"已截图: {filepath}")
+                    if size:
+                        action_parts.append(f"尺寸: {size}")
+
+                # 鼠标点击
+                elif action.get('performed') == 'mouse_click':
+                    coords = action.get('coordinates', '')
+                    button = action.get('button', '')
+                    action_parts.append(f"已点击 {button} 按钮于 {coords}")
+
+                # 键盘输入
+                elif action.get('performed') == 'keyboard_input':
+                    text_len = action.get('text_length', 0)
+                    action_parts.append(f"已输入 {text_len} 个字符")
+
+                # 通用action输出
+                elif action.get('stdout'):
+                    action_parts.append(f"执行输出:\n{action.get('stdout', '').strip()}")
+
+                if action_parts:
+                    formatted_parts.extend(action_parts)
+
+            # 5. 输出信息（plugin/function执行结果）
+            output = result_dict.get('output')
+            if output and isinstance(output, dict):
+                stdout = output.get('stdout', '')
+                if stdout:
+                    formatted_parts.append(f"执行输出:\n{stdout.strip()}")
+
+            # 6. 时间戳
+            timestamp = result_dict.get('timestamp')
+            if timestamp:
+                formatted_parts.append(f"时间: {timestamp}")
+
+            # 如果有格式化的部分，返回格式化结果
+            if formatted_parts:
+                return "\n".join(formatted_parts)
+
+            # 否则返回JSON格式（更紧凑）
+            return json.dumps(result_dict, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            logger.error(f"格式化工具结果失败: {e}")
+            # 降级：返回原始结果的字符串表示
+            return str(tool_result)
 
     def to_dict(self) -> Dict[str, Any]:
         """
