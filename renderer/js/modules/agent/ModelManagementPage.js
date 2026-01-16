@@ -15,6 +15,7 @@ const ModelManagementPage = {
     async init() {
         await this.loadModels();
         this.bindEvents();
+        this.bindSidebarClickHandler();
     },
 
     async loadModels() {
@@ -608,6 +609,26 @@ const ModelManagementPage = {
 
     bindEvents() {
         // This is called once on init
+    },
+
+    /**
+     * 绑定侧边栏点击处理器 - 点击agent或chat list时返回
+     */
+    bindSidebarClickHandler() {
+        // 使用事件委托监听侧边栏的点击
+        document.addEventListener('click', (e) => {
+            // 检查是否点击了agent item或chat list item
+            const agentItem = e.target.closest('.agent-item[data-agent-id]');
+            const chatItem = e.target.closest('.tree-item[data-conversation-id]');
+
+            if (agentItem || chatItem) {
+                // 如果管理页面是打开的，关闭它
+                const mgmtPage = document.querySelector('.model-management-page-container');
+                if (mgmtPage && mgmtPage.style.display !== 'none') {
+                    this.destroy();
+                }
+            }
+        }, true); // 使用捕获阶段确保先执行
     },
 
     /**

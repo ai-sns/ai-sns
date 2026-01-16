@@ -8,8 +8,6 @@ class Router {
         this.currentPage = null;
         this.modules = {};
         this.initialized = false;
-        this.agentSidebarInitialized = false;  // Track agent sidebar state
-        this.agentPageInitialized = false;     // Track agent main page state
     }
 
     /**
@@ -43,22 +41,25 @@ class Router {
 
         console.log(`Navigating to: ${page}`);
 
-        // 隐藏当前页面
+        // 隐藏Agent管理页面（如果打开的话）
+        const modelMgmtPage = document.querySelector('.model-management-page-container');
+        const roleMgmtPage = document.querySelector('.role-management-page-container');
+        if (modelMgmtPage) {
+            modelMgmtPage.style.display = 'none';
+        }
+        if (roleMgmtPage) {
+            roleMgmtPage.style.display = 'none';
+        }
+
+        // 隐藏当前页面（保持状态，不调用destroy）
         if (this.currentPage) {
             const currentPageElement = document.getElementById(`page-${this.currentPage}`);
             if (currentPageElement) {
                 currentPageElement.classList.add('hidden');
             }
 
-            // 调用当前模块的 destroy 方法（如果有）
-            const currentModule = this.modules[this.currentPage];
-            if (currentModule.destroy) {
-                try {
-                    currentModule.destroy();
-                } catch (error) {
-                    console.error(`Error destroying module '${this.currentPage}':`, error);
-                }
-            }
+            // 注意：不再调用 destroy() 方法，以保持模块状态
+            // 如果需要清理，应该监听应用退出事件，而不是页面切换
         }
 
         this.currentPage = page;
@@ -74,26 +75,6 @@ class Router {
         // 渲染或显示主内容区
         this.renderOrShowMainContent(page);
 
-        // 特殊处理：如果是返回Agent页面，恢复之前的状态
-        if (page === 'agent' && this.agentPageInitialized && window.agentState && window.AgentSidebar) {
-            console.log('[Router] 恢复Agent页面状态...');
-            
-            // 确保agentState中的当前agent被激活
-            const currentAgentId = window.agentState.currentAgentId;
-            if (currentAgentId) {
-                // 使用小延迟确保DOM已经更新
-                setTimeout(() => {
-                    // 调用AgentSidebar的switchAgent方法激活当前agent
-                    window.AgentSidebar.switchAgent(currentAgentId);
-                    
-                    // 触发agent-switched事件确保其他组件也收到状态更新
-                    window.dispatchEvent(new CustomEvent('agent-switched', {
-                        detail: { agentId: currentAgentId }
-                    }));
-                }, 100);
-            }
-        }
-
         // 触发导航事件
         if (window.eventBus) {
             window.eventBus.emit('page:changed', { from: this.currentPage, to: page });
@@ -101,54 +82,80 @@ class Router {
     }
 
     /**
-     * 渲染侧边栏
+     * 渲染侧边栏（保持状态版本）
      * @param {string} page - 页面名称
      */
     async renderSidebar(page) {
-        const sidebar = document.getElementById('secondarySidebar');
-        if (!sidebar) return;
+        const sidebarContainer = document.getElementById('secondarySidebar');
+        if (!sidebarContainer) return;
 
         const module = this.modules[page];
         if (!module) return;
 
         try {
-            // 特殊处理：只有agent页面需要保持状态，其他页面都重新渲染
-            if (page === 'agent') {
-                // 使用类变量跟踪初始化状态，而不是检查DOM
-                if (!this.agentSidebarInitialized) {
-                    const sidebarContent = module.renderSidebar();
-                    sidebar.innerHTML = sidebarContent;
+            // 隐藏所有侧边栏容器
+            const allSidebars = sidebarContainer.querySelectorAll('.sidebar-page-container');
+            allSidebars.forEach(sb => sb.classList.add('hidden'));
 
-                    if (window.AgentSidebar && typeof window.AgentSidebar.init === 'function') {
-                        console.log('[Router] 初始化Agent侧边栏...');
-                        await window.AgentSidebar.init();
-                        this.agentSidebarInitialized = true;  // 标记为已初始化
-                    }
-                } else {
-                    console.log('[Router] Agent侧边栏已初始化，保持状态');
-                    // 不需要重新渲染，但需要恢复显示
-                    // 如果sidebar内容被其他页面覆盖了，需要从AgentSidebar恢复
-                    if (!sidebar.querySelector('#agentList')) {
-                        // sidebar被其他页面覆盖了，需要重新渲染但不重新初始化
-                        const sidebarContent = module.renderSidebar();
-                        sidebar.innerHTML = sidebarContent;
-                        // 重新初始化，但保持状态
-                        if (window.AgentSidebar && typeof window.AgentSidebar.reload === 'function') {
-                            await window.AgentSidebar.reload();
-                        } else if (window.AgentSidebar && typeof window.AgentSidebar.init === 'function') {
-                            // 如果没有reload方法，使用init但会保持之前选中的agent
-                            await window.AgentSidebar.init();
-                        }
+            // 检查该页面的侧边栏容器是否已存在
+            let pageSidebar = sidebarContainer.querySelector(`#sidebar-${page}`);
+
+            if (!pageSidebar) {
+                // 首次渲染：创建新的侧边栏容器
+                pageSidebar = document.createElement('div');
+                pageSidebar.id = `sidebar-${page}`;
+                pageSidebar.className = 'sidebar-page-container';
+
+                const sidebarContent = module.renderSidebar();
+                pageSidebar.innerHTML = sidebarContent;
+                sidebarContainer.appendChild(pageSidebar);
+
+                // 特殊处理：Agent页面需要异步初始化
+                if (page === 'agent' && window.AgentSidebar && typeof window.AgentSidebar.init === 'function') {
+                    console.log('[Router] 初始化Agent侧边栏...');
+                    await window.AgentSidebar.init();
+                }
+
+                pageSidebar.dataset.initialized = 'true';
+                console.log(`[Router] 侧边栏首次渲染: ${page}`);
+            } else {
+                // 已存在：直接显示
+                pageSidebar.classList.remove('hidden');
+                console.log(`[Router] 侧边栏恢复显示（保持状态）: ${page}`);
+
+                // 特殊处理：Agent页面恢复时，确保UI状态与agentState同步
+                if (page === 'agent' && window.agentState && window.AgentSidebar) {
+                    const currentAgentId = window.agentState.currentAgentId;
+                    if (currentAgentId) {
+                        console.log(`[Router] 恢复Agent选中状态: ${currentAgentId}`);
+                        // 确保UI上的选中状态正确
+                        setTimeout(() => {
+                            // 移除所有active class
+                            document.querySelectorAll('.agent-item').forEach(item => {
+                                item.classList.remove('active');
+                            });
+                            // 添加当前agent的active class
+                            const currentAgentItem = document.querySelector(`.agent-item[data-agent-id="${currentAgentId}"]`);
+                            if (currentAgentItem) {
+                                currentAgentItem.classList.add('active');
+                            }
+                            // 确保当前agent的section是展开的
+                            const currentAgentSection = document.querySelector(`.agent-section-container[data-agent-id="${currentAgentId}"]`);
+                            if (currentAgentSection) {
+                                currentAgentSection.style.display = 'block';
+                            }
+                        }, 50);
                     }
                 }
-            } else {
-                // 其他页面：直接渲染侧边栏
-                const sidebarContent = module.renderSidebar();
-                sidebar.innerHTML = sidebarContent;
             }
         } catch (error) {
             console.error(`Error rendering sidebar for '${page}':`, error);
-            sidebar.innerHTML = '<p style="padding: 20px; color: #999;">侧边栏加载失败</p>';
+            // 创建错误提示容器
+            const errorSidebar = document.createElement('div');
+            errorSidebar.id = `sidebar-${page}`;
+            errorSidebar.className = 'sidebar-page-container';
+            errorSidebar.innerHTML = '<p style="padding: 20px; color: #999;">侧边栏加载失败</p>';
+            sidebarContainer.appendChild(errorSidebar);
         }
     }
 
@@ -182,27 +189,16 @@ class Router {
                     module.init();
                 }
                 pageElement.dataset.initialized = 'true';
-                
-                // 特殊处理：标记Agent页面为已初始化
-                if (page === 'agent') {
-                    this.agentPageInitialized = true;
-                }
             } catch (error) {
                 console.error(`Error rendering page '${page}':`, error);
                 pageElement.innerHTML = '<p style="padding: 20px; color: #999;">页面加载失败</p>';
             }
         } else {
-            // 页面已渲染，直接显示
+            // 页面已渲染，直接显示（保持所有状态）
             pageElement.classList.remove('hidden');
-            
-            // 特殊处理：如果是Agent页面，不再次初始化
-            if (page === 'agent' && this.agentPageInitialized) {
-                console.log('[Router] Agent页面已初始化，保持状态');
-            } else if (module.init && !pageElement.dataset.initialized) {
-                // 如果模块尚未初始化，则执行初始化
-                module.init();
-                pageElement.dataset.initialized = 'true';
-            }
+            // 清除可能被管理页面设置的 display: none 样式
+            pageElement.style.display = '';
+            console.log(`[Router] 页面恢复显示（保持状态）: ${page}`);
         }
     }
 

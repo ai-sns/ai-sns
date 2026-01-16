@@ -1062,8 +1062,8 @@ const kmHandlers = {
         const noteTree = document.getElementById('noteTree');
         if (!noteTree) return;
 
-        // 双击打开笔记
-        noteTree.addEventListener('dblclick', (e) => {
+        // 单击打开笔记
+        noteTree.addEventListener('click', (e) => {
             const item = e.target.closest('.km-tree-item');
             if (item) {
                 const noteId = parseInt(item.dataset.noteId);
@@ -1534,8 +1534,8 @@ const kmHandlers = {
         const noteTree = document.getElementById('noteTree');
         if (!noteTree) return;
 
-        // 双击打开笔记
-        noteTree.addEventListener('dblclick', (e) => {
+        // 单击打开笔记
+        noteTree.addEventListener('click', (e) => {
             const item = e.target.closest('.km-tree-item[data-note-id]');
             if (item) {
                 const noteId = parseInt(item.dataset.noteId);

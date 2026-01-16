@@ -565,11 +565,19 @@ const multiAgentHandlers = {
         const messagesContainer = document.getElementById(`chatMessages-${agentId}`);
         if (!messagesContainer) return;
 
+        // 保存欢迎消息（如果有）
         const welcomeMsg = messagesContainer.querySelector('.welcome-message');
+        let welcomeHTML = '';
         if (welcomeMsg) {
-            welcomeMsg.style.display = 'block';
-        } else {
-            messagesContainer.innerHTML = '';
+            welcomeHTML = welcomeMsg.outerHTML;
+        }
+
+        // 清空整个聊天容器
+        messagesContainer.innerHTML = '';
+
+        // 重新添加欢迎消息
+        if (welcomeHTML) {
+            messagesContainer.innerHTML = welcomeHTML;
         }
 
         // 生成新的 conversation_id
