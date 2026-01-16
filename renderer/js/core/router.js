@@ -74,6 +74,26 @@ class Router {
         // 渲染或显示主内容区
         this.renderOrShowMainContent(page);
 
+        // 特殊处理：如果是返回Agent页面，恢复之前的状态
+        if (page === 'agent' && this.agentPageInitialized && window.agentState && window.AgentSidebar) {
+            console.log('[Router] 恢复Agent页面状态...');
+            
+            // 确保agentState中的当前agent被激活
+            const currentAgentId = window.agentState.currentAgentId;
+            if (currentAgentId) {
+                // 使用小延迟确保DOM已经更新
+                setTimeout(() => {
+                    // 调用AgentSidebar的switchAgent方法激活当前agent
+                    window.AgentSidebar.switchAgent(currentAgentId);
+                    
+                    // 触发agent-switched事件确保其他组件也收到状态更新
+                    window.dispatchEvent(new CustomEvent('agent-switched', {
+                        detail: { agentId: currentAgentId }
+                    }));
+                }, 100);
+            }
+        }
+
         // 触发导航事件
         if (window.eventBus) {
             window.eventBus.emit('page:changed', { from: this.currentPage, to: page });
