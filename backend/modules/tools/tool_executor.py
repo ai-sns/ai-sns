@@ -27,6 +27,33 @@ except ImportError:
     MCP_AVAILABLE = False
     logger.warning("MCP library not available. Install with: pip install mcp")
 
+
+def get_python_executable():
+    """Get the correct Python executable (prefer venv if available)"""
+    # Check if we're in a virtual environment
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        # Already in venv, use current executable
+        return sys.executable
+
+    # Try to find venv in project root
+    project_root = Path(__file__).parent.parent.parent.parent
+    venv_paths = [
+        project_root / 'venv' / 'Scripts' / 'python.exe',  # Windows
+        project_root / 'venv' / 'bin' / 'python',  # Linux/Mac
+        project_root / '.venv' / 'Scripts' / 'python.exe',  # Windows alt
+        project_root / '.venv' / 'bin' / 'python',  # Linux/Mac alt
+    ]
+
+    for venv_python in venv_paths:
+        if venv_python.exists():
+            logger.info(f"Using venv Python: {venv_python}")
+            return str(venv_python)
+
+    # Fallback to current executable
+    logger.warning(f"No venv found, using system Python: {sys.executable}")
+    return sys.executable
+
+
 # Execution timeout in seconds
 EXECUTION_TIMEOUT = 60
 
@@ -419,7 +446,7 @@ if 'main' in dir():
 
                 # Execute with timeout
                 process = await asyncio.create_subprocess_exec(
-                    sys.executable, temp_file,
+                    get_python_executable(), temp_file,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -461,7 +488,7 @@ if 'main' in dir():
             env['PYTHONIOENCODING'] = 'utf-8'
 
             process = await asyncio.create_subprocess_exec(
-                sys.executable, file_path,
+                get_python_executable(), file_path,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -588,7 +615,7 @@ if 'main' in dir():
 
             # Determine command to start server
             if file_path.endswith('.py'):
-                cmd = [sys.executable, file_path]
+                cmd = [get_python_executable(), file_path]
             else:
                 cmd = [file_path]
 
@@ -599,93 +626,94 @@ if 'main' in dir():
                 env=env
             )
 
-            # Connect to MCP server and test
-            async with AsyncExitStack() as stack:
-                # Start stdio transport
-                stdio_transport = await stack.enter_async_context(
-                    stdio_client(server_params)
-                )
-                stdio, write = stdio_transport
+            # Connect to MCP server and test with timeout
+            async with asyncio.timeout(30):  # 30 second timeout
+                async with AsyncExitStack() as stack:
+                    # Start stdio transport
+                    stdio_transport = await stack.enter_async_context(
+                        stdio_client(server_params)
+                    )
+                    stdio, write = stdio_transport
 
-                # Create client session
-                session = await stack.enter_async_context(
-                    ClientSession(stdio, write)
-                )
+                    # Create client session
+                    session = await stack.enter_async_context(
+                        ClientSession(stdio, write)
+                    )
 
-                # Initialize connection
-                await session.initialize()
+                    # Initialize connection
+                    await session.initialize()
 
-                # List available tools
-                tools_result = await session.list_tools()
-                tools_list = []
-                for tool in tools_result.tools:
-                    tools_list.append({
-                        "name": tool.name,
-                        "description": tool.description
-                    })
-
-                # Try to call the first tool (or a specific tool)
-                tool_call_result = None
-                if tools_list:
-                    # Try to find get_weather or use first tool
-                    test_tool = None
-                    test_args = {}
-
-                    # Look for get_weather tool
+                    # List available tools
+                    tools_result = await session.list_tools()
+                    tools_list = []
                     for tool in tools_result.tools:
-                        if tool.name == "get_weather":
-                            test_tool = "get_weather"
-                            test_args = {"city": "Beijing", "unit": "celsius"}
-                            break
-                        elif tool.name == "get_current_time":
-                            test_tool = "get_current_time"
-                            test_args = {"timezone": "UTC"}
-                            break
-                        elif tool.name == "calculate":
-                            test_tool = "calculate"
-                            test_args = {"expression": "10 + 20"}
-                            break
+                        tools_list.append({
+                            "name": tool.name,
+                            "description": tool.description
+                        })
 
-                    # If no specific tool found, use first one with empty args
-                    if not test_tool and tools_result.tools:
-                        test_tool = tools_result.tools[0].name
+                    # Try to call the first tool (or a specific tool)
+                    tool_call_result = None
+                    if tools_list:
+                        # Try to find get_weather or use first tool
+                        test_tool = None
                         test_args = {}
 
-                    # Call the tool
-                    if test_tool:
-                        try:
-                            call_result = await session.call_tool(test_tool, test_args)
+                        # Look for get_weather tool
+                        for tool in tools_result.tools:
+                            if tool.name == "get_weather":
+                                test_tool = "get_weather"
+                                test_args = {"city": "Beijing", "unit": "celsius"}
+                                break
+                            elif tool.name == "get_current_time":
+                                test_tool = "get_current_time"
+                                test_args = {"timezone": "UTC"}
+                                break
+                            elif tool.name == "calculate":
+                                test_tool = "calculate"
+                                test_args = {"expression": "10 + 20"}
+                                break
 
-                            # Extract text content
-                            result_text = ""
-                            for content in call_result.content:
-                                if hasattr(content, 'text'):
-                                    result_text += content.text
+                        # If no specific tool found, use first one with empty args
+                        if not test_tool and tools_result.tools:
+                            test_tool = tools_result.tools[0].name
+                            test_args = {}
 
-                            tool_call_result = {
-                                "tool_name": test_tool,
-                                "arguments": test_args,
-                                "success": True,
-                                "result": result_text[:500]  # Limit to 500 chars
-                            }
-                        except Exception as e:
-                            tool_call_result = {
-                                "tool_name": test_tool,
-                                "arguments": test_args,
-                                "success": False,
-                                "error": str(e)
-                            }
+                        # Call the tool
+                        if test_tool:
+                            try:
+                                call_result = await session.call_tool(test_tool, test_args)
 
-                # Return success with tool list and call result
-                return {
-                    "status": "success",
-                    "file_path": file_path,
-                    "mcp_type": mcp_type,
-                    "message": "MCP server connected and tools tested successfully",
-                    "tools_count": len(tools_list),
-                    "tools": tools_list,
-                    "tool_call_result": tool_call_result
-                }
+                                # Extract text content
+                                result_text = ""
+                                for content in call_result.content:
+                                    if hasattr(content, 'text'):
+                                        result_text += content.text
+
+                                tool_call_result = {
+                                    "tool_name": test_tool,
+                                    "arguments": test_args,
+                                    "success": True,
+                                    "result": result_text[:500]  # Limit to 500 chars
+                                }
+                            except Exception as e:
+                                tool_call_result = {
+                                    "tool_name": test_tool,
+                                    "arguments": test_args,
+                                    "success": False,
+                                    "error": str(e)
+                                }
+
+                    # Return success with tool list and call result
+                    return {
+                        "status": "success",
+                        "file_path": file_path,
+                        "mcp_type": mcp_type,
+                        "message": "MCP server connected and tools tested successfully",
+                        "tools_count": len(tools_list),
+                        "tools": tools_list,
+                        "tool_call_result": tool_call_result
+                    }
 
         except asyncio.TimeoutError:
             return {
@@ -693,6 +721,20 @@ if 'main' in dir():
                 "file_path": file_path,
                 "mcp_type": mcp_type,
                 "message": "MCP server connection timeout",
+                "tools": [],
+                "tool_call_result": None
+            }
+        except* Exception as eg:
+            # Handle ExceptionGroup (Python 3.11+)
+            error_msg = str(eg)
+            error_trace = traceback.format_exc()
+            return {
+                "status": "error",
+                "file_path": file_path,
+                "mcp_type": mcp_type,
+                "message": f"MCP server test failed: {error_msg}",
+                "error": error_msg,
+                "traceback": error_trace[:1000],  # Limit traceback
                 "tools": [],
                 "tool_call_result": None
             }
@@ -774,7 +816,7 @@ if 'main' in dir():
 
             # Determine command to start server
             if file_path.endswith('.py'):
-                cmd = [sys.executable, file_path]
+                cmd = [get_python_executable(), file_path]
             else:
                 cmd = [file_path]
 

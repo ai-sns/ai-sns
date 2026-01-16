@@ -288,6 +288,7 @@ class ToolsService:
         db_skills = self.db.query(SkillMng).filter(
             SkillMng.is_delete == False
         ).order_by(SkillMng.create_time.desc()).all()
+
         return [SkillResponse.model_validate(s) for s in db_skills]
 
     def update_skill(self, skill_id: str, skill: SkillUpdate) -> Optional[SkillResponse]:

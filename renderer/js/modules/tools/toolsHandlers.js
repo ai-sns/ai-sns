@@ -11,7 +11,7 @@ const toolsHandlers = {
 
     // 分页状态
     currentOffset: 0,
-    pageSize: 4, // 默认值，会从配置文件读取
+    pageSize: 50, // 默认值，会从配置文件读取
     hasMore: true,
     currentData: [],
 

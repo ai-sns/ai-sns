@@ -31,7 +31,7 @@ class DatabaseConfig:
     """Database configuration"""
     sql_url: str = field(default_factory=lambda: os.path.join(
         Path(__file__).parent.parent.parent,
-        "data"
+        "db"
     ))
     database_name: str = "db.sqlite"
 
@@ -91,7 +91,7 @@ class StorageConfig:
 @dataclass
 class ToolsConfig:
     """Tools module configuration"""
-    page_size: int = 4  # Number of tools to load per page
+    page_size: int = 50  # Number of tools to load per page
 
 
 class Settings:

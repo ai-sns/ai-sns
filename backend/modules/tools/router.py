@@ -191,6 +191,7 @@ async def delete_function(function_id: str, service: ToolsService = Depends(get_
 @router.get("/skills", response_model=List[SkillResponse])
 async def get_all_skills(service: ToolsService = Depends(get_tools_service)):
     """Get all skills (computer use tools)"""
+
     try:
         return service.get_all_skills()
     except Exception as e:

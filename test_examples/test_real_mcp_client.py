@@ -15,10 +15,10 @@ from mcp.client.stdio import stdio_client
 async def test_mcp_server(server_script_path: str):
     """测试真实的 MCP Server"""
 
-    print("=" * 60)
-    print("🧪 Testing Real MCP Server")
-    print("=" * 60)
-    print(f"Server Script: {server_script_path}\n")
+    print("=" * 60, file=sys.stderr)
+    print("🧪 Testing Real MCP Server", file=sys.stderr)
+    print("=" * 60, file=sys.stderr)
+    print(f"Server Script: {server_script_path}\n", file=sys.stderr)
 
     server_params = StdioServerParameters(
         command=sys.executable,
@@ -28,105 +28,108 @@ async def test_mcp_server(server_script_path: str):
 
     async with AsyncExitStack() as stack:
         # Connect to MCP server
-        print("📡 Step 1: Connecting to MCP server...")
+        print("📡 Step 1: Connecting to MCP server...", file=sys.stderr)
         stdio_transport = await stack.enter_async_context(stdio_client(server_params))
         stdio, write = stdio_transport
         session = await stack.enter_async_context(ClientSession(stdio, write))
 
         # Initialize connection
-        print("🔌 Step 2: Initializing connection...")
+        print("🔌 Step 2: Initializing connection...", file=sys.stderr)
         await session.initialize()
-        print("✓ Connection initialized successfully!\n")
+        print("✓ Connection initialized successfully!\n", file=sys.stderr)
 
         # List available tools
-        print("📋 Step 3: Listing available tools...")
+        print("📋 Step 3: Listing available tools...", file=sys.stderr)
         tools_result = await session.list_tools()
-        print(f"✓ Found {len(tools_result.tools)} tools:\n")
+        print(f"✓ Found {len(tools_result.tools)} tools:\n", file=sys.stderr)
 
         for i, tool in enumerate(tools_result.tools, 1):
-            print(f"  {i}. {tool.name}")
-            print(f"     Description: {tool.description}")
-            print()
+            print(f"  {i}. {tool.name}", file=sys.stderr)
+            print(f"     Description: {tool.description}", file=sys.stderr)
+            print(file=sys.stderr)
 
         # Test each tool
-        print("=" * 60)
-        print("🧪 Step 4: Testing Tool Execution")
-        print("=" * 60)
+        print("=" * 60, file=sys.stderr)
+        print("🧪 Step 4: Testing Tool Execution", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
 
         # Test 1: Get Weather
-        print("\n🌤️ Test 1: get_weather (Beijing)")
-        print("-" * 60)
+        print("\n🌤️ Test 1: get_weather (Beijing)", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
         result1 = await session.call_tool("get_weather", {"city": "Beijing", "unit": "celsius"})
         for content in result1.content:
             if hasattr(content, 'text'):
-                print(content.text)
+                print(content.text, file=sys.stderr)
 
         # Test 2: Get Current Time
-        print("\n🕐 Test 2: get_current_time (Asia/Shanghai)")
-        print("-" * 60)
+        print("\n🕐 Test 2: get_current_time (Asia/Shanghai)", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
         result2 = await session.call_tool("get_current_time", {"timezone": "Asia/Shanghai"})
         for content in result2.content:
             if hasattr(content, 'text'):
-                print(content.text)
+                print(content.text, file=sys.stderr)
 
         # Test 3: Calculate
-        print("\n🔢 Test 3: calculate (2 ** 10 + 100)")
-        print("-" * 60)
+        print("\n🔢 Test 3: calculate (2 ** 10 + 100)", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
         result3 = await session.call_tool("calculate", {"expression": "2 ** 10 + 100"})
         for content in result3.content:
             if hasattr(content, 'text'):
-                print(content.text)
+                print(content.text, file=sys.stderr)
 
         # Test 4: Get System Info
-        print("\n💻 Test 4: get_system_info")
-        print("-" * 60)
+        print("\n💻 Test 4: get_system_info", file=sys.stderr)
+        print("-" * 60, file=sys.stderr)
         result4 = await session.call_tool("get_system_info", {})
         for content in result4.content:
             if hasattr(content, 'text'):
-                print(content.text)
+                print(content.text, file=sys.stderr)
 
         # List Resources
-        print("\n" + "=" * 60)
-        print("📚 Step 5: Testing Resources")
-        print("=" * 60)
+        print("\n" + "=" * 60, file=sys.stderr)
+        print("📚 Step 5: Testing Resources", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
         resources_result = await session.list_resources()
-        print(f"\n✓ Found {len(resources_result.resources)} resources:")
+        print(f"\n✓ Found {len(resources_result.resources)} resources:", file=sys.stderr)
         for resource in resources_result.resources:
-            print(f"  - {resource.name}: {resource.uri}")
+            print(f"  - {resource.name}: {resource.uri}", file=sys.stderr)
 
         # Read Resource
         if resources_result.resources:
             uri = resources_result.resources[0].uri
-            print(f"\n📖 Reading resource: {uri}")
-            print("-" * 60)
+            print(f"\n📖 Reading resource: {uri}", file=sys.stderr)
+            print("-" * 60, file=sys.stderr)
             resource_content = await session.read_resource(uri)
             for content in resource_content.contents:
                 if hasattr(content, 'text'):
-                    print(content.text)
+                    print(content.text, file=sys.stderr)
 
         # List Prompts
-        print("\n" + "=" * 60)
-        print("💬 Step 6: Testing Prompts")
-        print("=" * 60)
+        print("\n" + "=" * 60, file=sys.stderr)
+        print("💬 Step 6: Testing Prompts", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
         prompts_result = await session.list_prompts()
-        print(f"\n✓ Found {len(prompts_result.prompts)} prompts:")
+        print(f"\n✓ Found {len(prompts_result.prompts)} prompts:", file=sys.stderr)
         for prompt in prompts_result.prompts:
-            print(f"  - {prompt.name}: {prompt.description}")
+            print(f"  - {prompt.name}: {prompt.description}", file=sys.stderr)
 
-        print("\n" + "=" * 60)
-        print("✅ All Tests Completed Successfully!")
-        print("=" * 60)
-        print("\n🎉 This is a REAL MCP Server with:")
-        print("  ✓ Real tool execution")
-        print("  ✓ JSON-RPC communication")
-        print("  ✓ Bidirectional stdio transport")
-        print("  ✓ Full MCP protocol compliance")
-        print()
+        print("\n" + "=" * 60, file=sys.stderr)
+        print("✅ All Tests Completed Successfully!", file=sys.stderr)
+        print("=" * 60, file=sys.stderr)
+        print("\n🎉 This is a REAL MCP Server with:", file=sys.stderr)
+        print("  ✓ Real tool execution", file=sys.stderr)
+        print("  ✓ JSON-RPC communication", file=sys.stderr)
+        print("  ✓ Bidirectional stdio transport", file=sys.stderr)
+        print("  ✓ Full MCP protocol compliance", file=sys.stderr)
+        print(file=sys.stderr)
 
 
 async def main():
     """Main entry point"""
-    server_path = "/root/sharedata3/ai-sns-el/test_examples/real_weather_mcp_server.py"
+    import os
+    # 使用相对路径，自动适配 Windows/Linux
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    server_path = os.path.join(script_dir, "real_weather_mcp_server.py")
 
     try:
         await test_mcp_server(server_path)

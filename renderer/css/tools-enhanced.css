@@ -360,6 +360,10 @@
     font-size: 13px;
     line-height: 1.6;
     margin: 0;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 @keyframes fadeIn {
