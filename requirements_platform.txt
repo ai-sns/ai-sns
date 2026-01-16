@@ -31,3 +31,6 @@ protobuf>=4.25.0
 # ========== Optional: Testing ==========
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
+
+# computer use
+psutil
