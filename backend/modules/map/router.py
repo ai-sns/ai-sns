@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from sqlalchemy.orm import Session
 
 # 导入全局WebSocket管理器
 from backend.shared.websocket_manager import ConnectionManager as GlobalConnectionManager
@@ -16,6 +17,7 @@ from .schemas import MapConfig, MapMarker, RouteRequest, RouteControl, ChatMessa
 from .service import MapService
 from .websocket import manager, handle_websocket_message
 from .dependencies import get_map_service, get_connection_manager
+from backend.config.database import get_db_sync
 
 logger = logging.getLogger(__name__)
 
@@ -332,12 +334,10 @@ async def websocket_endpoint(
 # ==================== Trades ====================
 
 @router.get("/trades")
-async def get_trades():
+async def get_trades(db: Session = Depends(get_db_sync)):
     """Get all trades from map_trade table"""
-    from backend.config.database import get_db
     from backend.database.models.map import MapTrade
 
-    db = next(get_db())
     try:
         trades = db.query(MapTrade).filter(
             MapTrade.is_delete == False

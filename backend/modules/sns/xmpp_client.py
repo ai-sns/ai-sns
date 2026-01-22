@@ -4,7 +4,7 @@ import asyncio
 import slixmpp
 from typing import Optional
 from sqlalchemy.orm import Session
-from backend.config.database import get_db
+from backend.config.database import get_db_sync
 from backend.database.models.chat import AiChatCfg, AIFriend, AIChatMessages
 
 logger = logging.getLogger(__name__)
@@ -251,7 +251,7 @@ class XMPPClientManager:
         """Start XMPP client"""
         try:
             # Get database session
-            db = next(get_db())
+            db = get_db_sync()
 
             # Get first aichat_cfg record
             config = db.query(AiChatCfg).filter(
@@ -260,10 +260,12 @@ class XMPPClientManager:
 
             if not config:
                 logger.warning("No XMPP configuration found in database")
+                db.close()
                 return
 
             if not config.account or not config.password:
                 logger.warning("XMPP account or password not configured")
+                db.close()
                 return
 
             # Create XMPP client

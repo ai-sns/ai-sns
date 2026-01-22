@@ -5,23 +5,23 @@ import uuid
 import base64
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
+from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException
 from backend.database.models.chat import AIFriend, AIChatMessages, AiChatCfg
 from backend.database.models.system import Prompt
 from backend.modules.sns.xmpp_client import XMPPClientManager
+from backend.config.database import get_db_sync
 
 logger = logging.getLogger(__name__)
 
-# File upload directory
 UPLOAD_DIR = Path("uploads/sns_files")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 AVATAR_DIR = Path("uploads/avatars")
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
-# Global instance for AI Social Engine
 _social_engine_instance = None
 _social_engine_running = False
 
@@ -32,18 +32,16 @@ class SNSService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_user_stats(self) -> dict:
-        """Get user statistics from aichat_cfg table"""
+    async def get_user_stats(self) -> dict:
+        """异步获取用户统计"""
         try:
-            # Get first record from aichat_cfg
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
 
             if not config:
-                # Return default values
                 return {
-                    "level": 3,
+                    "level":3,
                     "credit": 100,
                     "money": 10996.61,
                     "life": 125,
@@ -65,9 +63,8 @@ class SNSService:
             }
         except Exception as e:
             logger.error(f"Error getting user stats: {e}")
-            # Return default values on error
             return {
-                "level": 3,
+                "level":3,
                 "credit": 100,
                 "money": 10996.61,
                 "life": 125,
@@ -77,57 +74,56 @@ class SNSService:
                 "exp": 30
             }
 
-    def get_contacts(self) -> List[AIFriend]:
-        """Get contact list from ai_friend table"""
+    async def get_contacts(self) -> List[AIFriend]:
+        """异步获取联系人列表"""
         try:
-            # Get owner account from first aichat_cfg record
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt_config = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result_config = await self.db.execute(stmt_config)
+            config = result_config.scalar_one_or_none()
 
             if not config:
                 return []
 
             owner_account = config.account
 
-            # Query ai_friend table
-            contacts = self.db.query(AIFriend).filter(
+            stmt_contacts = select(AIFriend).where(
                 AIFriend.is_delete == False,
                 AIFriend.owner_sns_account == owner_account
-            ).order_by(AIFriend.nick_name).all()
+            ).order_by(AIFriend.nick_name)
+            result_contacts = await self.db.execute(stmt_contacts)
+            contacts = result_contacts.scalars().all()
 
             return contacts
         except Exception as e:
             logger.error(f"Error getting contacts: {e}")
             return []
 
-    def get_chat_history(self, friend_account: str, limit: int = 50) -> List[AIChatMessages]:
-        """Get chat history with a specific contact"""
+    async def get_chat_history(self, friend_account: str, limit: int = 50) -> List[AIChatMessages]:
+        """异步获取聊天历史"""
         try:
-            # Get owner account
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt_config = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result_config = await self.db.execute(stmt_config)
+            config = result_config.scalar_one_or_none()
 
             if not config:
                 return []
 
             owner_account = config.account
 
-            # Query chat messages
-            messages = self.db.query(AIChatMessages).filter(
+            stmt_messages = select(AIChatMessages).where(
                 AIChatMessages.is_delete == False,
-                (
+                or_(
                     (AIChatMessages.owner_account == owner_account) &
-                    (AIChatMessages.friend_account == friend_account)
-                ) | (
+                    (AIChatMessages.friend_account == friend_account),
                     (AIChatMessages.owner_account == friend_account) &
                     (AIChatMessages.friend_account == owner_account)
                 )
-            ).order_by(AIChatMessages.create_time.desc()).limit(limit).all()
+            ).order_by(AIChatMessages.create_time.desc()).limit(limit)
 
-            # Reverse to show oldest first
+            result_messages = await self.db.execute(stmt_messages)
+            messages = result_messages.scalars().all()
             messages.reverse()
+
             return messages
         except Exception as e:
             logger.error(f"Error getting chat history: {e}")
@@ -136,7 +132,6 @@ class SNSService:
     async def send_message(self, to_account: str, content: str) -> dict:
         """Send a message via XMPP"""
         try:
-            # Get XMPP client
             xmpp_manager = XMPPClientManager.get_instance()
             client = xmpp_manager.get_client()
 
@@ -146,18 +141,16 @@ class SNSService:
                     "message": "XMPP client not connected"
                 }
 
-            # Send message via XMPP
             client.send_message_to_jid(to_account, content)
 
-            # Save to database
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
 
             if config:
                 message = AIChatMessages(
                     conversation_id=f"{config.account}_{to_account}",
-                    flag=0,  # 0=send
+                    flag=0,
                     content=content,
                     owner_account=config.account,
                     friend_account=to_account,
@@ -165,7 +158,7 @@ class SNSService:
                     friend_name=to_account
                 )
                 self.db.add(message)
-                self.db.commit()
+                await self.db.commit()
 
             return {
                 "success": True,
@@ -181,7 +174,6 @@ class SNSService:
     async def send_file(self, to_account: str, file) -> dict:
         """Send a file via XMPP using XEP-0363"""
         try:
-            # Get XMPP client
             xmpp_manager = XMPPClientManager.get_instance()
             client = xmpp_manager.get_client()
 
@@ -191,35 +183,31 @@ class SNSService:
                     "message": "XMPP client not connected"
                 }
 
-            # Save file temporarily
             file_id = str(uuid.uuid4())
             file_ext = Path(file.filename).suffix
             temp_filename = f"{file_id}{file_ext}"
             temp_path = UPLOAD_DIR / temp_filename
 
-            # Read and save file content temporarily
             content = await file.read()
             with open(temp_path, "wb") as f:
                 f.write(content)
 
             try:
-                # Upload file via XEP-0363 and send to recipient
                 url = await client.upload_and_send_file(
                     to_account,
                     str(temp_path),
                     file.filename
                 )
 
-                # Save to database
-                config = self.db.query(AiChatCfg).filter(
-                    AiChatCfg.is_delete == False
-                ).first()
+                stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+                result = await self.db.execute(stmt)
+                config = result.scalar_one_or_none()
 
                 if config:
                     file_message = f"📎 File: {file.filename}\n{url}"
                     message = AIChatMessages(
                         conversation_id=f"{config.account}_{to_account}",
-                        flag=0,  # 0=send
+                        flag=0,
                         content=file_message,
                         attachment_list=file.filename,
                         owner_account=config.account,
@@ -228,7 +216,7 @@ class SNSService:
                         friend_name=to_account
                     )
                     self.db.add(message)
-                    self.db.commit()
+                    await self.db.commit()
 
                 return {
                     "success": True,
@@ -236,7 +224,6 @@ class SNSService:
                     "file_url": url
                 }
             finally:
-                # Clean up temporary file
                 if temp_path.exists():
                     os.remove(temp_path)
 
@@ -259,14 +246,14 @@ class SNSService:
                     "running": True
                 }
 
-            # Import the AI social engine adapter
             from backend.modules.sns.ai_social_engine_adapter import AISocialEngine
 
-            # Create engine instance if not exists
             if _social_engine_instance is None:
-                _social_engine_instance = AISocialEngine(self.db)
+                # 为 AISocialEngine 创建同步的 Session
+                db_sync = get_db_sync()
+                _social_engine_instance = AISocialEngine(db_sync)
+                await _social_engine_instance.async_init()
 
-            # Start the engine
             await _social_engine_instance.start()
             _social_engine_running = True
 
@@ -297,7 +284,6 @@ class SNSService:
                     "running": False
                 }
 
-            # Stop the engine
             if _social_engine_instance is not None:
                 await _social_engine_instance.stop()
 
@@ -326,14 +312,15 @@ class SNSService:
             "message": "AI Social Engine is " + ("running" if _social_engine_running else "stopped")
         }
 
-    def get_ai_chat_config(self, user_id: str = None):
+    async def get_ai_chat_config(self, user_id: str = None):
         """Get AI chat configuration"""
         try:
-            query = self.db.query(AiChatCfg).filter(AiChatCfg.is_delete == False)
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
             if user_id:
-                query = query.filter(AiChatCfg.user_id == user_id)
+                stmt = stmt.where(AiChatCfg.user_id == user_id)
 
-            config = query.first()
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
             if not config:
                 raise HTTPException(status_code=404, detail="Configuration not found")
 
@@ -342,59 +329,55 @@ class SNSService:
             logger.error(f"Error getting AI chat config: {e}")
             raise
 
-    def update_ai_chat_config(self, user_id: str = None, data: dict = None):
+    async def update_ai_chat_config(self, user_id: str = None, data: dict = None):
         """Update AI chat configuration"""
         try:
-            query = self.db.query(AiChatCfg).filter(AiChatCfg.is_delete == False)
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
             if user_id:
-                query = query.filter(AiChatCfg.user_id == user_id)
+                stmt = stmt.where(AiChatCfg.user_id == user_id)
 
-            config = query.first()
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
             if not config:
-                # Create new config if not exists
                 config = AiChatCfg(user_id=user_id)
                 self.db.add(config)
 
-            # Update fields
             for key, value in data.items():
                 if hasattr(config, key) and value is not None:
                     setattr(config, key, value)
 
-            self.db.commit()
-            self.db.refresh(config)
+            await self.db.commit()
+            await self.db.refresh(config)
 
             return {"success": True, "message": "Configuration updated successfully", "data": config}
         except Exception as e:
             logger.error(f"Error updating AI chat config: {e}")
-            self.db.rollback()
+            await self.db.rollback()
             return {"success": False, "message": str(e)}
 
     async def upload_avatar(self, user_id: str = None, file=None):
         """Upload avatar image"""
         try:
-            # Generate unique filename
             file_ext = Path(file.filename).suffix
             file_id = str(uuid.uuid4())
             filename = f"{file_id}{file_ext}"
             file_path = AVATAR_DIR / filename
 
-            # Read and save file
             content = await file.read()
             with open(file_path, "wb") as f:
                 f.write(content)
 
-            # Convert to base64 for storage
             avatar_data = f"data:image/{file_ext[1:]};base64,{base64.b64encode(content).decode()}"
 
-            # Update config
-            query = self.db.query(AiChatCfg).filter(AiChatCfg.is_delete == False)
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
             if user_id:
-                query = query.filter(AiChatCfg.user_id == user_id)
+                stmt = stmt.where(AiChatCfg.user_id == user_id)
 
-            config = query.first()
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
             if config:
                 config.avatar = avatar_data
-                self.db.commit()
+                await self.db.commit()
 
             return {
                 "success": True,
@@ -406,23 +389,23 @@ class SNSService:
             logger.error(f"Error uploading avatar: {e}")
             return {"success": False, "message": str(e)}
 
-    def get_social_roles(self):
+    async def get_social_roles(self):
         """Get social roles (prompts with SNS tag)"""
         try:
-            prompts = self.db.query(Prompt).filter(
-                Prompt.tags.like('%SNS%')
-            ).all()
+            stmt = select(Prompt).where(Prompt.tags.like('%SNS%'))
+            result = await self.db.execute(stmt)
+            prompts = result.scalars().all()
             return prompts
         except Exception as e:
             logger.error(f"Error getting social roles: {e}")
             return []
 
-    def get_user_info(self):
+    async def get_user_info(self):
         """Get user information from aichat_cfg"""
         try:
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
 
             if not config:
                 return {"success": False, "message": "No user config found"}
@@ -440,17 +423,16 @@ class SNSService:
             logger.error(f"Error getting user info: {e}")
             return {"success": False, "message": str(e)}
 
-    def update_user_info(self, data: dict):
+    async def update_user_info(self, data: dict):
         """Update user information in aichat_cfg"""
         try:
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
 
             if not config:
                 return {"success": False, "message": "No user config found"}
 
-            # Update fields
             if 'nickname' in data:
                 config.nickname = data['nickname']
             if 'sign' in data:
@@ -458,23 +440,22 @@ class SNSService:
             if 'sns_url' in data:
                 config.sns_url = data['sns_url']
             if 'agent_id' in data:
-                # Check if agent_id column exists
                 if hasattr(config, 'agent_id'):
                     config.agent_id = data['agent_id']
 
-            self.db.commit()
+            await self.db.commit()
             return {"success": True, "message": "User info updated successfully"}
         except Exception as e:
             logger.error(f"Error updating user info: {e}")
-            self.db.rollback()
+            await self.db.rollback()
             return {"success": False, "message": str(e)}
 
-    def get_map_config(self):
+    async def get_map_config(self):
         """Get map configuration from aichat_cfg"""
         try:
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
 
             if not config:
                 return {"success": False, "message": "No config found"}
@@ -491,44 +472,38 @@ class SNSService:
             logger.error(f"Error getting map config: {e}")
             return {"success": False, "message": str(e)}
 
-    def update_map_config(self, data: dict):
+    async def update_map_config(self, data: dict):
         """Update map configuration in aichat_cfg and replace in files"""
         import re
         import json
 
         try:
-            config = self.db.query(AiChatCfg).filter(
-                AiChatCfg.is_delete == False
-            ).first()
+            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
+            result = await self.db.execute(stmt)
+            config = result.scalar_one_or_none()
 
             if not config:
                 return {"success": False, "message": "No config found"}
 
-            # Get original values for file replacement
             old_api_keys = config.map_api_key.split(',') if config.map_api_key else ['', '']
             old_map_ids = config.map_id.split(',') if config.map_id else ['', '']
             old_map_type = config.map_type
 
-            # Prepare new values
             google_api_key = data.get('google_api_key', 'N/A')
             google_map_id = data.get('google_map_id', 'N/A')
             baidu_api_key = data.get('baidu_api_key', 'N/A')
             baidu_map_id = data.get('baidu_map_id', 'N/A')
             map_type = data.get('map_type', '0')
 
-            # Create comma-separated strings
             map_api_key = f"{google_api_key},{baidu_api_key}"
             map_id = f"{google_map_id},{baidu_map_id}"
 
-            # Check if map type is changing
             map_type_changing = (old_map_type != map_type)
 
-            # Update database
             config.map_type = map_type
             config.map_api_key = map_api_key
             config.map_id = map_id
 
-            # Handle map position data if map type is changing
             if map_type_changing:
                 memo_data = {}
                 if config.memo:
@@ -537,7 +512,6 @@ class SNSService:
                     except json.JSONDecodeError:
                         memo_data = {}
 
-                # Save current map position data
                 current_map_data = {
                     "home_position": config.home_position or "",
                     "positionx": config.positionx if config.positionx is not None else 0,
@@ -552,14 +526,12 @@ class SNSService:
 
                 config.memo = json.dumps(memo_data, ensure_ascii=False)
 
-                # Reset route fields
                 config.route_start = ""
                 config.route_end = ""
                 config.route_current_position = ""
                 config.route = ""
                 config.route_status = "stopped"
 
-                # Load position data for new map type
                 if map_type == "0" and "google" in memo_data:
                     google_data = memo_data["google"]
                     config.home_position = google_data.get("home_position", "")
@@ -573,9 +545,8 @@ class SNSService:
                     config.positiony = baidu_data.get("positiony", 0)
                     config.positionz = baidu_data.get("positionz", 0)
 
-            self.db.commit()
+            await self.db.commit()
 
-            # Replace in files
             self._replace_map_config_in_files(
                 old_api_keys, old_map_ids,
                 [google_api_key, baidu_api_key],
@@ -585,7 +556,7 @@ class SNSService:
             return {"success": True, "message": "Map config updated successfully"}
         except Exception as e:
             logger.error(f"Error updating map config: {e}")
-            self.db.rollback()
+            await self.db.rollback()
             return {"success": False, "message": str(e)}
 
     def _replace_map_config_in_files(self, old_api_keys, old_map_ids, new_api_keys, new_map_ids):
@@ -636,7 +607,6 @@ class SNSService:
                 logger.error(f"Error replacing in file {filepath}: {e}")
                 return False
 
-        # Google Map files
         if new_api_keys[0] != 'N/A' or new_map_ids[0] != 'N/A':
             google_replacements = {
                 old_api_keys[0]: new_api_keys[0],
@@ -645,7 +615,6 @@ class SNSService:
             replace_in_file("scripts/googlemap3d.html", google_replacements)
             replace_in_file("scripts/js/google/map_common.js", google_replacements)
 
-        # Baidu Map files
         if new_api_keys[1] != 'N/A':
             baidu_replacements = {
                 old_api_keys[1]: new_api_keys[1],

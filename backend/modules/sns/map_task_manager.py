@@ -1,4 +1,5 @@
 import json
+import asyncio
 from db.DBFactory import query_single_map_task,update_map_task
 from i18n import lt
 from typing import  Dict, Any, Optional
@@ -221,7 +222,7 @@ class MapTaskManager:
 
     def review_task(self):
         self.reviewing_task = True
-        self.parent.ask_agent_to_update_task()
+        asyncio.create_task(self.parent.ask_agent_to_update_task())
 
 
     def exception_detect_tool(self):
@@ -241,14 +242,14 @@ class MapTaskManager:
             if people_communicated_count >= self.parent.max_people_comm:
                 objective_to_achieve = self.current_objective if self.current_objective else self.current_sub_task["details"]
                 provided_place_list = json.dumps(self.parent.get_place_list(), indent=4, ensure_ascii=False)
-                self.parent.ask_agent_to_pick_place_list(objective_to_achieve, provided_place_list)
+                self.parent.ask_agent_to_pick_place_list_sync(objective_to_achieve, provided_place_list)
             else:
                 self.js_task_manager.show_information(lt(f"To pick people from list", f"正从名单中筛选人员"))
                 self.set_command_status("ask_agent_to_pick_people_list")
                 provided_profile_list = json.dumps(self.parent.get_people_list(), indent=4, ensure_ascii=False)
                 self.current_process["ability_used_list"].append("activity_find_people_from_list_to_talk")
                 self.current_process["people_communicated_count"] = self.current_process.get("people_communicated_count", 0) + 1
-                self.parent.ask_agent_to_pick_people_list(provided_profile_list)
+                self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
             return  # Exit early as further checks are unnecessary
 
         # Condition: Tool usage is at least half of the maximum limit
@@ -260,7 +261,7 @@ class MapTaskManager:
                     provided_profile_list = json.dumps(self.parent.get_people_list(), indent=4, ensure_ascii=False)
                     self.current_process["ability_used_list"].append("activity_find_people_from_list_to_talk")
                     self.current_process["people_communicated_count"] = self.current_process.get("people_communicated_count", 0) + 1
-                    self.parent.ask_agent_to_pick_people_list(provided_profile_list)
+                    self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
                     return  # Exit early as further checks are unnecessary
 
         # Default action: Ask the agent to pick a tool
@@ -273,7 +274,7 @@ class MapTaskManager:
         provided_tool_list = self.parent.get_tool_list()
         self.current_process["ability_used_list"].append("activity_find_tool_from_list_to_use")
         self.current_process["tool_used_count"] = self.current_process.get("tool_used_count", 0) + 1
-        self.parent.ask_agent_to_pick_a_tool(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
+        self.parent.ask_agent_to_pick_a_tool_sync(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
 
 
 
@@ -294,7 +295,7 @@ class MapTaskManager:
             if tool_used_count >= self.parent.max_tool_usage:
                 objective_to_achieve = self.current_objective if self.current_objective else self.current_sub_task["details"]
                 provided_place_list = json.dumps(self.parent.get_place_list(), indent=4, ensure_ascii=False)
-                self.parent.ask_agent_to_pick_place_list(objective_to_achieve, provided_place_list)
+                self.parent.ask_agent_to_pick_place_list_sync(objective_to_achieve, provided_place_list)
             else:
                 self.js_task_manager.show_information(lt(f"Try to find a tool", f"尝试使用工具"))
                 self.set_command_status("ask_agent_to_pick_a_tool")
@@ -303,7 +304,7 @@ class MapTaskManager:
                 provided_tool_list = self.parent.get_tool_list()
                 self.current_process["ability_used_list"].append("activity_find_tool_from_list_to_use")
                 self.current_process["tool_used_count"] = self.current_process.get("tool_used_count", 0) + 1
-                self.parent.ask_agent_to_pick_a_tool(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
+                self.parent.ask_agent_to_pick_a_tool_sync(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
             return  # Exit early as further checks are unnecessary
 
         # Condition: Communication is at least half of the maximum limit
@@ -317,7 +318,7 @@ class MapTaskManager:
                     provided_tool_list = self.parent.get_tool_list()
                     self.current_process["ability_used_list"].append("activity_find_tool_from_list_to_use")
                     self.current_process["tool_used_count"] = self.current_process.get("tool_used_count", 0) + 1
-                    self.parent.ask_agent_to_pick_a_tool(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
+                    self.parent.ask_agent_to_pick_a_tool_sync(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
                     return  # Exit early as further checks are unnecessary
 
         # Default action: Ask the agent to pick people to communicate with
@@ -328,7 +329,7 @@ class MapTaskManager:
         provided_profile_list = json.dumps(self.parent.get_people_list(), indent=4, ensure_ascii=False)
         self.current_process["ability_used_list"].append("activity_find_people_from_list_to_talk")
         self.current_process["people_communicated_count"] = self.current_process.get("people_communicated_count", 0) + 1
-        self.parent.ask_agent_to_pick_people_list(provided_profile_list)
+        self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
 
     def exception_detect_place(self,target_position,target_score,target_place):
         process_info = self.current_process
@@ -373,14 +374,14 @@ class MapTaskManager:
                     provided_tool_list = self.parent.get_tool_list()
                     self.current_process["ability_used_list"].append("activity_find_tool_from_list_to_use")
                     self.current_process["tool_used_count"] = self.current_process.get("tool_used_count", 0) + 1
-                    self.parent.ask_agent_to_pick_a_tool(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
+                    self.parent.ask_agent_to_pick_a_tool_sync(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
             else:
                 self.js_task_manager.show_information(lt(f"To pick people from list", f"正从名单中筛选人员"))
                 self.set_command_status("ask_agent_to_pick_people_list")
                 provided_profile_list = json.dumps(self.parent.get_people_list(), indent=4, ensure_ascii=False)
                 self.current_process["ability_used_list"].append("activity_find_people_from_list_to_talk")
                 self.current_process["people_communicated_count"] = self.current_process.get("people_communicated_count", 0) + 1
-                self.parent.ask_agent_to_pick_people_list(provided_profile_list)
+                self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
         elif last_ability == "activity_find_people_from_list_to_talk" or last_ability=="":
             if tool_used_count >= self.parent.max_tool_usage:
                 if people_communicated_count >= self.parent.max_people_comm:
@@ -392,7 +393,7 @@ class MapTaskManager:
                     provided_profile_list = json.dumps(self.parent.get_people_list(), indent=4, ensure_ascii=False)
                     self.current_process["ability_used_list"].append("activity_find_people_from_list_to_talk")
                     self.current_process["people_communicated_count"] = self.current_process.get("people_communicated_count", 0) + 1
-                    self.parent.ask_agent_to_pick_people_list(provided_profile_list)
+                    self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
             else:
                 self.js_task_manager.show_information(lt(f"Try to find a tool", f"尝试使用工具"))
                 self.set_command_status("ask_agent_to_pick_a_tool")
@@ -401,7 +402,7 @@ class MapTaskManager:
                 provided_tool_list = self.parent.get_tool_list()
                 self.current_process["ability_used_list"].append("activity_find_tool_from_list_to_use")
                 self.current_process["tool_used_count"] = self.current_process.get("tool_used_count", 0) + 1
-                self.parent.ask_agent_to_pick_a_tool(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
+                self.parent.ask_agent_to_pick_a_tool_sync(task_summary, json.dumps(provided_tool_list, indent=4, ensure_ascii=False))
 
 
 
@@ -460,7 +461,7 @@ class MapTaskManager:
             task = kwargs.get("task","")
             self.js_task_manager.show_information(lt("decomposing plan","正在分解计划"))
             self.set_command_status("ask_agent_to_decompose_task")
-            self.parent.ask_agent_to_decompose_task(task)
+            asyncio.create_task(self.parent.ask_agent_to_decompose_task(task))
 
         elif event=="ask_agent_to_decompose_task_returned":
             result = kwargs.get("result", "")
@@ -492,7 +493,7 @@ class MapTaskManager:
             self.js_task_manager.show_information(lt(f"Agent is thinking how to proceed:{item_to_achieved}", f"Agent正在思考如何进展:{item_to_achieved}"))
             self.set_command_status("ask_agent_instruction_to_process_activity")
 
-            self.parent.ask_agent_instruction_to_process_activity(ask_content)
+            asyncio.create_task(self.parent.ask_agent_instruction_to_process_activity(ask_content))
 
 
         elif action_requested=="process_human_instruction":
@@ -539,7 +540,7 @@ class MapTaskManager:
             self.js_task_manager.show_information(lt(f"To pick people from list", f"正从名单中筛选人员"))
             self.set_command_status("ask_agent_to_pick_people_list")
             provided_profile_list = kwargs.get("provided_profile_list", "")
-            self.parent.ask_agent_to_pick_people_list(provided_profile_list)
+            self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
 
         elif event=="agent_pick_people_list_returned":
             self.show_status_on_map("talking")
@@ -718,7 +719,7 @@ class MapTaskManager:
 
             provided_tool_list=self.parent.get_tool_list()
 
-            self.parent.ask_agent_to_pick_a_tool(task_summary, json.dumps(provided_tool_list,indent=4, ensure_ascii=False))
+            self.parent.ask_agent_to_pick_a_tool_sync(task_summary, json.dumps(provided_tool_list,indent=4, ensure_ascii=False))
 
         elif event=="ask_agent_to_pick_a_tool_returned":
             self.show_status_on_map("using-tool")
@@ -780,7 +781,7 @@ class MapTaskManager:
                     self.js_task_manager.show_information(lt(f"Try to find a service or skill", f"尝试调用系统服务或使用技能"))
                     self.set_command_status("ask_agent_to_pick_a_tool")
                     task_summary =self.get_current_objective()
-                    self.parent.ask_agent_to_pick_a_tool(task_summary, provided_service_list,provided_skill_list)
+                    self.parent.ask_agent_to_pick_a_tool_sync(task_summary, provided_service_list,provided_skill_list)
                 else:
                     # if no service or skill,explore the map to discover more service of ask people to help
                     self.set_command_status("explore_the_map")

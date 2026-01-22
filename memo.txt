@@ -2473,3 +2473,31 @@ start(self)这个函数
   3.点击某个图标后，应该在右边区域打开url连接，而不是在弹出框中打开，如果用户使用鼠标右键选择在默认浏览器中打开，则应该调用系统的默认浏览器打开选中的项所对应的url地址
   4.这个web栏目对应的数据是在web_mng这个表里面
 
+后端在api_server.py及backend目录下,数据库使用db/db.sqlite
+ERROR:backend.modules.sns.service:Error starting AI social engine: 'await' outside async function (ai_social_engine_adapter.py, line 482)ERROR:backend.modules.sns.service:Error starting AI social engine: 'await' outside async function (ai_social_engine_adapter.py, line 482)
+
+Traceback (most recent call last):
+  File "C:\dev\agi-ev\ai-sns-el\backend\modules\sns\ai_social_engine_adapter.py", line 494, in ask_agent_and_get_instruction
+    self.on_agent_return_instruction(question,reply)
+  File "C:\dev\agi-ev\ai-sns-el\backend\modules\sns\ai_social_engine_adapter.py", line 597, in on_agent_return_instruction
+    self.handle_event_after_decistion_result(content)
+  File "C:\dev\agi-ev\ai-sns-el\backend\modules\sns\ai_social_engine_adapter.py", line 1083, in handle_event_after_decistion_result
+    self.handle_parse_agent_instruction_for_process_activity(instruction)
+  File "C:\dev\agi-ev\ai-sns-el\backend\modules\sns\ai_social_engine_adapter.py", line 949, in handle_parse_agent_instruction_for_process_activity
+    action_result = self.go_around()
+                    ^^^^^^^^^^^^^^^^
+  File "C:\dev\agi-ev\ai-sns-el\backend\modules\sns\ai_social_engine_adapter.py", line 1116, in go_around
+    last_position = Point(self.aichatcfg_record.last_position[1], self.aichatcfg_record.last_position[0])
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\dev\agi-ev\ai-sns-el\venv\Lib\site-packages\geopy\point.py", line 188, in __new__
+    _normalize_coordinates(latitude, longitude, altitude)
+  File "C:\dev\agi-ev\ai-sns-el\venv\Lib\site-packages\geopy\point.py", line 57, in _normalize_coordinates
+    latitude = float(latitude or 0.0)
+               ^^^^^^^^^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '-'
+
+
+获取vs code的两种做法，inspect.exe accesory api的方法和cpc的方法
+C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\inspect.exe
+vscodetestv6.py vscodetestv7.py vscodetestv8.py vscodetestv9.py vscodetestv10.py
+# "C:\Users\IDD\AppData\Local\Programs\Microsoft VS Code\Code.exe"  --remote-debugging-port=9222 --remote-allow-origins=*

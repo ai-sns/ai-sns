@@ -148,16 +148,6 @@ class AISocialEngine:
         ]
         self.skill_list = []
         self.started_flag = False
-
-    async def async_init(self):
-        """
-        异步初始化方法
-        用于在创建实例后进行额外的异步初始化
-        """
-        logger.info("Async initializing AISocialEngine...")
-        # 这里可以添加需要在 async 上下文中执行的初始化代码
-        # 目前大部分初始化已经在 __init__ 中完成
-        logger.info("AISocialEngine async initialization complete")
         self.command_status = ""
         # 初始化当前任务所需技能集合（示例）
         self.required_skills = []
@@ -411,6 +401,14 @@ class AISocialEngine:
         # self.startButton.setIcon(QtGui.QIcon(icon_path))  # 更新按钮图标
         # 添加可选操作：根据 self.task_status 更新其他 UI 元素或执行操作
 
+    # *************************************************
+
+    def toggle_pause_task(self):
+        self.pause_flag = self.pauseCheckBox.isChecked()
+        if self.pause_flag:
+            print("Pause task:", self.pause_flag)
+        else:
+            print("Continue task:", self.pause_flag)
 
     # a.请求agent指示
     async def ask_agent_and_get_instruction(self, question, system_role_prompt, type_flag="command"):
@@ -898,7 +896,7 @@ __current_process__
         if self.ai_chat_cfg.event_after_decistion:
             if self.ai_chat_cfg.event_after_decistion != "N/A":
                 tool_name = self.ai_chat_cfg.event_after_decistion
-                asyncio.create_task(self.handle_event_after_decistion(tool_name, instruction))
+                self.handle_event_after_decistion(tool_name, instruction)
                 return
 
         self.handle_parse_agent_instruction_for_process_activity(instruction)
@@ -1022,18 +1020,11 @@ __current_process__
         # 定义分隔标记
         delimiter = "下一行动"
 
-
         # 检查分隔标记是否存在
         if delimiter in instruction:
             # 分割字符串并取最后一部分（防止有多个相同标记）
             parts = instruction.split(delimiter, 1)
             return parts[1].strip() if len(parts) > 1 else ""
-        delimiter = "下一步行动"
-        if delimiter in instruction:
-            # 分割字符串并取最后一部分（防止有多个相同标记）
-            parts = instruction.split(delimiter, 1)
-            return parts[1].strip() if len(parts) > 1 else ""
-
         return ""
 
     def get_current_task_list(self, text):
@@ -1061,12 +1052,12 @@ __current_process__
         self.command_status = "ask_agent_instruction_to_process_activity"
         self.handle_ask_agent_instruction_to_process_activity(ask_content)
 
-    async def handle_event_after_decistion(self, tool_name, instruction):
+    def handle_event_after_decistion(self, tool_name, instruction):
         self.command_status = "handle_event_after_decistion"
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = instruction
-        await self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
+        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
 
     def handle_event_after_decistion_result(self, instruction):
         self.command_status = ""
@@ -1077,7 +1068,7 @@ __current_process__
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = content
-        self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
+        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
 
     def handle_event_receive_msg_result(self, content):
         self.command_status = ""
@@ -1089,7 +1080,7 @@ __current_process__
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = content
-        self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
+        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
 
     def handle_event_before_send_msg_result(self, content):
         self.command_status = ""
@@ -1257,19 +1248,19 @@ __current_process__
     def communicate_with_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "communication"
-        self.ask_agent_start_to_talk_to_a_people_sync(action_str, human_object)
+        self.ask_agent_start_to_talk_to_a_people(action_str, human_object)
 
         # self.taskmng.process_task(action="process_activity", ask_content=ask_content)
 
     def sell_to_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "sell"
-        self.ask_agent_start_to_sell_to_a_people_sync(action_str, human_object)
+        self.ask_agent_start_to_sell_to_a_people(action_str, human_object)
 
     def buy_from_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "buy"
-        self.ask_agent_start_to_buy_from_a_people_sync(action_str, human_object)
+        self.ask_agent_start_to_buy_from_a_people(action_str, human_object)
 
     def use_tools(self):
         result = ""
@@ -1379,13 +1370,13 @@ __current_process__
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = ask_content if ask_content else "请执行"
-        self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
+        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
 
     def handle_event_before_decistion_result(self, ask_content):
         self.command_status = "ask_agent_instruction_to_process_activity"
         asyncio.create_task(self.handle_ask_agent_instruction_to_process_activity(ask_content))
 
-    def ask_agent_to_run_a_tool_sync(self, tool_id, tool_name, what_to_do):
+    def ask_agent_to_run_a_tool(self, tool_id, tool_name, what_to_do):
         role_prompt = "You are a helpful assistant."
 
         question = f"{tool_id}__AISNS_INT_SEPARATOR__{tool_name}__AISNS_INT_SEPARATOR__{what_to_do}"
@@ -1702,7 +1693,7 @@ talk_to_a_people
         if property_name in process_pane_related_properties:
             self.write_on_going_process_to_pane(self.current_ongoing_content or "")
 
-    async def ask_agent_instruction_to_process_human_instruction(self, ask_content):
+    def ask_agent_instruction_to_process_human_instruction(self, ask_content):
         self.show_status_on_map("thinking")
         if not self.started_flag:
             return
@@ -1744,14 +1735,14 @@ talk_to_a_people
             provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
             if people_to_talk_to:
                 objective_to_achieve = f"如果人员列表中有 {people_to_talk_to} 这个人，请把{people_to_talk_to}作为选择的目标。"
-            self.ask_agent_to_pick_people_list_sync(provided_profile_list, objective_to_achieve)
+            self.ask_agent_to_pick_people_list(provided_profile_list, objective_to_achieve)
         elif "activity_find_place_from_list_to_move" in instruction:
             self.command_status = "ask_agent_to_pick_place_list"
             objective_to_achieve = self.taskmng.current_objective if self.taskmng.current_objective else self.taskmng.current_sub_task["details"]
             if place_to_move_to:
                 objective_to_achieve = f"如果地址列表中有 {place_to_move_to} 这个地方，请把{place_to_move_to}作为选择的目标。{objective_to_achieve}"
             provided_place_list = json.dumps(self.get_place_list(), indent=4, ensure_ascii=False)
-            self.ask_agent_to_pick_place_list_sync(objective_to_achieve, provided_place_list)
+            self.ask_agent_to_pick_place_list(objective_to_achieve, provided_place_list)
 
 
         elif "activity_find_tool_from_list_to_use" in instruction:
@@ -1763,34 +1754,14 @@ talk_to_a_people
             if tool_to_use:
                 objective_to_achieve = f"如果工具列表中有 {tool_to_use} 这个工具，请把{tool_to_use}作为选择的目标。"
 
-            self.ask_agent_to_pick_a_tool_sync(task_summary, provided_tool_list, objective_to_achieve)
+            self.ask_agent_to_pick_a_tool(task_summary, provided_tool_list, objective_to_achieve)
 
         else:
             human_instruction = self.human_instruction
             self.taskmng.process_task(action="process_activity", ask_content="请优先根据人类反馈，做出决策。人类的指令如下：" + human_instruction, human_send_flag=True)
 
-    def ask_agent_to_pick_place_list_sync(self, objective_to_achieve, provided_place_list):
-        """
-        向代理请求选择地点列表（同步版本）。
-
-        :param objective_to_achieve: 任务描述
-        :param provided_place_list: 提供的地点列表
-        """
-        self.show_status_on_map("watching")
-        self.show_information(lt("Ask Agent to pick a place to move.", "让Agent选择一个地方作为目的地。"))
-        task_summary = self.taskmng.get_task_summary()
-        curren_situation = self.taskmng.current_situation
-        current_process = f"- 当前目标\n{objective_to_achieve}\n- 当前进展\n{curren_situation}"
-        role_prompt = get_prompt_by_title("__pick_place_list__")
-        role_prompt = role_prompt.replace("__task_summary__", task_summary)
-        role_prompt = role_prompt.replace("__current_situation__", current_process)
-        role_prompt = role_prompt.replace("__provided_place_list__", provided_place_list)
-        question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.command_status = "ask_agent_to_pick_place_list"
-        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
-
     # 4.让agent选择地址
-    async def ask_agent_to_pick_place_list(self, objective_to_achieve, provided_place_list):
+    def ask_agent_to_pick_place_list(self, objective_to_achieve, provided_place_list):
         """
         向代理请求选择地点列表。
 
@@ -1830,27 +1801,8 @@ talk_to_a_people
             if self.place_selected:
                 self.taskmng.process_task(action="move_to_a_place", place_name=self.place_selected[0]["place_name"], lng=self.place_selected[0]["place_position"][0], lat=self.place_selected[0]["place_position"][1], match_score=match_score)
 
-    def ask_agent_to_pick_a_tool_sync(self, task_summary, provided_tool_list_str, human_objective_to_achieve=""):
-        task_summary = self.taskmng.get_task_summary()
-        curren_situation = self.taskmng.current_situation
-        objective_to_achieve = self.taskmng.get_current_objective()
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        current_process = f"- 当前目标\n{objective_to_achieve}\n- 当前进展\n{curren_situation}"
-        role_prompt = get_prompt_by_title("__pick_tool_list__")
-        if self.human_take_over and self.human_instruction.startswith("!!!"):
-            role_prompt = role_prompt.replace("__task_summary__", self.human_instruction)
-            role_prompt = role_prompt.replace("__current_process__", "")
-        else:
-            role_prompt = role_prompt.replace("__task_summary__", task_summary)
-            role_prompt = role_prompt.replace("__current_process__", current_process)
-        role_prompt = role_prompt.replace("__provided_tool_list__", provided_tool_list_str)
-
-        question = "请严格遵照要求评估，并严格按照格式输出。"
-        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
-
     # 5.让agent选择一个工具
-    async def ask_agent_to_pick_a_tool(self, task_summary, provided_tool_list_str, human_objective_to_achieve=""):
+    def ask_agent_to_pick_a_tool(self, task_summary, provided_tool_list_str, human_objective_to_achieve=""):
         task_summary = self.taskmng.get_task_summary()
         curren_situation = self.taskmng.current_situation
         objective_to_achieve = self.taskmng.get_current_objective()
@@ -1918,7 +1870,7 @@ talk_to_a_people
             return flag, result
 
         elif type_str.lower() == "plugin_tool":
-            flag, result = self.ask_agent_to_run_a_tool_sync(tool_id, name, tell_the_tool_what_to_do)
+            flag, result = self.ask_agent_to_run_a_tool(tool_id, name, tell_the_tool_what_to_do)
             return flag, result
 
         elif type_str.lower() == "web_service":
@@ -1965,7 +1917,7 @@ talk_to_a_people
         # 使用 get 方法返回目标字典，若目标 id 不存在，则返回 None
         return dict_map.get(target_id)
 
-    async def ask_agent_to_pick_a_tool_to_buy(self, provided_tool_list_str, human_objective_to_achieve="", human_want_to_buy_str=""):
+    def ask_agent_to_pick_a_tool_to_buy(self, provided_tool_list_str, human_objective_to_achieve="", human_want_to_buy_str=""):
         task_summary = self.taskmng.get_task_summary()
         curren_situation = self.taskmng.current_situation
         objective_to_achieve = self.taskmng.get_current_objective()
@@ -1995,71 +1947,15 @@ talk_to_a_people
             self.tool_trade_inquiry(tool)
             # self.taskmng.add_process_info_to_list(f"我已经选定了要购买的目标工具：name:{name},id:{id},因为{reason_for_selection}")
 
-    async def ask_agent_to_run_a_tool(self, tool_id, tool_name, what_to_do):
+    def ask_agent_to_run_a_tool(self, tool_id, tool_name, what_to_do):
         role_prompt = "You are a helpful assistant."
-
 
         question = f"{tool_id}__AISNS_INT_SEPARATOR__{tool_name}__AISNS_INT_SEPARATOR__{what_to_do}"
         await self.ask_agent_and_get_instruction(question, role_prompt, "tool")
         return "success", "asking the agent to run tool"
 
-
-    def ask_agent_to_pick_people_list_sync(self, provided_profile_list, human_objective_to_achieve=""):
-        # provided_profile_list = json.dumps(self.get_people_list(),indent=4,ensure_ascii=False)
-        objective_to_achieve = self.taskmng.get_current_objective()
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        task_summary = self.taskmng.get_task_summary()
-        current_process = f"- 当前位置\n{self.current_place}\n- 当前坐标\n{self.aichatcfg_record.current_position}\n- 当前目标\n{objective_to_achieve}\n- 当前进展\n{self.taskmng.current_situation}"
-        role_prompt = get_prompt_by_title("__pick_people_list__")
-        role_prompt = role_prompt.replace("__task_summary__", task_summary)
-        role_prompt = role_prompt.replace("__current_process__", current_process)
-        role_prompt = role_prompt.replace("__people__to__select__", provided_profile_list)
-        question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.command_status = "ask_agent_to_pick_people_list"
-        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
-
-    def ask_agent_start_to_talk_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        role_prompt = get_prompt_by_title("__start_to_talk_to_a_people__")
-
-        content_prompt = get_prompt_by_title("__start_to_talk_to_a_people_content__")
-        content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
-        content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
-
-        self.command_status = "ask_agent_to_pick_people_list"
-        asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
-
-    def ask_agent_start_to_sell_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        role_prompt = get_prompt_by_title("__start_to_sell_to_a_people__")
-
-        content_prompt = get_prompt_by_title("__start_to_sell_to_a_people_content__")
-        content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
-        content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
-
-        self.command_status = "ask_agent_start_to_sell_to_a_people"
-        asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
-
-    def ask_agent_start_to_buy_from_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        role_prompt = get_prompt_by_title("__start_to_buy_from_a_people__")
-
-        content_prompt = get_prompt_by_title("__start_to_buy_from_a_people_content__")
-        content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
-        content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
-
-        self.command_status = "ask_agent_start_to_buy_from_a_people"
-        asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
-
     # 6.让agent选择人员
-    async def ask_agent_to_pick_people_list(self, provided_profile_list, human_objective_to_achieve=""):
+    def ask_agent_to_pick_people_list(self, provided_profile_list, human_objective_to_achieve=""):
         # provided_profile_list = json.dumps(self.get_people_list(),indent=4,ensure_ascii=False)
         objective_to_achieve = self.taskmng.get_current_objective()
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
@@ -2074,7 +1970,7 @@ talk_to_a_people
         self.command_status = "ask_agent_to_pick_people_list"
         await  self.ask_agent_and_get_instruction(question, role_prompt)
 
-    async def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+    def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
 
@@ -2087,7 +1983,7 @@ talk_to_a_people
         self.command_status = "ask_agent_to_pick_people_list"
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
-    async def ask_agent_start_to_sell_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+    def ask_agent_start_to_sell_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
 
@@ -2100,7 +1996,7 @@ talk_to_a_people
         self.command_status = "ask_agent_start_to_sell_to_a_people"
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
-    async def ask_agent_start_to_buy_from_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+    def ask_agent_start_to_buy_from_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
 
@@ -2191,27 +2087,27 @@ talk_to_a_people
 
             self.taskmng.process_task(event="agent_pick_people_list_fail")
 
-    async def ask_agent_to_review_conversation(self, conversation_target, messages_history):
+    def ask_agent_to_review_conversation(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation__")
         # role_prompt = role_prompt.replace("__conversation_target__", conversation_target)
         # role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "## 聊天记录 \n" + messages_history
         await   self.ask_agent_and_get_instruction(question, role_prompt)
 
-    async def ask_agent_to_review_conversationbak(self, conversation_target, messages_history):
+    def ask_agent_to_review_conversationbak(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation__")
         role_prompt = role_prompt.replace("__conversation_target__", conversation_target)
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "请严格遵照要求评估，并严格按照格式输出。"
         await  self.ask_agent_and_get_instruction(question, role_prompt)
 
-    async def ask_agent_to_review_conversation_sell(self, conversation_target, messages_history):
+    def ask_agent_to_review_conversation_sell(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation_sell__")
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "请严格遵照要求评估，并严格按照格式输出。"
         await  self.ask_agent_and_get_instruction(question, role_prompt)
 
-    async def ask_agent_to_review_conversation_buy(self, conversation_target, messages_history):
+    def ask_agent_to_review_conversation_buy(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation_buy__")
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "请严格遵照要求评估，并严格按照格式输出。"
@@ -2303,7 +2199,7 @@ talk_to_a_people
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
                 self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}")
 
-    async def ask_agent_to_bargain_for_buyer(self, tool_list):
+    def ask_agent_to_bargain_for_buyer(self, tool_list):
         messages_history = json.dumps(self.current_talk_history, ensure_ascii=False)
         conversation_target = self.taskmng.current_objective
         role_prompt = get_prompt_by_title("__buyer_bargain_content__")
@@ -2321,7 +2217,7 @@ talk_to_a_people
         message = result["next_message"]
         self.tool_trade_send_bargain_for_buyer(content)
 
-    async def ask_agent_to_bargain_for_seller(self, tool_list):
+    def ask_agent_to_bargain_for_seller(self, tool_list):
         messages_history = json.dumps(self.current_talk_history, ensure_ascii=False)
         conversation_target = self.taskmng.current_objective
         role_prompt = get_prompt_by_title("__seller_bargain_content__")
@@ -2340,7 +2236,7 @@ talk_to_a_people
 
         self.tool_trade_send_bargain_for_seller(content)
 
-    async def ask_agent_to_use_service(self, question, service_list, objective_to_achieve):
+    def ask_agent_to_use_service(self, question, service_list, objective_to_achieve):
         role_prompt = get_prompt_by_title("__ask_agent_use_service__")
         role_prompt = role_prompt.replace("__service_list__", service_list)
         role_prompt = role_prompt.replace("__objective_to_achieve__", objective_to_achieve)
@@ -2403,7 +2299,7 @@ talk_to_a_people
         else:
             self.taskmng.process_task(event="service_called", result=f"Execute Error,the output:{output}")
 
-    async def ask_agent_to_use_skill(self, question, function_name, function_description):
+    def ask_agent_to_use_skill(self, question, function_name, function_description):
         role_prompt = get_prompt_by_title("__ask_agent_use_skill__")
         role_prompt = role_prompt.replace("XXXXXXXX", function_name)
         role_prompt = role_prompt + "\n" + function_description
@@ -2586,7 +2482,7 @@ talk_to_a_people
                     print("run tool:", handle_content)
                     print("talk_history_str for run tool", talk_history_str)
                     self.command_status = "run_tool_before_send_good"
-                    good_str = self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
+                    good_str = self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
                     return
 
             self.handle_send_goods(good_str, trade_id)
@@ -3007,7 +2903,7 @@ talk_to_a_people
             # 如果前缀不匹配，返回原字符串
             return ""
 
-    async def initiate_tool_tradebak(self, offered_skills: List[str]) -> None:
+    def initiate_tool_tradebak(self, offered_skills: List[str]) -> None:
         """
         主动向对方发起技能交易请求
         Args:
@@ -3030,7 +2926,7 @@ talk_to_a_people
         except Exception as e:
             logger.error(f"技能交易发起失败: {str(e)}")
 
-    async def respond_to_skill_trade(self, incoming_skills: List[str]) -> None:
+    def respond_to_skill_trade(self, incoming_skills: List[str]) -> None:
         """
         被动响应对方发起的技能交易请求
         Args:
@@ -3717,74 +3613,6 @@ talk_to_a_people
         self.life_point = self.life_point - decline_point
         self.move_point = 100 * (self.life_point / 100) * (self.energy_point / 100)
 
-
-    def handle_receiveMessage(self, content, from_str):
-        # self.map_mode有两种模式，一种是发送给进入服务场景的比如3d的aigccenter 这种是map_application模式，一种是发送到地图的org
-        return "handling"
-
-        if self.map_mode != 'org':
-            browser_page = self.messageBrowser.page()
-            browser_page.runJavaScript(f"send_talk_message('{from_str.split('/')[0]}',{self.ai_chat_cfg.account},'{content}')")
-        else:
-            self.message_handler.send_talk_message(from_str.split('/')[0], self.ai_chat_cfg.account, content)
-            account = from_str.split('/')[0]
-            if not (account in self.talk_history):
-                self.talk_history[account] = []
-            self.talk_history[account].append("Friend:" + content)
-            self.current_talk_history.append("Friend:" + content)
-
-            if (tool_list_str := self.check_tool_for_buy(content)):  # buyer check
-                self.command_status = "ask_agent_to_pick_a_tool_to_buy"
-                self.ask_agent_to_pick_a_tool_to_buy(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_inquiry(content)):  # seller check
-                self.tool_trade_order(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_order(content)):  # buyer check
-                self.tool_trade_bargain_for_buyer(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_buyer_bargain(content)):  # seller check
-                self.tool_trade_bargain_for_seller(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_seller_bargain(content)):  # buyer check
-                self.tool_trade_bargain_for_buyer(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_order_confirm(content)):  # seller check
-                self.tool_trade_send_tool(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_receive(content)):  # buyer check
-                self.tool_trade_receive_tool(tool_list_str)
-            elif (pay_received_str := self.check_pay_in_received(content)):  # buyer check
-                self.handle_pay_received(pay_received_str)
-            elif (good_received_str := self.check_good_in_received(content)):  # buyer check
-                self.handle_good_received(good_received_str)
-            else:
-                if (buy_flag := self.check_buy_in_received(content)):  # buyer check
-                    self.talk_type = "sell"
-                self.taskmng.process_task(event="conversation_message_received", talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False))
-
-        self.current_received_msg = content
-
-        if self.human_take_over == False:
-            pass
-
-
-    def sendMessage(self, content, by_click=False, to_jid=None, to_name=None, back_ground=False):
-       return "handling"
-        if not to_jid:
-            if self.current_talk_people:
-                current_talk_people = self.current_talk_people
-                to_jid = current_talk_people["account"]
-                to_name = current_talk_people["nick_name"]
-            else:
-                return
-
-        if content:
-            browser_page = self.messageBrowser.page()
-            if by_click:
-                add_AIChatMessages(self.conversation_id, 0, "", content, self.ai_chat_cfg.name, self.ai_chat_cfg.account, to_name, to_jid, False)
-            self.con.send_message(to_jid, content)
-            if not back_ground:
-                # app应用类型，比如在3d环境如aigc中的人物交互
-
-                if self.map_mode != 'org':
-                    browser_page.runJavaScript(f"send_talk_message('{self.ai_chat_cfg.account}','{to_jid}','{content}')")
-                else:
-                    self.message_handler.send_talk_message(self.ai_chat_cfg.account, to_jid, content)
 
 class AiChatCfgManager:
     """
