@@ -9,6 +9,12 @@ import os
 import sys
 from pathlib import Path
 
+if os.environ.get("PYCHARM_HOSTED"):
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+
+
 # 设置工作目录
 app_directory = Path(__file__).resolve().parent
 os.chdir(app_directory)
@@ -68,10 +74,16 @@ try:
 except Exception as e:
     logger.warning(f"⚠ Map module not available: {e}")
 
+# 临时调试：查看 KM 模块导入次数
+import os
+logger.info(f"⚠️ Attempting to import KM module (PID: {os.getpid()}, Path: {os.getcwd()})")
 try:
     from backend.modules.km.router import router as km_router
+    logger.info(f"✅ KM module imported successfully (PID: {os.getpid()})")
 except Exception as e:
     logger.warning(f"⚠ KM module not available: {e}")
+    import traceback
+    logger.error(traceback.format_exc())
 
 try:
     from backend.modules.system.router import router as system_router
@@ -568,12 +580,13 @@ async def shutdown_event():
 # 主函数
 def main():
     """启动服务器"""
+    reload = settings.server.reload and not os.environ.get("PYCHARM_HOSTED")
     try:
         uvicorn.run(
-            "api_server:app",
+            app,
             host=settings.server.host,
             port=settings.server.port,
-            reload=settings.server.reload,
+            reload=reload,
             log_level="info"
         )
     except KeyboardInterrupt:

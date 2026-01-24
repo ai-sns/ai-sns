@@ -51,12 +51,21 @@ if "%1"=="--dev" (
     call npm run dev
 ) else if "%1"=="--api-only" (
     echo 仅启动API服务器...
-    python api_server.py
+    if exist "venv\Scripts\python.exe" (
+        venv\Scripts\python.exe api_server.py
+    ) else (
+        python api_server.py
+    )
 ) else if "%1"=="--electron-only" (
     echo 仅启动Electron (需要API服务器已运行)...
     call npm run start:electron
 ) else (
     echo 生产模式启动...
+    if exist "venv\Scripts\python.exe" (
+        start "" /B venv\Scripts\python.exe api_server.py
+    ) else (
+        start "" /B python api_server.py
+    )
     call npm start
 )
 

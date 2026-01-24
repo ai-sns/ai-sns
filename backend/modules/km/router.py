@@ -179,6 +179,66 @@ async def delete_file(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{kb_id}/upload-image", response_model=dict)
+async def upload_image(
+    kb_id: int,
+    file: UploadFile = File(...),
+    service: KMService = Depends(get_km_service)
+):
+    """Upload an image for knowledge base notes"""
+    try:
+        content = await file.read()
+
+        # Check if file is an image
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+        # Get file extension
+        import os
+        filename = file.filename
+        file_ext = os.path.splitext(filename)[1].lower()
+
+        # Allowed image extensions
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+        if file_ext not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only {', '.join(allowed_extensions)} files are allowed"
+            )
+
+        # Generate unique filename
+        import uuid
+        import time
+        unique_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}{file_ext}"
+
+        # Create images directory for this kb in uploads folder
+        from pathlib import Path
+        images_dir = Path(f"uploads/km/images/{kb_id}")
+        images_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save image
+        image_path = images_dir / unique_name
+        image_path.write_bytes(content)
+
+        # Return image URL with full HTTP path
+        image_url = f"http://localhost:8788/uploads/km/images/{kb_id}/{unique_name}"
+        logger.info(f"Image uploaded: {image_url}")
+
+        return {
+            "success": True,
+            "data": {
+                "url": image_url,
+                "filename": unique_name,
+                "original_name": filename
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading image: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/{kb_id}/search", response_model=dict)
 async def vector_search(
     kb_id: int,

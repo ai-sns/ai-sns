@@ -51,7 +51,7 @@ class Modal {
         if (this.onOpen) {
             // 使用 setTimeout 确保 DOM 完全渲染
             setTimeout(() => {
-                this.onOpen();
+                this.onOpen(this);
             }, 0);
         }
 
