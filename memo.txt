@@ -2514,3 +2514,30 @@ vscodetestv6.py vscodetestv7.py vscodetestv8.py vscodetestv9.py vscodetestv10.py
 前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite
 1.优化backend/modules/sns/ui_adapter.py，参考send_command_to_map函数的做法，把如下3个函数给完善一下，同样和前端scripts/js/interact_python.js里面的相应功能连接起来。
 2.优化backend/modules/sns/ai_social_engine_adapter.py，参考backend/modules/sns/xmpp_client.py，把receiveMessage,handle_receiveMessage及sendMessage重构一下,backend/modules/sns/xmpp_client.py里面接收到消息得传一份给receiveMessage
+
+
+│   ├── __init__.py
+│   ├── lifecycle_adapter.py             # 核心生命周期
+│   ├── ai_interaction_adapter.py        # AI代理交互
+│   ├── task_execution_adapter.py        # 任务规划与执行
+│   ├── social_interaction_adapter.py    # 社交关系与沟通
+│   ├── location_movement_adapter.py     # 位置与移动服务
+│   ├── tool_service_adapter.py          # 工具与服务集成
+│   └── trade_transaction_adapter.py     # 交易系统
+
+backend/modules/sns/
+├── ai_social_engine_adapter.py (主入口,组装各个模块)
+├── engine_lifecycle.py (初始化和生命周期)
+├── ui_communication_adapter.py (UI通信)
+├── agent_interaction_adapter.py (Agent交互)
+├── movement_adapter.py (位置和移动)
+├── social_interaction_adapter.py (社交关系)
+├── ai_content_generator.py (AI内容生成)
+├── data_conversion_adapter.py (数据转换)
+├── external_service_adapter.py (第三方服务)
+├── tool_skill_adapter.py (工具和技能)
+├── trade_protocol_adapter.py (交易协议)
+├── message_parser_adapter.py (消息解析)
+├── xmpp_communication_adapter.py (XMPP通信)
+├── utility_helpers.py (辅助函数)
+└── aichat_config_manager.py (配置管理)

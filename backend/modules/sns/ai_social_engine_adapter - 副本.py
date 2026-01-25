@@ -6,9 +6,12 @@ from sqlalchemy.orm import Session
 from backend.database.models.chat import AiChatCfg
 from backend.modules.sns.map_task_manager import MapTaskManager
 from backend.modules.sns.js_task_manager import JsTaskManager
+from backend.modules.sns.ui_adapter import UIAdapter
+from backend.modules.sns.xmpp_client import XMPPClientManager
 from backend.modules.agent.agent_manager import agent_manager
+from backend.shared.websocket_manager import manager as websocket_manager
 
-#*********
+# *********
 import os
 import math
 # 主要用于发送附件
@@ -19,15 +22,14 @@ import time
 
 import logging
 
-
 import re
 
 log = logging.getLogger(__name__)
 from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_title, query_function_mng,
-                          add_function_mng,  update_map_task, add_map_visit, get_key_value,
-                          update_map_trade, add_map_trade, add_map_tool, query_single_map_trade, update_AiChatCfg_by_user_id,update_AiChatCfg_map,query_AiChatCfg_map,add_mcp_mng,query_mcp_mng,
-                          delete_map_preset_msg,query_map_preset_msg_all,add_map_preset_msg,query_tool_list,query_single_tool,query_AiChatCfg_map_setting)
-from util import (generate_random_id,add_memory_list)
+                          add_function_mng, update_map_task, add_map_visit, get_key_value,
+                          update_map_trade, add_map_trade, add_map_tool, query_single_map_trade, update_AiChatCfg_by_user_id, update_AiChatCfg_map, query_AiChatCfg_map, add_mcp_mng, query_mcp_mng,
+                          delete_map_preset_msg, query_map_preset_msg_all, add_map_preset_msg, query_tool_list, query_single_tool, query_AiChatCfg_map_setting)
+from util import (generate_random_id, add_memory_list)
 from i18n import lt
 from enum import Enum
 from typing import List, Dict, Optional
@@ -39,10 +41,8 @@ from geopy.distance import distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import random
+
 # from prompts_sns import  PromptManager#调用agent模块，里面大量和autogen相关的，非常重
-
-
-
 
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class TransactionType(Enum):
     """交易类型枚举"""
     SKILL_EXCHANGE = 1
     TOKEN_PURCHASE = 2
+
 
 class AISocialEngine:
     """
@@ -69,6 +70,10 @@ class AISocialEngine:
         self.task_runner = None
         self.taskmng_js = JsTaskManager(self)
         self.taskmng = MapTaskManager(self)
+        self.ui_adapter = UIAdapter(self)
+
+        # Initialize XMPP client manager
+        self.xmpp_manager = XMPPClientManager.get_instance()
 
         # Load configuration from database
         self.config = self.db.query(AiChatCfg).filter(
@@ -78,10 +83,13 @@ class AISocialEngine:
         # Initialize ai_chat_cfg from database - get first record from aichat_cfg table
         self.ai_chat_cfg = self.config
 
-        # Initialize aichatcfg_record for backend compatibility
-        self.aichatcfg_record = self.config
 
-        #*******************************************
+
+        self.aichatcfg_record = AiChatCfgManager()
+        self.aichatcfg_record.connect(self.handle_aichatcfg_property_updated)
+        # self.ui_adapter.update_resource_display()  # 移到 load_all_user_data() 之后调用
+
+        # *******************************************
         self.human_take_over = False
         self.human_instruction = ""
         self.stopping_ai_process_flag = False
@@ -147,6 +155,16 @@ class AISocialEngine:
         ]
         self.skill_list = []
         self.started_flag = False
+
+    async def async_init(self):
+        """
+        异步初始化方法
+        用于在创建实例后进行额外的异步初始化
+        """
+        logger.info("Async initializing AISocialEngine...")
+        # 这里可以添加需要在 async 上下文中执行的初始化代码
+        # 目前大部分初始化已经在 __init__ 中完成
+        logger.info("AISocialEngine async initialization complete")
         self.command_status = ""
         # 初始化当前任务所需技能集合（示例）
         self.required_skills = []
@@ -206,7 +224,7 @@ class AISocialEngine:
         self.current_trade_price = -1
         self.wait_for_send_good = False
         self.load_all_user_data()
-        self.update_map_charts()
+        # self.update_map_charts()
         # self.update_resource_display()
 
     async def start(self):
@@ -218,7 +236,7 @@ class AISocialEngine:
             logger.info("Starting AI Social Engine...")
 
             self.started_flag = True
-            # self.map_task_status = "started"
+            self.map_task_status = ""  # Reset to empty string to allow start_task() to execute
 
             # Initialize ability list
             self.ability_list = [
@@ -311,7 +329,6 @@ class AISocialEngine:
                 logger.debug("AI Social Engine is running...")
                 self.start_task()
 
-
                 # Sleep to prevent busy-waiting
                 await asyncio.sleep(5)
 
@@ -355,16 +372,12 @@ class AISocialEngine:
             #
             # self.write_task_plan_to_pane(process_content)
 
-
-
-
-
             self.started_flag = True
             self.taskmng.reviewing_task = True
             self.process_list = []
             self.taskmng.current_process = None
-            # self.taskmng.add_process(current_place=self.current_place, current_position=self.aichatcfg_record.current_position)
-            self.taskmng.add_process(current_place=self.current_place, current_position=[116,23])
+            self.taskmng.add_process(current_place=self.current_place, current_position=self.aichatcfg_record.current_position)
+
             self.taskmng.current_situation = f"准备开始执行任务"
             self.ability_list = [
                 {
@@ -402,485 +415,12 @@ class AISocialEngine:
             # self.humantakeoverCheckBox.setVisible(True)
             # self.show_status_on_map("thinking")
 
-
         # self.startButton.setIcon(QtGui.QIcon(icon_path))  # 更新按钮图标
         # 添加可选操作：根据 self.task_status 更新其他 UI 元素或执行操作
 
 
-#*************************************************
-
-
-    def setConnection(self, connection):
-        self.con = connection
-
-    def increment_page_index(self):
-        self.page_index += 1
-        return self.page_index
-
-    def new_chat(self):
-        # self.human_take_over = False
-        #
-        # self.conversation_id = ""
-        # self.messages = []
-        #
-        #
-        # self.messageEdit.setFocus()
-        #
-        #
-        #
-        # self.is_browser_page_loaded = False
-        # self.event_cache = None
-        # self.messageBrowser.page().loadFinished.connect(self.onLoadFinished)  # 第一次可能page没来得及load，所以需要在onload中处理
-        # self.first_event = None
-        # self.first_reply = ""
-        #
-        # # plugin相关
-        # self.chess_role = None
-        # self.chinese_chess_role = None
-        # self.system_role_prompt = "You are a helpful assistant who provides concise and accurate information."
-
-        # ***********todo:附件的界面也要清除掉****************
-
-        self.messageBrowser.page().runJavaScript('re_init()')
-
-    def onLoadFinished(self):
-        pass
-
-    def receiveMessage(self, event):
-        if not event is None:
-            # self.map_mode有两种模式，一种是发送给进入服务场景的比如3d的aigccenter 这种是map_application模式，一种是发送到地图的org
-
-            content = event['body']
-            from_str = str(event['from'])
-
-            if self.ai_chat_cfg.event_receive_msg:
-                if self.ai_chat_cfg.event_receive_msg != "N/A":
-                    tool_name = self.ai_chat_cfg.event_receive_msg
-                    self.handle_event_receive_msg(tool_name, content, from_str)
-                    return
-
-            self.handle_receiveMessage(content, from_str)
-
-    def save_all_user_data(self):
-        data = {
-            "current_place": self.current_place,
-            "current_position": json.dumps(self.aichatcfg_record.current_position, ensure_ascii=False),
-            "last_position": json.dumps(self.aichatcfg_record.last_position, ensure_ascii=False),
-            "life_point": self.life_point,
-            "energy_point": self.energy_point,
-            "move_point": self.move_point,
-            "exp_point": self.exp_point,
-            "iq_point": self.iq_point,
-            "money": self.money,
-            "credit": self.credit,
-            "level": self.level,
-        }
-        update_AiChatCfg_map(**data)
-
-    def load_all_user_data(self):
-        record = query_AiChatCfg_map()
-        self.current_place = record.current_place
-
-        # 处理 current_position，支持多种格式
-        self.aichatcfg_record.current_position = self._parse_position_data(record.current_position)
-        self.last_position = self._parse_position_data(record.last_position)
-
-        self.life_point = record.life_point  # db
-        self.energy_point = record.energy_point  # db
-        self.move_point = record.move_point  # db
-        self.exp_point = record.exp_point  # db
-        self.iq_point = record.iq_point  # db
-        self.money = record.money  # db
-        self.credit = record.credit  # db
-        self.level = record.level  # db
-
-        if record.route_status == "playing":
-            self.move_by_route_flag = True
-        else:
-            self.move_by_route_flag = False
-
-        user_map_setting = query_AiChatCfg_map_setting()
-        self.user_map_setting = user_map_setting
-        print("self.aichatcfg_record", self.aichatcfg_record.current_position)
-        print("self.aichatcfg_recordprofile", self.aichatcfg_record.sign)
-        self.aichatcfg_record.sign = "cjr setok"
-
-    def _parse_position_data(self, position_data):
-        """
-        解析位置数据，支持以下格式：
-        1. JSON字符串格式：{"lat": 39.51783322503789, "lng": -76.20197639555775}
-        2. JSON数组格式：[116.31633245364759, 39.83663838626669]
-        3. 已经是数组格式：[lng, lat]
-        返回统一的 [lng, lat] 数字数组格式
-        """
-        if not position_data:
-            return []
-
-        # 如果已经是列表格式，直接返回
-        if isinstance(position_data, list):
-            # 确保是 [lng, lat] 格式
-            if len(position_data) >= 2:
-                return [float(position_data[0]), float(position_data[1])]
-            else:
-                return []
-
-        # 如果是字符串，尝试解析
-        if isinstance(position_data, str):
-            try:
-                # 尝试解析为JSON
-                parsed_data = json.loads(position_data)
-
-                # 如果解析后是字典格式 {"lat": ..., "lng": ...}
-                if isinstance(parsed_data, dict):
-                    lat = float(parsed_data.get("lat", 0))
-                    lng = float(parsed_data.get("lng", 0))
-                    return [lng, lat]
-
-                # 如果解析后是列表格式 [lng, lat] 或 [lat, lng]
-                elif isinstance(parsed_data, list) and len(parsed_data) >= 2:
-                    # 假设列表中第一个是lng，第二个是lat
-                    return [float(parsed_data[0]), float(parsed_data[1])]
-
-            except json.JSONDecodeError:
-                # 如果不是有效的JSON，返回空数组
-                return []
-
-        # 其他情况返回空数组
-        return []
-
-    def handle_receiveMessage(self, content, from_str):
-        # self.map_mode有两种模式，一种是发送给进入服务场景的比如3d的aigccenter 这种是map_application模式，一种是发送到地图的org
-
-        if self.map_mode != 'org':
-            browser_page = self.messageBrowser.page()
-            browser_page.runJavaScript(f"send_talk_message('{from_str.split('/')[0]}',{self.ai_chat_cfg.account},'{content}')")
-        else:
-            self.message_handler.send_talk_message(from_str.split('/')[0], self.ai_chat_cfg.account, content)
-            account = from_str.split('/')[0]
-            if not (account in self.talk_history):
-                self.talk_history[account] = []
-            self.talk_history[account].append("Friend:" + content)
-            self.current_talk_history.append("Friend:" + content)
-
-            if (tool_list_str := self.check_tool_for_buy(content)):  # buyer check
-                self.command_status = "ask_agent_to_pick_a_tool_to_buy"
-                self.ask_agent_to_pick_a_tool_to_buy(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_inquiry(content)):  # seller check
-                self.tool_trade_order(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_order(content)):  # buyer check
-                self.tool_trade_bargain_for_buyer(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_buyer_bargain(content)):  # seller check
-                self.tool_trade_bargain_for_seller(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_seller_bargain(content)):  # buyer check
-                self.tool_trade_bargain_for_buyer(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_order_confirm(content)):  # seller check
-                self.tool_trade_send_tool(tool_list_str)
-            elif (tool_list_str := self.check_tool_for_receive(content)):  # buyer check
-                self.tool_trade_receive_tool(tool_list_str)
-            elif (pay_received_str := self.check_pay_in_received(content)):  # buyer check
-                self.handle_pay_received(pay_received_str)
-            elif (good_received_str := self.check_good_in_received(content)):  # buyer check
-                self.handle_good_received(good_received_str)
-            else:
-                if (buy_flag := self.check_buy_in_received(content)):  # buyer check
-                    self.talk_type = "sell"
-                self.taskmng.process_task(event="conversation_message_received", talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False))
-
-        self.current_received_msg = content
-
-        if self.human_take_over == False:
-            pass
-
-    def sendMessage_click(self):
-        if self.messageEdit.toPlainText():
-            if self.human_take_over:
-                instruction = self.messageEdit.toPlainText()
-                if self.talk_type_combo.currentData() == "Mine":
-                    if self.agent_replying_flag:
-                        print(self, "提示", "Agent正在完成上一个任务，请稍等...")
-                        return
-                    self.taskmng_js.show_information(lt(f"Human:{instruction}", f"人类:{instruction}"))
-                    self.write_on_going_process_to_pane(lt("Human take control...", "人类控制中..."))
-                    self.handle_human_instruction(instruction)
-                else:
-                    self.sendMessage(self.messageEdit.toPlainText(), True)
-
-                self.command_list.append(instruction)
-                self.updown_message_index = -1
-
-
-
-    def sendMessage(self, content, by_click=False, to_jid=None, to_name=None, back_ground=False):
-        if not to_jid:
-            if self.current_talk_people:
-                current_talk_people = self.current_talk_people
-                to_jid = current_talk_people["account"]
-                to_name = current_talk_people["nick_name"]
-            else:
-                return
-
-        if content:
-            browser_page = self.messageBrowser.page()
-            if by_click:
-                add_AIChatMessages(self.conversation_id, 0, "", content, self.ai_chat_cfg.name, self.ai_chat_cfg.account, to_name, to_jid, False)
-            self.con.send_message(to_jid, content)
-            if not back_ground:
-                # app应用类型，比如在3d环境如aigc中的人物交互
-
-                if self.map_mode != 'org':
-                    browser_page.runJavaScript(f"send_talk_message('{self.ai_chat_cfg.account}','{to_jid}','{content}')")
-                else:
-                    self.message_handler.send_talk_message(self.ai_chat_cfg.account, to_jid, content)
-
-    def upMessage(self):
-        """
-        Navigate backward through user messages (from last to first).
-        Updates the message editor with the found user message content.
-        """
-        messages = self.command_list
-
-        # Filter messages to only include ones with role 'user'
-        user_messages = messages
-
-        # Early return if no user messages available
-        if not user_messages:
-            return None
-
-        # Adjust index for backward navigation
-        if self.updown_message_index == 0:
-            return None
-        self.updown_message_index = max(self.updown_message_index - 1, 0) if self.updown_message_index != -1 else len(user_messages) - 1
-        if self.updown_message_index < 0 or self.updown_message_index > len(user_messages) - 1:
-            return None
-        current_message = user_messages[self.updown_message_index]
-        content = current_message
-        self.messageEdit.setPlainText(content)
-        print(f"Up navigation - User message at index {self.updown_message_index}: {current_message}")
-
-        return current_message
-
-    def downMessage(self):
-        """
-        Navigate forward through user messages (from first to last).
-        Updates the message editor with the found user message content.
-        """
-        messages = self.command_list
-
-        # Filter messages to only include ones with role 'user'
-        user_messages = messages
-
-        # Early return if no user messages available
-        if not user_messages:
-            return None
-
-        # Adjust index for forward navigation
-        if self.updown_message_index == len(user_messages) - 1:
-            return None
-        self.updown_message_index = min(self.updown_message_index + 1, len(user_messages) - 1) if self.updown_message_index != -1 else 0
-        if self.updown_message_index < 0 or self.updown_message_index > len(user_messages) - 1:
-            return None
-        current_message = user_messages[self.updown_message_index]
-        content = current_message
-        self.messageEdit.setPlainText(content)
-        print(f"Down navigation - User message at index {self.updown_message_index}: {current_message}")
-
-        return current_message
-
-    def handle_get_msg_from_js(self, msg):
-        self.sendMessage(msg)
-
-    def on_role_label_click(self, event):
-        self.prompt_manager = PromptManager(self, "", True)
-        self.prompt_manager.setFixedWidth(1280)
-        self.prompt_manager.setFixedHeight(680)
-        self.prompt_manager.exec()
-
-    def check_in_at_a_place(self, tool):
-        title = tool.get("place", "")
-        address = tool.get("address", "")
-        visit_id = generate_random_id()
-        lng = tool.get("lng", 0)
-        lat = tool.get("lat", 0)
-        add_map_visit(visit_id=visit_id, title=title, address=address, lng=lng, lat=lat)
-        flag = "success"
-        result = "我已经完成在长城的打卡任务。"
-        self.taskmng.add_process_info_to_list("我已经完成在长城的打卡任务。")
-
-        return flag, result
-
-    def get_a_clue_at_a_place(self, tool):
-        title = tool.get("place", "")
-        address = tool.get("address", "")
-        visit_id = generate_random_id()
-        lng = tool.get("lng", 0)
-        lat = tool.get("lat", 0)
-
-        if "我已经完成在长城的打卡任务。" in self.taskmng.process_info_list:
-            flag = "success"
-            result = "当前子任务已经完成，请继续你的任务，你的下一个线索是：前往某个国家的首都，它有雾都之称。到那里完成打卡任务，你将获得新的线索。"
-        else:
-            flag = "fail"
-            result = "请先完成在长城的打卡任务，然后再来获取线索。"
-
-        return flag, result
-
-    def handle_user_send_im(self, from_user, to_user, msg):
-        self.con.send_message(to_user, msg)
-
-    def handle_info_load_more(self, type_str):
-        if type_str == "-1":
-            self.taskmng_js.last_record_id = None
-            self.taskmng_js.load_information()
-        elif type_str:
-            self.taskmng_js.load_information(type_str=type_str)
-        else:
-            self.taskmng_js.load_information()
-
-    def handle_info_load_more_chat(self):
-        self.taskmng_js.load_information_chat()
-
-    def handle_load_map_setting(self):
-        self.taskmng_js.load_map_setting()
-
-    def handle_update_map_setting(self, field_name, field_value):
-        """Handle updating map settings based on the provided field."""
-        user_id = self.ai_chat_cfg.user_id
-        value = field_value
-        # update_AiChatCfg_by_user_id(user_id, **{field_name: value})
-        self.aichatcfg_record[field_name] = field_value
-
-        if "route_move" in field_value:
-            action_result = field_value
-            self.action_result = action_result
-            self.taskmng.add_process_info_to_list(f"system:{action_result}")
-            self.write_task_process_to_pane(action_result)
-            ask_content = ""
-            self.taskmng.process_task(action="process_activity", ask_content=ask_content)
-        elif "route_status" in field_name:
-            if field_value == "playing":
-                self.move_by_route_flag = True
-            else:
-                self.move_by_route_flag = False
-        # elif "current_position" in field_name:
-        #     self.aichatcfg_record.current_position = field_value
-
-        # # 同步更新route_status到js_task_manager
-        # if hasattr(self, 'taskmng_js') and self.taskmng_js:
-        #     # 重新加载地图设置以确保状态同步
-        #     self.taskmng_js.load_map_setting()
-
-
-    def handle_user_setting(self):
-        self.prompt_manager = PromptManager(self, "", True)
-        self.prompt_manager.setFixedWidth(1280)
-        self.prompt_manager.setFixedHeight(680)
-        self.prompt_manager.exec()
-
-
-    def handle_maximize(self):
-        self.application.stack_toolbox.hide()
-        self.application.toggle_button.setText("▶")
-        self.application.stack_toolbox_visible = False
-        self.splitter.setSizes([1, ])
-
-    def handle_minimize(self):
-        self.application.stack_toolbox.show()
-        self.application.toggle_button.setText("◀")
-        self.application.stack_toolbox_visible = True
-        self.splitter.setSizes([1, 280])
-        # 设置第一个窗口可伸缩（拉伸因子为1），第二个窗口固定（拉伸因子为0）
-        self.splitter.setStretchFactor(0, 1)  # 索引0（第一个窗口）可伸缩
-        self.splitter.setStretchFactor(1, 0)  # 索引1（第二个窗口）固定
-
-    def handle_user_info(self):
-        self.open_user_config()
-
-    def handle_adv_setting(self):
-        self.open_run_tool_setting()
-
-
-    def open_user_config(self):
-        # agentconfigdlg = self.application.ai_chat_cfg_dialog_list[self.ai_chat_cfg.user_id]
-        # agentconfigdlg.exec()
-        self.application.open_ai_chat_cfg_dialog_earth()
-
-
-
-    def update_map_charts(self):
-        radar_data = [self.aichatcfg_record.iq_point, self.aichatcfg_record.energy_point, self.aichatcfg_record.life_point, self.aichatcfg_record.move_point, self.aichatcfg_record.exp_point]
-        radar_categories = [f'{lt("IQ", "智力")}:{self.aichatcfg_record.iq_point}', f'{lt("Energy", "体力")}:{self.aichatcfg_record.energy_point}', f'{lt("Life", "生命")}:{self.aichatcfg_record.life_point}', f'{lt("Move", "行动")}:{self.aichatcfg_record.move_point}', f'{lt("Exp", "经验")}:{self.aichatcfg_record.exp_point}']
-
-        formatted_number = f"{self.aichatcfg_record.money:,.2f}"
-        bar_indicators = [f'{lt("Money", "资金")}:{formatted_number}', f'{lt("Credit", "信用")}:{self.aichatcfg_record.credit}', f'{lt("Level", "等级")}{self.aichatcfg_record.level}']  # 使用中文标签
-        bar_values = [100, self.aichatcfg_record.credit, self.aichatcfg_record.level * 10]
-        bar_colors = ['#ffb676', '#c3f1d7', '#99d4ff']  # 使用协调的颜色
-
-        # # 创建雷达图和柱状图的画布
-        # self.application.radar_chart.data = radar_data
-        # self.application.radar_chart.categories = radar_categories
-        # self.application.radar_chart.plot_radar_chart()
-        #
-        # # 保存指标和相应的值、颜色
-        # self.application.bar_chart.indicators = bar_indicators
-        # self.application.bar_chart.values = bar_values
-        # self.application.bar_chart.colors = bar_colors
-        # # 绘制横向柱状图
-        # self.application.bar_chart.plot_bar_chart()
-
-    def findTabIndexByName(self, name):
-        # 遍历所有标签页以找到匹配的objectName
-        for index in range(self.tabWidget.count()):
-            tab = self.tabWidget.widget(index)
-            if tab.objectName() == name:
-                return index
-        return -1  # 如果没有找到则返回-1
-
-    def handle_close_sns_profile(self):
-        i = self.findTabIndexByName("tab_profile")
-        if i > -1:
-            self.tabWidget.removeTab(i)
-
-    def humantakeoverhandle(self):
-        self.human_take_over = self.humantakeoverCheckBox.isChecked()
-        self.human_instruction = ""
-        if self.human_take_over:
-            self.messageEdit.setEnabled(True)
-            self.messageEdit.setFocus()
-            self.sendButton.setEnabled(True)
-            self.messageEdit.setVisible(True)
-            self.sendButton.setVisible(True)
-            self.talk_type_combo.setVisible(True)
-            self.startButton.setVisible(False)
-            self.stop_AI_process()
-
-        else:
-            self.messageEdit.setEnabled(False)
-            self.sendButton.setEnabled(False)
-            self.messageEdit.setVisible(False)
-            self.sendButton.setVisible(False)
-            self.talk_type_combo.setVisible(False)
-            self.startButton.setVisible(True)
-            self.start_AI_process()
-
-    def stop_AI_process(self):
-        if self.agent_replying_flag:
-            self.stopping_ai_process_flag = True
-
-    def stop_AI_process_finished(self):
-        self.stopping_ai_process_flag = False
-
-    def start_AI_process(self):
-        pass
-
-    def toggle_pause_task(self):
-        self.pause_flag = self.pauseCheckBox.isChecked()
-        if self.pause_flag:
-            print("Pause task:", self.pause_flag)
-        else:
-            print("Continue task:", self.pause_flag)
-
     # a.请求agent指示
-    def ask_agent_and_get_instruction(self, question, system_role_prompt, type_flag="command"):
+    async def ask_agent_and_get_instruction(self, question, system_role_prompt, type_flag="command"):
         if self.stopping_ai_process_flag:
             self.stop_AI_process_finished()
             return
@@ -905,18 +445,6 @@ ask_agent_and_get_instruction
 """
 
         self.write_thinking_process_to_pane(title_str, content_str)
-
-        pluginname = "OpenAI"
-        modelname = "OpenAI"
-
-        # vector_path = "C:\\dev\\ai-sns\\PyTalk\\pytalk\\vector_store"
-        # embedding_model_name = 'shibing624/text2vec-bge-large-chinese'
-        vector_path = ""
-        embedding_model_name = ''
-
-        # question = self.current_received_msg
-
-        snsaccount = self.ai_chat_cfg.account
 
         # Get agent instance from agent_manager by agent_id
         if hasattr(self.ai_chat_cfg, 'agent_id') and self.ai_chat_cfg.agent_id:
@@ -943,12 +471,10 @@ ask_agent_and_get_instruction
         # 保存原始system prompt
         original_prompt = agent.role_config.get('system_prompt', '')
 
-
         modified_prompt = system_role_prompt + original_prompt
 
         # 临时修改system prompt
         agent.role_config['system_prompt'] = modified_prompt
-
 
         try:
             # 调用Agent进行对话
@@ -958,17 +484,14 @@ ask_agent_and_get_instruction
                 use_memory=False,
                 use_knowledge_base=False
             )
-            return reply
+            # return reply
         finally:
             # 恢复原始system prompt
             agent.role_config['system_prompt'] = original_prompt
 
-
-        self.on_agent_return_instruction(question,result)
+        self.on_agent_return_instruction(question, reply)
 
         agent.role_config['system_prompt'] = original_prompt
-
-
 
     # b.agent返回指示
     def on_agent_return_instruction(self, question, content):
@@ -991,7 +514,7 @@ on_agent_return_instruction
 
         self.write_thinking_process_to_pane(title_str, content_str)
 
-        self.loading_tab.stop_loading()
+        # self.loading_tab.stop_loading()
 
         if command_status == "ask_agent_to_decompose_task":
             self.taskmng.process_task(event="ask_agent_to_decompose_task_returned", result=content)
@@ -1087,6 +610,30 @@ on_agent_return_instruction
         # self.plan_edit.append(f"{content}")
 
         print("write_task_plan_to_pane")
+
+    async def _send_to_frontend(self, tab_type, content, section=None):
+        """
+        发送内容到前端指定的页签
+
+        Args:
+            tab_type: 页签类型 ('think' 或 'process')
+            content: 要发送的内容
+            section: 可选的部分标识 ('ongoing' 或 'history')
+        """
+        try:
+            message = {
+                "type": "sns_update",
+                "tab": tab_type,
+                "content": content
+            }
+            if section:
+                message["section"] = section
+            # 广播到所有连接的客户端
+            await websocket_manager.broadcast(message)
+            logger.info(f"Sent {tab_type} update to frontend (section: {section})")
+        except Exception as e:
+            logger.error(f"Failed to send to frontend: {e}")
+
     def write_thinking_process_to_pane(self, title, content):
         # 假设 self.thinking_edit 是 QTextEdit 的实例
         self.thinking_step_index += 1
@@ -1096,8 +643,10 @@ on_agent_return_instruction
         new_content += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         new_content += f"{content}\n"
 
-        # self.thinking_edit.append(new_content)
+        # 发送到前端 Think 页签
+        asyncio.create_task(self._send_to_frontend('think', new_content))
 
+        # self.thinking_edit.append(new_content)
 
     def write_task_process_to_pane(self, content):
         # 获取ongoing process和task process history的内容
@@ -1106,8 +655,13 @@ on_agent_return_instruction
 
         # 合并内容并更新plan_edit
         combined_content = f"{ongoing_process}\n{task_process_history}"
+
+        # 发送到前端 Process 页签
+        asyncio.create_task(self._send_to_frontend('process', combined_content))
+
         # self.plan_edit.setPlainText(combined_content)
         print("write_task_process_to_pane")
+
     def get_task_process_history(self):
         """
         获取任务处理历史记录，按照指定格式返回字符串
@@ -1121,7 +675,6 @@ on_agent_return_instruction
                 result += f"【{index}】{process_content}\n"
         return result
 
-
     def write_on_going_process_to_pane(self, new_ongoing_content: str):
         # 定义标记
         self.current_ongoing_content = new_ongoing_content
@@ -1131,6 +684,10 @@ on_agent_return_instruction
 
         # 合并内容并更新plan_edit
         combined_content = f"{ongoing_process}\n{task_process_history}"
+
+        # 发送到前端 Process 页签的 On Going 部分
+        asyncio.create_task(self._send_to_frontend('process', ongoing_process, section='ongoing'))
+
         # self.plan_edit.setPlainText(combined_content)
         print("write_on_going_process_to_pane")
 
@@ -1167,7 +724,7 @@ on_agent_return_instruction
     def think(self, **kwargs):
         event = kwargs.get("event", "")
         current_chat_summary = kwargs.get("current_chat_summary", "")
-        self.ask_agent_to_update_task()
+        asyncio.create_task(self.ask_agent_to_update_task())
         pass
         if event == "after_conversation":
             self.taskmng.js_task_manager.show_information(lt("I'm thinking after conversation.", "正在思考对话内容。"))
@@ -1177,130 +734,8 @@ on_agent_return_instruction
         else:
             pass
 
-    def ask_agent_to_think_after_conversation(self, current_chat_summary):
-        task_summary = self.taskmng.get_task_summary()
-        role_prompt = get_prompt_by_title("__think_after_conversation__")
-
-        question = f"""###聊天内容如下
-{current_chat_summary}
-"""
-        self.ask_agent_and_get_instruction(question, role_prompt)
-
-    def handle_agent_think_after_conversation_result(self, content):
-        title_str = "agent_think_after_conversation"
-        content_str = f"""🟪 *The function is*:
-
-handle_agent_think_after_conversation_result
-
-🟩 *The Content is*:
-
-{content}
-        """
-
-        self.write_thinking_process_to_pane(title_str, content_str)
-
-        result = json.loads(content)
-        # result={
-        #     "has_suggestions": "Yes",
-        #     "suggestions": "建议使用工具完成任务",
-        #     "suggests_place": "No",
-        #     "place_suggestion": "无",
-        #     "suggests_person": "No",
-        #     "person_suggestion": "无",
-        #     "suggests_tool": "Yes",
-        #     "tool_suggestion": "无"
-        # }
-        has_suggestions = result.get("has_suggestions", "No")
-        suggestions = result.get("suggestions", "")
-        suggests_place = result.get("suggests_place", "No")
-        place_suggestion = result.get("place_suggestion", "")
-        suggests_person = result.get("suggests_person", "No")
-        person_suggestion = result.get("person_suggestion", )
-        suggests_tool = result.get("suggests_tool", "No")
-        tool_suggestion = result.get("tool_suggestion", "")
-
-        current_objective = f"###当前目标如下：{self.taskmng.get_current_objective()}\n"
-        tool_description = f"###功能列表介绍如下：\n{json.dumps(self.get_ability_list(), indent=4, ensure_ascii=False)}"
-        friend_suggestions = f"###朋友建议如下：{suggestions}\n"
-        todo = "###我将根据朋友的建议使用如下功能：\n"
-        requirement = """请你根据朋友的建议给我排一下我将使用的功能的顺序,按优先级从高到低排列，并给我调整、更新一下我的目标。以如下json格式输出：
-{
-    "function_1": "【activity_find_people_from_list_to_talk】",
-    "function_2": "【activity_find_place_from_list_to_move】",
-    "function_3": "",
-    "reason":"The reason is...",
-    "objective":"The obejctive is..."
-}
-        """
-        if result:
-            if has_suggestions == "Yes":
-                if suggests_place == "Yes":
-                    todo = todo + "【activity_find_place_from_list_to_move】\n"
-                if suggests_person == "Yes":
-                    todo = todo + "【activity_find_people_from_list_to_talk】\n"
-                if suggests_tool == "Yes":
-                    todo = todo + "【activity_find_tool_from_list_to_use】\n"
-
-                if suggests_place == "Yes" or suggests_person == "Yes" or suggests_tool == "Yes":
-                    ask_content = current_objective + tool_description + friend_suggestions + todo + requirement
-                    self.taskmng.set_command_status("ask_agent_to_arrange_function_list")
-                    self.ask_agent_to_arrange_function_list(ask_content)
-
-            else:
-                pass
-
-    def ask_agent_to_arrange_function_list(self, ask_content):
-        role_prompt = get_prompt_by_title("__arrange_function_list__")
-
-        question = ask_content
-        self.ask_agent_and_get_instruction(question, role_prompt)
-
-    def handle_agent_arrange_function_list_result(self, content):
-        # self.write_thinking_process_to_pane(content, "handle_agent_arrange_function_list_result")
-        result = json.loads(content)
-        result = {
-            "function_1": "【activity_find_people_from_list_to_talk】",
-            "function_2": "【activity_find_place_from_list_to_move】",
-            "function_3": "",
-            "reason": "The reason is.."
-        }
-        pass
-
-    def re_init_task(self):
-        self.taskmng.init_task_mng()
-        self.taskmng.current_sub_task_index = 0
-        self.thinking_step_index = 0
-        self.process_step_index = 0
-        # self.plan_edit.clear()
-        # self.plan_edit.append(lt("Task is planning...", "任务正在计划分解中..."))
-        self.get_people_list()
-        # self.thinking_edit.clear()
-        # self.init_document_structure()
-        self.ability_list = [
-            {
-                "function_name": "【activity_find_people_from_list_to_talk】",
-                "function_description": "从人员名单中查找合适的人进行沟通，当你需要别人的帮助，需要别人给你指引的时候可以选择该功能，筛选人员不允许分多步骤筛选",
-                "status": "enabled"
-            },
-            {
-                "function_name": "【activity_find_place_from_list_to_move】",
-                "function_description": "从地点列表中查找合适的地方作为目的地，当你需要去某个地方的时候可以选择该功能，筛选地方不允许分多步骤筛选",
-                "status": "enabled"
-            },
-            {
-                "function_name": "【activity_find_tool_from_list_to_use】",
-                "function_description": "使用该功能可以从工具列表中查找合适的工具来调用系统服务、使用AI技能，解决其他功能解决不了的问题。筛选工具不允许分多步骤筛选。",
-                "status": "enabled"
-            }
-        ]
-
-    # 1.开始分解计划任务
-    def plan_task(self, task):
-        # self.write_thinking_process_to_pane(lt("Decompose the task to a plan", "开始分解任务计划"))
-        self.taskmng.process_task(action="plan_task", task=task)
-
     # 1.1让Agent分解任务
-    def ask_agent_to_decompose_task(self, task):
+    async def ask_agent_to_decompose_task(self, task):
         ability_list = self.get_ability_list()
         role_prompt = get_prompt_by_title("__compose_task__")
         # role_prompt = role_prompt.replace("__ability_list__", json.dumps(ability_list, ensure_ascii=False))
@@ -1308,7 +743,7 @@ handle_agent_think_after_conversation_result
 {task}
 """
         # self.write_thinking_process_to_pane(lt(f"Ask agent to decompose the task to a plan:\n{question}", f"请求Agent开始分解任务计划:\n{question}"), "ask_agent_to_decompose_task")
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await self.ask_agent_and_get_instruction(question, role_prompt)
 
     # 1.2处理任务分解结果
     def handle_agent_plan_task_result(self, sub_task_list_str):
@@ -1338,41 +773,8 @@ handle_agent_think_after_conversation_result
         self.handle_agent_plan_task_result(json.dumps(self.taskmng.get_sub_task_list(), indent=4, ensure_ascii=False))
         print("restarted...")
 
-    # 2.开始执行任务
-    def start_taskbak(self):
-        self.show_status_on_map("thinking")
-        self.talk_history = {}
-        if self.taskmng.current_task_record.sub_task_list:
-            self.started_flag = True
-            self.taskmng.reviewing_task = True
-            self.process_list = []
-            self.taskmng.current_process = None
-            self.taskmng.add_process(current_place=self.current_place, current_position=self.aichatcfg_record.current_position)
-            self.taskmng.current_situation = f"准备开始执行任务"
-            self.ability_list = [
-                {
-                    "function_name": "【activity_find_people_from_list_to_talk】",
-                    "function_description": "从人员名单中查找合适的人进行沟通，当你需要别人的帮助，需要别人给你指引的时候可以选择该功能，筛选人员不允许分多步骤筛选",
-                    "status": "enabled"
-                },
-                {
-                    "function_name": "【activity_find_place_from_list_to_move】",
-                    "function_description": "从地点列表中查找合适的地方作为目的地，当你需要去某个地方的时候可以选择该功能，筛选地方不允许分多步骤筛选",
-                    "status": "enabled"
-                },
-                {
-                    "function_name": "【activity_find_tool_from_list_to_use】",
-                    "function_description": "使用该功能可以从工具列表中查找合适的工具来调用系统服务、使用AI技能，解决其他功能解决不了的问题。筛选工具不允许分多步骤筛选。",
-                    "status": "enabled"
-                }
-            ]
-            self.taskmng.process_task(action="process_activity")
-        else:
-            task = self.taskmng.main_task
-            self.plan_task(task)
-
     # 2.1执行子任务前，先review当前任务情况
-    def ask_agent_to_update_task(self):
+    async def ask_agent_to_update_task(self):
         self.show_status_on_map("watching")
         self.show_information(lt("Reviewing plan...", "正在重新评估任务计划"))
         self.write_on_going_process_to_pane(lt("Reviewing plan...", "正在重新评估任务计划"))
@@ -1429,7 +831,7 @@ __current_process__
         question_to_llm = question_to_llm.replace("__current_objective__", current_objective)
         question_to_llm = question_to_llm.replace("__current_process__", current_process)
         self.taskmng.set_command_status("ask_agent_to_update_task")
-        self.ask_agent_and_get_instruction(question_to_llm, role_prompt)
+        await self.ask_agent_and_get_instruction(question_to_llm, role_prompt)
 
     def handle_agent_update_task_result(self, content):
         try:
@@ -1477,16 +879,16 @@ __current_process__
             raise ValueError(f"提供的字符串不是合法的 JSON: {e}")
 
     # 3.执行具体子任务
-    def ask_agent_instruction_to_process_activity(self, ask_content):
+    async def ask_agent_instruction_to_process_activity(self, ask_content):
         if self.ai_chat_cfg.event_before_decistion:
             if self.ai_chat_cfg.event_before_decistion != "N/A":
                 tool_name = self.ai_chat_cfg.event_before_decistion
                 self.handle_event_before_decistion(tool_name, ask_content)
                 return
 
-        self.handle_ask_agent_instruction_to_process_activity(ask_content)
+        await self.handle_ask_agent_instruction_to_process_activity(ask_content)
 
-    def handle_ask_agent_instruction_to_process_activity(self, ask_content):
+    async def handle_ask_agent_instruction_to_process_activity(self, ask_content):
         self.show_status_on_map("thinking")
         if not self.started_flag:
             return
@@ -1497,7 +899,7 @@ __current_process__
         # question_to_llm = ask_content + "请告诉我，我接着应该干什么，具体请从功能列表中挑选。"
         question_to_llm = ask_content
         full_ask_content = self.compose_full_ask_content(process_info_list_str, ability_list, question_to_llm)
-        self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
+        await self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
 
     # 3.1构建完整的请求任务指示的提示词
 
@@ -1537,16 +939,19 @@ __current_process__
         if self.ai_chat_cfg.event_after_decistion:
             if self.ai_chat_cfg.event_after_decistion != "N/A":
                 tool_name = self.ai_chat_cfg.event_after_decistion
-                self.handle_event_after_decistion(tool_name, instruction)
+                asyncio.create_task(self.handle_event_after_decistion(tool_name, instruction))
                 return
 
         self.handle_parse_agent_instruction_for_process_activity(instruction)
 
     def handle_parse_agent_instruction_for_process_activity(self, instruction):
+        print("llm return instruction:", instruction)
         instruction = instruction.strip()
         self.current_task_list = self.get_current_task_list(instruction)
         action_str = self.get_next_action(instruction)
         self.current_action = action_str
+
+        print("current action_str:", action_str)
 
         if self.temp_index > 7:
             self.temp_index = 0
@@ -1654,6 +1059,38 @@ __current_process__
         ask_content = instruction
         self.taskmng.process_task(action="process_activity", ask_content=ask_content)
 
+    def get_next_action(self, instruction):
+        # 定义分隔标记
+        delimiter = "下一行动"
+
+
+        # 检查分隔标记是否存在
+        if delimiter in instruction:
+            # 分割字符串并取最后一部分（防止有多个相同标记）
+            parts = instruction.split(delimiter, 1)
+            return parts[1].strip() if len(parts) > 1 else ""
+        delimiter = "下一步行动"
+        if delimiter in instruction:
+            # 分割字符串并取最后一部分（防止有多个相同标记）
+            parts = instruction.split(delimiter, 1)
+            return parts[1].strip() if len(parts) > 1 else ""
+
+        return ""
+
+    def get_current_task_list(self, text):
+        start_marker = "### 当前任务清单"
+        end_marker = "### 下一行动"
+        try:
+            # Find indices of markers (case-sensitive)
+            start_idx = text.index(start_marker) + len(start_marker)
+            end_idx = text.index(end_marker, start_idx)  # Search after start marker
+
+            # Extract and strip whitespace
+            return text[start_idx:end_idx].strip()
+        except ValueError:
+            # Handle case where markers are not found
+            return ""
+
     def handle_event_before_decistion(self, tool_name, ask_content):
         self.command_status = "handle_event_before_decistion"
         tool_record = query_single_tool(name=tool_name)
@@ -1665,12 +1102,12 @@ __current_process__
         self.command_status = "ask_agent_instruction_to_process_activity"
         self.handle_ask_agent_instruction_to_process_activity(ask_content)
 
-    def handle_event_after_decistion(self, tool_name, instruction):
+    async def handle_event_after_decistion(self, tool_name, instruction):
         self.command_status = "handle_event_after_decistion"
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = instruction
-        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
+        await self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
 
     def handle_event_after_decistion_result(self, instruction):
         self.command_status = ""
@@ -1681,19 +1118,19 @@ __current_process__
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = content
-        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
+        self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
 
     def handle_event_receive_msg_result(self, content):
         self.command_status = ""
         from_str = self.current_talk_people["account"]
-        self.handle_receiveMessage(content, from_str)
+        asyncio.create_task(self.handle_receiveMessage(content, from_str))
 
     def handle_event_before_send_msg(self, tool_name, content, conversation_type):
         self.command_status = "handle_event_before_send_msg"
         tool_record = query_single_tool(name=tool_name)
         tool_id = tool_record.id
         what_to_do = content
-        self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
+        self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
 
     def handle_event_before_send_msg_result(self, content):
         self.command_status = ""
@@ -1861,23 +1298,19 @@ __current_process__
     def communicate_with_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "communication"
-        self.ask_agent_start_to_talk_to_a_people(action_str, human_object)
+        self.ask_agent_start_to_talk_to_a_people_sync(action_str, human_object)
 
         # self.taskmng.process_task(action="process_activity", ask_content=ask_content)
 
     def sell_to_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "sell"
-        self.ask_agent_start_to_sell_to_a_people(action_str, human_object)
+        self.ask_agent_start_to_sell_to_a_people_sync(action_str, human_object)
 
     def buy_from_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "buy"
-        self.ask_agent_start_to_buy_from_a_people(action_str, human_object)
-
-    def send_python_setting_changed(self, variant_name, variant_value):
-        command = ("python_setting_changed", variant_name, variant_value)
-        self.send_msg_to_map(command)
+        self.ask_agent_start_to_buy_from_a_people_sync(action_str, human_object)
 
     def use_tools(self):
         result = ""
@@ -1968,64 +1401,349 @@ __current_process__
         result = f"你支付了210元远程治疗服务，你的生命值已经恢复为{self.aichatcfg_record.life_point}%，当前行动力为{self.aichatcfg_record.move_point}%"
         return result
 
-    def decline_energy(self):
-        exp = self.exp_point
-        decline_point = 25 * ((100 - exp) / 100)
-        self.energy_point = self.energy_point - decline_point
-        self.move_point = 100 * (self.life_point / 100) * (self.energy_point / 100)
+    def send_msg_to_map(self, command):
+        """
+        将命令发送到地图系统。
+        """
+        action, param_1, param_2 = command
+        if action == "Use skills":
+            print(f"执行技能：{param_1}")
 
-    def decline_life(self):
-        exp = self.exp_point
-        decline_point = 25 * ((100 - exp) / 100)
-        self.life_point = self.life_point - decline_point
-        self.move_point = 100 * (self.life_point / 100) * (self.energy_point / 100)
-
-    def parse_agent_instruction_for_process_activitybak(self, instruction):
-        instruction = instruction.strip()
-        instruction_dict = json.loads(instruction)
-        objective_to_achieve = instruction_dict.get("objective_to_achieve", "")
-        self.taskmng.set_current_activity_objective(objective_to_achieve)
-        self.taskmng.set_current_objective(objective_to_achieve)
-
-        if "activity_find_people_from_list_to_talk" in instruction:
-            self.taskmng.exception_detect_people()
-        elif "activity_find_place_from_list_to_move" in instruction:
-            objective_to_achieve = self.taskmng.current_objective if self.taskmng.current_objective else self.taskmng.current_sub_task["details"]
-            provided_place_list = json.dumps(self.get_place_list(), indent=4, ensure_ascii=False)
-            self.ask_agent_to_pick_place_list(objective_to_achieve, provided_place_list)
-        elif "activity_find_tool_from_list_to_use" in instruction:
-            # self.taskmng.process_task(action="find_tool_from_list_to_use")
-            self.taskmng.exception_detect_tool()
-
+            self.ui_adapter.send_command_to_map(action, param_1, param_2)
         else:
-            print("the instruction:", instruction)
+            print(f"执行行动：{action}")
 
-    def get_next_action(self, instruction):
-        # 定义分隔标记
-        delimiter = "下一行动"
+            self.ui_adapter.send_command_to_map(action, param_1, param_2)
 
-        # 检查分隔标记是否存在
-        if delimiter in instruction:
-            # 分割字符串并取最后一部分（防止有多个相同标记）
-            parts = instruction.split(delimiter, 1)
-            return parts[1].strip() if len(parts) > 1 else ""
-        return ""
+    def handle_event_before_decistion(self, tool_name, ask_content):
+        self.command_status = "handle_event_before_decistion"
+        tool_record = query_single_tool(name=tool_name)
+        tool_id = tool_record.id
+        what_to_do = ask_content if ask_content else "请执行"
+        self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
 
-    def get_current_task_list(self, text):
-        start_marker = "### 当前任务清单"
-        end_marker = "### 下一行动"
-        try:
-            # Find indices of markers (case-sensitive)
-            start_idx = text.index(start_marker) + len(start_marker)
-            end_idx = text.index(end_marker, start_idx)  # Search after start marker
+    def handle_event_before_decistion_result(self, ask_content):
+        self.command_status = "ask_agent_instruction_to_process_activity"
+        asyncio.create_task(self.handle_ask_agent_instruction_to_process_activity(ask_content))
 
-            # Extract and strip whitespace
-            return text[start_idx:end_idx].strip()
-        except ValueError:
-            # Handle case where markers are not found
-            return ""
+    def ask_agent_to_run_a_tool_sync(self, tool_id, tool_name, what_to_do):
+        role_prompt = "You are a helpful assistant."
 
-    def ask_agent_instruction_to_process_human_instruction(self, ask_content):
+        question = f"{tool_id}__AISNS_INT_SEPARATOR__{tool_name}__AISNS_INT_SEPARATOR__{what_to_do}"
+        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt, "tool"))
+        return "success", "asking the agent to run tool"
+
+    def show_status_on_map(self, status):
+        print("show_status_on_map" + status)
+        # self.message_handler.show_status_on_map(status)
+
+    def show_alert_on_map(self, msg):
+        print("show_status_on_map" + msg)
+        # self.message_handler.show_alert_on_map(msg)
+
+    def get_ability_list(self):
+        # ability_list_str = get_key_value("ability_list")
+        # ability_list = json.loads(ability_list_str)
+        # self.ability_list = ability_list
+
+        result = self.ability_list
+
+        return result
+
+    def get_skill_list(self):
+        return []
+        result = """
+                    [{
+		"id": "001",
+		"name": "get_weather",
+		"description": "get weather of a city",
+		"place": "Any Place",
+		"lng": 0,
+		"lat": 0,
+		"type": "plugin_tool",
+		"address": "Not needed",
+		"method": "python call",
+		"parameter": {
+			"city": "the city to get the weather",
+			"date": "the date to get the weather"
+		}
+	},
+	{
+		"id": "002",
+		"name": "get_stock",
+		"description": "get the stock price of a company",
+		"place": "Any Place",
+		"lng": 0,
+		"lat": 0,
+		"type": "plugin_tool",
+		"address": "Not needed",
+		"method": "python call",
+		"parameter": {
+			"company": "the company name to get the stock price"
+		}
+
+	},
+	{
+		"id": "003",
+		"name": "Calculator",
+		"description": "a calculator for number",
+		"place": "Any Place",
+		"lng": 0,
+		"lat": 0,
+		"type": "plugin_tool",
+		"address": "Not needed",
+		"method": "python call",
+		"parameter": {
+			"operator": "choose from `+ / - *` for the calculator to perform calculate",
+			"first_number":"the first number",
+			"second_number":"the second number"
+		}
+	}
+]
+                """
+
+        self.skill_list = json.loads(result)  # 保存到全局变量
+        self.available_skills = self.skill_list  # self.skill_list = list(self.available_skills)
+        result = self.skill_list
+        return result
+
+    def update_skill(self, skill_list):
+        self.taskmng.process_task(event="skill_updated")
+
+    def get_plugin_tool_list(self):
+        records = query_tool_list()
+        default_values = {
+            "place": "Any Place",
+            "lng": 0,
+            "lat": 0,
+            "type": "plugin_tool",
+            "address": "Not needed",
+            "method": "python call"
+        }
+        # 使用列表推导式生成所需格式的记录
+        formatted_records = [
+            {
+                "id": record.id,  # 直接访问属性
+                "name": record.name,
+                "description": record.description,
+                **default_values  # 展开 default_values 字典以添加缺省值
+            }
+            for record in records
+        ]
+
+        return formatted_records
+
+    def get_service_list(self):
+        url = "http://www.ai-sns.org/api/get_service_list/"
+
+        pos = self.aichatcfg_record.current_position
+
+        params = {
+            "lng": pos[0],
+            "lat": pos[1]
+        }
+        service_list = self.http_request(url, params)
+        return service_list
+
+    def update_service_list(self):
+        url = "http://www.ai-sns.org/api/get_service"
+        params = {
+            "lng": self.aichatcfg_record.current_position[0],
+            "lat": self.aichatcfg_record.current_position[1]
+        }
+        # people={
+        #     "name":"Same",
+        #     "position":[121.121,23.4554]
+        # }
+        service_list = self.http_request(url, params)
+
+        return service_list
+
+    def get_tool_list(self):
+        service_list = self.get_service_list()
+        skill_list = self.get_skill_list()
+        plugin_tool_list = self.get_plugin_tool_list()
+        tool_list = service_list + skill_list + plugin_tool_list
+        return tool_list
+
+    def get_tool_list_for_trade(self):
+        service_list = self.get_service_list()
+        skill_list = self.get_skill_list()
+        tool_list = service_list + skill_list
+        return tool_list
+
+    def get_mcp_list_for_trade(self):
+        service_list = self.get_service_list()
+        skill_list = self.get_skill_list()
+        tool_list = service_list + skill_list
+        return tool_list
+
+    def get_place_list(self):
+        url = "http://www.ai-sns.org/api/get_place_list/"
+        params = {
+            "lng": self.aichatcfg_record.current_position[0],
+            "lat": self.aichatcfg_record.current_position[1]
+        }
+        place_list = self.http_request(url, params)
+        return place_list
+
+    def get_people_list(self):
+        url = "http://www.ai-sns.org/api/get_people_list/"
+        params = {
+            "lng": self.aichatcfg_record.current_position[0],
+            "lat": self.aichatcfg_record.current_position[1]
+        }
+        data = self.http_request(url, params)
+
+        remove_id = self.user_map_setting.get("nationid", "")
+
+        people_list = [item for item in data if item["nation_id"] != remove_id]
+
+        return people_list
+
+    def are_lists_of_dicts_equal(self, list1, list2):
+        """
+        Checks if two lists of dictionaries are equal, regardless of order.
+
+        Args:
+            list1: The first list of dictionaries.
+            list2: The second list of dictionaries.
+
+        Returns:
+            True if both lists contain the same dictionaries, otherwise False.
+        """
+        # Sort both lists by their string representations of dicts for consistent comparison
+        sorted_list1 = sorted(list1, key=lambda d: str(sorted(d.items())))
+        sorted_list2 = sorted(list2, key=lambda d: str(sorted(d.items())))
+
+        return sorted_list1 == sorted_list2
+
+    def get_balance(self):
+        token_balance = 1000
+        self.token_balance = token_balance
+        return token_balance
+
+    def update_balance(self, token_balance):
+        self.token_balance = token_balance
+
+    def add_friend(self):
+        pass
+
+    def talk_to_a_people(self, content, nationid, account, user_name):
+        title_str = "选择人员交谈"
+        content_str = f"""🟪 *The function is*:
+
+talk_to_a_people
+
+🟩 *The Content is*:
+
+{lt(f"Talk to a people with {user_name} acount:{account},nationid:{nationid},content:{content}", f"和别人交谈 with {user_name} acount:{account},nationid:{nationid},content:{content}")}
+        """
+
+        self.write_thinking_process_to_pane(title_str, content_str)
+
+        current_talk_people = self.current_talk_people
+        round = current_talk_people.get("talk_round", 0) + 1
+        self.current_talk_people["talk_round"] = round
+        command = ("start_talk_to_it", nationid, content)
+        self.send_msg_to_map(command)
+        self.sendMessage(content, False, account, user_name)
+
+        if account not in self.talk_history:
+            self.talk_history[account] = []
+        self.talk_history[account].append("Me:" + content)
+        self.current_talk_history.append("Me:" + content)
+
+    def move_to_a_place(self, lng, lat):
+        # self.write_thinking_process_to_pane(lt(f"move to the place:{lng},{lat}", f"移动到:{lng},{lat}"), "move_to_a_place")
+        command = ("move_to_a_place", str(lng), str(lat))
+        self.send_msg_to_map(command)
+        place_name = self.place_selected[0].get("place_name", "")
+        self.place_selected = None
+        self.taskmng.process_task(event="arrived_at_place", place_name=place_name)
+
+    def explore_the_map(self):
+        # self.write_thinking_process_to_pane("explore the map")
+        return
+        current_position = self.aichatcfg_record.current_position
+        if len(self.taskmng.process_list) < 2:
+            last_position = current_position
+        else:
+            last_position = self.taskmng.process_list[-2].get("current_position", [])
+
+        search_radius = self.search_radius
+
+        # 确保位置不为空
+        if not last_position or not current_position:
+            return None
+
+        # 将位置转换为WKT（Well-Known Text）格式
+        current_position_wkt = f"POINT({current_position[0]} {current_position[1]})"
+        last_position_wkt = f"POINT({last_position[0]} {last_position[1]})"
+
+        # SQL查询：寻找符合条件的坐标
+        query = """
+        SELECT ST_AsText(geom) AS location
+        FROM locations
+        WHERE ST_DWithin(geom::geography, ST_GeogFromText(%s), %s)
+        AND NOT ST_DWithin(geom::geography, ST_GeogFromText(%s), %s)
+        LIMIT 1;
+        """
+
+        # 执行查询并获取结果
+        with db_conn.cursor() as cursor:
+            cursor.execute(query, (current_position_wkt, search_radius, last_position_wkt, search_radius / 2))
+            result = cursor.fetchone()
+
+        # 返回结果
+        if result:
+            return result[0]
+        return None
+
+    def handle_arrived_at_place(self, place_name):
+        # self.write_thinking_process_to_pane(lt(f"Arrived the place:{place_name}", f"到达了:{place_name}"), "handle_arrived_at_place")
+        description = f"我成功到达地点：{place_name}。"
+        self.taskmng.current_situation = description
+        self.taskmng.process_task(event="move_to_a_place_completed", description=description)
+
+    def stop_task(self):
+        self.started_flag = False
+        self.taskmng.current_task_record = None
+
+    def check_place(self, address, lng, lat):
+        command = ("check_place", address, str(lng) + "_" + str(lat));
+        self.send_msg_to_map(command)
+
+    def handle_aichatcfg_property_updated(self, property_name):
+        """
+        处理AiChatCfg属性更新的函数
+        当特定属性发生变化时，更新相关的界面元素
+
+        Args:
+            property_name (str): 被更新的属性名称
+        """
+        # 定义需要更新图表的属性
+        chart_related_properties = [
+            'iq_point', 'energy_point', 'life_point',
+            'move_point', 'exp_point', 'money',
+            'credit', 'level'
+        ]
+
+        # 定义需要更新进行中进程面板的属性
+        process_pane_related_properties = [
+            'profession', 'current_position', 'money',
+            'life_point', 'energy_point'
+        ]
+
+        # 如果属性与图表相关，则更新图表
+        if property_name in chart_related_properties:
+            self.update_map_charts()
+
+        # 如果属性与进行中进程面板相关，则更新面板
+        if property_name in process_pane_related_properties:
+            self.write_on_going_process_to_pane(self.current_ongoing_content or "")
+
+    async def ask_agent_instruction_to_process_human_instruction(self, ask_content):
         self.show_status_on_map("thinking")
         if not self.started_flag:
             return
@@ -2035,7 +1753,7 @@ __current_process__
         ability_list = self.get_ability_list()
         question_to_llm = ask_content
         full_ask_content = self.compose_full_ask_content_human(task_description, ability_list, question_to_llm)
-        self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
+        await self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
 
     def compose_full_ask_content_human(self, task_description, ability_list, question_to_llm):
         prompt = get_prompt_by_title("__human_instruction_to_process_activity_content__")
@@ -2067,14 +1785,14 @@ __current_process__
             provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
             if people_to_talk_to:
                 objective_to_achieve = f"如果人员列表中有 {people_to_talk_to} 这个人，请把{people_to_talk_to}作为选择的目标。"
-            self.ask_agent_to_pick_people_list(provided_profile_list, objective_to_achieve)
+            self.ask_agent_to_pick_people_list_sync(provided_profile_list, objective_to_achieve)
         elif "activity_find_place_from_list_to_move" in instruction:
             self.command_status = "ask_agent_to_pick_place_list"
             objective_to_achieve = self.taskmng.current_objective if self.taskmng.current_objective else self.taskmng.current_sub_task["details"]
             if place_to_move_to:
                 objective_to_achieve = f"如果地址列表中有 {place_to_move_to} 这个地方，请把{place_to_move_to}作为选择的目标。{objective_to_achieve}"
             provided_place_list = json.dumps(self.get_place_list(), indent=4, ensure_ascii=False)
-            self.ask_agent_to_pick_place_list(objective_to_achieve, provided_place_list)
+            self.ask_agent_to_pick_place_list_sync(objective_to_achieve, provided_place_list)
 
 
         elif "activity_find_tool_from_list_to_use" in instruction:
@@ -2086,14 +1804,34 @@ __current_process__
             if tool_to_use:
                 objective_to_achieve = f"如果工具列表中有 {tool_to_use} 这个工具，请把{tool_to_use}作为选择的目标。"
 
-            self.ask_agent_to_pick_a_tool(task_summary, provided_tool_list, objective_to_achieve)
+            self.ask_agent_to_pick_a_tool_sync(task_summary, provided_tool_list, objective_to_achieve)
 
         else:
             human_instruction = self.human_instruction
             self.taskmng.process_task(action="process_activity", ask_content="请优先根据人类反馈，做出决策。人类的指令如下：" + human_instruction, human_send_flag=True)
 
+    def ask_agent_to_pick_place_list_sync(self, objective_to_achieve, provided_place_list):
+        """
+        向代理请求选择地点列表（同步版本）。
+
+        :param objective_to_achieve: 任务描述
+        :param provided_place_list: 提供的地点列表
+        """
+        self.show_status_on_map("watching")
+        self.show_information(lt("Ask Agent to pick a place to move.", "让Agent选择一个地方作为目的地。"))
+        task_summary = self.taskmng.get_task_summary()
+        curren_situation = self.taskmng.current_situation
+        current_process = f"- 当前目标\n{objective_to_achieve}\n- 当前进展\n{curren_situation}"
+        role_prompt = get_prompt_by_title("__pick_place_list__")
+        role_prompt = role_prompt.replace("__task_summary__", task_summary)
+        role_prompt = role_prompt.replace("__current_situation__", current_process)
+        role_prompt = role_prompt.replace("__provided_place_list__", provided_place_list)
+        question = "请严格遵照要求评估，并严格按照格式输出。"
+        self.command_status = "ask_agent_to_pick_place_list"
+        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
+
     # 4.让agent选择地址
-    def ask_agent_to_pick_place_list(self, objective_to_achieve, provided_place_list):
+    async def ask_agent_to_pick_place_list(self, objective_to_achieve, provided_place_list):
         """
         向代理请求选择地点列表。
 
@@ -2111,7 +1849,7 @@ __current_process__
         role_prompt = role_prompt.replace("__provided_place_list__", provided_place_list)
         question = "请严格遵照要求评估，并严格按照格式输出。"
         self.command_status = "ask_agent_to_pick_place_list"  # 需要这一行
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await self.ask_agent_and_get_instruction(question, role_prompt)
 
     # 4.1处理agent选择的地址
     def handle_agent_pick_place_list_result(self, content):
@@ -2133,8 +1871,7 @@ __current_process__
             if self.place_selected:
                 self.taskmng.process_task(action="move_to_a_place", place_name=self.place_selected[0]["place_name"], lng=self.place_selected[0]["place_position"][0], lat=self.place_selected[0]["place_position"][1], match_score=match_score)
 
-    # 5.让agent选择一个工具
-    def ask_agent_to_pick_a_tool(self, task_summary, provided_tool_list_str, human_objective_to_achieve=""):
+    def ask_agent_to_pick_a_tool_sync(self, task_summary, provided_tool_list_str, human_objective_to_achieve=""):
         task_summary = self.taskmng.get_task_summary()
         curren_situation = self.taskmng.current_situation
         objective_to_achieve = self.taskmng.get_current_objective()
@@ -2151,7 +1888,27 @@ __current_process__
         role_prompt = role_prompt.replace("__provided_tool_list__", provided_tool_list_str)
 
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
+
+    # 5.让agent选择一个工具
+    async def ask_agent_to_pick_a_tool(self, task_summary, provided_tool_list_str, human_objective_to_achieve=""):
+        task_summary = self.taskmng.get_task_summary()
+        curren_situation = self.taskmng.current_situation
+        objective_to_achieve = self.taskmng.get_current_objective()
+        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        current_process = f"- 当前目标\n{objective_to_achieve}\n- 当前进展\n{curren_situation}"
+        role_prompt = get_prompt_by_title("__pick_tool_list__")
+        if self.human_take_over and self.human_instruction.startswith("!!!"):
+            role_prompt = role_prompt.replace("__task_summary__", self.human_instruction)
+            role_prompt = role_prompt.replace("__current_process__", "")
+        else:
+            role_prompt = role_prompt.replace("__task_summary__", task_summary)
+            role_prompt = role_prompt.replace("__current_process__", current_process)
+        role_prompt = role_prompt.replace("__provided_tool_list__", provided_tool_list_str)
+
+        question = "请严格遵照要求评估，并严格按照格式输出。"
+        await self.ask_agent_and_get_instruction(question, role_prompt)
 
     # 5.1处理agent选择的工具
     def handle_agent_pick_a_tool_result(self, content):
@@ -2202,7 +1959,7 @@ __current_process__
             return flag, result
 
         elif type_str.lower() == "plugin_tool":
-            flag, result = self.ask_agent_to_run_a_tool(tool_id, name, tell_the_tool_what_to_do)
+            flag, result = self.ask_agent_to_run_a_tool_sync(tool_id, name, tell_the_tool_what_to_do)
             return flag, result
 
         elif type_str.lower() == "web_service":
@@ -2249,7 +2006,7 @@ __current_process__
         # 使用 get 方法返回目标字典，若目标 id 不存在，则返回 None
         return dict_map.get(target_id)
 
-    def ask_agent_to_pick_a_tool_to_buy(self, provided_tool_list_str, human_objective_to_achieve="", human_want_to_buy_str=""):
+    async def ask_agent_to_pick_a_tool_to_buy(self, provided_tool_list_str, human_objective_to_achieve="", human_want_to_buy_str=""):
         task_summary = self.taskmng.get_task_summary()
         curren_situation = self.taskmng.current_situation
         objective_to_achieve = self.taskmng.get_current_objective()
@@ -2265,7 +2022,7 @@ __current_process__
         role_prompt = role_prompt.replace("__my_tool_list__", my_tool_list)
 
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await self.ask_agent_and_get_instruction(question, role_prompt)
 
     def handle_agent_pick_a_tool_to_buy_result(self, content):
         """
@@ -2279,15 +2036,16 @@ __current_process__
             self.tool_trade_inquiry(tool)
             # self.taskmng.add_process_info_to_list(f"我已经选定了要购买的目标工具：name:{name},id:{id},因为{reason_for_selection}")
 
-    def ask_agent_to_run_a_tool(self, tool_id, tool_name, what_to_do):
+    async def ask_agent_to_run_a_tool(self, tool_id, tool_name, what_to_do):
         role_prompt = "You are a helpful assistant."
 
+
         question = f"{tool_id}__AISNS_INT_SEPARATOR__{tool_name}__AISNS_INT_SEPARATOR__{what_to_do}"
-        self.ask_agent_and_get_instruction(question, role_prompt, "tool")
+        await self.ask_agent_and_get_instruction(question, role_prompt, "tool")
         return "success", "asking the agent to run tool"
 
-    # 6.让agent选择人员
-    def ask_agent_to_pick_people_list(self, provided_profile_list, human_objective_to_achieve=""):
+
+    def ask_agent_to_pick_people_list_sync(self, provided_profile_list, human_objective_to_achieve=""):
         # provided_profile_list = json.dumps(self.get_people_list(),indent=4,ensure_ascii=False)
         objective_to_achieve = self.taskmng.get_current_objective()
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
@@ -2300,9 +2058,9 @@ __current_process__
         role_prompt = role_prompt.replace("__people__to__select__", provided_profile_list)
         question = "请严格遵照要求评估，并严格按照格式输出。"
         self.command_status = "ask_agent_to_pick_people_list"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
 
-    def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+    def ask_agent_start_to_talk_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
 
@@ -2313,9 +2071,9 @@ __current_process__
         content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
 
         self.command_status = "ask_agent_to_pick_people_list"
-        self.ask_agent_and_get_instruction(content_prompt, role_prompt)
+        asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
-    def ask_agent_start_to_sell_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+    def ask_agent_start_to_sell_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
 
@@ -2326,9 +2084,9 @@ __current_process__
         content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
 
         self.command_status = "ask_agent_start_to_sell_to_a_people"
-        self.ask_agent_and_get_instruction(content_prompt, role_prompt)
+        asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
-    def ask_agent_start_to_buy_from_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+    def ask_agent_start_to_buy_from_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
 
@@ -2339,7 +2097,62 @@ __current_process__
         content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
 
         self.command_status = "ask_agent_start_to_buy_from_a_people"
-        self.ask_agent_and_get_instruction(content_prompt, role_prompt)
+        asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
+
+    # 6.让agent选择人员
+    async def ask_agent_to_pick_people_list(self, provided_profile_list, human_objective_to_achieve=""):
+        # provided_profile_list = json.dumps(self.get_people_list(),indent=4,ensure_ascii=False)
+        objective_to_achieve = self.taskmng.get_current_objective()
+        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        task_summary = self.taskmng.get_task_summary()
+        current_process = f"- 当前位置\n{self.current_place}\n- 当前坐标\n{self.aichatcfg_record.current_position}\n- 当前目标\n{objective_to_achieve}\n- 当前进展\n{self.taskmng.current_situation}"
+        role_prompt = get_prompt_by_title("__pick_people_list__")
+        role_prompt = role_prompt.replace("__task_summary__", task_summary)
+        role_prompt = role_prompt.replace("__current_process__", current_process)
+        role_prompt = role_prompt.replace("__people__to__select__", provided_profile_list)
+        question = "请严格遵照要求评估，并严格按照格式输出。"
+        self.command_status = "ask_agent_to_pick_people_list"
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
+
+    async def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        role_prompt = get_prompt_by_title("__start_to_talk_to_a_people__")
+
+        content_prompt = get_prompt_by_title("__start_to_talk_to_a_people_content__")
+        content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
+        content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
+
+        self.command_status = "ask_agent_to_pick_people_list"
+        await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
+
+    async def ask_agent_start_to_sell_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        role_prompt = get_prompt_by_title("__start_to_sell_to_a_people__")
+
+        content_prompt = get_prompt_by_title("__start_to_sell_to_a_people_content__")
+        content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
+        content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
+
+        self.command_status = "ask_agent_start_to_sell_to_a_people"
+        await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
+
+    async def ask_agent_start_to_buy_from_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
+        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        role_prompt = get_prompt_by_title("__start_to_buy_from_a_people__")
+
+        content_prompt = get_prompt_by_title("__start_to_buy_from_a_people_content__")
+        content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
+        content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
+
+        self.command_status = "ask_agent_start_to_buy_from_a_people"
+        await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
     # 6.处理agent选择的人员
     def handle_agent_pick_people_list_result(self, content):
@@ -2419,31 +2232,31 @@ __current_process__
 
             self.taskmng.process_task(event="agent_pick_people_list_fail")
 
-    def ask_agent_to_review_conversation(self, conversation_target, messages_history):
+    async def ask_agent_to_review_conversation(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation__")
         # role_prompt = role_prompt.replace("__conversation_target__", conversation_target)
         # role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "## 聊天记录 \n" + messages_history
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await   self.ask_agent_and_get_instruction(question, role_prompt)
 
-    def ask_agent_to_review_conversationbak(self, conversation_target, messages_history):
+    async def ask_agent_to_review_conversationbak(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation__")
         role_prompt = role_prompt.replace("__conversation_target__", conversation_target)
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
-    def ask_agent_to_review_conversation_sell(self, conversation_target, messages_history):
+    async def ask_agent_to_review_conversation_sell(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation_sell__")
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
-    def ask_agent_to_review_conversation_buy(self, conversation_target, messages_history):
+    async def ask_agent_to_review_conversation_buy(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation_buy__")
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     def handle_agent_review_conversation_result(self, content):
         if self.ai_chat_cfg.event_before_send_msg:
@@ -2531,7 +2344,7 @@ __current_process__
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
                 self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}")
 
-    def ask_agent_to_bargain_for_buyer(self, tool_list):
+    async def ask_agent_to_bargain_for_buyer(self, tool_list):
         messages_history = json.dumps(self.current_talk_history, ensure_ascii=False)
         conversation_target = self.taskmng.current_objective
         role_prompt = get_prompt_by_title("__buyer_bargain_content__")
@@ -2539,7 +2352,7 @@ __current_process__
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         role_prompt = role_prompt.replace("__tool_list__", tool_list)
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     def handle_ask_agent_to_bargain_for_buyer_result(self, content):
         result = json.loads(content)
@@ -2549,7 +2362,7 @@ __current_process__
         message = result["next_message"]
         self.tool_trade_send_bargain_for_buyer(content)
 
-    def ask_agent_to_bargain_for_seller(self, tool_list):
+    async def ask_agent_to_bargain_for_seller(self, tool_list):
         messages_history = json.dumps(self.current_talk_history, ensure_ascii=False)
         conversation_target = self.taskmng.current_objective
         role_prompt = get_prompt_by_title("__seller_bargain_content__")
@@ -2557,7 +2370,7 @@ __current_process__
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
         role_prompt = role_prompt.replace("__tool_list__", tool_list)
         question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     def handle_ask_agent_to_bargain_for_seller_result(self, content):
         result = json.loads(content)
@@ -2568,7 +2381,7 @@ __current_process__
 
         self.tool_trade_send_bargain_for_seller(content)
 
-    def ask_agent_to_use_service(self, question, service_list, objective_to_achieve):
+    async def ask_agent_to_use_service(self, question, service_list, objective_to_achieve):
         role_prompt = get_prompt_by_title("__ask_agent_use_service__")
         role_prompt = role_prompt.replace("__service_list__", service_list)
         role_prompt = role_prompt.replace("__objective_to_achieve__", objective_to_achieve)
@@ -2576,7 +2389,7 @@ __current_process__
         question = question + "\n请根据相关的任务要求，准确选择服务，如果没有合适的服务请返回空列表。"
 
         self.command_status = "ask_agent_to_use_service"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     def on_ask_agent_to_use_service_return(self, content):
         command_status = self.command_status
@@ -2631,7 +2444,7 @@ __current_process__
         else:
             self.taskmng.process_task(event="service_called", result=f"Execute Error,the output:{output}")
 
-    def ask_agent_to_use_skill(self, question, function_name, function_description):
+    async def ask_agent_to_use_skill(self, question, function_name, function_description):
         role_prompt = get_prompt_by_title("__ask_agent_use_skill__")
         role_prompt = role_prompt.replace("XXXXXXXX", function_name)
         role_prompt = role_prompt + "\n" + function_description
@@ -2639,7 +2452,7 @@ __current_process__
         question = "\n" + question + "这是我建议使用的函数：" + function_name + "，请根据相关的任务要求，把相关的任务完成掉。"
         question = question + "\n请输出完整的可独立运行的代码。"
         self.command_status = "ask_agent_to_use_skill"
-        self.ask_agent_and_get_instruction(question, role_prompt)
+        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     def on_ask_agent_to_use_skill_return(self, content):
         command_status = self.command_status
@@ -2651,7 +2464,7 @@ __current_process__
         return code
 
     def execute_skill(self, code):
-        execute_result="waiting to impl"
+        execute_result = "waiting to impl"
         self.handle_skill_executed_result(execute_result)
 
     def handle_skill_executed_result(self, execute_result):
@@ -2814,7 +2627,7 @@ __current_process__
                     print("run tool:", handle_content)
                     print("talk_history_str for run tool", talk_history_str)
                     self.command_status = "run_tool_before_send_good"
-                    good_str = self.ask_agent_to_run_a_tool(tool_id, tool_name, what_to_do)
+                    good_str = self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
                     return
 
             self.handle_send_goods(good_str, trade_id)
@@ -3235,7 +3048,7 @@ __current_process__
             # 如果前缀不匹配，返回原字符串
             return ""
 
-    def initiate_tool_tradebak(self, offered_skills: List[str]) -> None:
+    async def initiate_tool_tradebak(self, offered_skills: List[str]) -> None:
         """
         主动向对方发起技能交易请求
         Args:
@@ -3254,11 +3067,11 @@ __current_process__
             2. 如果无法技能交换，再推荐Token购买
             3. 输出格式必须为JSON：{"decision": "exchange|purchase", "target_skill": "skill_name", "offer_skill": "skill_name|null"}"""
 
-            self.ask_agent_and_get_instruction(json.dumps(question, ensure_ascii=False), system_prompt)
+            await  self.ask_agent_and_get_instruction(json.dumps(question, ensure_ascii=False), system_prompt)
         except Exception as e:
             logger.error(f"技能交易发起失败: {str(e)}")
 
-    def respond_to_skill_trade(self, incoming_skills: List[str]) -> None:
+    async def respond_to_skill_trade(self, incoming_skills: List[str]) -> None:
         """
         被动响应对方发起的技能交易请求
         Args:
@@ -3277,7 +3090,7 @@ __current_process__
             2. 如果无法技能交换，再推荐Token购买
             3. 输出格式必须为JSON：{"decision": "exchange|purchase", "target_skill": "skill_name", "offer_skill": "skill_name|null"}"""
 
-            self.ask_agent_and_get_instruction(json.dumps(question, ensure_ascii=False), system_prompt)
+            await  self.ask_agent_and_get_instruction(json.dumps(question, ensure_ascii=False), system_prompt)
         except Exception as e:
             logger.error(f"响应技能交易失败: {str(e)}")
 
@@ -3632,7 +3445,6 @@ __current_process__
         self.required_skills = self.remove_dict_from_list(self.required_skills, target_skill)
         self.available_skills.append(target_skill)
 
-
     def on_human_confirm_skill(self):
         skill_list = self.get_skill_list()
         self.update_skill(skill_list)
@@ -3801,6 +3613,23 @@ __current_process__
         people = self.http_request(url, params)
         return people
 
+    def calculate_pos(self, pos):
+        new_pos = pos
+        return new_pos
+
+    def update_after_moving(self):
+        lng = self.aichatcfg_record.current_position[0]
+        lat = self.aichatcfg_record.current_position[1]
+        url = "http://www.ai-sns.org/api/update-location/"
+        params = {
+            "nation_id": "AI123451234567890ABCDEF7890",
+            "password": "securePassword123!",
+            "longitude": lng,
+            "latitude": lat,
+        }
+        response = requests.post(url, data=params)
+        print(response)
+
     def http_request(self, url, params=None, method="POST"):
         """
         # GET 请求
@@ -3831,367 +3660,620 @@ __current_process__
 
         return None
 
-    def calculate_pos(self, pos):
-        new_pos = pos
-        return new_pos
-
-    def update_after_moving(self):
-        lng = self.aichatcfg_record.current_position[0]
-        lat = self.aichatcfg_record.current_position[1]
-        url = "http://www.ai-sns.org/api/update-location/"
-        params = {
-            "nation_id": "AI123451234567890ABCDEF7890",
-            "password": "securePassword123!",
-            "longitude": lng,
-            "latitude": lat,
+    def save_all_user_data(self):
+        data = {
+            "current_place": self.current_place,
+            "current_position": json.dumps(self.aichatcfg_record.current_position, ensure_ascii=False),
+            "last_position": json.dumps(self.aichatcfg_record.last_position, ensure_ascii=False),
+            "life_point": self.life_point,
+            "energy_point": self.energy_point,
+            "move_point": self.move_point,
+            "exp_point": self.exp_point,
+            "iq_point": self.iq_point,
+            "money": self.money,
+            "credit": self.credit,
+            "level": self.level,
         }
-        response = requests.post(url, data=params)
-        print(response)
+        update_AiChatCfg_map(**data)
 
-    def send_msg_to_map(self, command):
-        """
-        将命令发送到地图系统。
-        """
-        action, param_1, param_2 = command
-        if action == "Use skills":
-            print(f"执行技能：{param_1}")
+    def load_all_user_data(self):
+        record = query_AiChatCfg_map()
+        self.current_place = record.current_place
 
-            self.message_handler.send_command_to_map(action, param_1, param_2)
+        # 处理 current_position，支持多种格式
+        self.aichatcfg_record.current_position = self._parse_position_data(record.current_position)
+        self.last_position = self._parse_position_data(record.last_position)
+
+        self.life_point = record.life_point  # db
+        self.energy_point = record.energy_point  # db
+        self.move_point = record.move_point  # db
+        self.exp_point = record.exp_point  # db
+        self.iq_point = record.iq_point  # db
+        self.money = record.money  # db
+        self.credit = record.credit  # db
+        self.level = record.level  # db
+
+        if record.route_status == "playing":
+            self.move_by_route_flag = True
         else:
-            print(f"执行行动：{action}")
+            self.move_by_route_flag = False
 
-            # self.message_handler.send_command_to_map(action, param_1, param_2)
+        user_map_setting = query_AiChatCfg_map_setting()
+        self.user_map_setting = user_map_setting
+        print("self.aichatcfg_record", self.aichatcfg_record.current_position)
+        print("self.aichatcfg_recordprofile", self.aichatcfg_record.sign)
 
-    def handle_msg_from_map(self, msg):
+        # 在加载完所有数据后更新资源显示
+        self.ui_adapter.update_resource_display()
+
+    def _parse_position_data(self, position_data):
         """
-        处理来自地图系统的消息。
+        解析位置数据，支持以下格式：
+        1. JSON字符串格式：{"lat": 39.51783322503789, "lng": -76.20197639555775}
+        2. JSON数组格式：[116.31633245364759, 39.83663838626669]
+        3. 已经是数组格式：[lng, lat]
+        返回统一的 [lng, lat] 数字数组格式
         """
-        type, data = self.parse_msg_from_map(msg)
-        if type == "ask_for_decision":
-            self.ask_agent_instruction_to_process_activity(data)
+        if not position_data:
+            return []
 
-        elif type == "moving_completed":
-            if self.command_status == "explore_the_map":
-                pass
-        else:
-            pass
+        # 如果已经是列表格式，直接返回
+        if isinstance(position_data, list):
+            # 确保是 [lng, lat] 格式
+            if len(position_data) >= 2:
+                return [float(position_data[0]), float(position_data[1])]
+            else:
+                return []
 
-    def parse_msg_from_map(self, msg):
-        """
-        解析来自地图系统的消息。
-        """
-        result = ("type", msg)
-        return result
+        # 如果是字符串，尝试解析
+        if isinstance(position_data, str):
+            try:
+                # 尝试解析为JSON
+                parsed_data = json.loads(position_data)
 
-    def get_current_place(self):
-        result = self.current_place
-        return result
+                # 如果解析后是字典格式 {"lat": ..., "lng": ...}
+                if isinstance(parsed_data, dict):
+                    lat = float(parsed_data.get("lat", 0))
+                    lng = float(parsed_data.get("lng", 0))
+                    return [lng, lat]
 
-    def get_current_position(self):
-        result = self.aichatcfg_record.current_position  # 保存到全局变量
-        return result
+                # 如果解析后是列表格式 [lng, lat] 或 [lat, lng]
+                elif isinstance(parsed_data, list) and len(parsed_data) >= 2:
+                    # 假设列表中第一个是lng，第二个是lat
+                    return [float(parsed_data[0]), float(parsed_data[1])]
 
-    def get_ability_list(self):
-        # ability_list_str = get_key_value("ability_list")
-        # ability_list = json.loads(ability_list_str)
-        # self.ability_list = ability_list
+            except json.JSONDecodeError:
+                # 如果不是有效的JSON，返回空数组
+                return []
 
-        result = self.ability_list
-
-        return result
-
-    def get_skill_list(self):
+        # 其他情况返回空数组
         return []
-        result = """
-                    [{
-		"id": "001",
-		"name": "get_weather",
-		"description": "get weather of a city",
-		"place": "Any Place",
-		"lng": 0,
-		"lat": 0,
-		"type": "plugin_tool",
-		"address": "Not needed",
-		"method": "python call",
-		"parameter": {
-			"city": "the city to get the weather",
-			"date": "the date to get the weather"
-		}
-	},
-	{
-		"id": "002",
-		"name": "get_stock",
-		"description": "get the stock price of a company",
-		"place": "Any Place",
-		"lng": 0,
-		"lat": 0,
-		"type": "plugin_tool",
-		"address": "Not needed",
-		"method": "python call",
-		"parameter": {
-			"company": "the company name to get the stock price"
-		}
 
-	},
-	{
-		"id": "003",
-		"name": "Calculator",
-		"description": "a calculator for number",
-		"place": "Any Place",
-		"lng": 0,
-		"lat": 0,
-		"type": "plugin_tool",
-		"address": "Not needed",
-		"method": "python call",
-		"parameter": {
-			"operator": "choose from `+ / - *` for the calculator to perform calculate",
-			"first_number":"the first number",
-			"second_number":"the second number"
-		}
-	}
-]
-                """
+    def decline_energy(self):
+        exp = self.exp_point
+        decline_point = 25 * ((100 - exp) / 100)
+        self.energy_point = self.energy_point - decline_point
+        self.move_point = 100 * (self.life_point / 100) * (self.energy_point / 100)
 
-        self.skill_list = json.loads(result)  # 保存到全局变量
-        self.available_skills = self.skill_list  # self.skill_list = list(self.available_skills)
-        result = self.skill_list
-        return result
+    def decline_life(self):
+        exp = self.exp_point
+        decline_point = 25 * ((100 - exp) / 100)
+        self.life_point = self.life_point - decline_point
+        self.move_point = 100 * (self.life_point / 100) * (self.energy_point / 100)
 
-    def update_skill(self, skill_list):
-        self.taskmng.process_task(event="skill_updated")
 
-    def get_plugin_tool_list(self):
-        records = query_tool_list()
-        default_values = {
-            "place": "Any Place",
-            "lng": 0,
-            "lat": 0,
-            "type": "plugin_tool",
-            "address": "Not needed",
-            "method": "python call"
-        }
-        # 使用列表推导式生成所需格式的记录
-        formatted_records = [
-            {
-                "id": record.id,  # 直接访问属性
-                "name": record.name,
-                "description": record.description,
-                **default_values  # 展开 default_values 字典以添加缺省值
-            }
-            for record in records
-        ]
-
-        return formatted_records
-
-    def get_service_list(self):
-        url = "http://www.ai-sns.org/api/get_service_list/"
-        params = {
-            "lng": self.aichatcfg_record.current_position[0],
-            "lat": self.aichatcfg_record.current_position[1]
-        }
-        service_list = self.http_request(url, params)
-        return service_list
-
-    def update_service_list(self):
-        url = "http://www.ai-sns.org/api/get_service"
-        params = {
-            "lng": self.aichatcfg_record.current_position[0],
-            "lat": self.aichatcfg_record.current_position[1]
-        }
-        # people={
-        #     "name":"Same",
-        #     "position":[121.121,23.4554]
-        # }
-        service_list = self.http_request(url, params)
-
-        return service_list
-
-    def get_tool_list(self):
-        service_list = self.get_service_list()
-        skill_list = self.get_skill_list()
-        plugin_tool_list = self.get_plugin_tool_list()
-        tool_list = service_list + skill_list + plugin_tool_list
-        return tool_list
-
-    def get_tool_list_for_trade(self):
-        service_list = self.get_service_list()
-        skill_list = self.get_skill_list()
-        tool_list = service_list + skill_list
-        return tool_list
-
-    def get_mcp_list_for_trade(self):
-        service_list = self.get_service_list()
-        skill_list = self.get_skill_list()
-        tool_list = service_list + skill_list
-        return tool_list
-
-    def get_place_list(self):
-        url = "http://www.ai-sns.org/api/get_place_list/"
-        params = {
-            "lng": self.aichatcfg_record.current_position[0],
-            "lat": self.aichatcfg_record.current_position[1]
-        }
-        place_list = self.http_request(url, params)
-        return place_list
-
-    def get_people_list(self):
-        url = "http://www.ai-sns.org/api/get_people_list/"
-        params = {
-            "lng": self.aichatcfg_record.current_position[0],
-            "lat": self.aichatcfg_record.current_position[1]
-        }
-        data = self.http_request(url, params)
-
-        remove_id = self.user_map_setting.get("nationid", "")
-
-        people_list = [item for item in data if item["nation_id"] != remove_id]
-
-        return people_list
-
-    def are_lists_of_dicts_equal(self, list1, list2):
+    async def receiveMessage(self, event):
         """
-        Checks if two lists of dictionaries are equal, regardless of order.
+        接收并处理XMPP消息
 
         Args:
-            list1: The first list of dictionaries.
-            list2: The second list of dictionaries.
+            event: XMPP消息事件，包含'body'和'from'字段
+        """
+        if event is None:
+            logger.warning("Received None event in receiveMessage")
+            return
+
+        try:
+            # 提取消息内容和发送者
+            content = event.get('body', '')
+            from_str = str(event.get('from', ''))
+
+            if not content or not from_str:
+                logger.warning(f"Invalid message event: content={content}, from={from_str}")
+                return
+
+            logger.info(f"Received message from {from_str}: {content[:50]}...")
+
+            # 检查是否配置了接收消息事件处理工具
+            if self.ai_chat_cfg.event_receive_msg and self.ai_chat_cfg.event_receive_msg != "N/A":
+                tool_name = self.ai_chat_cfg.event_receive_msg
+                logger.info(f"Using event_receive_msg tool: {tool_name}")
+                self.handle_event_receive_msg(tool_name, content, from_str)
+                return
+
+            # 默认消息处理流程
+            await self.handle_receiveMessage(content, from_str)
+
+        except KeyError as e:
+            logger.error(f"Missing required field in message event: {e}")
+        except Exception as e:
+            logger.error(f"Error in receiveMessage: {e}", exc_info=True)
+
+    async def handle_receiveMessage(self, content, from_str):
+        """
+        处理接收到的XMPP消息内容
+
+        Args:
+            content: 消息内容
+            from_str: 发送者JID
+        """
+        try:
+            logger.info(f"Processing message from {from_str}, content length: {len(content)}")
+
+            # 检查map_mode，只在org模式下处理
+            if self.map_mode != 'org':
+                logger.debug(f"Skipping message processing, map_mode is '{self.map_mode}' (not 'org')")
+                return
+
+            # 提取账户信息
+            account = from_str.split('/')[0]
+            logger.debug(f"Extracted account: {account}")
+
+            # 发送聊天消息到UI
+            try:
+                self.ui_adapter.send_talk_message(account, self.ai_chat_cfg.account, content)
+            except Exception as e:
+                logger.error(f"Failed to send talk message to UI: {e}")
+
+            # 管理聊天历史
+            if account not in self.talk_history:
+                self.talk_history[account] = []
+                logger.debug(f"Created new talk history for account: {account}")
+
+            self.talk_history[account].append("Friend:" + content)
+            self.current_talk_history.append("Friend:" + content)
+            logger.debug(f"Updated talk history for {account}, total messages: {len(self.talk_history[account])}")
+
+            # 消息类型路由 - 使用walrus operator进行条件检查
+            message_handled = False
+
+            if (tool_list_str := self.check_tool_for_buy(content)):
+                logger.info(f"Detected tool buy request from {account}")
+                self.command_status = "ask_agent_to_pick_a_tool_to_buy"
+                await self.ask_agent_to_pick_a_tool_to_buy(tool_list_str)
+                message_handled = True
+
+            elif (tool_list_str := self.check_tool_for_inquiry(content)):
+                logger.info(f"Detected tool inquiry from {account}")
+                self.tool_trade_order(tool_list_str)
+                message_handled = True
+
+            elif (tool_list_str := self.check_tool_for_order(content)):
+                logger.info(f"Detected tool order from {account}")
+                self.tool_trade_bargain_for_buyer(tool_list_str)
+                message_handled = True
+
+            elif (tool_list_str := self.check_tool_for_buyer_bargain(content)):
+                logger.info(f"Detected buyer bargain from {account}")
+                self.tool_trade_bargain_for_seller(tool_list_str)
+                message_handled = True
+
+            elif (tool_list_str := self.check_tool_for_seller_bargain(content)):
+                logger.info(f"Detected seller bargain from {account}")
+                self.tool_trade_bargain_for_buyer(tool_list_str)
+                message_handled = True
+
+            elif (tool_list_str := self.check_tool_for_order_confirm(content)):
+                logger.info(f"Detected order confirmation from {account}")
+                self.tool_trade_send_tool(tool_list_str)
+                message_handled = True
+
+            elif (tool_list_str := self.check_tool_for_receive(content)):
+                logger.info(f"Detected tool receive from {account}")
+                self.tool_trade_receive_tool(tool_list_str)
+                message_handled = True
+
+            elif (pay_received_str := self.check_pay_in_received(content)):
+                logger.info(f"Detected payment received from {account}")
+                self.handle_pay_received(pay_received_str)
+                message_handled = True
+
+            elif (good_received_str := self.check_good_in_received(content)):
+                logger.info(f"Detected goods received from {account}")
+                self.handle_good_received(good_received_str)
+                message_handled = True
+
+            else:
+                # 检查是否为购买请求
+                if (buy_flag := self.check_buy_in_received(content)):
+                    logger.info(f"Detected buy inquiry from {account}")
+                    self.talk_type = "sell"
+                else:
+                    logger.debug(f"Processing as general conversation message from {account}")
+
+                # 处理一般对话消息
+                self.taskmng.process_task(
+                    event="conversation_message_received",
+                    talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
+                )
+                message_handled = True
+
+            # 保存当前接收的消息
+            self.current_received_msg = content
+
+            # 检查人工接管标志
+            if not self.human_take_over:
+                logger.debug("Human takeover is disabled, continuing automated processing")
+            else:
+                logger.info("Human takeover is enabled")
+
+            logger.info(f"Message processing completed for {account}, handled: {message_handled}")
+
+        except Exception as e:
+            logger.error(f"Error in handle_receiveMessage: {e}", exc_info=True)
+            # 即使出错也要保存消息内容
+            try:
+                self.current_received_msg = content
+            except:
+                pass
+
+
+    def send_xmpp_message(self, to_jid: str, content: str) -> bool:
+        """
+        通过XMPPClientManager发送XMPP消息
+
+        Args:
+            to_jid: 接收者JID
+            content: 消息内容
 
         Returns:
-            True if both lists contain the same dictionaries, otherwise False.
+            bool: 发送成功返回True，失败返回False
         """
-        # Sort both lists by their string representations of dicts for consistent comparison
-        sorted_list1 = sorted(list1, key=lambda d: str(sorted(d.items())))
-        sorted_list2 = sorted(list2, key=lambda d: str(sorted(d.items())))
+        try:
+            client = self.xmpp_manager.get_client()
+            if not client or not client.is_client_connected():
+                logger.error("XMPP client not connected")
+                return False
 
-        return sorted_list1 == sorted_list2
+            client.send_message_to_jid(to_jid, content)
+            logger.debug(f"XMPP message sent to {to_jid}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send XMPP message to {to_jid}: {e}")
+            return False
 
-    def get_balance(self):
-        token_balance = 1000
-        self.token_balance = token_balance
-        return token_balance
-
-    def update_balance(self, token_balance):
-        self.token_balance = token_balance
-
-    def add_friend(self):
-        pass
-
-    def talk_to_a_people(self, content, nationid, account, user_name):
-        title_str = "选择人员交谈"
-        content_str = f"""🟪 *The function is*:
-
-talk_to_a_people
-
-🟩 *The Content is*:
-
-{lt(f"Talk to a people with {user_name} acount:{account},nationid:{nationid},content:{content}", f"和别人交谈 with {user_name} acount:{account},nationid:{nationid},content:{content}")}
+    def sendMessage(self, content, by_click=False, to_jid=None, to_name=None, back_ground=False):
         """
-
-        self.write_thinking_process_to_pane(title_str, content_str)
-
-        current_talk_people = self.current_talk_people
-        round = current_talk_people.get("talk_round", 0) + 1
-        self.current_talk_people["talk_round"] = round
-        command = ("start_talk_to_it", nationid, content)
-        self.send_msg_to_map(command)
-        self.sendMessage(content, False, account, user_name)
-
-        if account not in self.talk_history:
-            self.talk_history[account] = []
-        self.talk_history[account].append("Me:" + content)
-        self.current_talk_history.append("Me:" + content)
-
-    def move_to_a_place(self, lng, lat):
-        # self.write_thinking_process_to_pane(lt(f"move to the place:{lng},{lat}", f"移动到:{lng},{lat}"), "move_to_a_place")
-        command = ("move_to_a_place", str(lng), str(lat))
-        self.send_msg_to_map(command)
-        place_name = self.place_selected[0].get("place_name", "")
-        self.place_selected = None
-        self.taskmng.process_task(event="arrived_at_place", place_name=place_name)
-
-    def explore_the_map(self):
-        # self.write_thinking_process_to_pane("explore the map")
-        return
-        current_position = self.aichatcfg_record.current_position
-        if len(self.taskmng.process_list) < 2:
-            last_position = current_position
-        else:
-            last_position = self.taskmng.process_list[-2].get("current_position", [])
-
-        search_radius = self.search_radius
-
-        # 确保位置不为空
-        if not last_position or not current_position:
-            return None
-
-        # 将位置转换为WKT（Well-Known Text）格式
-        current_position_wkt = f"POINT({current_position[0]} {current_position[1]})"
-        last_position_wkt = f"POINT({last_position[0]} {last_position[1]})"
-
-        # SQL查询：寻找符合条件的坐标
-        query = """
-        SELECT ST_AsText(geom) AS location
-        FROM locations
-        WHERE ST_DWithin(geom::geography, ST_GeogFromText(%s), %s)
-        AND NOT ST_DWithin(geom::geography, ST_GeogFromText(%s), %s)
-        LIMIT 1;
-        """
-
-        # 执行查询并获取结果
-        with db_conn.cursor() as cursor:
-            cursor.execute(query, (current_position_wkt, search_radius, last_position_wkt, search_radius / 2))
-            result = cursor.fetchone()
-
-        # 返回结果
-        if result:
-            return result[0]
-        return None
-
-    def handle_arrived_at_place(self, place_name):
-        # self.write_thinking_process_to_pane(lt(f"Arrived the place:{place_name}", f"到达了:{place_name}"), "handle_arrived_at_place")
-        description = f"我成功到达地点：{place_name}。"
-        self.taskmng.current_situation = description
-        self.taskmng.process_task(event="move_to_a_place_completed", description=description)
-
-    def show_status_on_map(self, status):
-        self.message_handler.show_status_on_map(status)
-
-    def show_alert_on_map(self, msg):
-        self.message_handler.show_alert_on_map(msg)
-
-    def stop_task(self):
-        self.started_flag = False
-        self.taskmng.current_task_record = None
-
-    def check_place(self, address, lng, lat):
-        command = ("check_place", address, str(lng) + "_" + str(lat));
-        self.send_msg_to_map(command)
-
-    def handle_aichatcfg_property_updated(self, property_name):
-        """
-        处理AiChatCfg属性更新的函数
-        当特定属性发生变化时，更新相关的界面元素
+        发送XMPP消息
 
         Args:
-            property_name (str): 被更新的属性名称
+            content: 消息内容
+            by_click: 是否通过点击触发，默认False
+            to_jid: 接收者JID，默认None（从current_talk_people获取）
+            to_name: 接收者名称，默认None（从current_talk_people获取）
+            back_ground: 是否后台发送，默认False
+
+        Returns:
+            bool: 发送成功返回True，失败返回False
         """
-        # 定义需要更新图表的属性
-        chart_related_properties = [
-            'iq_point', 'energy_point', 'life_point',
-            'move_point', 'exp_point', 'money',
-            'credit', 'level'
-        ]
+        try:
+            # 验证消息内容
+            if not content:
+                logger.warning("Cannot send empty message")
+                return False
 
-        # 定义需要更新进行中进程面板的属性
-        process_pane_related_properties = [
-            'profession', 'current_position', 'money',
-            'life_point', 'energy_point'
-        ]
+            # 解析接收者信息
+            recipient = self._resolve_recipient(to_jid, to_name)
+            if not recipient:
+                return False
 
-        # 如果属性与图表相关，则更新图表
-        if property_name in chart_related_properties:
-            self.update_map_charts()
+            to_jid = recipient['jid']
+            to_name = recipient['name']
 
-        # 如果属性与进行中进程面板相关，则更新面板
-        if property_name in process_pane_related_properties:
-            self.write_on_going_process_to_pane(self.current_ongoing_content or "")
+            logger.info(f"Sending message to {to_jid}: {content[:50]}...")
+
+            # 保存到数据库（如果是通过点击触发）
+            if by_click:
+                self._save_message_to_database(content, to_jid, to_name)
+
+            # 发送XMPP消息
+            if not self.send_xmpp_message(to_jid, content):
+                logger.error(f"Failed to send XMPP message to {to_jid}")
+                return False
+
+            # 更新UI（如果不是后台发送）
+            if not back_ground:
+                self._update_ui_with_sent_message(to_jid, content)
+
+            logger.info(f"Message sent successfully to {to_jid}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error in sendMessage: {e}", exc_info=True)
+            return False
+
+    def _resolve_recipient(self, to_jid=None, to_name=None):
+        """
+        解析接收者信息
+
+        Args:
+            to_jid: 接收者JID
+            to_name: 接收者名称
+
+        Returns:
+            dict: 包含jid和name的字典，失败返回None
+        """
+        if to_jid:
+            return {'jid': to_jid, 'name': to_name}
+
+        if self.current_talk_people:
+            current_talk_people = self.current_talk_people
+            jid = current_talk_people.get("account")
+            name = current_talk_people.get("nick_name")
+            logger.debug(f"Resolved recipient from current_talk_people: {jid}")
+            return {'jid': jid, 'name': name}
+
+        logger.warning("No recipient specified and no current_talk_people available")
+        return None
+
+    def _save_message_to_database(self, content, to_jid, to_name):
+        """
+        保存消息到数据库
+
+        Args:
+            content: 消息内容
+            to_jid: 接收者JID
+            to_name: 接收者名称
+        """
+        try:
+            add_AIChatMessages(
+                self.conversation_id,
+                0,
+                "",
+                content,
+                self.ai_chat_cfg.name,
+                self.ai_chat_cfg.account,
+                to_name,
+                to_jid,
+                False
+            )
+            logger.debug(f"Message saved to database for conversation {self.conversation_id}")
+        except Exception as e:
+            logger.error(f"Failed to save message to database: {e}")
+
+    def _update_ui_with_sent_message(self, to_jid, content):
+        """
+        更新UI显示发送的消息
+
+        Args:
+            to_jid: 接收者JID
+            content: 消息内容
+        """
+        if self.map_mode != 'org':
+            logger.debug(f"Skipping UI update, map_mode is '{self.map_mode}' (not 'org')")
+            return
+
+        try:
+            self.ui_adapter.send_talk_message(self.ai_chat_cfg.account, to_jid, content)
+            logger.debug(f"UI updated with sent message to {to_jid}")
+        except Exception as e:
+            logger.error(f"Failed to update UI with sent message: {e}")
+
+class AiChatCfgManager:
+    """
+    管理AiChatCfg数据库记录的类
+    支持通过属性访问获取最新值，通过属性赋值更新数据库记录
+    """
+
+    def __init__(self, user_id=None):
+        """
+        初始化AiChatCfgManager
+
+        Args:
+            user_id (str, optional): 用户ID，默认为None，使用第一条记录
+        """
+        self._user_id = user_id
+        self._record = None
+        self._callbacks = []  # 存储回调函数列表
+        self._load_record()
+
+    def connect(self, callback):
+        """
+        连接回调函数，当属性更新时调用
+
+        Args:
+            callback: 回调函数，接收一个参数(property_name)
+        """
+        if callback not in self._callbacks:
+            self._callbacks.append(callback)
+
+    def disconnect(self, callback):
+        """
+        断开回调函数
+
+        Args:
+            callback: 要移除的回调函数
+        """
+        if callback in self._callbacks:
+            self._callbacks.remove(callback)
+
+    def _emit_property_updated(self, property_name):
+        """
+        触发属性更新回调
+
+        Args:
+            property_name: 更新的属性名
+        """
+        for callback in self._callbacks:
+            try:
+                callback(property_name)
+            except Exception as e:
+                logger.error(f"Error in property update callback: {e}")
+
+    def _load_record(self):
+        """加载数据库记录"""
+        if self._user_id:
+            self._record = query_AiChatCfg_map_setting(user_id=self._user_id)
+        else:
+            self._record = query_AiChatCfg_map()
+
+    def _refresh_record(self):
+        """刷新记录以获取最新数据"""
+        self._load_record()
+
+    def __getattr__(self, name):
+        """
+        当访问不存在的属性时调用此方法
+        用于获取数据库记录中的字段值
+
+        Args:
+            name (str): 属性名
+
+        Returns:
+            字段值
+        """
+        # 避免在__init__过程中调用此方法
+        if name.startswith('_'):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+        # 刷新记录以获取最新数据
+        self._refresh_record()
+
+        # 检查记录是否存在
+        if self._record is None:
+            raise AttributeError(f"No record found in database")
+
+        # 特殊处理 current_position 属性
+        if name == 'current_position':
+            raw_position = getattr(self._record, name, None)
+            # 创建一个临时实例来调用 _parse_position_data 方法
+            temp_instance = type('Temp', (object,), {})()
+            temp_instance._parse_position_data = lambda pos_data: self._parse_position_data_impl(pos_data)
+            return temp_instance._parse_position_data(raw_position)
+
+        # 特殊处理其他位置相关属性
+        other_position_fields = ['last_position', 'home_position', 'route_start', 'route_end', 'route_current_position']
+        if name in other_position_fields:
+            import json
+            raw_value = getattr(self._record, name, None)
+            if raw_value:
+                try:
+                    return json.loads(raw_value)
+                except (json.JSONDecodeError, TypeError):
+                    return raw_value
+            else:
+                return None
+
+        # 检查属性是否存在
+        if hasattr(self._record, name):
+            return getattr(self._record, name)
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        """
+        当设置属性时调用此方法
+        用于更新数据库记录中的字段值
+
+        Args:
+            name (str): 属性名
+            value: 要设置的值
+        """
+        # 处理内部属性
+        if name.startswith('_') or name in ['user_id']:
+            super().__setattr__(name, value)
+            return
+
+        # 需要特殊处理的字段列表
+        position_fields = ['current_position', 'last_position', 'home_position',
+                           'route_start', 'route_end', 'route_current_position']
+
+        # 如果是位置相关字段且值为list或dict类型，则转换为字符串
+        if name in position_fields and isinstance(value, (list, dict)):
+            import json
+            value = json.dumps(value, ensure_ascii=False)
+
+        # 对于其他属性，更新数据库记录
+        if '_record' in self.__dict__ and self._record is not None:
+            # 更新数据库
+            if self._user_id:
+                update_AiChatCfg_by_user_id(self._user_id, **{name: value})
+            else:
+                update_AiChatCfg_map(**{name: value})
+
+            # 更新内存中的记录
+            setattr(self._record, name, value)
+
+            # 触发属性更新回调
+            self._emit_property_updated(name)
+        else:
+            super().__setattr__(name, value)
+
+    def __getitem__(self, key):
+        """
+        支持使用字典索引语法获取属性值
+        例如: value = obj["property_name"]
+
+        Args:
+            key (str): 属性名
+
+        Returns:
+            属性值
+        """
+        return self.__getattr__(key)
+
+    def __setitem__(self, key, value):
+        """
+        支持使用字典索引语法设置属性值
+        例如: obj["property_name"] = value
+
+        Args:
+            key (str): 属性名
+            value: 要设置的值
+        """
+        self.__setattr__(key, value)
+
+    def _parse_position_data_impl(self, position_data):
+        """
+        解析位置数据，支持以下格式：
+        1. JSON字符串格式：{"lat": 39.51783322503789, "lng": -76.20197639555775}
+        2. JSON数组格式：[116.31633245364759, 39.83663838626669]
+        3. 已经是数组格式：[lng, lat]
+        返回统一的 [lng, lat] 数字数组格式
+        """
+        import json
+
+        if not position_data:
+            return []
+
+        # 如果已经是列表格式，直接返回
+        if isinstance(position_data, list):
+            # 确保是 [lng, lat] 格式
+            if len(position_data) >= 2:
+                return [float(position_data[0]), float(position_data[1])]
+            else:
+                return []
+
+        # 如果是字符串，尝试解析
+        if isinstance(position_data, str):
+            try:
+                # 尝试解析为JSON
+                parsed_data = json.loads(position_data)
+
+                # 如果解析后是字典格式 {"lat": ..., "lng": ...}
+                if isinstance(parsed_data, dict):
+                    lat = float(parsed_data.get("lat", 0))
+                    lng = float(parsed_data.get("lng", 0))
+                    return [lng, lat]
+
+                # 如果解析后是列表格式 [lng, lat] 或 [lat, lng]
+                elif isinstance(parsed_data, list) and len(parsed_data) >= 2:
+                    # 假设列表中第一个是lng，第二个是lat
+                    return [float(parsed_data[0]), float(parsed_data[1])]
+
+            except json.JSONDecodeError:
+                # 如果不是有效的JSON，返回空数组
+                return []
+
+        # 其他情况返回空数组
+        return []

@@ -1,1 +1,4 @@
-"""SNS (Social Network Service) Module"""
+"""
+SNS Module
+AI Social Engine and related components
+"""
