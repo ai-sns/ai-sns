@@ -2,7 +2,6 @@ from sqlalchemy.orm import Session
 from backend.database.models.chat import AiChatCfg
 from backend.modules.sns.map_task_manager import MapTaskManager
 from backend.modules.sns.js_task_manager import JsTaskManager
-from backend.modules.sns.ui_adapter import UIAdapter
 from backend.modules.sns.xmpp_client import XMPPClientManager
 from backend.modules.agent.agent_manager import agent_manager
 from backend.shared.websocket_manager import manager as websocket_manager
