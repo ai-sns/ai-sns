@@ -219,3 +219,15 @@ async def update_map_config(
     service = SNSService(db)
     return await service.update_map_config(request)
 
+
+@router.get("/model-info")
+async def get_model_info(db: AsyncSession = Depends(get_db)):
+    """
+    Get AI model information from aichat_cfg, agent_cfg, and llm_config
+
+    Returns:
+        Model information including provider, model name, and agent name
+    """
+    service = SNSService(db)
+    return await service.get_model_info()
+

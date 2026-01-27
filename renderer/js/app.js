@@ -183,6 +183,12 @@ const App = {
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
 
+            // 禁用 iframe 的鼠标事件，防止拖动时卡顿
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                iframe.style.pointerEvents = 'none';
+            });
+
             const startX = e.clientX;
             const startWidth = sidebar.offsetWidth;
 
@@ -211,6 +217,12 @@ const App = {
                 resizer.classList.remove('resizing');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
+
+                // 恢复 iframe 的鼠标事件
+                iframes.forEach(iframe => {
+                    iframe.style.pointerEvents = '';
+                });
+
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
             };

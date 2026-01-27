@@ -2160,9 +2160,34 @@
     opacity: 1;
 }
 
-.panel-collapse-btn:hover {
+.sns-panel-resizer .panel-collapse-btn:hover {
     background: var(--color-primary);
     border-color: var(--color-primary);
+    color: white;
+}
+
+.sns-panel-resizer .panel-collapse-btn svg {
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.sns-panel-resizer .panel-collapse-btn:hover svg {
+    color: white;
+}
+
+/* SNS panel 收缩状态 - 箭头翻转 */
+.sns-panel-resizer.collapsed .panel-collapse-btn {
+    opacity: 0;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.sns-panel-resizer.collapsed:hover .panel-collapse-btn {
+    opacity: 1;
+}
+
+.sns-panel-resizer.collapsed .panel-collapse-btn svg {
+    transform: rotate(180deg);
     color: white;
 }
 
@@ -2218,6 +2243,38 @@
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 12px;
+    position: relative;
+}
+
+.status-section-title .refresh-btn {
+    margin-left: auto;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-section-title .refresh-btn:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+.status-section-title .refresh-btn:active {
+    transform: scale(0.95);
+}
+
+.status-section-title .refresh-btn svg {
+    transition: transform 0.3s ease;
+}
+
+.status-section-title .refresh-btn:hover svg {
+    transform: rotate(180deg);
 }
 
 .status-rows {
@@ -6164,29 +6221,36 @@ body.theme-dark .form-select:focus {
     opacity: 1;
 }
 
-.panel-collapse-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--color-primary);
-}
-
-.panel-collapse-btn svg {
-    color: var(--text-secondary);
-}
-
-.panel-collapse-btn:hover svg {
-    color: var(--color-primary);
-}
-
-/* Agent panel 收缩状态 - 箭头翻转 */
-.agent-panel-resizer.collapsed .panel-collapse-btn {
-    opacity: 1;
+.agent-panel-resizer .panel-collapse-btn:hover {
     background: var(--color-primary);
     border-color: var(--color-primary);
     color: white;
 }
 
+.agent-panel-resizer .panel-collapse-btn svg {
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+}
+
+.agent-panel-resizer .panel-collapse-btn:hover svg {
+    color: white;
+}
+
+/* Agent panel 收缩状态 - 箭头翻转 */
+.agent-panel-resizer.collapsed .panel-collapse-btn {
+    opacity: 0;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.agent-panel-resizer.collapsed:hover .panel-collapse-btn {
+    opacity: 1;
+}
+
 .agent-panel-resizer.collapsed .panel-collapse-btn svg {
     transform: rotate(180deg);
+    color: white;
 }
 
 .agent-settings-panel {

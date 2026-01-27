@@ -45,11 +45,11 @@ class CommunicationMixin:
         title_str = "选择人员交谈"
         content_str = f"""🟪 *The function is*:
 
-    talk_to_a_people
+talk_to_a_people
 
-    🟩 *The Content is*:
+🟩 *The Content is*:
 
-    {lt(f"Talk to a people with {user_name} acount:{account},nationid:{nationid},content:{content}", f"和别人交谈 with {user_name} acount:{account},nationid:{nationid},content:{content}")}
+{lt(f"Talk to a people with {user_name} acount:{account},nationid:{nationid},content:{content}", f"和别人交谈 with {user_name} acount:{account},nationid:{nationid},content:{content}")}
             """
 
         self.write_thinking_process_to_pane(title_str, content_str)

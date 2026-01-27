@@ -429,6 +429,13 @@ export default {
             resizer.classList.add('resizing');
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
+
+            // 禁用 iframe 的鼠标事件，防止拖动时卡顿
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                iframe.style.pointerEvents = 'none';
+            });
+
             e.preventDefault();
         });
 
@@ -447,6 +454,12 @@ export default {
                 resizer.classList.remove('resizing');
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
+
+                // 恢复 iframe 的鼠标事件
+                const iframes = document.querySelectorAll('iframe');
+                iframes.forEach(iframe => {
+                    iframe.style.pointerEvents = '';
+                });
             }
         });
     },
@@ -532,8 +545,10 @@ export default {
         // 创建 iframe 加载地图页面
         const iframe = document.createElement('iframe');
         iframe.src = mapUrl;
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
+        iframe.style.transform = 'scale(0.8)';
+        iframe.style.transformOrigin = '0 0';
+        iframe.style.width = '125%';//because scale(0.8)
+        iframe.style.height = '125%';
         iframe.style.border = 'none';
         iframe.style.display = 'block';
         iframe.style.backgroundColor = 'white';
@@ -755,12 +770,27 @@ export default {
         toast.className = `sns-toast sns-toast-${type}`;
         toast.textContent = message;
 
+        // 根据类型选择背景色
+        let backgroundColor;
+        switch (type) {
+            case 'error':
+                backgroundColor = '#f44336';
+                break;
+            case 'info':
+                backgroundColor = '#2196f3';
+                break;
+            case 'success':
+            default:
+                backgroundColor = '#4caf50';
+                break;
+        }
+
         // 添加样式
         toast.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: ${type === 'error' ? '#f44336' : '#4caf50'};
+            background: ${backgroundColor};
             color: white;
             padding: 16px 24px;
             border-radius: 8px;
@@ -872,23 +902,70 @@ export default {
         console.log('Process pane found:', processPane);
         if (!processPane) return;
 
-        // 如果指定了 section，只更新特定部分
+        // 如果指定了 section，检查是否需要拆分
         if (section === 'ongoing') {
-            this.updateOnGoingSection(processPane, content);
+            // 检查内容是否包含 Current Status
+            if (content.includes('📊 Current Status')) {
+                console.log('Content contains Current Status, parsing...');
+                // 需要拆分内容
+                const lines = content.split('\n');
+                let currentStatusContent = '';
+                let onGoingContent = '';
+                let currentSection = '';
+
+                for (const line of lines) {
+                    if (line.includes('📊 Current Status')) {
+                        currentSection = 'status';
+                        continue;
+                    } else if (line.includes('⏳ On Going')) {
+                        currentSection = 'ongoing';
+                        continue;
+                    }
+
+                    // 跳过分隔线
+                    if (line.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
+                        continue;
+                    }
+
+                    if (currentSection === 'status') {
+                        currentStatusContent += line + '\n';
+                    } else if (currentSection === 'ongoing') {
+                        onGoingContent += line + '\n';
+                    }
+                }
+
+                // 更新两个部分
+                if (currentStatusContent.trim()) {
+                    this.updateCurrentStatusSection(processPane, currentStatusContent.trim());
+                }
+                if (onGoingContent.trim()) {
+                    this.updateOnGoingSection(processPane, onGoingContent.trim());
+                }
+            } else {
+                // 只有 On Going 内容
+                this.updateOnGoingSection(processPane, content);
+            }
             return;
         } else if (section === 'history') {
             this.updateHistorySection(processPane, content);
             return;
+        } else if (section === 'status') {
+            this.updateCurrentStatusSection(processPane, content);
+            return;
         }
 
-        // 否则，解析内容并更新两个部分
+        // 否则，解析内容并更新三个部分
         const lines = content.split('\n');
+        let currentStatusContent = '';
         let onGoingContent = '';
         let processHistoryContent = '';
         let currentSection = '';
 
         for (const line of lines) {
-            if (line.includes('⏳ On Going')) {
+            if (line.includes('📊 Current Status')) {
+                currentSection = 'status';
+                continue;
+            } else if (line.includes('⏳ On Going')) {
                 currentSection = 'ongoing';
                 continue;
             } else if (line.includes('📜 Process history')) {
@@ -896,11 +973,23 @@ export default {
                 continue;
             }
 
-            if (currentSection === 'ongoing') {
+            // 跳过分隔线
+            if (line.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
+                continue;
+            }
+
+            if (currentSection === 'status') {
+                currentStatusContent += line + '\n';
+            } else if (currentSection === 'ongoing') {
                 onGoingContent += line + '\n';
             } else if (currentSection === 'history') {
                 processHistoryContent += line + '\n';
             }
+        }
+
+        // 更新各个部分
+        if (currentStatusContent.trim()) {
+            this.updateCurrentStatusSection(processPane, currentStatusContent.trim());
         }
 
         if (onGoingContent.trim()) {
@@ -913,10 +1002,72 @@ export default {
     },
 
     /**
+     * 更新 Current Status 部分
+     */
+    updateCurrentStatusSection(processPane, content) {
+        const statusSection = processPane.querySelector('.status-section:nth-child(1) .status-rows');
+        if (!statusSection) {
+            console.warn('Current Status section not found');
+            return;
+        }
+
+        // 清空现有内容
+        statusSection.innerHTML = '';
+
+        // 解析内容并创建状态行
+        const lines = content.split('\n');
+        for (const line of lines) {
+            if (!line.trim()) continue;
+
+            // 创建状态行元素
+            const statusRow = document.createElement('div');
+            statusRow.className = 'status-row';
+
+            // 检查是否是子行（Location的lng/lat）
+            if (line.trim().startsWith('├─') || line.trim().startsWith('└─')) {
+                statusRow.classList.add('sub');
+                // 移除树形符号
+                const cleanLine = line.replace(/[├└]─\s*/, '').trim();
+                const parts = cleanLine.split(':');
+                if (parts.length === 2) {
+                    const label = document.createElement('span');
+                    label.textContent = parts[0].trim();
+                    const value = document.createElement('span');
+                    value.className = 'value';
+                    value.textContent = ': ' + parts[1].trim();
+                    statusRow.appendChild(label);
+                    statusRow.appendChild(value);
+                }
+            } else {
+                // 普通状态行
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    const label = document.createElement('span');
+                    label.textContent = parts[0].trim();
+                    const value = document.createElement('span');
+                    value.className = 'value';
+                    value.textContent = ': ' + parts.slice(1).join(':').trim();
+                    statusRow.appendChild(label);
+                    statusRow.appendChild(value);
+                } else {
+                    // 只有标签没有值的行（如 📍 Location）
+                    const label = document.createElement('span');
+                    label.textContent = line.trim();
+                    statusRow.appendChild(label);
+                }
+            }
+
+            statusSection.appendChild(statusRow);
+        }
+
+        console.log('Current Status section updated');
+    },
+
+    /**
      * 更新 On Going 部分
      */
     updateOnGoingSection(processPane, content) {
-        const onGoingSection = processPane.querySelector('.status-section:nth-child(3) .status-rows');
+        const onGoingSection = processPane.querySelector('.status-section:nth-child(2) .status-rows');
         if (!onGoingSection) {
             console.warn('On Going section not found');
             return;
@@ -943,7 +1094,7 @@ export default {
      * 更新 Process History 部分
      */
     updateHistorySection(processPane, content) {
-        const historySection = processPane.querySelector('.status-section:nth-child(4) .status-rows');
+        const historySection = processPane.querySelector('.status-section:nth-child(3) .status-rows');
         if (!historySection) {
             console.warn('History section not found');
             return;

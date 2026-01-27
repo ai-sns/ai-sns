@@ -620,3 +620,118 @@ class SNSService:
                 old_api_keys[1]: new_api_keys[1],
             }
             replace_in_file("scripts/map.html", baidu_replacements)
+
+    async def get_model_info(self):
+        """
+        Get AI model information from aichat_cfg, agent_cfg, and llm_config
+
+        Returns:
+            Dictionary containing provider, model, and agent information
+        """
+        try:
+            import json
+            from backend.database.models.agent import AgentCfg
+            from backend.database.models.system import LlmConfig
+
+            # 1. Get first record from aichat_cfg
+            result = await self.db.execute(
+                select(AiChatCfg).where(AiChatCfg.is_delete == False).limit(1)
+            )
+            aichat_cfg = result.scalar_one_or_none()
+
+            if not aichat_cfg or not aichat_cfg.agent_id:
+                return {
+                    "success": True,
+                    "data": {
+                        "provider": "N/A",
+                        "model": "N/A",
+                        "agent": "N/A"
+                    }
+                }
+
+            # 2. Get agent_cfg by agent_id
+            result = await self.db.execute(
+                select(AgentCfg).where(AgentCfg.id == aichat_cfg.agent_id)
+            )
+            agent_cfg = result.scalar_one_or_none()
+
+            if not agent_cfg:
+                return {
+                    "success": True,
+                    "data": {
+                        "provider": "N/A",
+                        "model": "N/A",
+                        "agent": "N/A"
+                    }
+                }
+
+            agent_name = agent_cfg.name or "N/A"
+            memo = agent_cfg.memo
+
+            if not memo:
+                return {
+                    "success": True,
+                    "data": {
+                        "provider": "N/A",
+                        "model": "N/A",
+                        "agent": agent_name
+                    }
+                }
+
+            # 3. Parse memo JSON to get model_config_id
+            try:
+                memo_data = json.loads(memo)
+                model_config_id = memo_data.get('model_config_id')
+
+                if not model_config_id:
+                    return {
+                        "success": True,
+                        "data": {
+                            "provider": "N/A",
+                            "model": "N/A",
+                            "agent": agent_name
+                        }
+                    }
+
+                # 4. Get llm_config by model_config_id
+                result = await self.db.execute(
+                    select(LlmConfig).where(LlmConfig.config_id == model_config_id)
+                )
+                llm_config = result.scalar_one_or_none()
+
+                if not llm_config:
+                    return {
+                        "success": True,
+                        "data": {
+                            "provider": "N/A",
+                            "model": "N/A",
+                            "agent": agent_name
+                        }
+                    }
+
+                provider_name = llm_config.name or "N/A"
+                model_name = llm_config.model_name or "N/A"
+
+                return {
+                    "success": True,
+                    "data": {
+                        "provider": provider_name,
+                        "model": model_name,
+                        "agent": agent_name
+                    }
+                }
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing memo JSON: {e}")
+                return {
+                    "success": True,
+                    "data": {
+                        "provider": "N/A",
+                        "model": "N/A",
+                        "agent": agent_name
+                    }
+                }
+
+        except Exception as e:
+            logger.error(f"Error getting model info: {e}")
+            raise HTTPException(status_code=500, detail=str(e))

@@ -25,19 +25,19 @@ class AgentInteractionMixin:
         title_str = "Ask agent to get instruction"
         content_str = f"""🟪 *The function is*:
 
-    ask_agent_and_get_instruction
+ask_agent_and_get_instruction
 
-    🟦 *The Command_status is*:
+🟦 *The Command_status is*:
 
-    {command_status}
+{command_status}
 
-    🟩 *The system_role_prompt is*:
+🟩 *The system_role_prompt is*:
 
-    {system_role_prompt}
+{system_role_prompt}
 
-    🟨 *The content send to ai llm is*:
+🟨 *The content send to ai llm is*:
 
-    {question} 
+{question} 
     """
 
         self.write_thinking_process_to_pane(title_str, content_str)
@@ -101,11 +101,11 @@ class AgentInteractionMixin:
         title_str = "Agent return the instruction"
         content_str = f"""🟪 *The function is*:
 
-    on_agent_return_instruction
+on_agent_return_instruction
 
-    🟫 *The Content Returned is*:
+🟫 *The Content Returned is*:
 
-    {content}
+{content}
             """
 
         self.write_thinking_process_to_pane(title_str, content_str)

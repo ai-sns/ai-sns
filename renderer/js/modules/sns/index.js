@@ -32,6 +32,8 @@ export default {
         snsHandlers.init();
         // Initialize sidebar charts and contacts
         await SNSSidebar.init();
+        // Initialize SNS page (load model info)
+        await SNSPage.init();
     },
 
     /**

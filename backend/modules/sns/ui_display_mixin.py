@@ -123,7 +123,7 @@ class UIDisplayMixin:
 
         # 组合新内容
         new_content = f"\n🔶【{self.thinking_step_index}】{title}\n"
-        new_content += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        new_content += f"━━━━━━━━━━━━━━━━━━\n"
         new_content += f"{content}\n"
 
         # 发送到前端 Think 页签
@@ -474,10 +474,69 @@ class UIDisplayMixin:
 
             self.send_command_to_map(action, param_1, param_2)
 
-    def show_status_on_map(self, status):
-        print("show_status_on_map" + status)
-        # self.message_handler.show_status_on_map(status)
+    def update_map_charts(self):
+        """
+        更新地图图表数据并发送到前端
+        当用户属性（如智力、体力、生命值等）发生变化时调用此函数
+        """
+        import asyncio
 
-    def show_alert_on_map(self, msg):
-        print("show_status_on_map" + msg)
-        # self.message_handler.show_alert_on_map(msg)
+        # 准备雷达图数据
+        radar_data = [
+            self.aichatcfg_record.iq_point,
+            self.aichatcfg_record.energy_point,
+            self.aichatcfg_record.life_point,
+            self.aichatcfg_record.move_point,
+            self.aichatcfg_record.exp_point
+        ]
+        radar_categories = [
+            f'{lt("IQ", "智力")}:{self.aichatcfg_record.iq_point}',
+            f'{lt("Energy", "体力")}:{self.aichatcfg_record.energy_point}',
+            f'{lt("Life", "生命")}:{self.aichatcfg_record.life_point}',
+            f'{lt("Move", "行动")}:{self.aichatcfg_record.move_point}',
+            f'{lt("Exp", "经验")}:{self.aichatcfg_record.exp_point}'
+        ]
+
+        # 准备柱状图数据
+        formatted_number = f"{self.aichatcfg_record.money:,.2f}"
+        bar_indicators = [
+            f'{lt("Money", "资金")}:{formatted_number}',
+            f'{lt("Credit", "信用")}:{self.aichatcfg_record.credit}',
+            f'{lt("Level", "等级")}{self.aichatcfg_record.level}'
+        ]
+        bar_values = [100, self.aichatcfg_record.credit, self.aichatcfg_record.level * 10]
+        bar_colors = ['#ffb676', '#c3f1d7', '#99d4ff']
+
+        # 构建用户统计数据对象
+        user_stats = {
+            "level": self.aichatcfg_record.level or 1,
+            "credit": self.aichatcfg_record.credit or 100,
+            "money": float(self.aichatcfg_record.money or 0),
+            "life": self.aichatcfg_record.life_point or 100,
+            "iq": self.aichatcfg_record.iq_point or 60,
+            "energy": self.aichatcfg_record.energy_point or 100,
+            "move": self.aichatcfg_record.move_point or 100,
+            "exp": self.aichatcfg_record.exp_point or 0
+        }
+
+        # 通过WebSocket发送更新到前端
+        asyncio.create_task(self._send_chart_update(user_stats))
+
+        logger.info(f"Chart data updated and sent to frontend: {user_stats}")
+
+    async def _send_chart_update(self, user_stats: dict):
+        """
+        发送图表更新数据到前端
+
+        Args:
+            user_stats: 用户统计数据字典
+        """
+        try:
+            message = {
+                "type": "user_stats_update",
+                "data": user_stats
+            }
+            await websocket_manager.broadcast(message)
+            logger.info(f"User stats update sent to frontend")
+        except Exception as e:
+            logger.error(f"Failed to send chart update: {e}")

@@ -147,8 +147,37 @@ export default {
             const message = event.detail;
             if (message.type === 'new_message') {
                 this.handleNewMessage(message.data);
+            } else if (message.type === 'user_stats_update') {
+                // 处理用户统计数据更新
+                this.handleUserStatsUpdate(message.data);
             }
         });
+    },
+
+    /**
+     * 处理用户统计数据更新
+     */
+    handleUserStatsUpdate(data) {
+        console.log('Received user stats update:', data);
+
+        // 更新本地userStats对象
+        if (data) {
+            this.userStats = {
+                level: data.level || this.userStats.level,
+                credit: data.credit || this.userStats.credit,
+                money: data.money || this.userStats.money,
+                life: data.life || this.userStats.life,
+                iq: data.iq || this.userStats.iq,
+                energy: data.energy || this.userStats.energy,
+                move: data.move || this.userStats.move,
+                exp: data.exp || this.userStats.exp
+            };
+
+            // 重新渲染图表和统计数据
+            this.renderStats();
+
+            console.log('User stats updated successfully:', this.userStats);
+        }
     },
 
     /**

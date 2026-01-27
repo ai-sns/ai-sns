@@ -179,8 +179,9 @@ class DataQueryMixin:
         print("self.aichatcfg_record", self.aichatcfg_record.current_position)
         print("self.aichatcfg_recordprofile", self.aichatcfg_record.sign)
 
-        # 在加载完所有数据后更新资源显示
+        # 在加载完所有数据后更新资源显示和图表
         self.update_resource_display()
+        self.update_map_charts()
 
     def _parse_position_data(self, position_data):
         """

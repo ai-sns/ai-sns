@@ -330,5 +330,28 @@ export default {
                 message: error.message
             };
         }
+    },
+
+    /**
+     * 获取AI模型信息
+     */
+    async getModelInfo() {
+        try {
+            const response = await fetch('http://localhost:8788/api/sns/model-info', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('获取模型信息失败:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
     }
 };
