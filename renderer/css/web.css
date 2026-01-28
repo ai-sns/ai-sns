@@ -152,7 +152,7 @@
 }
 
 .web-search-box:focus-within {
-    border-color: var(--primary-color);
+    border-color: var(--color-primary);
 }
 
 .web-search-box svg {
@@ -199,7 +199,7 @@
 
 .web-action-btn:hover {
     background: var(--bg-hover);
-    border-color: var(--primary-color);
+    border-color: var(--color-primary);
 }
 
 .web-action-btn svg {
@@ -229,9 +229,14 @@
 
 .web-icon-item:hover {
     background: var(--bg-hover);
-    border-color: var(--primary-color);
+    border-color: var(--color-primary);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 暗色主题下的图标项 hover 效果 */
+body.theme-dark .web-icon-item:hover {
+    box-shadow: 0 4px 16px rgba(0, 120, 212, 0.3);
 }
 
 .web-icon-img {
@@ -247,11 +252,19 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
     color: white;
     font-size: 1.25rem;
     font-weight: 600;
     border-radius: 6px;
+    transition: background 0.3s ease;
+}
+
+/* 暗色主题下的 fallback 图标 */
+body.theme-dark .web-icon-fallback {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.3);
 }
 
 .web-icon-label {
