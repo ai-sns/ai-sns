@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // BrowserView 控制
     loadUrlInBrowserView: (url) => ipcRenderer.invoke('load-url-in-browserview', url),
     closeBrowserView: () => ipcRenderer.send('close-browserview'),
+    hideBrowserView: () => ipcRenderer.send('hide-browserview'),
+    showBrowserView: () => ipcRenderer.send('show-browserview'),
     getBrowserViewBounds: () => ipcRenderer.invoke('get-browserview-bounds'),
     updateBrowserViewBounds: (collapsed) => ipcRenderer.send('update-browserview-bounds', collapsed),
 

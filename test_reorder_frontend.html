@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试 Reorder API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>测试 Reorder API</h1>
+    
+    <button onclick="testReorder()">测试重排序</button>
+    <button onclick="testEmptyArray()">测试空数组</button>
+    <button onclick="testInvalidData()">测试无效数据</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8788';
+
+        async function testReorder() {
+            const result = document.getElementById('result');
+            result.textContent = '发送请求中...';
+            
+            const testData = [
+                { id: 1, position: 0 },
+                { id: 2, position: 1 },
+                { id: 3, position: 2 }
+            ];
+            
+            console.log('发送数据:', testData);
+            console.log('JSON 字符串:', JSON.stringify(testData));
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/system/web-mng/reorder`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                console.log('响应状态:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.className = 'success';
+                    result.textContent = `✅ 成功！\n\n响应: ${JSON.stringify(data, null, 2)}`;
+                } else {
+                    const errorText = await response.text();
+                    result.className = 'error';
+                    result.textContent = `❌ 失败！\n\n状态码: ${response.status}\n响应: ${errorText}`;
+                }
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `❌ 错误！\n\n${error.message}`;
+            }
+        }
+
+        async function testEmptyArray() {
+            const result = document.getElementById('result');
+            result.textContent = '发送空数组...';
+            
+            const testData = [];
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/system/web-mng/reorder`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.className = 'success';
+                    result.textContent = `✅ 空数组测试成功！\n\n响应: ${JSON.stringify(data, null, 2)}`;
+                } else {
+                    const errorText = await response.text();
+                    result.className = 'error';
+                    result.textContent = `❌ 失败！\n\n状态码: ${response.status}\n响应: ${errorText}`;
+                }
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `❌ 错误！\n\n${error.message}`;
+            }
+        }
+
+        async function testInvalidData() {
+            const result = document.getElementById('result');
+            result.textContent = '发送无效数据...';
+            
+            const testData = [
+                { id: 1 },  // 缺少 position
+                { position: 1 }  // 缺少 id
+            ];
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/system/web-mng/reorder`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const errorText = await response.text();
+                if (response.ok) {
+                    result.className = 'error';
+                    result.textContent = `⚠️ 应该失败但成功了！\n\n响应: ${errorText}`;
+                } else {
+                    result.className = 'success';
+                    result.textContent = `✅ 正确拒绝了无效数据！\n\n状态码: ${response.status}\n响应: ${errorText}`;
+                }
+            } catch (error) {
+                result.className = 'error';
+                result.textContent = `❌ 错误！\n\n${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

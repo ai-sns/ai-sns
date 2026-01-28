@@ -56,9 +56,30 @@ const WebPage = {
         }
     },
 
+    hideBrowserView() {
+        if (window.electronAPI && window.electronAPI.hideBrowserView) {
+            window.electronAPI.hideBrowserView();
+            console.log('[WebPage] BrowserView hidden');
+        }
+    },
+
+    showBrowserView() {
+        if (window.electronAPI && window.electronAPI.showBrowserView) {
+            window.electronAPI.showBrowserView();
+            console.log('[WebPage] BrowserView shown');
+            // Hide empty state if we have a current URL
+            if (this.currentUrl) {
+                const emptyState = document.getElementById('webEmptyState');
+                if (emptyState) {
+                    emptyState.style.display = 'none';
+                }
+            }
+        }
+    },
+
     openInBrowser(url) {
-        if (window.electronAPI && window.electronAPI.openExternal) {
-            window.electronAPI.openExternal(url);
+        if (window.electronAPI && window.electronAPI.openUrl) {
+            window.electronAPI.openUrl(url);
         } else {
             window.open(url, '_blank');
         }

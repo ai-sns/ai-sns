@@ -9,9 +9,11 @@ class Modal {
         this.onConfirm = options.onConfirm || null;
         this.onCancel = options.onCancel || null;
         this.onOpen = options.onOpen || null;
+        this.onClose = options.onClose || null;
         this.confirmText = options.confirmText || '确认';
         this.cancelText = options.cancelText || '取消';
         this.showCancel = options.showCancel !== false;
+        this.closeOnClickOutside = options.closeOnClickOutside !== false; // 默认允许点击外部关闭
         this.width = options.width || '500px';
         this.element = null;
         this.handleKeydown = null;
@@ -59,47 +61,69 @@ class Modal {
     }
 
     bindEvents() {
-        this.element.addEventListener('click', (e) => {
+        this.element.addEventListener('click', async (e) => {
             const action = e.target.dataset.action;
+            console.log('[Modal] Button clicked, action:', action);
 
             if (action === 'close' || action === 'cancel') {
+                console.log('[Modal] Close/Cancel button clicked');
                 this.close();
-                if (this.onCancel) this.onCancel();
             } else if (action === 'confirm') {
+                console.log('[Modal] Confirm button clicked');
                 if (this.onConfirm) {
-                    const result = this.onConfirm(this);
-                    if (result !== false) {
-                        this.close();
+                    console.log('[Modal] Calling onConfirm...');
+                    try {
+                        const result = await this.onConfirm(this);
+                        console.log('[Modal] onConfirm result:', result);
+                        if (result !== false) {
+                            console.log('[Modal] Result is not false, calling close()');
+                            this.close();
+                        } else {
+                            console.log('[Modal] Result is false, not closing');
+                        }
+                    } catch (error) {
+                        console.error('[Modal] Error in onConfirm:', error);
                     }
                 } else {
+                    console.log('[Modal] No onConfirm callback, closing directly');
                     this.close();
                 }
             }
         });
 
-        // 点击遮罩层关闭
-        this.element.addEventListener('click', (e) => {
-            if (e.target === this.element) {
-                this.close();
-                if (this.onCancel) this.onCancel();
-            }
-        });
+        // 点击遮罩层关闭（如果允许）
+        if (this.closeOnClickOutside) {
+            this.element.addEventListener('click', (e) => {
+                if (e.target === this.element) {
+                    console.log('[Modal] Clicked outside, closing...');
+                    this.close();
+                }
+            });
+        }
 
         // ESC键关闭
         this.handleKeydown = (e) => {
             if (e.key === 'Escape') {
+                console.log('[Modal] ESC pressed, closing...');
                 this.close();
-                if (this.onCancel) this.onCancel();
             }
         };
         document.addEventListener('keydown', this.handleKeydown);
     }
 
     close() {
+        console.log('[Modal] Closing modal...');
         if (this.element) {
             this.element.remove();
             if (this.handleKeydown) {
                 document.removeEventListener('keydown', this.handleKeydown);
+            }
+            // 调用 onClose 回调
+            if (this.onClose) {
+                console.log('[Modal] Calling onClose callback');
+                this.onClose();
+            } else {
+                console.log('[Modal] No onClose callback defined');
             }
         }
     }

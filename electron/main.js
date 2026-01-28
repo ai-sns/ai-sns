@@ -1,4 +1,4 @@
-const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, dialog, shell } = require('electron');
+const { app, BrowserWindow, BrowserView, ipcMain, Menu, Tray, dialog, shell, clipboard, globalShortcut } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -19,6 +19,28 @@ let browserView = null;
 let tray = null;
 let pythonProcess = null;
 let isQuitting = false;
+
+function toggleDevToolsForFocused() {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return;
+
+    if (browserView && win === mainWindow && browserView.webContents && browserView.webContents.isFocused()) {
+        browserView.webContents.toggleDevTools();
+        return;
+    }
+
+    win.webContents.toggleDevTools();
+}
+
+function registerDevToolsHotkeysForWebContents(webContents) {
+    if (!webContents) return;
+    webContents.on('before-input-event', (event, input) => {
+        if (input.type === 'keyDown' && input.key === 'F12') {
+            event.preventDefault();
+            webContents.toggleDevTools();
+        }
+    });
+}
 
 // API服务器配置
 const API_HOST = '127.0.0.1';  // 明确使用 IPv4，避免 IPv6 解析问题
@@ -84,6 +106,8 @@ function createWindow() {
 
     // 移除应用菜单
     Menu.setApplicationMenu(null);
+
+    registerDevToolsHotkeysForWebContents(mainWindow.webContents);
 
     // 加载主页面
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
@@ -549,6 +573,70 @@ ipcMain.handle('load-url-in-browserview', async (event, url) => {
             }
         });
 
+        registerDevToolsHotkeysForWebContents(browserView.webContents);
+
+        browserView.webContents.on('context-menu', (event, params) => {
+            if (!mainWindow || !browserView) return;
+
+            const wc = browserView.webContents;
+            const bounds = browserView.getBounds();
+            const hasLink = !!params.linkURL;
+
+            const template = [
+                {
+                    label: 'Back',
+                    enabled: wc.canGoBack(),
+                    click: () => wc.goBack()
+                },
+                {
+                    label: 'Forward',
+                    enabled: wc.canGoForward(),
+                    click: () => wc.goForward()
+                },
+                {
+                    label: 'Refresh',
+                    click: () => wc.reload()
+                },
+                { type: 'separator' },
+                {
+                    role: 'cut',
+                    enabled: params.editFlags && params.editFlags.canCut
+                },
+                {
+                    role: 'copy',
+                    enabled: params.editFlags && params.editFlags.canCopy
+                },
+                {
+                    role: 'paste',
+                    enabled: params.editFlags && params.editFlags.canPaste
+                },
+                {
+                    role: 'selectAll',
+                    enabled: params.editFlags && params.editFlags.canSelectAll
+                },
+                ...(hasLink
+                    ? [
+                          { type: 'separator' },
+                          {
+                              label: 'Open Link in Default Browser',
+                              click: () => shell.openExternal(params.linkURL)
+                          },
+                          {
+                              label: 'Copy Link Address',
+                              click: () => clipboard.writeText(params.linkURL)
+                          }
+                      ]
+                    : [])
+            ];
+
+            const menu = Menu.buildFromTemplate(template);
+            menu.popup({
+                window: mainWindow,
+                x: Math.round(bounds.x + params.x),
+                y: Math.round(bounds.y + params.y)
+            });
+        });
+
         mainWindow.addBrowserView(browserView);
 
         // 获取主窗口尺寸并计算 BrowserView 位置
@@ -583,6 +671,36 @@ ipcMain.on('close-browserview', () => {
         mainWindow.removeBrowserView(browserView);
         browserView.webContents.destroy();
         browserView = null;
+    }
+});
+
+ipcMain.on('hide-browserview', () => {
+    if (browserView && mainWindow) {
+        mainWindow.removeBrowserView(browserView);
+        console.log('[BrowserView] Hidden (not destroyed)');
+    }
+});
+
+ipcMain.on('show-browserview', () => {
+    console.log('[Main] show-browserview called, browserView exists:', !!browserView, 'mainWindow exists:', !!mainWindow);
+    if (browserView && mainWindow) {
+        mainWindow.addBrowserView(browserView);
+        
+        // 恢复 BrowserView 位置
+        const bounds = mainWindow.getContentBounds();
+        const sidebarWidth = 360;
+        const titlebarHeight = 38;
+        
+        browserView.setBounds({
+            x: sidebarWidth,
+            y: titlebarHeight,
+            width: bounds.width - sidebarWidth,
+            height: bounds.height - titlebarHeight
+        });
+        
+        console.log('[BrowserView] Shown (restored)');
+    } else {
+        console.log('[BrowserView] Cannot show - browserView or mainWindow is null');
     }
 });
 
@@ -631,6 +749,16 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
 
+    const f12Registered = globalShortcut.register('F12', () => {
+        toggleDevToolsForFocused();
+    });
+    if (!f12Registered) {
+        console.warn('[DevTools] Failed to register global shortcut: F12');
+    }
+    globalShortcut.register('CommandOrControl+Shift+I', () => {
+        toggleDevToolsForFocused();
+    });
+
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
@@ -648,6 +776,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
     isQuitting = true;
+    globalShortcut.unregisterAll();
     // 清理Python进程
     if (pythonProcess) {
         pythonProcess.kill();

@@ -44,22 +44,22 @@ const webHandlers = {
         // Add/Manage buttons
         document.addEventListener('click', (e) => {
             if (e.target.closest('#addLLMBtn')) {
-                this.showAddModal('LLM');
+                this.webSidebar.showAddDialog('LLM');
             } else if (e.target.closest('#manageLLMBtn')) {
-                this.showManageModal('LLM');
+                this.webSidebar.showManageDialog('LLM');
             } else if (e.target.closest('#addToolBtn')) {
-                this.showAddModal('Tool');
+                this.webSidebar.showAddDialog('Tool');
             } else if (e.target.closest('#manageToolBtn')) {
-                this.showManageModal('Tool');
+                this.webSidebar.showManageDialog('Tool');
             }
         });
 
         // Search functionality
         document.addEventListener('input', (e) => {
             if (e.target.id === 'llmSearchInput') {
-                this.filterIcons('llm', e.target.value);
+                this.webSidebar.handleLLMSearch(e.target.value);
             } else if (e.target.id === 'toolSearchInput') {
-                this.filterIcons('tool', e.target.value);
+                this.webSidebar.handleToolSearch(e.target.value);
             }
         });
     },
@@ -98,21 +98,20 @@ const webHandlers = {
         menu.className = 'web-context-menu';
         menu.style.left = e.pageX + 'px';
         menu.style.top = e.pageY + 'px';
+        menu.style.flexDirection = 'column';
         menu.innerHTML = `
-            <div class="web-context-menu-item" data-action="open-browser">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="web-context-menu-item" data-action="open-browser" title="Open in Default Browser">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                     <polyline points="15 3 21 3 21 9"/>
                     <line x1="10" y1="14" x2="21" y2="3"/>
                 </svg>
-                <span>Open in Default Browser</span>
             </div>
-            <div class="web-context-menu-item" data-action="copy-url">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="web-context-menu-item" data-action="copy-url" title="Copy URL">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                 </svg>
-                <span>Copy URL</span>
             </div>
         `;
 
@@ -156,99 +155,8 @@ const webHandlers = {
         });
     },
 
-    showAddModal(type) {
-        if (typeof Modal === 'undefined') {
-            console.error('Modal component not loaded');
-            return;
-        }
-
-        Modal.show({
-            title: `Add ${type} Service`,
-            content: `
-                <div class="form-group">
-                    <label>Service Name</label>
-                    <input type="text" class="form-input" id="serviceName" placeholder="e.g., ChatGPT">
-                </div>
-                <div class="form-group">
-                    <label>Service URL</label>
-                    <input type="url" class="form-input" id="serviceUrl" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label>Description (Optional)</label>
-                    <textarea class="form-input" id="serviceDesc" rows="3"></textarea>
-                </div>
-            `,
-            confirmText: 'Add',
-            onConfirm: async () => {
-                const name = document.getElementById('serviceName')?.value;
-                const url = document.getElementById('serviceUrl')?.value;
-                const description = document.getElementById('serviceDesc')?.value;
-
-                if (!name || !url) {
-                    if (typeof Notification !== 'undefined') {
-                        Notification.error('Please fill in required fields');
-                    }
-                    return false;
-                }
-
-                try {
-                    if (window.api) {
-                        await window.api.post('/api/system/web-mng', {
-                            name,
-                            url,
-                            type,
-                            description,
-                            filename: 'openai.png'
-                        });
-
-                        await this.webSidebar.loadData();
-                        const sidebar = document.getElementById('sidebar-web');
-                        if (sidebar) {
-                            sidebar.innerHTML = this.webSidebar.render();
-                        }
-
-                        if (typeof Notification !== 'undefined') {
-                            Notification.success(`${type} service added successfully`);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to add service:', error);
-                    if (typeof Notification !== 'undefined') {
-                        Notification.error('Failed to add service');
-                    }
-                }
-            }
-        });
-    },
-
-    showManageModal(type) {
-        if (typeof Modal === 'undefined') {
-            console.error('Modal component not loaded');
-            return;
-        }
-
-        const data = type === 'LLM' ? this.webSidebar.llmData : this.webSidebar.toolData;
-        const items = data.map(item => `
-            <div class="manage-item">
-                <span class="manage-item-name">${item.name}</span>
-                <div class="manage-item-actions">
-                    <button class="btn-sm" data-action="edit" data-id="${item.id}">Edit</button>
-                    <button class="btn-sm btn-danger" data-action="delete" data-id="${item.id}">Delete</button>
-                </div>
-            </div>
-        `).join('');
-
-        Modal.show({
-            title: `Manage ${type} Services`,
-            content: `
-                <div class="manage-list">
-                    ${items || '<div class="manage-empty">No services available</div>'}
-                </div>
-            `,
-            showCancel: false,
-            confirmText: 'Close'
-        });
-    },
+    // showAddModal方法已废弃，改用WebSidebar.showAddDialog
+    // 保留此注释以备将来参考
 
     destroy() {
         // Cleanup if needed

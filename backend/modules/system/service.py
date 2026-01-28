@@ -85,3 +85,37 @@ class SystemService:
             "type": item.type,
             "url": item.url
         }
+
+    def update_web_mng(self, item_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update web management item"""
+        # Remove fields that shouldn't be updated
+        data.pop('id', None)
+        data.pop('web_id', None)
+        data.pop('create_time', None)
+
+        self.web_mng_repo.update(item_id, **data)
+        item = self.web_mng_repo.get_by_id(item_id)
+
+        return {
+            "id": item.id,
+            "web_id": item.web_id,
+            "name": item.name,
+            "title": item.title,
+            "type": item.type,
+            "description": item.description,
+            "filename": item.filename,
+            "url": item.url,
+            "position": item.position
+        }
+
+    def delete_web_mng(self, item_id: int) -> None:
+        """Delete web management item (soft delete)"""
+        self.web_mng_repo.update(item_id, is_delete=True)
+
+    def reorder_web_mng(self, items: List[Dict[str, Any]]) -> None:
+        """Reorder web management items"""
+        for item in items:
+            item_id = item.get('id')
+            position = item.get('position')
+            if item_id is not None and position is not None:
+                self.web_mng_repo.update(item_id, position=position)

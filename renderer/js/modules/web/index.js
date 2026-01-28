@@ -44,12 +44,15 @@ export default {
 
         webHandlers.init(WebPage, WebSidebar);
 
-        // Listen for page changes to close BrowserView when leaving web page
+        // Listen for page changes to hide/show BrowserView
         if (window.eventBus) {
             window.eventBus.on('page:changed', (data) => {
                 if (data.from === 'web' && data.to !== 'web') {
-                    console.log('[Web Module] Leaving web page, closing BrowserView');
-                    WebPage.closeBrowserView();
+                    console.log('[Web Module] Leaving web page, hiding BrowserView');
+                    WebPage.hideBrowserView();
+                } else if (data.to === 'web' && data.from !== 'web') {
+                    console.log('[Web Module] Returning to web page, showing BrowserView');
+                    WebPage.showBrowserView();
                 }
             });
         }

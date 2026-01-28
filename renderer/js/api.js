@@ -36,7 +36,10 @@ class APIClient {
 
         const config = { ...defaultOptions, ...options };
 
+        // 记录请求详情
+        console.log(`[API] ${config.method || 'GET'} ${endpoint}`);
         if (config.body && typeof config.body === 'object') {
+            console.log('[API] Request body:', config.body);
             config.body = JSON.stringify(config.body);
         }
 
@@ -44,13 +47,23 @@ class APIClient {
             const response = await fetch(url, config);
 
             if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+                const errorText = await response.text();
+                console.error(`[API] Error response (${response.status}):`, errorText);
+                
+                let errorDetail;
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorDetail = errorJson.detail || errorJson.message || errorText;
+                } catch {
+                    errorDetail = errorText;
+                }
+                
+                throw new Error(`HTTP ${response.status}: ${errorDetail}`);
             }
 
             return await response.json();
         } catch (error) {
-            console.error(`API Error [${endpoint}]:`, error);
+            console.error(`API Error [${endpoint}]:`, error.message || error);
             throw error;
         }
     }
