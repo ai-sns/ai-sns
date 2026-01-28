@@ -9,12 +9,68 @@ import pypdf
 from docx import Document
 from pptx import Presentation
 import openpyxl
+import os
 
 logger = logging.getLogger(__name__)
 
 
 class DocumentLoader:
     """Load and extract text from various document formats"""
+
+    @staticmethod
+    def _convert_legacy_office(file_path: Path) -> Optional[Path]:
+        suffix = file_path.suffix.lower()
+        if suffix not in {'.doc', '.ppt', '.xls'}:
+            return None
+
+        converted = file_path.with_name(f"{file_path.stem}.__converted__{suffix}x")
+
+        try:
+            import win32com.client  # type: ignore
+
+            if suffix == '.doc':
+                word = win32com.client.DispatchEx('Word.Application')
+                word.Visible = False
+                doc = None
+                try:
+                    doc = word.Documents.Open(str(file_path))
+                    doc.SaveAs(str(converted), FileFormat=16)
+                finally:
+                    if doc is not None:
+                        doc.Close(False)
+                    word.Quit()
+
+            elif suffix == '.ppt':
+                powerpoint = win32com.client.DispatchEx('PowerPoint.Application')
+                presentation = None
+                try:
+                    presentation = powerpoint.Presentations.Open(str(file_path), WithWindow=False)
+                    presentation.SaveAs(str(converted), FileFormat=24)
+                finally:
+                    if presentation is not None:
+                        presentation.Close()
+                    powerpoint.Quit()
+
+            elif suffix == '.xls':
+                excel = win32com.client.DispatchEx('Excel.Application')
+                excel.Visible = False
+                excel.DisplayAlerts = False
+                wb = None
+                try:
+                    wb = excel.Workbooks.Open(str(file_path))
+                    wb.SaveAs(str(converted), FileFormat=51)
+                finally:
+                    if wb is not None:
+                        wb.Close(False)
+                    excel.Quit()
+
+            if converted.exists() and converted.stat().st_size > 0:
+                return converted
+
+            return None
+        except Exception as e:
+            logger.error(f"Legacy Office conversion failed for {file_path}: {e}")
+            return None
 
     @staticmethod
     def load_pdf(file_path: Path) -> str:
@@ -96,20 +152,30 @@ class DocumentLoader:
             logger.error(f"Error loading TXT {file_path}: {e}")
             raise
 
+    @staticmethod
+    def load_md(file_path: Path) -> str:
+        return DocumentLoader.load_txt(file_path)
+
     @classmethod
     def load_document(cls, file_path: Path) -> Optional[str]:
         """Load document based on file extension"""
         suffix = file_path.suffix.lower()
 
+        converted_path: Optional[Path] = None
+        if suffix in {'.doc', '.ppt', '.xls'}:
+            converted_path = cls._convert_legacy_office(file_path)
+            if converted_path:
+                file_path = converted_path
+                suffix = file_path.suffix.lower()
+
         loaders = {
             '.pdf': cls.load_pdf,
             '.docx': cls.load_docx,
-            '.doc': cls.load_docx,
             '.pptx': cls.load_pptx,
-            '.ppt': cls.load_pptx,
             '.xlsx': cls.load_xlsx,
-            '.xls': cls.load_xlsx,
             '.txt': cls.load_txt,
+            '.md': cls.load_md,
+            '.markdown': cls.load_md,
         }
 
         loader = loaders.get(suffix)
@@ -119,6 +185,17 @@ class DocumentLoader:
             except Exception as e:
                 logger.error(f"Error loading document {file_path}: {e}")
                 return None
+            finally:
+                if converted_path:
+                    try:
+                        os.remove(converted_path)
+                    except Exception:
+                        pass
         else:
             logger.warning(f"Unsupported file format: {suffix}")
+            if converted_path:
+                try:
+                    os.remove(converted_path)
+                except Exception:
+                    pass
             return None

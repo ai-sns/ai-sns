@@ -21,6 +21,7 @@ class AIConfig:
     api_base: str = "https://api.openai.com/v1"
     api_key: str = ""
     model: str = "gpt-4o-mini"
+    embedding_model: str = "text-embedding-3-small"
     temperature: float = 1.0
     max_tokens: int = 4096
     stream: bool = True
@@ -139,6 +140,7 @@ class Settings:
                     config.api_base = ai_config.get('api_base', config.api_base)
                     config.api_key = ai_config.get('api_key', config.api_key)
                     config.model = ai_config.get('model', config.model)
+                    config.embedding_model = ai_config.get('embedding_model', config.embedding_model)
                     config.temperature = ai_config.get('temperature', config.temperature)
                     config.max_tokens = ai_config.get('max_tokens', config.max_tokens)
                     config.stream = ai_config.get('stream', config.stream)
@@ -152,6 +154,7 @@ class Settings:
             config.api_key = os.environ['OPENAI_API_KEY']
             config.api_base = os.environ.get('OPENAI_API_BASE', config.api_base)
             config.model = os.environ.get('OPENAI_MODEL', config.model)
+            config.embedding_model = os.environ.get('OPENAI_EMBEDDING_MODEL', config.embedding_model)
             config.temperature = float(os.environ.get('OPENAI_TEMPERATURE', str(config.temperature)))
             config.max_tokens = int(os.environ.get('OPENAI_MAX_TOKENS', str(config.max_tokens)))
             logger.info("Loaded AI config from environment variables")

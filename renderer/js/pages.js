@@ -2656,7 +2656,7 @@ if __name__ == "__main__":
 
         // 这里可以添加保存逻辑，比如发送到后端API
         console.log('保存笔记:', title, content);
-        Notification.success('笔记已保存');
+        // Notification.success('笔记已保存');
     },
 
     // 显示搜索对话框

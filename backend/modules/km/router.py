@@ -159,6 +159,9 @@ async def upload_file(
         content = await file.read()
         file_id = service.add_file(kb_id, file.filename, content)
         return {"success": True, "data": {"id": file_id, "filename": file.filename}}
+    except ValueError as e:
+        logger.warning(f"Invalid upload for kb {kb_id}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
         raise HTTPException(status_code=500, detail=str(e))

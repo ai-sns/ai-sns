@@ -1,40 +1,39 @@
 /**
- * KM Page - File Search (kmtype=0)
+ * KM Page - File Search (kmtype=0) - 优化版
  */
 
 const KMFilePage = {
     render(kbId) {
         return `
-            <div class="km-page-layout">
-                <div class="km-file-container" style="display: flex; gap: 20px; height: 100%;">
-                    <!-- Left: File List -->
-                    <div class="km-file-list-panel" style="width: 300px; border-right: 1px solid #e0e0e0; padding-right: 20px;">
-                        <div class="km-file-list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="margin: 0;">Files</h3>
-                            <button class="btn-primary btn-sm" id="fileAddBtn-${kbId}" style="padding: 6px 12px; font-size: 13px;">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
-                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                </svg>
-                                Add
-                            </button>
-                        </div>
-                        <div class="km-file-list" id="fileTree-${kbId}" style="overflow-y: auto; max-height: calc(100vh - 200px);">
-                            <div class="km-file-loading">Loading files...</div>
-                        </div>
-                    </div>
+            <div class="km-page-layout km-file-page-layout">            
 
-                    <!-- Right: Vector Search Area -->
-                    <div class="km-search-area" style="flex: 1;">
-                        <div class="km-search-header">
-                            <h3>Vector Search</h3>
-                            <p>Search through uploaded documents using semantic search</p>
-                        </div>
-                        <div class="km-search-input-area">
-                            <input type="text" id="vectorSearchInput-${kbId}" class="km-search-input-large" placeholder="Enter your search query...">
-                            <button class="km-search-btn" id="vectorSearchBtn-${kbId}">Search</button>
-                        </div>
-                        <div class="km-search-results" id="searchResults-${kbId}">
-                            <div class="empty-state">Enter a query to search through your documents</div>
+                <!-- 右侧: 向量搜索区域 -->
+                <div class="km-vector-search-panel">
+                    <div class="km-search-header">
+                        <h3>
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="var(--color-primary)" style="vertical-align: middle; margin-right: 8px;">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            智能语义搜索
+                        </h3>
+                        <p>使用AI向量技术，从已上传的文档中精准检索相关内容</p>
+                    </div>
+                    <div class="km-search-input-area">
+                        <input type="text" id="vectorSearchInput-${kbId}" class="km-search-input-large" placeholder="输入您想搜索的内容，例如：如何配置数据库连接...">
+                        <button class="km-search-btn" id="vectorSearchBtn-${kbId}">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            搜索
+                        </button>
+                    </div>
+                    <div class="km-search-results" id="searchResults-${kbId}">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" width="64" height="64" fill="#ddd" style="margin-bottom: 16px;">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            <p>输入关键词开始搜索文档内容</p>
+                            <p style="font-size: 12px; color: #aaa; margin-top: 8px;">支持自然语言搜索，AI会找到最相关的内容</p>
                         </div>
                     </div>
                 </div>
@@ -43,7 +42,7 @@ const KMFilePage = {
     },
 
     init() {
-        // Bind search button events
+        // 绑定搜索按钮事件
         document.querySelectorAll('[id^="vectorSearchBtn-"]').forEach(btn => {
             const kbId = btn.id.replace('vectorSearchBtn-', '');
             btn.addEventListener('click', () => {
@@ -53,7 +52,7 @@ const KMFilePage = {
             });
         });
 
-        // Bind Enter key to search
+        // 绑定回车键搜索
         document.querySelectorAll('[id^="vectorSearchInput-"]').forEach(input => {
             const kbId = input.id.replace('vectorSearchInput-', '');
             input.addEventListener('keypress', (e) => {
@@ -63,7 +62,7 @@ const KMFilePage = {
             });
         });
 
-        // Bind file add button
+        // 绑定文件添加按钮
         document.querySelectorAll('[id^="fileAddBtn-"]').forEach(btn => {
             const kbId = btn.id.replace('fileAddBtn-', '');
             btn.addEventListener('click', () => {

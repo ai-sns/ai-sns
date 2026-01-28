@@ -39,11 +39,11 @@ export default {
      * 初始化模块
      */
     async init() {
-        // Initialize sidebar first to load KB list
-        await KMSidebar.init();
-
-        // Initialize handlers
+        // Initialize handlers first so the initial kb switch event is not missed
         kmHandlers.init();
+
+        // Initialize sidebar to load KB list (this will trigger initial kb selection)
+        await KMSidebar.init();
 
         // Ensure KMManagementDialog is available globally
         if (!window.KMManagementDialog) {

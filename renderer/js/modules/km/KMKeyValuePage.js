@@ -1,67 +1,67 @@
 /**
- * KM Page - Key-Value Editor (kmtype=2)
+ * KM Page - Key-Value Editor (kmtype=2) - 优化版
  */
 
 const KMKeyValuePage = {
     render(kbId) {
         return `
-            <div class="km-page-layout">
-                <!-- Search Bar -->
-                <div class="km-search-bar">
-                    <div class="km-search-input-wrapper">
-                        <svg class="km-search-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                        </svg>
-                        <input type="text" class="km-search-input" id="kvSearchInput" placeholder="Search by key or value...">
-                        <button class="km-search-clear" id="clearKvSearchBtn" style="display: none;">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            <div class="km-page-layout km-kv-page-layout">
+                <!-- 右侧: KV 编辑器 -->
+                <div class="km-kv-editor-panel">
+                    <div class="km-kv-editor-header">
+                        <h3 id="kvEditorTitle">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--color-primary)" style="vertical-align: middle; margin-right: 8px;">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                             </svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="km-kv-container">
-                    <!-- Left: KV List -->
-                    <div class="km-kv-list-panel">
-                        <div class="km-kv-list-header">
-                            <h3>Key-Value Pairs</h3>
-                            <button class="btn-primary btn-sm" id="kvNewBtn">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            新建键值对
+                        </h3>
+                        <div style="display: flex; gap: 8px;">
+                            <span id="kvEditStatus" style="font-size: 12px; color: var(--text-muted); display: none;">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                                 </svg>
-                                New
-                            </button>
-                        </div>
-                        <div class="km-kv-list" id="kvTree-${kbId}">
-                            <div class="km-kv-loading">Loading...</div>
+                                已保存
+                            </span>
                         </div>
                     </div>
-
-                    <!-- Right: KV Editor -->
-                    <div class="km-kv-editor-panel">
-                        <div class="km-kv-editor-header">
-                            <h3 id="kvEditorTitle">New Key-Value Pair</h3>
+                    <div class="km-kv-form">
+                        <div class="form-group">
+                            <label>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+                                    <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                                </svg>
+                                键名 (Key)
+                            </label>
+                            <input type="text" id="kvKeyInput" class="form-input" placeholder="输入唯一标识键名，例如：api_key、config_name">
                         </div>
-                        <div class="km-kv-form">
-                            <div class="form-group">
-                                <label>Key</label>
-                                <input type="text" id="kvKeyInput" class="form-input" placeholder="Enter key">
-                            </div>
-                            <div class="form-group">
-                                <label>Value</label>
-                                <textarea id="kvValueInput" class="form-textarea" rows="15" placeholder="Enter value (supports JSON, text, etc.)"></textarea>
-                            </div>
-                            <div class="form-actions">
-                                <button class="btn-primary" id="kvSaveBtn-${kbId}">
-                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                        <path d="M17 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-                                    </svg>
-                                    Save
-                                </button>
-                                <button class="btn-secondary" id="kvClearBtn">Clear</button>
-                                <button class="btn-danger" id="kvDeleteBtn" style="display: none;">Delete</button>
-                            </div>
+                        <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+                            <label>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+                                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                                </svg>
+                                值 (Value)
+                            </label>
+                            <textarea id="kvValueInput" class="form-textarea" placeholder="输入值内容，支持文本、JSON等格式...&#10;&#10;示例:&#10;{&#10;  &quot;name&quot;: &quot;example&quot;,&#10;  &quot;version&quot;: &quot;1.0.0&quot;&#10;}"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn-primary" id="kvSaveBtn-${kbId}">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M17 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                                </svg>
+                                保存
+                            </button>
+                            <button class="btn-secondary" id="kvClearBtn">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                                清空
+                            </button>
+                            <button class="btn-danger" id="kvDeleteBtn" style="display: none; margin-left: auto;">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                </svg>
+                                删除
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -70,32 +70,12 @@ const KMKeyValuePage = {
     },
 
     init() {
-        this.bindSearchEvents();
         this.bindFormEvents();
-        this.bindListEvents();
         console.log('[KMKeyValuePage] Initialized');
     },
 
-    bindSearchEvents() {
-        const searchInput = document.getElementById('kvSearchInput');
-        const clearBtn = document.getElementById('clearKvSearchBtn');
-
-        if (!searchInput || !clearBtn) return;
-
-        searchInput.addEventListener('input', (e) => {
-            clearBtn.style.display = e.target.value ? 'flex' : 'none';
-            this.filterKVList(e.target.value);
-        });
-
-        clearBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            clearBtn.style.display = 'none';
-            this.filterKVList('');
-        });
-    },
-
     bindFormEvents() {
-        // Save button
+        // 保存按钮
         document.querySelectorAll('[id^="kvSaveBtn-"]').forEach(btn => {
             const kbId = btn.id.replace('kvSaveBtn-', '');
             btn.addEventListener('click', () => {
@@ -105,37 +85,40 @@ const KMKeyValuePage = {
             });
         });
 
-        // Clear button
+        // 清空按钮
         const clearBtn = document.getElementById('kvClearBtn');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 if (window.kmHandlers) {
                     window.kmHandlers.clearKVForm();
+                    // 更新标题
+                    const titleEl = document.getElementById('kvEditorTitle');
+                    if (titleEl) {
+                        titleEl.innerHTML = `
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--color-primary)" style="vertical-align: middle; margin-right: 8px;">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                            </svg>
+                            新建键值对
+                        `;
+                    }
+                    // 隐藏删除按钮
+                    const deleteBtn = document.getElementById('kvDeleteBtn');
+                    if (deleteBtn) deleteBtn.style.display = 'none';
                 }
             });
         }
 
-        // Delete button
+        // 删除按钮
         const deleteBtn = document.getElementById('kvDeleteBtn');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
-                if (window.kmHandlers && window.kmHandlers.currentKVId) {
+                if (window.kmHandlers && window.kmHandlers.currentKvId) {
                     window.kmHandlers.deleteCurrentKV();
                 }
             });
         }
 
-        // New button
-        const newBtn = document.getElementById('kvNewBtn');
-        if (newBtn) {
-            newBtn.addEventListener('click', () => {
-                if (window.kmHandlers) {
-                    window.kmHandlers.clearKVForm();
-                }
-            });
-        }
-
-        // Ctrl+S to save
+        // Ctrl+S 保存
         const kvValueInput = document.getElementById('kvValueInput');
         if (kvValueInput) {
             kvValueInput.addEventListener('keydown', (e) => {
@@ -149,36 +132,21 @@ const KMKeyValuePage = {
                 }
             });
         }
-    },
 
-    bindListEvents() {
-        // Event delegation for KV list items
-        const kvLists = document.querySelectorAll('[id^="kvTree-"]');
-        kvLists.forEach(list => {
-            list.addEventListener('click', (e) => {
-                const kvItem = e.target.closest('.km-tree-item');
-                if (kvItem && window.kmHandlers) {
-                    const kvId = parseInt(kvItem.dataset.kvId);
-                    const kbId = parseInt(kvItem.dataset.kbId);
-                    window.kmHandlers.openKeyValue(kbId, kvId);
+        // Key输入框也支持Ctrl+S
+        const kvKeyInput = document.getElementById('kvKeyInput');
+        if (kvKeyInput) {
+            kvKeyInput.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    const saveBtn = document.querySelector('[id^="kvSaveBtn-"]');
+                    if (saveBtn && window.kmHandlers) {
+                        const kbId = saveBtn.id.replace('kvSaveBtn-', '');
+                        window.kmHandlers.saveCurrentKV(parseInt(kbId));
+                    }
                 }
             });
-        });
-    },
-
-    filterKVList(query) {
-        const items = document.querySelectorAll('.km-tree-item[data-kv-id]');
-        const lowerQuery = query.toLowerCase();
-
-        items.forEach(item => {
-            const key = item.querySelector('.tree-text')?.textContent.toLowerCase() || '';
-
-            if (key.includes(lowerQuery)) {
-                item.style.display = '';
-            } else {
-                item.style.display = 'none';
-            }
-        });
+        }
     },
 
     destroy() {

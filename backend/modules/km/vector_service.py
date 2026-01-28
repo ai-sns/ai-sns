@@ -5,10 +5,12 @@ Vector Service - ChromaDB integration for knowledge base vectorization
 import logging
 import os
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+
+from backend.config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +28,19 @@ class VectorService:
             settings=Settings(anonymized_telemetry=False)
         )
 
-        # Initialize OpenAI client (will use OPENAI_API_KEY from environment)
-        self.openai_client = OpenAI()
+        # Initialize OpenAI client using ai_config.yaml (via settings) with env overrides.
+        _settings = get_settings()
+        api_key = getattr(_settings.ai, 'api_key', None)
+        api_base = getattr(_settings.ai, 'api_base', None)
+
+        if api_key and api_base:
+            self.openai_client = OpenAI(api_key=api_key, base_url=api_base)
+        elif api_key:
+            self.openai_client = OpenAI(api_key=api_key)
+        else:
+            self.openai_client = OpenAI()
+
+        self.embedding_model = getattr(_settings.ai, 'embedding_model', 'text-embedding-3-small')
 
     def get_or_create_collection(self, km_id: str):
         """Get or create a collection for a knowledge base"""
@@ -37,12 +50,12 @@ class VectorService:
             metadata={"km_id": km_id}
         )
 
-    def get_embedding(self, text: str, model: str = "text-embedding-3-small") -> List[float]:
+    def get_embedding(self, text: str, model: Optional[str] = None) -> List[float]:
         """Get embedding from OpenAI"""
         try:
             response = self.openai_client.embeddings.create(
                 input=text,
-                model=model
+                model=model or self.embedding_model
             )
             return response.data[0].embedding
         except Exception as e:

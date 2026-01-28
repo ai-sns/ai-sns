@@ -21,6 +21,12 @@ ai:
   # - gpt-3.5-turbo
   model: "gpt-4o-mini"
 
+  # 向量化 Embedding 模型名称
+  # 常用模型:
+  # - text-embedding-3-small (默认)
+  # - text-embedding-3-large
+  embedding_model: "text-embedding-3-small"
+
   # 温度参数 (0.0 - 2.0)
   # 较低的值 (0.0-0.5) 使输出更确定和一致
   # 较高的值 (0.8-2.0) 使输出更随机和创造性

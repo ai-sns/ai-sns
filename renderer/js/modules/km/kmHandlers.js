@@ -14,6 +14,7 @@ const kmHandlers = {
     currentNoteId: null,
     currentFileId: null,
     currentKvId: null,
+    mainPageCache: {},
     notes: {},
     files: {},
     keyValues: {},
@@ -67,51 +68,73 @@ const kmHandlers = {
             return;
         }
 
-        // Render appropriate page HTML based on KB type
-        let pageHTML = '';
-        if (kbType === 1) {
-            // Note type
-            pageHTML = KMNotePage.render();
-        } else if (kbType === 0) {
-            // File type
-            pageHTML = KMFilePage.render();
-        } else if (kbType === 2) {
-            // Key-value type
-            pageHTML = KMKeyValuePage.render();
-        } else {
-            pageHTML = '<div class="km-empty-state"><p style="text-align: center; color: #999; padding: 40px;">Unknown KB type</p></div>';
-        }
+        const cacheKey = String(kbId);
+        const cached = this.mainPageCache[cacheKey];
+        const cachedType = cached ? cached.kbType : null;
+        const canReuse = cached && cached.el && cachedType === kbType;
 
-        // Replace main content with new page
-        mainContent.innerHTML = pageHTML;
-        console.log('[kmHandlers] Rendered page HTML for type:', kbType);
-
-        // Initialize the editor/page based on KB type
-        setTimeout(() => {
-            try {
-                if (kbType === 1) {
-                    // Note type - initialize note editor
-                    if (KMNotePage && typeof KMNotePage.init === 'function') {
-                        KMNotePage.init();
-                        console.log('[kmHandlers] KMNotePage initialized');
-                    }
-                } else if (kbType === 0) {
-                    // File type - initialize file page
-                    if (KMFilePage && typeof KMFilePage.init === 'function') {
-                        KMFilePage.init();
-                        console.log('[kmHandlers] KMFilePage initialized');
-                    }
-                } else if (kbType === 2) {
-                    // Key-value type - initialize KV page
-                    if (KMKeyValuePage && typeof KMKeyValuePage.init === 'function') {
-                        KMKeyValuePage.init();
-                        console.log('[kmHandlers] KMKeyValuePage initialized');
-                    }
-                }
-            } catch (error) {
-                console.error('[kmHandlers] Error initializing page:', error);
+        if (canReuse) {
+            if (mainContent.firstChild !== cached.el) {
+                mainContent.innerHTML = '';
+                mainContent.appendChild(cached.el);
             }
-        }, 100); // Small delay to ensure DOM is ready
+            console.log('[kmHandlers] Reused cached page for KB:', kbId);
+        } else {
+            if (cached && cached.el && cached.el.parentNode) {
+                cached.el.parentNode.removeChild(cached.el);
+            }
+
+            const pageWrapper = document.createElement('div');
+            pageWrapper.className = 'km-main-page-cache';
+            pageWrapper.dataset.kbId = String(kbId);
+            pageWrapper.dataset.kbType = String(kbType);
+
+            // Render appropriate page HTML based on KB type
+            let pageHTML = '';
+            if (kbType === 1) {
+                // Note type
+                pageHTML = KMNotePage.render();
+            } else if (kbType === 0) {
+                // File type - 传入kbId参数
+                pageHTML = KMFilePage.render(kbId);
+            } else if (kbType === 2) {
+                // Key-value type - 传入kbId参数
+                pageHTML = KMKeyValuePage.render(kbId);
+            } else {
+                pageHTML = '<div class="km-empty-state"><p style="text-align: center; color: var(--text-muted); padding: 40px;">Unknown KB type</p></div>';
+            }
+
+            pageWrapper.innerHTML = pageHTML;
+            this.mainPageCache[cacheKey] = { el: pageWrapper, kbType };
+
+            mainContent.innerHTML = '';
+            mainContent.appendChild(pageWrapper);
+            console.log('[kmHandlers] Rendered and cached page HTML for type:', kbType);
+
+            // Initialize the editor/page based on KB type
+            setTimeout(() => {
+                try {
+                    if (kbType === 1) {
+                        if (KMNotePage && typeof KMNotePage.init === 'function') {
+                            KMNotePage.init();
+                            console.log('[kmHandlers] KMNotePage initialized');
+                        }
+                    } else if (kbType === 0) {
+                        if (KMFilePage && typeof KMFilePage.init === 'function') {
+                            KMFilePage.init();
+                            console.log('[kmHandlers] KMFilePage initialized');
+                        }
+                    } else if (kbType === 2) {
+                        if (KMKeyValuePage && typeof KMKeyValuePage.init === 'function') {
+                            KMKeyValuePage.init();
+                            console.log('[kmHandlers] KMKeyValuePage initialized');
+                        }
+                    }
+                } catch (error) {
+                    console.error('[kmHandlers] Error initializing page:', error);
+                }
+            }, 100);
+        }
 
         // Load data based on KB type (use kmId for filtering)
         try {
@@ -127,7 +150,6 @@ const kmHandlers = {
             }
         } catch (error) {
             console.error('[kmHandlers] Error loading KB data:', error);
-            Toast.error('Failed to load knowledge base data');
         }
     },
 
@@ -141,8 +163,7 @@ const kmHandlers = {
             return;
         }
 
-        const loading = Toast.loading('Loading notes...');
-
+        // 静默加载，不显示loading提示
         try {
             // Use the search endpoint with kmId parameter (no query means get all notes for this KB)
             const url = `http://localhost:8788/api/km/notes/search?km_id=${encodeURIComponent(kmId)}`;
@@ -159,12 +180,9 @@ const kmHandlers = {
             this.notes[kbId] = Array.isArray(notes) ? notes : [];
             this.renderNoteList(kbId);
             this.bindNoteListEvents(kbId);
-            loading.close();
         } catch (error) {
             console.error('[kmHandlers] Error loading notes:', error);
-            loading.close();
-            Toast.error('Failed to load notes');
-            noteTree.innerHTML = '<div style="padding: 20px; color: #999;">Failed to load notes</div>';
+            noteTree.innerHTML = '<div style="padding: 20px; color: var(--text-muted);">Failed to load notes</div>';
         }
     },
 
@@ -348,7 +366,7 @@ const kmHandlers = {
         if (plainText.length > 20) title += '...';
         if (!title) title = 'Untitled Note';
 
-        const loading = Toast.loading('Saving note...');
+        // const loading = Toast.loading('Saving note...');
 
         try {
             let savedNote;
@@ -380,11 +398,11 @@ const kmHandlers = {
 
             // Reload notes list with both kbId and kmId
             await this.loadNotesForKb(this.currentKbId, this.currentKmId);
-            loading.close();
+            // loading.close();
             Toast.success('Note saved successfully');
         } catch (error) {
             console.error('Save note failed:', error);
-            loading.close();
+            // loading.close();
             Toast.error('Save failed: ' + error.message);
         }
     },
@@ -466,8 +484,7 @@ const kmHandlers = {
         const fileTree = document.getElementById(`fileTree-${kbId}`);
         if (!fileTree) return;
 
-        const loading = Toast.loading('Loading files...');
-
+        // 静默加载，不显示loading提示
         try {
             const response = await fetch(`http://localhost:8788/api/km/${kbId}/files`);
             if (!response.ok) throw new Error('Failed to load files');
@@ -476,12 +493,9 @@ const kmHandlers = {
             this.files[kbId] = result.data || [];
             this.renderFileList(kbId);
             this.bindFileListEvents(kbId);
-            loading.close();
         } catch (error) {
             console.error('Error loading files:', error);
-            loading.close();
-            Toast.error('Failed to load files');
-            fileTree.innerHTML = '<div style="padding: 20px; color: #999;">Failed to load files</div>';
+            fileTree.innerHTML = '<div style="padding: 20px; color: var(--text-muted);">Failed to load files</div>';
         }
     },
 
@@ -493,36 +507,133 @@ const kmHandlers = {
 
         if (files.length === 0) {
             fileTree.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: #999;">
-                    No files<br>
-                    Click "Add File" to upload
+                <div class="km-empty-state" style="padding: 40px 20px;">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="#ddd">
+                        <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
+                    </svg>
+                    <p>暂无文件</p>
+                    <p style="font-size: 12px; color: #aaa; margin-top: 8px;">点击"添加文件"上传文档</p>
                 </div>
             `;
             return;
         }
 
-        const html = files.map(file => `
-            <div class="km-tree-item" data-file-id="${file.id}" data-kb-id="${kbId}">
-                <span class="tree-icon">📄</span>
-                <span class="tree-text">${this.escapeHtml(file.filename)}</span>
-            </div>
-        `).join('');
+        const html = files.map(file => {
+            const ext = (file.filename || '').split('.').pop().toLowerCase();
+            const iconColor = this.getFileIconColor(ext);
+            return `
+                <div class="km-file-item" data-file-id="${file.id}" data-kb-id="${kbId}">
+                    <div class="km-file-icon" style="background: ${iconColor}15;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="${iconColor}">
+                            ${this.getFileIconPath(ext)}
+                        </svg>
+                    </div>
+                    <div class="km-file-info">
+                        <div class="km-file-name">${this.escapeHtml(file.filename)}</div>
+                        <div class="km-file-meta">${file.file_size ? this.formatFileSize(file.file_size) : ''} ${file.create_time ? '• ' + this.formatDate(file.create_time) : ''}</div>
+                    </div>
+                    <div class="km-file-actions">
+                        <button class="km-file-action-btn delete" data-action="delete" title="删除">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         fileTree.innerHTML = html;
+    },
+
+    getFileIconColor(ext) {
+        const colors = {
+            'pdf': '#f44336',
+            'doc': '#2196f3', 'docx': '#2196f3',
+            'xls': '#4caf50', 'xlsx': '#4caf50',
+            'ppt': '#ff9800', 'pptx': '#ff9800',
+            'txt': '#9e9e9e',
+            'md': '#607d8b'
+        };
+        return colors[ext] || '#1a73e8';
+    },
+
+    getFileIconPath(ext) {
+        if (['pdf'].includes(ext)) {
+            return '<path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 9h-2v2H9v-2H7V9h2V7h2v2h2v2zm-1 5H6v-2h6v2zm2-11V3.5L18.5 9H15z"/>';
+        }
+        return '<path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>';
+    },
+
+    formatFileSize(bytes) {
+        if (!bytes) return '';
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+    },
+
+    formatDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('zh-CN');
     },
 
     bindFileListEvents(kbId) {
         const fileTree = document.getElementById(`fileTree-${kbId}`);
         if (!fileTree) return;
 
+        // 点击文件项
+        fileTree.addEventListener('click', (e) => {
+            const deleteBtn = e.target.closest('.km-file-action-btn.delete');
+            if (deleteBtn) {
+                e.stopPropagation();
+                const item = deleteBtn.closest('.km-file-item');
+                if (item) {
+                    const fileId = parseInt(item.dataset.fileId);
+                    this.confirmDeleteFile(kbId, fileId);
+                }
+                return;
+            }
+        });
+
         fileTree.addEventListener('contextmenu', (e) => {
-            const item = e.target.closest('.km-tree-item[data-file-id]');
+            const item = e.target.closest('.km-file-item[data-file-id]');
             if (item) {
                 e.preventDefault();
                 const fileId = parseInt(item.dataset.fileId);
                 this.showFileContextMenu(e, kbId, fileId);
             }
         });
+    },
+
+    async confirmDeleteFile(kbId, fileId) {
+        const files = this.files[kbId] || [];
+        const file = files.find(f => f.id === fileId);
+        if (!file) return;
+
+        const confirmed = await Toast.confirm(`确定删除文件 "${file.filename}"?`, {
+            title: '删除文件',
+            confirmText: '删除',
+            cancelText: '取消',
+            type: 'warning'
+        });
+
+        if (confirmed) {
+            try {
+                const response = await fetch(`http://localhost:8788/api/km/${kbId}/files/${fileId}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error('删除失败');
+
+                this.files[kbId] = this.files[kbId].filter(f => f.id !== fileId);
+                this.renderFileList(kbId);
+                this.bindFileListEvents(kbId);
+                Toast.success('文件已删除');
+            } catch (error) {
+                console.error('Delete failed:', error);
+                Toast.error('删除失败: ' + error.message);
+            }
+        }
     },
 
     showFileContextMenu(event, kbId, fileId) {
@@ -593,7 +704,7 @@ const kmHandlers = {
     showAddFileDialog(kbId) {
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.doc,.docx,.pdf,.ppt,.pptx,.txt,.xls,.xlsx';
+        input.accept = '.doc,.docx,.pdf,.ppt,.pptx,.txt,.md,.markdown,.xls,.xlsx';
         input.multiple = true;
 
         input.addEventListener('change', async (e) => {
@@ -622,26 +733,32 @@ const kmHandlers = {
                 body: formData
             });
 
-            if (!response.ok) throw new Error('Upload failed');
+            if (!response.ok) {
+                let message = 'Upload failed';
+                try {
+                    const data = await response.json();
+                    if (data && data.detail) message = data.detail;
+                } catch (e) {
+                    // ignore
+                }
+                throw new Error(message);
+            }
+
             loading.close();
             Toast.success(`${file.name} uploaded successfully`);
             console.log('File uploaded:', file.name);
         } catch (error) {
-            console.error('Upload failed:', error);
             loading.close();
+            console.error('Upload failed:', error);
             Toast.error(`Upload failed for ${file.name}: ${error.message}`);
         }
     },
 
-    /**
-     * Load key-values for a specific KB (kmtype=2)
-     */
     async loadKeyValuesForKb(kbId) {
         const kvTree = document.getElementById(`kvTree-${kbId}`);
         if (!kvTree) return;
 
-        const loading = Toast.loading('Loading key-values...');
-
+        // 静默加载，不显示loading提示
         try {
             const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues`);
             if (!response.ok) throw new Error('Failed to load key-values');
@@ -650,12 +767,9 @@ const kmHandlers = {
             this.keyValues[kbId] = result.data || [];
             this.renderKeyValueList(kbId);
             this.bindKeyValueListEvents(kbId);
-            loading.close();
         } catch (error) {
             console.error('Error loading key-values:', error);
-            loading.close();
-            Toast.error('Failed to load key-values');
-            kvTree.innerHTML = '<div style="padding: 20px; color: #999;">Failed to load key-values</div>';
+            kvTree.innerHTML = '<div style="padding: 20px; color: var(--text-muted);">Failed to load key-values</div>';
         }
     },
 
@@ -667,21 +781,34 @@ const kmHandlers = {
 
         if (kvs.length === 0) {
             kvTree.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: #999;">
-                    No key-value pairs<br>
-                    Click "Add" to create
+                <div class="km-empty-state" style="padding: 40px 20px;">
+                    <svg viewBox="0 0 24 24" width="48" height="48" fill="#ddd">
+                        <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                    </svg>
+                    <p>暂无键值对</p>
+                    <p style="font-size: 12px; color: #aaa; margin-top: 8px;">点击"新建"添加</p>
                 </div>
             `;
             return;
         }
 
-        const html = kvs.map(kv => `
-            <div class="km-tree-item ${this.currentKvId === kv.id ? 'active' : ''}"
-                 data-kv-id="${kv.id}" data-kb-id="${kbId}">
-                <span class="tree-icon">🔑</span>
-                <span class="tree-text">${this.escapeHtml(kv.key)}</span>
-            </div>
-        `).join('');
+        const html = kvs.map(kv => {
+            const preview = (kv.value || '').substring(0, 50);
+            return `
+                <div class="km-kv-item ${this.currentKvId === kv.id ? 'active' : ''}"
+                     data-kv-id="${kv.id}" data-kb-id="${kbId}">
+                    <div class="km-kv-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                        </svg>
+                    </div>
+                    <div class="km-kv-info">
+                        <div class="km-kv-key">${this.escapeHtml(kv.key)}</div>
+                        <div class="km-kv-preview">${this.escapeHtml(preview)}${preview.length < (kv.value || '').length ? '...' : ''}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
 
         kvTree.innerHTML = html;
     },
@@ -691,7 +818,7 @@ const kmHandlers = {
         if (!kvTree) return;
 
         kvTree.addEventListener('click', (e) => {
-            const item = e.target.closest('.km-tree-item[data-kv-id]');
+            const item = e.target.closest('.km-kv-item[data-kv-id]');
             if (item) {
                 const kvId = parseInt(item.dataset.kvId);
                 this.openKeyValue(kbId, kvId);
@@ -699,7 +826,7 @@ const kmHandlers = {
         });
 
         kvTree.addEventListener('contextmenu', (e) => {
-            const item = e.target.closest('.km-tree-item[data-kv-id]');
+            const item = e.target.closest('.km-kv-item[data-kv-id]');
             if (item) {
                 e.preventDefault();
                 const kvId = parseInt(item.dataset.kvId);
@@ -715,26 +842,75 @@ const kmHandlers = {
 
         const kvKeyInput = document.getElementById('kvKeyInput');
         const kvValueInput = document.getElementById('kvValueInput');
+        const deleteBtn = document.getElementById('kvDeleteBtn');
+        const titleEl = document.getElementById('kvEditorTitle');
 
         if (kvKeyInput) kvKeyInput.value = kv.key;
         if (kvValueInput) kvValueInput.value = kv.value;
+        if (deleteBtn) deleteBtn.style.display = 'inline-flex';
+        if (titleEl) {
+            titleEl.innerHTML = `
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--color-primary)" style="vertical-align: middle; margin-right: 8px;">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+                编辑键值对
+            `;
+        }
 
         this.currentKvId = kvId;
         this.currentKbId = kbId;
 
-        document.querySelectorAll(`#kvTree-${kbId} .km-tree-item`).forEach(i => i.classList.remove('active'));
-        const activeItem = document.querySelector(`#kvTree-${kbId} .km-tree-item[data-kv-id="${kvId}"]`);
+        document.querySelectorAll(`#kvTree-${kbId} .km-kv-item`).forEach(i => i.classList.remove('active'));
+        const activeItem = document.querySelector(`#kvTree-${kbId} .km-kv-item[data-kv-id="${kvId}"]`);
         if (activeItem) activeItem.classList.add('active');
     },
 
     showAddKVDialog(kbId) {
-        const key = prompt('Enter key:');
-        if (!key) return;
+        this.currentKbId = kbId;
+        this.currentKvId = null;
 
-        const value = prompt('Enter value:');
-        if (value === null) return;
+        this.clearKVForm();
 
-        this.saveKeyValue(kbId, null, key, value);
+        const keyInput = document.getElementById('kvKeyInput');
+        if (keyInput) keyInput.focus();
+    },
+
+    async deleteCurrentKV() {
+        const kbId = this.currentKbId;
+        const kvId = this.currentKvId;
+
+        if (!kbId || !kvId) return;
+
+        const kvs = this.keyValues[kbId] || [];
+        const kv = kvs.find(k => k.id === kvId);
+        if (!kv) return;
+
+        const confirmed = await Toast.confirm(`Delete key-value "${kv.key}"?`, {
+            title: 'Delete Key-Value',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            type: 'warning'
+        });
+
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues/${kvId}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Delete failed');
+
+            this.keyValues[kbId] = (this.keyValues[kbId] || []).filter(k => k.id !== kvId);
+            this.currentKvId = null;
+
+            this.clearKVForm();
+            this.renderKeyValueList(kbId);
+            this.bindKeyValueListEvents(kbId);
+            Toast.success('Key-value deleted successfully');
+        } catch (error) {
+            console.error('Delete failed:', error);
+            Toast.error('Delete failed: ' + error.message);
+        }
     },
 
     async saveKeyValue(kbId, kvId, key, value) {
@@ -896,7 +1072,7 @@ const kmHandlers = {
                         <span class="result-score">Score: ${(r.score || 0).toFixed(3)}</span>
                     </div>
                     <div class="result-content">${this.escapeHtml(r.content || r.text || '')}</div>
-                    ${r.metadata ? `<div class="result-metadata">Source: ${this.escapeHtml(r.metadata.source || 'Unknown')}</div>` : ''}
+                    ${r.metadata ? `<div class="result-metadata">Source: ${this.escapeHtml(r.metadata.filename || r.metadata.source || 'Unknown')}</div>` : ''}
                 </div>
             `).join('');
 
@@ -930,14 +1106,25 @@ const kmHandlers = {
     clearKVForm() {
         const kvKeyInput = document.getElementById('kvKeyInput');
         const kvValueInput = document.getElementById('kvValueInput');
+        const deleteBtn = document.getElementById('kvDeleteBtn');
+        const titleEl = document.getElementById('kvEditorTitle');
 
         if (kvKeyInput) kvKeyInput.value = '';
         if (kvValueInput) kvValueInput.value = '';
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (titleEl) {
+            titleEl.innerHTML = `
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--color-primary)" style="vertical-align: middle; margin-right: 8px;">
+                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+                新建键值对
+            `;
+        }
 
         this.currentKvId = null;
 
         if (this.currentKbId) {
-            document.querySelectorAll(`#kvTree-${this.currentKbId} .km-tree-item`).forEach(i => i.classList.remove('active'));
+            document.querySelectorAll(`#kvTree-${this.currentKbId} .km-kv-item`).forEach(i => i.classList.remove('active'));
         }
     }
 };

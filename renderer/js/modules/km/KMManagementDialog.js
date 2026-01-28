@@ -85,24 +85,15 @@ const KMManagementDialog = {
         const isEdit = kb !== null;
         const dialog = document.createElement('div');
         dialog.className = 'km-management-dialog';
-        dialog.style.cssText = `
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            min-width: 500px;
-            max-width: 600px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-            animation: slideInDown 0.3s ease-out;
-        `;
 
         dialog.innerHTML = `
-            <div class="dialog-header" style="margin-bottom: 24px;">
-                <h2 style="margin: 0; font-size: 20px; color: #333;">${this.escapeHtml(title)}</h2>
+            <div class="dialog-header">
+                <h2 class="dialog-title">${this.escapeHtml(title)}</h2>
             </div>
             <div class="dialog-body">
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">
-                        Knowledge Base Name <span style="color: #f44336;">*</span>
+                <div class="form-group">
+                    <label class="form-label">
+                        Knowledge Base Name <span class="required-mark">*</span>
                     </label>
                     <input
                         type="text"
@@ -110,18 +101,10 @@ const KMManagementDialog = {
                         class="form-input"
                         placeholder="Enter knowledge base name"
                         value="${this.escapeHtml(kb?.name || '')}"
-                        style="
-                            width: 100%;
-                            padding: 10px 12px;
-                            border: 1px solid #ddd;
-                            border-radius: 6px;
-                            font-size: 14px;
-                            box-sizing: border-box;
-                        "
                     >
                 </div>
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">
+                <div class="form-group">
+                    <label class="form-label">
                         Description
                     </label>
                     <textarea
@@ -129,84 +112,37 @@ const KMManagementDialog = {
                         class="form-textarea"
                         rows="4"
                         placeholder="Enter description (optional)"
-                        style="
-                            width: 100%;
-                            padding: 10px 12px;
-                            border: 1px solid #ddd;
-                            border-radius: 6px;
-                            font-size: 14px;
-                            resize: vertical;
-                            box-sizing: border-box;
-                            font-family: inherit;
-                        "
                     >${this.escapeHtml(kb?.memo || '')}</textarea>
                 </div>
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">
-                        Type <span style="color: #f44336;">*</span>
+                <div class="form-group">
+                    <label class="form-label">
+                        Type <span class="required-mark">*</span>
                     </label>
                     <select
                         id="kmTypeSelect"
-                        class="form-select"
+                        class="form-select ${isEdit ? 'disabled' : ''}"
                         ${isEdit ? 'disabled' : ''}
-                        style="
-                            width: 100%;
-                            padding: 10px 12px;
-                            border: 1px solid #ddd;
-                            border-radius: 6px;
-                            font-size: 14px;
-                            background: ${isEdit ? '#f5f5f5' : 'white'};
-                            cursor: ${isEdit ? 'not-allowed' : 'pointer'};
-                            box-sizing: border-box;
-                        "
                     >
                         <option value="1" ${kb?.kmtype === 1 ? 'selected' : ''}>Note (Rich Text Editor)</option>
                         <option value="0" ${kb?.kmtype === 0 ? 'selected' : ''}>File (Document Upload & Vector Search)</option>
                         <option value="2" ${kb?.kmtype === 2 ? 'selected' : ''}>Key-Value (Simple Data Storage)</option>
                     </select>
-                    ${isEdit ? '<div style="font-size: 12px; color: #999; margin-top: 4px;">Type cannot be changed after creation</div>' : ''}
+                    ${isEdit ? '<div class="form-hint">Type cannot be changed after creation</div>' : ''}
                 </div>
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
+                <div class="form-group">
+                    <label class="checkbox-label">
                         <input
                             type="checkbox"
                             id="kmShowCheckbox"
                             ${kb?.is_show !== false ? 'checked' : ''}
-                            style="margin-right: 8px; cursor: pointer;"
                         >
-                        <span style="font-weight: 500; color: #555;">Show in sidebar</span>
+                        <span>Show in sidebar</span>
                     </label>
                 </div>
             </div>
-            <div class="dialog-footer" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
-                <button
-                    id="kmCancelBtn"
-                    class="btn-secondary"
-                    style="
-                        padding: 10px 20px;
-                        border: 1px solid #ddd;
-                        background: white;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        color: #666;
-                        transition: all 0.2s;
-                    "
-                >Cancel</button>
-                <button
-                    id="kmSaveBtn"
-                    class="btn-primary"
-                    style="
-                        padding: 10px 20px;
-                        border: none;
-                        background: #1a73e8;
-                        color: white;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        transition: all 0.2s;
-                    "
-                >${isEdit ? 'Save Changes' : 'Create'}</button>
+            <div class="dialog-footer">
+                <button id="kmCancelBtn" class="btn-secondary">Cancel</button>
+                <button id="kmSaveBtn" class="btn-primary">${isEdit ? 'Save Changes' : 'Create'}</button>
             </div>
         `;
 
@@ -215,19 +151,161 @@ const KMManagementDialog = {
             const style = document.createElement('style');
             style.id = 'km-dialog-styles';
             style.textContent = `
-                #kmCancelBtn:hover {
-                    background: #f5f5f5;
-                    border-color: #ccc;
+                .km-management-dialog {
+                    background: var(--bg-primary, white);
+                    border-radius: 12px;
+                    padding: 24px;
+                    min-width: 500px;
+                    max-width: 600px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+                    animation: slideInDown 0.3s ease-out;
+                    transition: background 0.3s ease, color 0.3s ease;
                 }
-                #kmSaveBtn:hover {
+                
+                body.theme-dark .km-management-dialog {
+                    background: var(--bg-sidebar, #1e1e1e);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                }
+                
+                .km-management-dialog .dialog-header {
+                    margin-bottom: 24px;
+                }
+                
+                .km-management-dialog .dialog-title {
+                    margin: 0;
+                    font-size: 20px;
+                    color: var(--text-primary, #333);
+                }
+                
+                .km-management-dialog .form-group {
+                    margin-bottom: 20px;
+                }
+                
+                .km-management-dialog .form-label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 500;
+                    color: var(--text-secondary, #555);
+                }
+                
+                .km-management-dialog .required-mark {
+                    color: #f44336;
+                }
+                
+                .km-management-dialog .form-input,
+                .km-management-dialog .form-textarea,
+                .km-management-dialog .form-select {
+                    width: 100%;
+                    padding: 10px 12px;
+                    border: 1px solid var(--border-color, #ddd);
+                    border-radius: 6px;
+                    font-size: 14px;
+                    box-sizing: border-box;
+                    background: var(--bg-secondary, white);
+                    color: var(--text-primary, #333);
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                }
+                
+                .km-management-dialog .form-textarea {
+                    resize: vertical;
+                    font-family: inherit;
+                }
+                
+                .km-management-dialog .form-select {
+                    cursor: pointer;
+                }
+                
+                .km-management-dialog .form-select.disabled {
+                    background: var(--bg-tertiary, #f5f5f5);
+                    cursor: not-allowed;
+                }
+                
+                body.theme-dark .km-management-dialog .form-select.disabled {
+                    background: rgba(255, 255, 255, 0.05);
+                }
+                
+                .km-management-dialog .form-input:focus,
+                .km-management-dialog .form-textarea:focus,
+                .km-management-dialog .form-select:focus {
+                    outline: none;
+                    border-color: var(--color-primary, #1a73e8);
+                    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+                }
+                
+                body.theme-dark .km-management-dialog .form-input:focus,
+                body.theme-dark .km-management-dialog .form-textarea:focus,
+                body.theme-dark .km-management-dialog .form-select:focus {
+                    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+                }
+                
+                .km-management-dialog .form-hint {
+                    font-size: 12px;
+                    color: var(--text-muted, #999);
+                    margin-top: 4px;
+                }
+                
+                .km-management-dialog .checkbox-label {
+                    display: flex;
+                    align-items: center;
+                    cursor: pointer;
+                    color: var(--text-secondary, #555);
+                }
+                
+                .km-management-dialog .checkbox-label input[type="checkbox"] {
+                    margin-right: 8px;
+                    cursor: pointer;
+                }
+                
+                .km-management-dialog .checkbox-label span {
+                    font-weight: 500;
+                }
+                
+                .km-management-dialog .dialog-footer {
+                    display: flex;
+                    gap: 12px;
+                    justify-content: flex-end;
+                    margin-top: 24px;
+                }
+                
+                .km-management-dialog .btn-secondary {
+                    padding: 10px 20px;
+                    border: 1px solid var(--border-color, #ddd);
+                    background: var(--bg-secondary, white);
+                    color: var(--text-secondary, #666);
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.2s;
+                }
+                
+                .km-management-dialog .btn-secondary:hover {
+                    background: var(--bg-hover, #f5f5f5);
+                    border-color: var(--border-color, #ccc);
+                }
+                
+                body.theme-dark .km-management-dialog .btn-secondary:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                }
+                
+                .km-management-dialog .btn-primary {
+                    padding: 10px 20px;
+                    border: none;
+                    background: var(--color-primary, #1a73e8);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.2s;
+                }
+                
+                .km-management-dialog .btn-primary:hover {
                     opacity: 0.9;
                     transform: translateY(-1px);
                     box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
                 }
-                .form-input:focus, .form-textarea:focus, .form-select:focus {
-                    outline: none;
-                    border-color: #1a73e8;
-                    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+                
+                body.theme-dark .km-management-dialog .btn-primary:hover {
+                    box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4);
                 }
             `;
             document.head.appendChild(style);

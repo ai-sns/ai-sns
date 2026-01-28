@@ -1935,3 +1935,342 @@ body.theme-light .map-control-btn:active {
 body.theme-light .map-control-divider {
     background: rgba(0, 0, 0, 0.1);
 }
+
+/* ============================================
+   暗色主题 - KM 模块新增组件样式
+   ============================================ */
+
+/* KM Sidebar 列表 */
+body.theme-dark .km-list-section {
+    background: var(--bg-sidebar);
+}
+
+body.theme-dark .km-list .km-item {
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+body.theme-dark .km-list .km-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-list .km-item.active {
+    background: rgba(0, 120, 212, 0.15);
+    color: var(--color-primary-light);
+    border-left-color: var(--color-primary);
+}
+
+body.theme-dark .km-list .km-item.km-management {
+    color: var(--color-primary-light);
+    border-top-color: var(--border-color);
+}
+
+body.theme-dark .km-section-container {
+    background: var(--bg-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+body.theme-dark .km-user-section {
+    background: var(--bg-secondary);
+}
+
+/* KM 搜索框 */
+body.theme-dark .km-search {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+body.theme-dark .km-search:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.2);
+}
+
+body.theme-dark .km-search .search-input {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-search .search-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* KM 列表标签 */
+body.theme-dark .km-list-tabs {
+    border-bottom-color: var(--border-color);
+}
+
+body.theme-dark .km-list-tabs .km-tab {
+    color: var(--text-secondary);
+}
+
+body.theme-dark .km-list-tabs .km-tab:hover {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-list-tabs .km-tab.active {
+    color: var(--color-primary-light);
+    border-bottom-color: var(--color-primary);
+}
+
+/* KM File Page */
+body.theme-dark .km-file-page-layout {
+    background: var(--bg-body);
+}
+
+body.theme-dark .km-file-list-panel {
+    background: var(--bg-sidebar);
+    border-right-color: var(--border-color);
+}
+
+body.theme-dark .km-file-list-header {
+    background: var(--bg-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+body.theme-dark .km-file-list-header h3 {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-file-item {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+body.theme-dark .km-file-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.15);
+}
+
+body.theme-dark .km-file-item.active {
+    border-color: var(--color-primary);
+    background: rgba(0, 120, 212, 0.15);
+}
+
+body.theme-dark .km-file-icon {
+    background: var(--bg-hover);
+}
+
+body.theme-dark .km-file-name {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-file-meta {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-file-action-btn {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-file-action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-file-action-btn.delete:hover {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+/* KM Vector Search Panel */
+body.theme-dark .km-vector-search-panel {
+    background: var(--bg-sidebar);
+    box-shadow: var(--shadow-md);
+}
+
+body.theme-dark .km-search-header h3 {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-search-header p {
+    color: var(--text-secondary);
+}
+
+body.theme-dark .km-search-input-large {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-search-input-large:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.2);
+}
+
+body.theme-dark .km-search-input-large::placeholder {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-search-btn {
+    background: var(--color-primary);
+}
+
+body.theme-dark .km-search-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+body.theme-dark .km-search-results .empty-state {
+    color: var(--text-muted);
+}
+
+body.theme-dark .search-result-item {
+    background: var(--bg-tertiary);
+    border-left-color: var(--color-primary);
+}
+
+body.theme-dark .search-result-item .result-number {
+    color: var(--color-primary-light);
+}
+
+body.theme-dark .search-result-item .result-score {
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+
+body.theme-dark .search-result-item .result-content {
+    color: var(--text-primary);
+}
+
+body.theme-dark .search-result-item .result-metadata {
+    color: var(--text-muted);
+}
+
+/* KM Key-Value Page */
+body.theme-dark .km-kv-page-layout {
+    background: var(--bg-body);
+}
+
+body.theme-dark .km-kv-list-panel {
+    background: var(--bg-sidebar);
+    border-right-color: var(--border-color);
+}
+
+body.theme-dark .km-kv-list-header {
+    background: var(--bg-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+body.theme-dark .km-kv-list-header h3 {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-kv-item {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+}
+
+body.theme-dark .km-kv-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.15);
+}
+
+body.theme-dark .km-kv-item.active {
+    border-color: var(--color-primary);
+    background: rgba(0, 120, 212, 0.15);
+}
+
+body.theme-dark .km-kv-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+body.theme-dark .km-kv-key {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-kv-preview {
+    color: var(--text-muted);
+}
+
+/* KM KV Editor Panel */
+body.theme-dark .km-kv-editor-panel {
+    background: var(--bg-sidebar);
+    box-shadow: var(--shadow-md);
+}
+
+body.theme-dark .km-kv-editor-header {
+    background: var(--bg-tertiary);
+    border-bottom-color: var(--border-color);
+}
+
+body.theme-dark .km-kv-editor-header h3 {
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-kv-form .form-group label {
+    color: var(--text-secondary);
+}
+
+body.theme-dark .km-kv-form .form-input {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-kv-form .form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.2);
+}
+
+body.theme-dark .km-kv-form .form-input::placeholder {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-kv-form .form-textarea {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+body.theme-dark .km-kv-form .form-textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(0, 120, 212, 0.2);
+}
+
+body.theme-dark .km-kv-form .form-textarea::placeholder {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-kv-form .form-actions {
+    border-top-color: var(--border-color);
+}
+
+/* KM Empty State */
+body.theme-dark .km-empty-state {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-empty-state svg {
+    color: var(--text-muted);
+}
+
+body.theme-dark .km-empty-state p {
+    color: var(--text-muted);
+}
+
+/* 通用按钮暗色主题 */
+body.theme-dark .btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+body.theme-dark .btn-primary:hover {
+    background: var(--color-primary-hover);
+}
+
+body.theme-dark .btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.theme-dark .btn-secondary:hover {
+    background: var(--bg-hover);
+}
+
+body.theme-dark .btn-danger {
+    background: #dc2626;
+}
+
+body.theme-dark .btn-danger:hover {
+    background: #b91c1c;
+}

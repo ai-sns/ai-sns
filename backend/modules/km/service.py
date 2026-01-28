@@ -123,6 +123,20 @@ class KMService:
         cursor = conn.cursor()
 
         try:
+            file_ext = Path(filename).suffix.lower()
+            allowed_exts = {
+                '.doc', '.docx',
+                '.txt',
+                '.md', '.markdown',
+                '.pdf',
+                '.ppt', '.pptx',
+                '.xls', '.xlsx',
+            }
+            if file_ext not in allowed_exts:
+                raise ValueError(
+                    f"不支持的文件类型: {file_ext or '(无扩展名)'}。支持: doc, txt, markdown, pdf, ppt, excel"
+                )
+
             # Get km_id from km_cfg
             cursor.execute("SELECT km_id, textblocklength, overlaplength FROM km_cfg WHERE id = ?", (kb_id,))
             row = cursor.fetchone()
@@ -143,31 +157,45 @@ class KMService:
             # Insert into km_data
             cursor.execute("""
                 INSERT INTO km_data (km_id, filename, filenum, waitvectorization, is_delete, create_time)
-                VALUES (?, ?, 1, 0, 0, datetime('now'))
+                VALUES (?, ?, 1, 1, 0, datetime('now'))
             """, (km_id_str, filename))
 
             file_id = cursor.lastrowid
             conn.commit()
 
+            text = DocumentLoader.load_document(file_path)
+            if not text:
+                cursor.execute("DELETE FROM km_data WHERE id = ?", (file_id,))
+                conn.commit()
+                try:
+                    file_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                raise ValueError(
+                    f"文件解析失败或暂不支持该文件内容: {file_ext}。支持: doc, txt, markdown, pdf, ppt, excel"
+                )
+
             # Vectorize the document
             try:
-                text = DocumentLoader.load_document(file_path)
-                if text:
-                    vector_service = get_vector_service()
-                    chunks_count = vector_service.add_document(
-                        km_id=km_id_str,
-                        file_id=file_id,
-                        filename=filename,
-                        text=text,
-                        chunk_size=chunk_size,
-                        overlap=overlap
-                    )
-                    logger.info(f"Vectorized file {filename} into {chunks_count} chunks")
-                else:
-                    logger.warning(f"No text extracted from file {filename}")
+                vector_service = get_vector_service()
+                chunks_count = vector_service.add_document(
+                    km_id=km_id_str,
+                    file_id=file_id,
+                    filename=filename,
+                    text=text,
+                    chunk_size=chunk_size,
+                    overlap=overlap
+                )
+
+                cursor.execute(
+                    "UPDATE km_data SET waitvectorization = 0, filenum = ? WHERE id = ?",
+                    (int(chunks_count or 0), file_id)
+                )
+                conn.commit()
+                logger.info(f"Vectorized file {filename} into {chunks_count} chunks")
             except Exception as e:
                 logger.error(f"Error vectorizing file {filename}: {e}")
-                # Don't fail the upload if vectorization fails
+                # Leave waitvectorization=1 to indicate pending/failed vectorization
 
             return file_id
         finally:
