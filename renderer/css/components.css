@@ -2522,7 +2522,7 @@ body.theme-dark .action-btn.active svg {
 }
 
 .contact-tree {
-    padding-left: 8px;
+    padding-left: 0px;
     min-height: 200px;
 }
 
@@ -8683,7 +8683,7 @@ body.theme-dark .profile-webview {
         padding: 10px 12px;
         font-size: 11px;
     }
-    
+
     .status-tab .tab-close-btn {
         font-size: 14px;
         margin-left: 2px;

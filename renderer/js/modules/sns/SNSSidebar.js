@@ -27,10 +27,82 @@ export default {
         exp: 30
     },
 
+    _themeObserver: null,
+    _themeListenerBound: false,
+
     contacts: [],
     trades: [],
     selectedContact: null,
     currentTab: 'chat',
+    contactSearchQuery: '',
+    tradeSearchQuery: '',
+
+    getRadarTheme() {
+        const styles = getComputedStyle(document.body);
+        const getVar = (name, fallback) => (styles.getPropertyValue(name).trim() || fallback);
+        const isDark = document.body.classList.contains('theme-dark');
+
+        return {
+            isDark,
+            primary: getVar('--color-primary', '#1a73e8'),
+            primaryLight: getVar('--color-primary-light', '#1a73e8'),
+            textPrimary: getVar('--text-primary', '#111827'),
+            textSecondary: getVar('--text-secondary', '#4B5563'),
+            textTertiary: getVar('--text-tertiary', '#6B7280'),
+            borderColor: getVar('--border-color', '#E5E7EB'),
+            labelStroke: isDark ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.85)'
+        };
+    },
+
+    hexToRgba(hex, alpha) {
+        const value = (hex || '').trim();
+        const match = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(value);
+        if (!match) return value;
+        const r = parseInt(match[1], 16);
+        const g = parseInt(match[2], 16);
+        const b = parseInt(match[3], 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    },
+
+    toRgba(color, alpha) {
+        const value = (color || '').trim();
+        if (!value) return value;
+        if (value.startsWith('#')) return this.hexToRgba(value, alpha);
+        const rgbaMatch = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/i.exec(value);
+        if (rgbaMatch) return `rgba(${rgbaMatch[1]}, ${rgbaMatch[2]}, ${rgbaMatch[3]}, ${alpha})`;
+        const rgbMatch = /^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/i.exec(value);
+        if (rgbMatch) return `rgba(${rgbMatch[1]}, ${rgbMatch[2]}, ${rgbMatch[3]}, ${alpha})`;
+        return value;
+    },
+
+    drawOutlinedText(ctx, text, x, y, fillStyle, strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 3;
+        ctx.strokeText(text, x, y);
+        ctx.fillStyle = fillStyle;
+        ctx.fillText(text, x, y);
+    },
+
+    setupThemeObserver() {
+        if (!this._themeListenerBound) {
+            window.addEventListener('theme-changed', () => {
+                this.renderRadarChart();
+            });
+            this._themeListenerBound = true;
+        }
+
+        if (this._themeObserver) return;
+        if (!document.body) return;
+
+        this._themeObserver = new MutationObserver(() => {
+            this.renderRadarChart();
+        });
+
+        this._themeObserver.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    },
 
     /**
      * 渲染SNS页面侧边栏
@@ -88,16 +160,40 @@ export default {
                 </div>
                 <!-- Contact List -->
                 <div class="contact-section tab-content active" data-content="chat">
-                    <div class="contact-tree" id="contactTree">
-                        <div class="tree-item">
-                            <span class="tree-toggle">▸</span>
-                            <span class="tree-label">Buddies</span>
+                    <!-- Search Box -->
+                    <div class="sns-search-box">
+                        <div class="sns-search-wrapper">
+                            <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            <input type="text" class="sns-search-input" id="contactSearchInput" placeholder="Search contacts..." />
+                            <button class="sns-search-clear" id="contactSearchClear">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
                         </div>
+                    </div>
+                    <div class="contact-tree" id="contactTree">
                         <div class="tree-children" id="contactList"></div>
                     </div>
                 </div>
                 <!-- Trade List -->
                 <div class="trade-section tab-content" data-content="trade">
+                    <!-- Search Box -->
+                    <div class="sns-search-box">
+                        <div class="sns-search-wrapper">
+                            <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            <input type="text" class="sns-search-input" id="tradeSearchInput" placeholder="Search trades..." />
+                            <button class="sns-search-clear" id="tradeSearchClear">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                     <div class="trade-list" id="tradeList"></div>
                 </div>
                 <!-- Chat Window -->
@@ -133,6 +229,7 @@ export default {
         await this.loadContacts();
         await this.loadTrades();
         this.renderRadarChart();
+        this.setupThemeObserver();
         this.attachEventListeners();
         this.setupTabSwitching();
         this.setupWebSocketListener();
@@ -276,13 +373,29 @@ export default {
         const contactList = document.getElementById('contactList');
         if (!contactList) return;
 
-        contactList.innerHTML = this.contacts.map(contact => `
+        // Filter contacts based on search query
+        const filteredContacts = this.contacts.filter(contact => {
+            if (!this.contactSearchQuery) return true;
+            const query = this.contactSearchQuery.toLowerCase();
+            return contact.nick_name.toLowerCase().includes(query) || 
+                   contact.account.toLowerCase().includes(query);
+        });
+
+        if (filteredContacts.length === 0) {
+            contactList.innerHTML = '<div class="empty-message">No contacts found</div>';
+            return;
+        }
+
+        contactList.innerHTML = filteredContacts.map(contact => `
             <div class="contact-item" data-account="${contact.account}">
                 <div class="contact-avatar">${contact.nick_name.charAt(0)}</div>
                 <span class="contact-name">${contact.nick_name}</span>
                 ${contact.new_message_flag ? '<span class="contact-badge">●</span>' : ''}
             </div>
         `).join('');
+
+        // Re-attach event listeners for filtered contacts
+        this.attachContactListeners();
     },
 
     /**
@@ -315,7 +428,21 @@ export default {
             return;
         }
 
-        tradeList.innerHTML = this.trades.map(trade => `
+        // Filter trades based on search query
+        const filteredTrades = this.trades.filter(trade => {
+            if (!this.tradeSearchQuery) return true;
+            const query = this.tradeSearchQuery.toLowerCase();
+            return trade.title.toLowerCase().includes(query) || 
+                   (trade.detail && trade.detail.toLowerCase().includes(query)) ||
+                   trade.trade_with_name.toLowerCase().includes(query);
+        });
+
+        if (filteredTrades.length === 0) {
+            tradeList.innerHTML = '<div class="empty-message">No trades found</div>';
+            return;
+        }
+
+        tradeList.innerHTML = filteredTrades.map(trade => `
             <div class="trade-item" data-trade-id="${trade.trade_id}">
                 <div class="trade-header">
                     <span class="trade-title">${trade.title}</span>
@@ -365,6 +492,19 @@ export default {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const width = 110;
+        const height = 110;
+
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
         const data = {
             labels: ['Life', 'IQ', 'Energy', 'Move', 'Exp'],
             datasets: [{
@@ -382,7 +522,7 @@ export default {
         };
 
         // Simple radar chart implementation
-        this.drawRadarChart(ctx, data, 110, 110);
+        this.drawRadarChart(ctx, data, width, height);
     },
 
     /**
@@ -391,16 +531,40 @@ export default {
     drawRadarChart(ctx, data, width, height) {
         const centerX = width / 2;
         const centerY = height / 2;
-        const radius = Math.min(width, height) / 2 - 15;
+        const radius = Math.min(width, height) / 2 - 25;
         const labels = data.labels;
         const values = data.datasets[0].data;
         const maxValue = 200;
 
-        ctx.clearRect(0, 0, width, height);
+        const theme = this.getRadarTheme();
+        const gridStroke = this.toRgba(theme.textTertiary, theme.isDark ? 0.35 : 0.4);
+        const axisStroke = this.toRgba(theme.textSecondary, theme.isDark ? 0.45 : 0.5);
+        const dataFill = this.toRgba(theme.primary, theme.isDark ? 0.22 : 0.14);
+        const dataStroke = this.toRgba(theme.primary, 0.95);
+        const pointFill = theme.primaryLight;
 
-        // Draw grid
-        ctx.strokeStyle = '#e0e0e0';
-        ctx.lineWidth = 0.5;
+        // Alternating ring fill to improve readability in both themes
+        const ringA = this.toRgba(theme.primary, theme.isDark ? 0.08 : 0.05);
+        const ringB = this.toRgba(theme.primary, theme.isDark ? 0.03 : 0.02);
+
+        for (let i = 5; i >= 1; i--) {
+            ctx.beginPath();
+            const r = (radius / 5) * i;
+            for (let j = 0; j < labels.length; j++) {
+                const angle = (Math.PI * 2 / labels.length) * j - Math.PI / 2;
+                const x = centerX + r * Math.cos(angle);
+                const y = centerY + r * Math.sin(angle);
+                if (j === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fillStyle = (i % 2 === 0) ? ringA : ringB;
+            ctx.fill();
+        }
+
+        // Draw grid - 使用柱状图的配色
+        ctx.strokeStyle = gridStroke;
+        ctx.lineWidth = 1;
         for (let i = 1; i <= 5; i++) {
             ctx.beginPath();
             const r = (radius / 5) * i;
@@ -415,9 +579,9 @@ export default {
             ctx.stroke();
         }
 
-        // Draw axes
-        ctx.strokeStyle = '#ccc';
-        ctx.lineWidth = 0.5;
+        // Draw axes - 使用柱状图的配色
+        ctx.strokeStyle = axisStroke;
+        ctx.lineWidth = 1;
         for (let i = 0; i < labels.length; i++) {
             const angle = (Math.PI * 2 / labels.length) * i - Math.PI / 2;
             const x = centerX + radius * Math.cos(angle);
@@ -427,19 +591,23 @@ export default {
             ctx.lineTo(x, y);
             ctx.stroke();
 
-            // Draw labels
-            ctx.fillStyle = '#666';
-            ctx.font = '8px Arial';
+            // Draw labels with values - 文字后面跟数字，使用柱状图的配色
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const labelOffset = 12;
-            ctx.fillText(labels[i], x + Math.cos(angle) * labelOffset, y + Math.sin(angle) * labelOffset);
+            const labelOffset = 16;
+            const labelX = x + Math.cos(angle) * labelOffset;
+            const labelY = y + Math.sin(angle) * labelOffset;
+
+            ctx.font = '9px Inter, Arial';
+            this.drawOutlinedText(ctx, `${labels[i]}`, labelX, labelY - 4, theme.textSecondary, theme.labelStroke);
+            ctx.font = '8px Inter, Arial';
+            this.drawOutlinedText(ctx, `${values[i]}`, labelX, labelY + 6, theme.textPrimary, theme.labelStroke);
         }
 
-        // Draw data
-        ctx.fillStyle = data.datasets[0].backgroundColor;
-        ctx.strokeStyle = data.datasets[0].borderColor;
-        ctx.lineWidth = 1.5;
+        // Draw data - 使用柱状图的配色
+        ctx.fillStyle = dataFill;
+        ctx.strokeStyle = dataStroke;
+        ctx.lineWidth = 2;
         ctx.beginPath();
         for (let i = 0; i < values.length; i++) {
             const angle = (Math.PI * 2 / values.length) * i - Math.PI / 2;
@@ -452,6 +620,20 @@ export default {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+
+        // Draw data points - 使用柱状图的配色
+        for (let i = 0; i < values.length; i++) {
+            const angle = (Math.PI * 2 / values.length) * i - Math.PI / 2;
+            const value = Math.min(values[i] / maxValue, 1);
+            const x = centerX + radius * value * Math.cos(angle);
+            const y = centerY + radius * value * Math.sin(angle);
+
+            // Draw point
+            ctx.fillStyle = pointFill;
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
     },
 
     /**
@@ -459,12 +641,7 @@ export default {
      */
     attachEventListeners() {
         // Contact click
-        document.querySelectorAll('.contact-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const account = e.currentTarget.dataset.account;
-                this.openChat(account);
-            });
-        });
+        this.attachContactListeners();
 
         // Close chat
         const closeChatBtn = document.getElementById('closeChatBtn');
@@ -491,6 +668,66 @@ export default {
                 if (e.key === 'Enter') this.sendMessage();
             });
         }
+
+        // Contact search
+        const contactSearchInput = document.getElementById('contactSearchInput');
+        const contactSearchClear = document.getElementById('contactSearchClear');
+        if (contactSearchInput) {
+            contactSearchInput.addEventListener('input', (e) => {
+                this.contactSearchQuery = e.target.value;
+                this.renderContacts();
+                // Show/hide clear button
+                if (contactSearchClear) {
+                    contactSearchClear.classList.toggle('visible', e.target.value.length > 0);
+                }
+            });
+        }
+        if (contactSearchClear) {
+            contactSearchClear.addEventListener('click', () => {
+                if (contactSearchInput) {
+                    contactSearchInput.value = '';
+                    this.contactSearchQuery = '';
+                    this.renderContacts();
+                    contactSearchClear.classList.remove('visible');
+                }
+            });
+        }
+
+        // Trade search
+        const tradeSearchInput = document.getElementById('tradeSearchInput');
+        const tradeSearchClear = document.getElementById('tradeSearchClear');
+        if (tradeSearchInput) {
+            tradeSearchInput.addEventListener('input', (e) => {
+                this.tradeSearchQuery = e.target.value;
+                this.renderTrades();
+                // Show/hide clear button
+                if (tradeSearchClear) {
+                    tradeSearchClear.classList.toggle('visible', e.target.value.length > 0);
+                }
+            });
+        }
+        if (tradeSearchClear) {
+            tradeSearchClear.addEventListener('click', () => {
+                if (tradeSearchInput) {
+                    tradeSearchInput.value = '';
+                    this.tradeSearchQuery = '';
+                    this.renderTrades();
+                    tradeSearchClear.classList.remove('visible');
+                }
+            });
+        }
+    },
+
+    /**
+     * 附加联系人点击事件监听器
+     */
+    attachContactListeners() {
+        document.querySelectorAll('.contact-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const account = e.currentTarget.dataset.account;
+                this.openChat(account);
+            });
+        });
     },
 
     /**

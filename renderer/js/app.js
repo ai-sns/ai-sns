@@ -719,6 +719,7 @@ const App = {
         document.body.classList.remove('theme-light', 'theme-dark');
         document.body.classList.add(`theme-${theme}`);
         localStorage.setItem('theme', theme);
+        window.dispatchEvent(new CustomEvent('theme-changed', { detail: { theme } }));
         console.log(`Body classes: ${document.body.className}`);
     },
 

@@ -502,7 +502,7 @@ class MapTaskManager:
 
             self.set_command_status("ask_agent_instruction_to_process_human_instruction")
 
-            self.parent.ask_agent_instruction_to_process_human_instruction(ask_content)
+            asyncio.create_task(self.parent.ask_agent_instruction_to_process_human_instruction(ask_content))
 
 
         elif event=="agent_instruction_to_process_activity_returned":
@@ -607,13 +607,13 @@ class MapTaskManager:
 
             if self.parent.talk_type == "sell":
                 self.set_command_status("ask_agent_to_review_conversation_sell")
-                self.parent.ask_agent_to_review_conversation_sell(self.current_objective, talk_history_str)
+                asyncio.create_task(self.parent.ask_agent_to_review_conversation_sell(self.current_objective, talk_history_str))
             elif self.parent.talk_type == "buy":
                 self.set_command_status("ask_agent_to_review_conversation_buy")
-                self.parent.ask_agent_to_review_conversation_buy(self.current_objective, talk_history_str)
+                asyncio.create_task(self.parent.ask_agent_to_review_conversation_buy(self.current_objective, talk_history_str))
             else:
                 self.set_command_status("ask_agent_to_review_conversation")
-                self.parent.ask_agent_to_review_conversation(self.current_objective, talk_history_str)
+                asyncio.create_task(self.parent.ask_agent_to_review_conversation(self.current_objective, talk_history_str))
 
         elif event == "ask_agent_to_review_conversation_returned":
             result = kwargs.get("result", "")

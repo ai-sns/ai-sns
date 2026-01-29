@@ -162,8 +162,6 @@ class ResourceManagementMixin:
             self.money += amount
             self.aichatcfg_record.money = self.money
 
-            if hasattr(self, 'ui_adapter'):
-                self.update_resource_display()
 
             logger.info(f"Money increased by {amount} to {self.money}")
             return {"status": "success", "new_balance": self.money}
@@ -182,8 +180,6 @@ class ResourceManagementMixin:
             self.money -= amount
             self.aichatcfg_record.money = self.money
 
-            if hasattr(self, 'ui_adapter'):
-                self.update_resource_display()
 
             logger.info(f"Money decreased by {amount} to {self.money}")
             return {"status": "success", "new_balance": self.money}
