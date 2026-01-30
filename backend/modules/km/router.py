@@ -3,7 +3,7 @@
 KM module - API router
 """
 import logging
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request
 from fastapi.responses import FileResponse
 from pathlib import Path
 import sqlite3
@@ -12,6 +12,7 @@ from .schemas import KMConfig, KMResponse
 from .service import KMService
 from .dependencies import get_km_service
 from .note_router import router as note_router
+from db.DBFactory import Session, KMCfg
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,43 @@ router = APIRouter()
 
 # 包含笔记路由
 router.include_router(note_router, tags=["notes"])
+
+
+@router.put("/reorder", response_model=dict)
+async def reorder_knowledge_bases(request: Request):
+    try:
+        items = await request.json()
+
+        if not isinstance(items, list):
+            raise HTTPException(status_code=422, detail="Expected a list of items")
+
+        if len(items) == 0:
+            return {"success": True}
+
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                raise HTTPException(status_code=422, detail=f"Item {idx} is not a dict")
+            if "id" not in item:
+                raise HTTPException(status_code=422, detail=f"Item {idx} missing 'id'")
+            if "position" not in item:
+                raise HTTPException(status_code=422, detail=f"Item {idx} missing 'position'")
+
+        session = Session()
+        try:
+            for item in items:
+                kb_id = int(item["id"])
+                position = int(item["position"])
+                session.query(KMCfg).filter_by(id=kb_id).update({"position": position})
+            session.commit()
+        finally:
+            session.close()
+
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reordering knowledge bases: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("", response_model=dict)
@@ -52,7 +90,7 @@ async def create_knowledge_base(
         Created knowledge base ID
     """
     try:
-        kb_id = service.create_knowledge_base(**config.dict(exclude_unset=True))
+        kb_id = service.create_knowledge_base(**config.dict())
         return {"success": True, "data": {"id": kb_id}}
     except Exception as e:
         logger.error(f"Error creating knowledge base: {e}")

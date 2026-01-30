@@ -510,6 +510,11 @@ const KMSidebar = {
             return;
         }
 
+        if (page === 'km-management') {
+            await this.showKMManageDialog();
+            return;
+        }
+
         if (page === 'create') {
             // Show create dialog
             const kbData = await window.KMManagementDialog.showCreateDialog();
@@ -527,6 +532,221 @@ const KMSidebar = {
         } else if (page === 'list') {
             // Show KB list management
             await this.showKBListManagement();
+        }
+    },
+
+    async showKMManageDialog() {
+        const kbsAll = await this.fetchAllKnowledgeBasesForManage();
+
+        if (window.electronAPI && window.electronAPI.hideBrowserView) {
+            window.electronAPI.hideBrowserView();
+        }
+
+        const dialogHTML = `
+            <div class="web-manage-dialog-overlay" id="kmManageDialog">
+                <div class="web-manage-dialog">
+                    <div class="web-manage-dialog-header">
+                        <h3>Manage Knowledge Bases</h3>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="web-action-btn" id="kmAddBtn" style="height:32px; padding:0 12px;">
+                                <span>Add</span>
+                            </button>
+                            <button class="web-manage-dialog-close" data-action="close-km-manage">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="web-manage-dialog-content">
+                        <div class="web-manage-list" id="kmManageList">
+                            ${this.renderKMManageItems(kbsAll)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const oldDialog = document.getElementById('kmManageDialog');
+        if (oldDialog) oldDialog.remove();
+
+        document.body.insertAdjacentHTML('beforeend', dialogHTML);
+
+        this.initKMDragAndDrop();
+        this.bindKMManageDialogEvents();
+    },
+
+    async fetchAllKnowledgeBasesForManage() {
+        try {
+            const response = await fetch('http://localhost:8788/api/km');
+            const result = await response.json();
+            if (result && result.success && result.data) {
+                return result.data.filter(kb => kb.is_delete === null || kb.is_delete === false);
+            }
+            return [];
+        } catch (error) {
+            console.error('[KMSidebar] Failed to load knowledge bases for manage:', error);
+            return [];
+        }
+    },
+
+    renderKMManageItems(kbs) {
+        if (!kbs || kbs.length === 0) {
+            return '<div class="web-empty-message">No knowledge bases available</div>';
+        }
+
+        return kbs.map((kb, index) => {
+            const name = (kb.name || 'Unnamed KB');
+            const memo = (kb.memo || '');
+            const showText = kb.is_show === false ? 'Hidden' : 'Shown';
+            const typeText = kb.kmtype === 1 ? 'Note' : kb.kmtype === 0 ? 'File' : kb.kmtype === 2 ? 'Key-Value' : String(kb.kmtype);
+
+            return `
+                <div class="web-manage-item" draggable="true" data-id="${kb.id}" data-position="${kb.position ?? index}">
+                    <div class="web-manage-item-drag">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5h2M9 12h2M9 19h2M15 5h2M15 12h2M15 19h2"/>
+                        </svg>
+                    </div>
+                    <div class="web-manage-item-icon">
+                        <div class="web-icon-fallback">${String(name).charAt(0).toUpperCase()}</div>
+                    </div>
+                    <div class="web-manage-item-info">
+                        <div class="web-manage-item-name">${name}</div>
+                        <div class="web-manage-item-url">${memo ? memo : `${typeText} | ${showText}`}</div>
+                    </div>
+                    <div class="web-manage-item-actions">
+                        <div style="font-size:12px; color:#666; padding:0 6px;">${typeText}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    bindKMManageDialogEvents() {
+        const dialog = document.getElementById('kmManageDialog');
+        if (!dialog) return;
+
+        dialog.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            if (action === 'close-km-manage') {
+                await this.closeKMManageDialog();
+                return;
+            }
+
+            if (button.id === 'kmAddBtn') {
+                const kbData = await window.KMManagementDialog.showCreateDialog();
+                if (kbData) {
+                    const created = await window.KMManagementDialog.createKB(kbData);
+                    if (created) {
+                        const kbsAll = await this.fetchAllKnowledgeBasesForManage();
+                        const list = document.getElementById('kmManageList');
+                        if (list) {
+                            list.innerHTML = this.renderKMManageItems(kbsAll);
+                        }
+                    }
+                }
+            }
+        });
+
+        dialog.addEventListener('click', async (e) => {
+            if (e.target === dialog) {
+                await this.closeKMManageDialog();
+            }
+        });
+    },
+
+    async closeKMManageDialog() {
+        const dialog = document.getElementById('kmManageDialog');
+        if (dialog) dialog.remove();
+
+        if (window.electronAPI && window.electronAPI.showBrowserView) {
+            window.electronAPI.showBrowserView();
+        }
+
+        await this.reload();
+    },
+
+    initKMDragAndDrop() {
+        const list = document.getElementById('kmManageList');
+        if (!list) return;
+
+        let draggedElement = null;
+
+        list.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('web-manage-item')) {
+                draggedElement = e.target;
+                e.target.classList.add('dragging');
+            }
+        });
+
+        list.addEventListener('dragend', (e) => {
+            if (e.target.classList.contains('web-manage-item')) {
+                e.target.classList.remove('dragging');
+                draggedElement = null;
+            }
+        });
+
+        list.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = this.getDragAfterElement(list, e.clientY);
+            const dragging = document.querySelector('.dragging');
+            if (!dragging) return;
+
+            if (afterElement == null) {
+                list.appendChild(dragging);
+            } else {
+                list.insertBefore(dragging, afterElement);
+            }
+        });
+
+        list.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            await this.updateKMPositions();
+        });
+    },
+
+    getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.web-manage-item:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            }
+            return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    },
+
+    async updateKMPositions() {
+        const list = document.getElementById('kmManageList');
+        if (!list) return;
+
+        const items = [...list.querySelectorAll('.web-manage-item')];
+        const updates = items.map((item, index) => ({
+            id: parseInt(item.dataset.id),
+            position: index
+        }));
+
+        try {
+            const response = await fetch('http://localhost:8788/api/km/reorder', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to update KB positions');
+            }
+        } catch (error) {
+            console.error('[KMSidebar] Failed to update KB positions:', error);
+            alert('Failed to update KB positions. Please try again.');
         }
     },
 

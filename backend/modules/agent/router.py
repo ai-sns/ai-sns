@@ -4,7 +4,7 @@ Agent module - API router
 """
 import logging
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 
 from .schemas import AgentConfig, AgentResponse, AgentUpdateConfig
 from .service import AgentService
@@ -15,6 +15,43 @@ from db.DBFactory import Session, AgentCfg
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.put("/reorder", response_model=dict)
+async def reorder_agents(request: Request):
+    try:
+        items = await request.json()
+
+        if not isinstance(items, list):
+            raise HTTPException(status_code=422, detail="Expected a list of items")
+
+        if len(items) == 0:
+            return {"success": True}
+
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                raise HTTPException(status_code=422, detail=f"Item {idx} is not a dict")
+            if "id" not in item:
+                raise HTTPException(status_code=422, detail=f"Item {idx} missing 'id'")
+            if "position" not in item:
+                raise HTTPException(status_code=422, detail=f"Item {idx} missing 'position'")
+
+        session = Session()
+        try:
+            for item in items:
+                agent_id = int(item["id"])
+                position = int(item["position"])
+                session.query(AgentCfg).filter_by(id=agent_id).update({"position": position})
+            session.commit()
+        finally:
+            session.close()
+
+        return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reordering agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/list", response_model=dict)

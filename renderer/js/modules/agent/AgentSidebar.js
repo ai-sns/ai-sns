@@ -76,6 +76,21 @@ const AgentSidebar = {
         }
     },
 
+    async fetchAllAgentsForManage() {
+        try {
+            const response = await fetch('http://localhost:8788/api/agent');
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                return result.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('[AgentSidebar] 加载Agent列表失败:', error);
+            return [];
+        }
+    },
+
     /**
      * 渲染Agent列表（新架构：每个agent item后面跟着它的section）
      */
@@ -113,7 +128,7 @@ const AgentSidebar = {
                 </svg>
                 <span>角色管理</span>
             </div>
-            <div class="agent-item agent-management">
+            <div class="agent-item agent-management" data-page="agent-management">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
                     <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/>
                 </svg>
@@ -374,6 +389,11 @@ const AgentSidebar = {
         try {
             console.log('[AgentSidebar] 导航到管理页面:', page);
 
+            if (page === 'agent-management') {
+                await this.showAgentManageDialog();
+                return;
+            }
+
             // Import management pages dynamically
             const module = await import('./index.js');
             const { ModelManagementPage, RoleManagementPage } = module.default;
@@ -391,6 +411,300 @@ const AgentSidebar = {
             }
         } catch (error) {
             console.error('[AgentSidebar] 导航到管理页面失败:', error);
+        }
+    },
+
+    async showAgentManageDialog() {
+        const agents = await this.fetchAllAgentsForManage();
+
+        if (window.electronAPI && window.electronAPI.hideBrowserView) {
+            window.electronAPI.hideBrowserView();
+        }
+
+        const dialogHTML = `
+            <div class="web-manage-dialog-overlay" id="agentManageDialog">
+                <div class="web-manage-dialog">
+                    <div class="web-manage-dialog-header">
+                        <h3>Manage Agents</h3>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="web-action-btn" id="agentAddBtn" style="height:32px; padding:0 12px;">
+                                <span>Add</span>
+                            </button>
+                            <button class="web-manage-dialog-close" data-action="close-agent-manage">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="web-manage-dialog-content">
+                        <div class="web-manage-list" id="agentManageList">
+                            ${this.renderAgentManageItems(agents)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const oldDialog = document.getElementById('agentManageDialog');
+        if (oldDialog) oldDialog.remove();
+
+        document.body.insertAdjacentHTML('beforeend', dialogHTML);
+
+        this.initAgentDragAndDrop();
+        this.bindAgentManageDialogEvents();
+    },
+
+    renderAgentManageItems(agents) {
+        if (!agents || agents.length === 0) {
+            return '<div class="web-empty-message">No agents available</div>';
+        }
+
+        return agents.map((agent, index) => {
+            const name = (agent.name || 'Unnamed Agent');
+            const description = (agent.description || '');
+            const activeText = agent.is_active === false ? 'Inactive' : 'Active';
+
+            return `
+                <div class="web-manage-item" draggable="true" data-id="${agent.id}" data-position="${agent.position ?? index}">
+                    <div class="web-manage-item-drag">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5h2M9 12h2M9 19h2M15 5h2M15 12h2M15 19h2"/>
+                        </svg>
+                    </div>
+                    <div class="web-manage-item-icon">
+                        <div class="web-icon-fallback">${String(name).charAt(0).toUpperCase()}</div>
+                    </div>
+                    <div class="web-manage-item-info">
+                        <div class="web-manage-item-name">${name}</div>
+                        <div class="web-manage-item-url">${description ? description : activeText}</div>
+                    </div>
+                    <div class="web-manage-item-actions">
+                        <div style="font-size:12px; color:#666; padding:0 6px;">${activeText}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    bindAgentManageDialogEvents() {
+        const dialog = document.getElementById('agentManageDialog');
+        if (!dialog) return;
+
+        dialog.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            if (action === 'close-agent-manage') {
+                await this.closeAgentManageDialog();
+                return;
+            }
+
+            if (button.id === 'agentAddBtn') {
+                await this.showAddAgentDialog();
+            }
+        });
+
+        dialog.addEventListener('click', async (e) => {
+            if (e.target === dialog) {
+                await this.closeAgentManageDialog();
+            }
+        });
+    },
+
+    async closeAgentManageDialog() {
+        const dialog = document.getElementById('agentManageDialog');
+        if (dialog) dialog.remove();
+
+        if (window.electronAPI && window.electronAPI.showBrowserView) {
+            window.electronAPI.showBrowserView();
+        }
+
+        await this.reload();
+    },
+
+    initAgentDragAndDrop() {
+        const list = document.getElementById('agentManageList');
+        if (!list) return;
+
+        let draggedElement = null;
+
+        list.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('web-manage-item')) {
+                draggedElement = e.target;
+                e.target.classList.add('dragging');
+            }
+        });
+
+        list.addEventListener('dragend', (e) => {
+            if (e.target.classList.contains('web-manage-item')) {
+                e.target.classList.remove('dragging');
+                draggedElement = null;
+            }
+        });
+
+        list.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const afterElement = this.getDragAfterElement(list, e.clientY);
+            const dragging = document.querySelector('.dragging');
+            if (!dragging) return;
+
+            if (afterElement == null) {
+                list.appendChild(dragging);
+            } else {
+                list.insertBefore(dragging, afterElement);
+            }
+        });
+
+        list.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            await this.updateAgentPositions();
+        });
+    },
+
+    getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.web-manage-item:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            }
+            return closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    },
+
+    async updateAgentPositions() {
+        const list = document.getElementById('agentManageList');
+        if (!list) return;
+
+        const items = [...list.querySelectorAll('.web-manage-item')];
+        const updates = items.map((item, index) => ({
+            id: parseInt(item.dataset.id),
+            position: index
+        }));
+
+        try {
+            const response = await fetch('http://localhost:8788/api/agent/reorder', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to update agent positions');
+            }
+        } catch (error) {
+            console.error('[AgentSidebar] Failed to update agent positions:', error);
+            alert('Failed to update agent positions. Please try again.');
+        }
+    },
+
+    async showAddAgentDialog() {
+        const dialogHTML = `
+            <div class="web-manage-dialog-overlay" id="agentAddDialog">
+                <div class="web-edit-dialog">
+                    <div class="web-edit-dialog-header">
+                        <h3>Add Agent</h3>
+                        <button class="web-edit-dialog-close" data-action="close-agent-add">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 6L6 18M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="web-edit-dialog-content">
+                        <div class="web-edit-form">
+                            <div class="web-edit-form-group">
+                                <label>Name *</label>
+                                <input type="text" id="agentAddName" placeholder="e.g., Research Agent" required>
+                            </div>
+                            <div class="web-edit-form-group">
+                                <label>Description</label>
+                                <textarea id="agentAddDescription" rows="3"></textarea>
+                            </div>
+                            <div class="web-edit-form-group">
+                                <label>Active</label>
+                                <input type="checkbox" id="agentAddActive" checked>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="web-edit-dialog-footer">
+                        <button class="web-edit-dialog-btn web-edit-dialog-btn-cancel" data-action="cancel-agent-add">Cancel</button>
+                        <button class="web-edit-dialog-btn web-edit-dialog-btn-save" data-action="save-agent-add">Add</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const oldDialog = document.getElementById('agentAddDialog');
+        if (oldDialog) oldDialog.remove();
+        document.body.insertAdjacentHTML('beforeend', dialogHTML);
+
+        const dialog = document.getElementById('agentAddDialog');
+        if (!dialog) return;
+
+        dialog.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            const action = button.dataset.action;
+
+            if (action === 'close-agent-add' || action === 'cancel-agent-add') {
+                this.closeAddAgentDialog();
+                return;
+            }
+
+            if (action === 'save-agent-add') {
+                await this.saveAddAgent();
+            }
+        });
+    },
+
+    closeAddAgentDialog() {
+        const dialog = document.getElementById('agentAddDialog');
+        if (dialog) dialog.remove();
+    },
+
+    async saveAddAgent() {
+        const nameEl = document.getElementById('agentAddName');
+        const descEl = document.getElementById('agentAddDescription');
+        const activeEl = document.getElementById('agentAddActive');
+
+        const name = nameEl ? nameEl.value.trim() : '';
+        const description = descEl ? descEl.value.trim() : '';
+        const is_active = activeEl ? !!activeEl.checked : true;
+
+        if (!name) {
+            alert('Name is required');
+            if (nameEl) nameEl.focus();
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8788/api/agent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, is_active })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to create agent');
+            }
+
+            this.closeAddAgentDialog();
+
+            const agents = await this.fetchAllAgentsForManage();
+            const list = document.getElementById('agentManageList');
+            if (list) {
+                list.innerHTML = this.renderAgentManageItems(agents);
+            }
+        } catch (error) {
+            console.error('[AgentSidebar] Failed to create agent:', error);
+            alert('Failed to create agent. Please try again.');
         }
     },
 

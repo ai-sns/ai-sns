@@ -42,8 +42,37 @@ class KMService:
 
     @staticmethod
     def create_knowledge_base(**kwargs) -> int:
-        """Create a new knowledge base"""
-        kb_id = add_KMCfg(**kwargs)
+        km_id = kwargs.get('km_id')
+        name = kwargs.get('name')
+        memo = kwargs.get('memo', '')
+        label = kwargs.get('label', '')
+        kmpath = kwargs.get('kmpath', '')
+        vectorization = kwargs.get('vectorization', True)
+        stopvectorization = kwargs.get('stopvectorization', False)
+        kmtype = kwargs.get('kmtype', 1)
+        vectortype = kwargs.get('vectortype', '')
+        embeddingmodel = kwargs.get('embeddingmodel', '')
+        textblocklength = kwargs.get('textblocklength', 1000)
+        overlaplength = kwargs.get('overlaplength', 100)
+        titleaugment = kwargs.get('titleaugment', True)
+        config_param = kwargs.get('config_param', '')
+
+        kb_id = add_KMCfg(
+            km_id=km_id,
+            name=name,
+            memo=memo,
+            label=label,
+            kmpath=kmpath,
+            vectorization=vectorization,
+            stopvectorization=stopvectorization,
+            kmtype=kmtype,
+            vectortype=vectortype,
+            embeddingmodel=embeddingmodel,
+            textblocklength=textblocklength,
+            overlaplength=overlaplength,
+            titleaugment=titleaugment,
+            config_param=config_param,
+        )
         return kb_id
 
     @staticmethod
