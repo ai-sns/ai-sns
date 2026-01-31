@@ -237,6 +237,13 @@ class XmppMixin:
         Returns:
             bool: 发送成功返回True，失败返回False
         """
+        if not to_jid:
+            if self.current_talk_people:
+                current_talk_people = self.current_talk_people
+                to_jid = current_talk_people["account"]
+                to_name = current_talk_people["nick_name"]
+            else:
+                return
         try:
             # 验证消息内容
             if not content:

@@ -312,6 +312,43 @@ class SNSService:
             "message": "AI Social Engine is " + ("running" if _social_engine_running else "stopped")
         }
 
+    async def set_human_control_state(self, human_take_over: bool, human_talk_type: int = None) -> dict:
+        global _social_engine_instance
+
+        if _social_engine_instance is None:
+            return {
+                "success": False,
+                "message": "AI Social Engine is not initialized"
+            }
+
+        _social_engine_instance.human_take_over = bool(human_take_over)
+        if human_talk_type is not None:
+            _social_engine_instance.human_talk_type = int(human_talk_type)
+
+        return {
+            "success": True,
+            "message": "Human control state updated",
+            "data": {
+                "human_take_over": _social_engine_instance.human_take_over,
+                "human_talk_type": _social_engine_instance.human_talk_type
+            }
+        }
+
+    async def send_human_message(self, message: str) -> dict:
+        global _social_engine_instance
+
+        if _social_engine_instance is None:
+            return {
+                "success": False,
+                "message": "AI Social Engine is not initialized"
+            }
+
+        _social_engine_instance.human_message_received(message)
+        return {
+            "success": True,
+            "message": "Human message received"
+        }
+
     async def get_ai_chat_config(self, user_id: str = None):
         """Get AI chat configuration"""
         try:

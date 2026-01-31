@@ -464,7 +464,7 @@ function initMap() {
     const loadModel2 = async () => {
         try {
             // 使用重试机制加载模型
-            const gltf = await loadModelWithRetry(loader, 'avatar3d/ctgirlschool_0_0_0_0_05_0.glb');
+            const gltf = await loadModelWithRetry(loader, 'avatar3d/ctgirlschool_0_0_0_0_02_0.glb');
             model2 = gltf.scene;
             // 添加环境光
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);

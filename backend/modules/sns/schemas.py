@@ -113,3 +113,12 @@ class SocialRoleUpdateRequest(BaseModel):
     content: Optional[str] = None
     question: Optional[str] = None
     tags: Optional[str] = None
+
+
+class HumanControlStateRequest(BaseModel):
+    human_take_over: bool
+    human_talk_type: Optional[int] = None
+
+
+class HumanMessageRequest(BaseModel):
+    message: str

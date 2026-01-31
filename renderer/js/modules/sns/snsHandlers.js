@@ -183,6 +183,12 @@ export default {
                 state1.style.display = 'none';
                 state2.style.display = 'block';
             }
+
+            // Enter control mode => backend human_take_over = true
+            const activeToggle = actionBar.querySelector('.toggle-btn.active');
+            const mode = activeToggle ? activeToggle.dataset.mode : 'ai';
+            const humanTalkType = mode === 'ai' ? 0 : 1;
+            snsApi.setHumanControlState(true, humanTalkType);
         };
 
         const switchToState1 = () => {
@@ -190,6 +196,9 @@ export default {
                 state1.style.display = 'flex';
                 state2.style.display = 'none';
             }
+
+            // Exit control mode => backend human_take_over = false
+            snsApi.setHumanControlState(false, null);
         };
 
         // Control button click - switch to state 2
@@ -240,6 +249,13 @@ export default {
             btn.addEventListener('click', () => {
                 toggleBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Sync backend talk type when toggled
+                const mode = btn.dataset.mode || 'ai';
+                const humanTalkType = mode === 'ai' ? 0 : 1;
+                // Keep take over aligned with current UI state
+                const inControlState = state2 && state2.style.display !== 'none';
+                snsApi.setHumanControlState(!!inControlState, humanTalkType);
             });
         });
 
@@ -365,14 +381,14 @@ export default {
                 inputField.value = '';
 
                 try {
-                    // 调用AI服务 - 使用第一个可用的agent
-                    const result = await snsApi.chatWithAI('1', message, mode);
+                    // Forward to backend AISocialEngine.human_message_received
+                    // Ensure backend state matches UI at send time
+                    const humanTalkType = mode === 'ai' ? 0 : 1;
+                    await snsApi.setHumanControlState(true, humanTalkType);
+                    const result = await snsApi.sendHumanMessage(message);
 
-                    if (result.success) {
-                        // 显示回复
-                        this.showToast(result.reply);
-                    } else {
-                        this.showToast(`错误: ${result.error || '未知错误'}`, 'error');
+                    if (!result.success) {
+                        this.showToast(`错误: ${result.message || '未知错误'}`, 'error');
                     }
                 } catch (error) {
                     console.error('发送消息失败:', error);

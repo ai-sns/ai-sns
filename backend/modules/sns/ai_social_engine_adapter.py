@@ -101,8 +101,7 @@ class AISocialEngine(
         self.stopping_ai_process_flag = False
         self.pause_flag = False
         self.agent_replying_flag = False
-        # Qt GUI signal connection - disabled for backend use
-        # self.aichatcfg_record.on_property_updated.connect(self.handle_aichatcfg_property_updated)
+        self.human_talk_type = 0#0 talk to your ai，1 talk to friend
         self.conversation_id = ""
         self.messages = []
         self.messages_command = []
@@ -814,6 +813,59 @@ __current_process__
         self.started_flag = False
         self.taskmng.current_task_record = None
 
+    def human_message_received(self,instruction):
+
+        if self.human_take_over:
+            if self.human_talk_type==0:
+                if self.agent_replying_flag:
+                    #todo 请给前端发送提示："提示", "Agent正在完成上一个任务，请稍等..."
+                    return
+                self.taskmng_js.show_information(lt(f"Human:{instruction}",f"人类:{instruction}"))
+                self.write_on_going_process_to_pane(lt("Human take control...","人类控制中..."))
+                self.handle_human_instruction(instruction)
+            else:
+                self.sendMessage(instruction, True)
+
+
+    async def ask_agent_instruction_to_process_human_instruction(self, ask_content):
+        self.show_status_on_map("thinking")
+        if not self.started_flag:
+            return
+
+        role_prompt = get_prompt_by_title("__human_instruction_to_process_activity_role__")
+        task_description = self.taskmng.get_task_summary()
+        ability_list = self.get_ability_list()
+        question_to_llm = ask_content
+        full_ask_content = self.compose_full_ask_content_human(task_description, ability_list, question_to_llm)
+        await self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
+
+    def compose_full_ask_content_human(self, task_description, ability_list, question_to_llm):
+        prompt = get_prompt_by_title("__human_instruction_to_process_activity_content__")
+        prompt = prompt.replace(f"__human_instruction__", question_to_llm)
+        # prompt = prompt.replace(f"__ability_list__", json.dumps(ability_list, indent=4, ensure_ascii=False))
+        prompt = prompt.replace(f"__tool_list__", json.dumps(self.get_tool_list(), indent=4, ensure_ascii=False))
+        prompt = prompt.replace(f"__people_list__", json.dumps(self.get_people_list(), indent=4, ensure_ascii=False))
+        prompt = prompt.replace(f"__place_list__", json.dumps(self.get_place_list(), indent=4, ensure_ascii=False))
+
+        return prompt.strip()
+
+    def parse_agent_instruction_for_process_human_instruction(self, instruction):
+        self.parse_agent_instruction_for_process_activity(instruction)
+        return
+
+    def handle_human_instruction(self, human_instruction):
+        if human_instruction:
+            if human_instruction.startswith("@Memory:"):
+                memory_content = human_instruction.split(':', 1)[1].strip()
+                messages = [
+                    {"role": "user", "content": f"{memory_content}"}
+                ]
+                add_memory_list(messages)
+                return
+
+            # 将人类指令整合到full_ask_content中
+            self.human_instruction = human_instruction
+            self.taskmng.process_task(action="process_human_instruction", ask_content=human_instruction, human_send_flag=True)
 
     def handle_aichatcfg_property_updated(self, property_name):
         """
@@ -843,98 +895,6 @@ __current_process__
         # 如果属性与进行中进程面板相关，则更新面板
         if property_name in process_pane_related_properties:
             self.write_on_going_process_to_pane(self.current_ongoing_content or "")
-
-    async def ask_agent_instruction_to_process_human_instruction(self, ask_content):
-        self.show_status_on_map("thinking")
-        if not self.started_flag:
-            return
-
-        role_prompt = get_prompt_by_title("__human_instruction_to_process_activity_role__")
-        task_description = self.taskmng.get_task_summary()
-        ability_list = self.get_ability_list()
-        question_to_llm = ask_content
-        full_ask_content = self.compose_full_ask_content_human(task_description, ability_list, question_to_llm)
-        await self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
-
-    def compose_full_ask_content_human(self, task_description, ability_list, question_to_llm):
-        prompt = get_prompt_by_title("__human_instruction_to_process_activity_content__")
-        prompt = prompt.replace(f"__human_instruction__", question_to_llm)
-        # prompt = prompt.replace(f"__ability_list__", json.dumps(ability_list, indent=4, ensure_ascii=False))
-        prompt = prompt.replace(f"__tool_list__", json.dumps(self.get_tool_list(), indent=4, ensure_ascii=False))
-        prompt = prompt.replace(f"__people_list__", json.dumps(self.get_people_list(), indent=4, ensure_ascii=False))
-        prompt = prompt.replace(f"__place_list__", json.dumps(self.get_place_list(), indent=4, ensure_ascii=False))
-
-        return prompt.strip()
-
-    def parse_agent_instruction_for_process_human_instruction(self, instruction):
-        self.parse_agent_instruction_for_process_activity(instruction)
-        return
-
-        instruction = instruction.strip()
-        instruction_dict = json.loads(instruction)
-        objective_to_achieve = instruction_dict.get("objective_to_achieve", "")
-        human_instruction = instruction_dict.get("human_instruction", "")
-        people_to_talk_to = instruction_dict.get("people_to_talk_to", "")
-        place_to_move_to = instruction_dict.get("place_to_move_to", "")
-        tool_to_use = instruction_dict.get("tool_to_use", "")
-
-        # self.taskmng.set_current_activity_objective(objective_to_achieve)
-        # self.taskmng.set_current_objective(objective_to_achieve)
-
-        if "activity_find_people_from_list_to_talk" in instruction:
-            self.command_status = "ask_agent_to_pick_people_list"
-            provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
-            if people_to_talk_to:
-                objective_to_achieve = f"如果人员列表中有 {people_to_talk_to} 这个人，请把{people_to_talk_to}作为选择的目标。"
-            self.ask_agent_to_pick_people_list_sync(provided_profile_list, objective_to_achieve)
-        elif "activity_find_place_from_list_to_move" in instruction:
-            self.command_status = "ask_agent_to_pick_place_list"
-            objective_to_achieve = self.taskmng.current_objective if self.taskmng.current_objective else self.taskmng.current_sub_task["details"]
-            if place_to_move_to:
-                objective_to_achieve = f"如果地址列表中有 {place_to_move_to} 这个地方，请把{place_to_move_to}作为选择的目标。{objective_to_achieve}"
-            provided_place_list = json.dumps(self.get_place_list(), indent=4, ensure_ascii=False)
-            self.ask_agent_to_pick_place_list_sync(objective_to_achieve, provided_place_list)
-
-
-        elif "activity_find_tool_from_list_to_use" in instruction:
-            self.command_status = "ask_agent_to_pick_a_tool"
-            task_summary = self.taskmng.get_task_summary()
-
-            provided_tool_list = json.dumps(self.get_tool_list(), indent=4, ensure_ascii=False)
-
-            if tool_to_use:
-                objective_to_achieve = f"如果工具列表中有 {tool_to_use} 这个工具，请把{tool_to_use}作为选择的目标。"
-
-            self.ask_agent_to_pick_a_tool_sync(task_summary, provided_tool_list, objective_to_achieve)
-
-        else:
-            human_instruction = self.human_instruction
-            self.taskmng.process_task(action="process_activity", ask_content="请优先根据人类反馈，做出决策。人类的指令如下：" + human_instruction, human_send_flag=True)
-
-
-    def ask_human_instruction(self):
-        self.human_instruction = ""
-        self.command_status = "wait_human_feedback"
-        while True:
-            time.sleep(1)
-            if self.human_instruction:
-                self.handle_human_instruction(self.human_instruction)
-                self.command_status = ""
-                break
-
-    def handle_human_instruction(self, human_instruction):
-        if human_instruction:
-            if human_instruction.startswith("@Memory:"):
-                memory_content = human_instruction.split(':', 1)[1].strip()
-                messages = [
-                    {"role": "user", "content": f"{memory_content}"}
-                ]
-                add_memory_list(messages)
-                return
-
-            # 将人类指令整合到full_ask_content中
-            self.human_instruction = human_instruction
-            self.taskmng.process_task(action="process_human_instruction", ask_content=human_instruction, human_send_flag=True)
 
 
 class AiChatCfgManager:

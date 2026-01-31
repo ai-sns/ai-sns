@@ -17,7 +17,9 @@ from backend.modules.sns.schemas import (
     Avatar3DItem,
     ProfessionItem,
     SocialRoleItem,
-    SocialRoleUpdateRequest
+    SocialRoleUpdateRequest,
+    HumanControlStateRequest,
+    HumanMessageRequest
 )
 
 router = APIRouter()
@@ -255,4 +257,25 @@ async def get_model_info(db: AsyncSession = Depends(get_db)):
     """
     service = SNSService(db)
     return await service.get_model_info()
+
+
+@router.post("/human-control-state")
+async def set_human_control_state(
+    request: HumanControlStateRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    service = SNSService(db)
+    return await service.set_human_control_state(
+        human_take_over=request.human_take_over,
+        human_talk_type=request.human_talk_type
+    )
+
+
+@router.post("/human-message")
+async def send_human_message(
+    request: HumanMessageRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    service = SNSService(db)
+    return await service.send_human_message(request.message)
 

@@ -353,5 +353,52 @@ export default {
                 error: error.message
             };
         }
+    },
+
+    async setHumanControlState(humanTakeOver, humanTalkType = null) {
+        try {
+            const response = await fetch('http://localhost:8788/api/sns/human-control-state', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    human_take_over: !!humanTakeOver,
+                    human_talk_type: humanTalkType
+                })
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('设置human control state失败:', error);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
+    },
+
+    async sendHumanMessage(message) {
+        try {
+            const response = await fetch('http://localhost:8788/api/sns/human-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message
+                })
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('发送human message失败:', error);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
     }
 };

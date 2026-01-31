@@ -2890,3 +2890,458 @@ destroy() {
 1.sns 的sidebar样式很不好看，请给我重新调整。
 2.把chat页签下面的Buddies这行去掉，换成搜索框，并给我实现搜索功能。
 3.在Trade页签的同样位置也加个搜索框，并实现其搜索功能
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究km模块：renderer\js\modules\km，及agent模块：renderer\js\modules\agent，这两个目录的代码，然后做如下功能优化:
+1.kmtype类型为1的note笔记类型的kb目前没有进行向量化处理
+-请对该类型也进行向量化处理
+-前端要求合理布局在不改变当前功能和逻辑的基础上，增加手工向量化的入口，以及向量化查询的入口
+2.kmtype类型为0的文件类型的kb，目前无法查看上载的文件的原始文件
+-要求对km-file-tree下面加载的各个文件项，点击后可以从后端把附件下载下来，并使用缺省软件将文件打开，具体处理方式你可参考agent模块的处理方式
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究km模块：renderer\js\modules\km，及agent模块：renderer\js\modules\agent，还有web模块:renderer\js\modules\web,这3个目录的代码，然后做如下功能优化:
+1.完善renderer\js\modules\agent\AgentSidebar.js 的Agent Management按钮的功能。
+-点击该按钮可以打开一个管理界面，具体参考renderer\js\modules\web\WebSidebar.js的Manage按钮打开的界面
+-可以在界面上调整agent的顺序
+-可以新增agent配置
+2.完善renderer\js\modules\km\KMSidebar.js 的KM Management按钮的功能。
+-点击该按钮可以打开一个管理界面，具体参考renderer\js\modules\web\WebSidebar.js的Manage按钮打开的界面
+-可以在界面上调整各个kb的顺序
+-可以新增kb配置
+
+
+后端在api_server.py及backend目录下,数据库使用db/db.sqlite
+给我看下我运行了"POST /api/sns/start-engine HTTP/1.1" 200 OK，后台具体都运行了哪些文件，调用了哪些函数，请你把完整的逻辑关系给我详细理出来，所有会调用到的函数都必须理出来。
+
+Not enough credits. Upgrade to a paid plan or switch to SWE-1.5 model.
+Feedback submitted
+
+
+
+后端在api_server.py及backend目录下,数据库使用db/db.sqlite
+给我看下我运行了"POST /api/sns/start-engine HTTP/1.1" 200 OK，后台具体都运行了哪些文件，调用了哪些函数，请你把完整的逻辑关系给我详细理出来，所有会调用到的函数都必须理出来。
+
+我会先在代码里定位 POST /api/sns/start-engine 这个路由的注册位置（你提到的 api_server.py/backend），然后顺着调用链把“从 HTTP 入口到最终启动引擎”的每一层：路由函数 -> service/manager -> DB/任务队列/子进程等全部展开，列出涉及的文件路径、函数名、关键参数/返回，并把逻辑画成一条可追踪的调用树。
+我先用全仓搜索把路由入口和相关 handler 找出来。
+
+1
+定位 POST /api/sns/start-engine 路由定义与注册位置（api_server.py / backend/router等）
+
+顺着调用链追踪：handler -> service -> engine 启动逻辑 -> async/task/子进程，并记录所有参与函数与文件
+
+追踪数据库(db/db.sqlite)相关读写路径：仓库层/ORM/连接初始化，并挂到调用链中
+
+整理输出：完整调用树(按层级) + 关键数据流/副作用(启动线程/任务/写DB/读配置)
+
+Fast Context
+Locate the FastAPI/Flask route handling POST /api/sns/start-engine (likely in api_server.py or backend router) and identify handler function and downstream calls.
+in 12.02s
+我已经定位到后端 backend/modules/sns/router.py 里有 router.post("/start-engine")，它会创建 SNSService(db) 并调用 start_social_engine()，再进入 AISocialEngine.start() 启动后台任务循环。接下来我会把与该请求相关的路由挂载（/api/sns 前缀来自哪）、get_db/get_db_sync（SQLite 连接）以及 AISocialEngine 内部启动的 _run_task_loop() 等函数逐一打开，完整列出“哪些文件/哪些函数被调用”。我现在开始读取这些关键文件。
+
+我已经确认 POST /api/sns/start-engine 的具体入口在 backend/modules/sns/router.py::start_social_engine()，并且它会走到 SNSService.start_social_engine() 里创建/初始化 AISocialEngine，最后 AISocialEngine.start() 会 asyncio.create_task(self._run_task_loop()) 启动后台循环。下一步我会补齐两块关键信息：/api/sns 前缀在 api_server.py 的路由挂载位置，以及 _run_task_loop() 的具体实现与它会继续调用哪些函数（以及其中涉及到的 DBFactory/SQLite 访问函数）。我现在继续把这些文件/函数读全并展开调用树。
+
+1 more
+2
+顺着调用链追踪：handler -> service -> engine 启动逻辑 -> async/task/子进程，并记录所有参与函数与文件
+
+3
+追踪数据库(db/db.sqlite)相关读写路径：仓库层/ORM/连接初始化，并挂到调用链中
+
+1 more
+我接下来会把 AISocialEngine.start() 启动后的后台循环 _run_task_loop() 展开：它每 5 秒会调用一次 start_task()，而 start_task() 会进入 MapTaskManager 的流程（add_process() / process_task() 等）。同时我会把 AISocialEngine.__init__() / async_init() 阶段的初始化（尤其是 load_all_user_data()、AiChatCfg 读取、DBFactory 对 SQLite 的访问）也纳入调用链，整理成一棵“入口->下游”调用树。现在先把 MapTaskManager、JsTaskManager、load_all_user_data 相关实现读出来并继续追踪。
+
+我已经把 HTTP 入口、SNSService.start_social_engine()、以及 AISocialEngine.start() 启动后台循环的主干链路确认了。接下来为了把“所有会调用到的函数”完整理出来，我需要继续把 AISocialEngine.load_all_user_data()、AiChatCfgManager、以及 MapTaskManager.process_task() 等真正开始跑任务时会触发的函数展开，同时把这些函数背后调用到的 db/DBFactory.py（SQLite 访问）函数也一并列出并串到调用树里。我现在继续定位这些函数定义并读取对应文件。
+
+我还差两块才能把 POST /api/sns/start-engine 的“所有会调用到的函数”完整列出来：
+
+AISocialEngine.load_all_user_data()（以及它内部会触发哪些 DBFactory 查询）到底在哪里定义、调用了什么；
+AISocialEngine.start_task() 进入 MapTaskManager.process_task() 后，会继续触发哪些 AISocialEngine 方法（比如 ask_agent_*、send_msg_to_map、XMPP/WebSocket 等）。
+我现在继续在 ai_social_engine_adapter.py 里把 load_all_user_data/send_msg_to_map/AiChatCfgManager 等定义定位出来，并补齐相关依赖文件。
+我会继续把 AISocialEngine 通过多继承 mixin 组合起来的关键方法补齐：尤其是 load_all_user_data()（在 data_query_mixin.py / resource_management_mixin.py 里）、以及 send_msg_to_map()/show_* 这类把状态推送到前端的函数（在 ui_display_mixin.py 等）。读完这些后，我会给你一份从 /api/sns/start-engine 入口开始的完整调用树，并把每个节点标注到具体文件与函数名；同时指出有哪些是“循环中可能被触发的分支调用”（例如根据 LLM 指令进入 move_ahead()/use_tools()/communicate_with_a_people()）。
+
+下面把你这次请求 POST /api/sns/start-engine HTTP/1.1 返回 200 OK 时，后端实际“跑了哪些文件 / 调了哪些函数”，按从 HTTP 入口一路追到引擎后台循环的方式，给你把**完整逻辑关系（调用树）**理出来。
+（我按你仓库当前实现精确到文件路径 + 函数名；另外会把“循环里可能触发的分支函数”也列出来，因为这些在引擎启动后就会被后台任务按条件调用。）
+
+0. 路由挂载：为什么是 /api/sns/start-engine
+0.1 应用入口与 router 挂载
+文件：api_server.py
+关键代码：
+导入 SNS router：from backend.modules.sns.router import router as sns_router
+挂载前缀：app.include_router(sns_router, prefix="/api/sns", tags=["SNS"])
+所以：
+
+你打的 POST /api/sns/start-engine
+实际命中的是 SNS router 里路径 "/start-engine" 的 handler。
+1. HTTP 调用树（入口到返回 200 的同步链路）
+1.1 FastAPI handler
+文件：backend/modules/sns/router.py
+函数：start_social_engine(db: AsyncSession = Depends(get_db))
+调用链：
+
+Depends(get_db) 注入 DB（异步 session）
+service = SNSService(db)
+result = await service.start_social_engine()
+return result
+你看到 200 OK 的时候，至少说明上面这条链路执行完成并返回了 dict。
+
+1.2 DB 依赖注入（AsyncSession）
+文件：backend/config/database.py
+函数：get_db()（最终别名指向 get_db_async_depends）
+内部行为：
+async with AsyncSessionLocal() as session: yield session
+连接串：
+sqlite+aiosqlite:///{settings.database.full_path}
+注意：SNS 引擎本身不是用这个 AsyncSession跑逻辑，而是在下一步转成了同步 Session。
+
+1.3 SNSService 启动引擎（核心）
+文件：backend/modules/sns/service_async.py
+类：SNSService
+函数：start_social_engine(self)
+调用链（按代码顺序）：
+
+检查全局状态：
+_social_engine_running（bool）
+_social_engine_instance（单例对象）
+from backend.modules.sns.ai_social_engine_adapter import AISocialEngine
+若 _social_engine_instance is None：
+创建同步 DB Session
+文件：backend/config/database.py
+函数：get_db_sync() -> Session
+连接串：sqlite:///{settings.database.full_path}
+_social_engine_instance = AISocialEngine(db_sync)
+await _social_engine_instance.async_init()
+await _social_engine_instance.start()
+_social_engine_running = True
+返回：
+{"success": True, "message": "...", "running": True}
+因此 200 OK 的“最后一步”通常就是这份 dict 被 FastAPI 返回。
+
+2. AISocialEngine 构造与初始化：启动引擎时“实际运行了哪些文件/函数”
+从 SNSService.start_social_engine() 开始，真正的“引擎启动”发生在：
+
+2.1 创建引擎对象：AISocialEngine.__init__
+文件：backend/modules/sns/ai_social_engine_adapter.py
+类：AISocialEngine
+函数：__init__(self, db: Session)
+它本身是一个多继承组合类：
+
+XmppMixin -> backend/modules/sns/xmpp_mixin.py
+ToolsMixin -> backend/modules/sns/tools_mixin.py
+MapMovementMixin -> backend/modules/sns/map_movement_mixin.py
+CommunicationMixin -> backend/modules/sns/communication_mixin.py
+AgentInteractionMixin -> backend/modules/sns/agent_interaction_mixin.py
+TradeMixin -> backend/modules/sns/trade_mixin.py（你仓库存在且被 grep 到）
+EventHandlerMixin -> backend/modules/sns/event_handler_mixin.py（存在）
+DataQueryMixin -> backend/modules/sns/data_query_mixin.py
+UIDisplayMixin -> backend/modules/sns/ui_display_mixin.py
+这意味着：引擎运行过程中会调用到这些 mixin 文件里的函数（后面我会在“循环调用树”里完整列出来）。
+
+__init__ 内部关键调用/副作用
+按代码可见的直接调用/构造（都是“启动时就会发生”的）：
+
+创建任务管理器
+JsTaskManager(self)
+文件：backend/modules/sns/js_task_manager.py
+类/函数：JsTaskManager.__init__
+MapTaskManager(self)
+文件：backend/modules/sns/map_task_manager.py
+类/函数：MapTaskManager.__init__
+内部会调用：MapTaskManager.init_task_mng()
+query_single_map_task(status=1)（DBFactory）
+初始化 XMPP 管理器
+XMPPClientManager.get_instance()
+文件：backend/modules/sns/xmpp_client.py（你仓库存在且 service_async 引用）
+读取 SQLAlchemy 模型方式的配置
+self.db.query(AiChatCfg).filter(...).first()
+模型文件：backend/database/models/chat.py（AiChatCfg 定义在该模块）
+创建配置代理对象
+self.aichatcfg_record = AiChatCfgManager()
+AiChatCfgManager.connect(self.handle_aichatcfg_property_updated)
+AiChatCfgManager._load_record()
+query_AiChatCfg_map() 或 query_AiChatCfg_map_setting()（DBFactory）
+重要：启动时直接加载用户数据
+self.load_all_user_data()
+这个方法实际来自 mixin（见下一节 2.3）
+2.2 异步初始化：AISocialEngine.async_init
+文件：backend/modules/sns/ai_social_engine_adapter.py
+函数：async_init(self)
+这里会做大量字段初始化，并且再次构造：
+
+JsTaskManager(self)
+MapTaskManager(self) 并且会再次调用：
+self.load_all_user_data()
+2.3 load_all_user_data() 实际落在哪个文件？
+由于 AISocialEngine 多继承，load_all_user_data() 的解析顺序取决于继承顺序。
+
+你当前 AISocialEngine 继承顺序里是： ... EventHandlerMixin, DataQueryMixin, UIDisplayMixin
+
+因此真正生效的 load_all_user_data() 是：
+
+文件：backend/modules/sns/data_query_mixin.py
+类：DataQueryMixin
+函数：load_all_user_data(self)
+该函数内部调用链（非常关键，因为涉及 SQLite）：
+
+record = query_AiChatCfg_map()
+文件：db/DBFactory.py
+函数：query_AiChatCfg_map（定义在 DBFactory 后半段，你的文件很长；但已被 mixin 引用）
+解析位置数据：
+self._parse_position_data(record.current_position)
+self._parse_position_data(record.last_position)
+_parse_position_data 也在 data_query_mixin.py
+加载资源字段：
+life_point/energy_point/move_point/exp_point/iq_point/money/credit/level
+route 状态：
+if record.route_status == "playing": self.move_by_route_flag = True
+user_map_setting = query_AiChatCfg_map_setting()
+文件：db/DBFactory.py
+函数：query_AiChatCfg_map_setting
+刷新前端显示（WebSocket 广播）：
+self.update_resource_display() -> backend/modules/sns/ui_display_mixin.py
+内部会调用：
+self.get_tool_list() -> backend/modules/sns/tools_mixin.py
+self.get_people_list() / self.get_place_list() -> backend/modules/sns/data_query_mixin.py（HTTP 请求 ai-sns.org）
+asyncio.create_task(self._send_to_frontend('resource', ...))
+_send_to_frontend -> websocket_manager.broadcast(...)
+文件：backend/shared/websocket_manager.py
+函数：ConnectionManager.broadcast
+self.update_map_charts() -> backend/modules/sns/ui_display_mixin.py
+asyncio.create_task(self._send_chart_update(user_stats))
+_send_chart_update -> websocket_manager.broadcast(...)
+所以：只要你启动引擎，它不仅仅“起了个后台循环”，还会读取 SQLite、并且尝试通过 WebSocket 广播资源/图表数据给前端。
+
+3. SQLite（db/db.sqlite）到底走的是哪套 DB 代码？
+这里有两套 DB 访问路径同时存在：
+
+3.1 后端“标准”SQLAlchemy（backend/config/database.py）
+Async：sqlite+aiosqlite:///...
+Sync：sqlite:///...
+主要给 FastAPI 模块化后端 models 用（backend/database/models/*）
+3.2 老的 DBFactory（你 SNS 引擎大量使用）
+文件：db/DBFactory.py
+DBPath：db/db.sqlite（DBPath = os.path.join(Path(__file__).resolve().parent, "db.sqlite")）
+SQLAlchemy engine：create_engine("sqlite:///...db.sqlite")
+Session：Session = sessionmaker(bind=engine)
+SNS 引擎相关的几个关键模块直接 from db.DBFactory import ...，例如：
+
+backend/modules/sns/data_query_mixin.py
+backend/modules/sns/ui_display_mixin.py
+backend/modules/sns/map_task_manager.py
+backend/modules/sns/js_task_manager.py
+backend/modules/sns/xmpp_mixin.py
+以及 ai_social_engine_adapter.py 自身头部 import 的一大坨 DBFactory 函数
+结论：你这次 /start-engine 返回 200，引擎启动后的主要数据读写实际上更偏向 DBFactory（db/db.sqlite）这条链路。
+
+4. 引擎真正“开始跑起来”的后台循环调用树（启动后会持续触发）
+SNSService.start_social_engine() 里执行了：
+
+await _social_engine_instance.start()
+对应：
+
+4.1 AISocialEngine.start()
+文件：backend/modules/sns/ai_social_engine_adapter.py
+函数：start(self)
+内部关键动作：
+
+self.started_flag = True
+self.map_task_status = ""
+初始化 self.ability_list（用于后续 agent 决策）
+启动后台任务：
+self.task_runner = asyncio.create_task(self._run_task_loop())
+4.2 后台循环：AISocialEngine._run_task_loop()
+文件：backend/modules/sns/ai_social_engine_adapter.py
+函数：_run_task_loop(self)
+循环逻辑：
+
+while self.started_flag:
+self.start_task()
+await asyncio.sleep(5)
+这意味着：启动后每 5 秒都会执行一次 start_task()。
+
+4.3 每轮循环调用：AISocialEngine.start_task()
+文件：backend/modules/sns/ai_social_engine_adapter.py
+函数：start_task(self)
+首次进入（map_task_status == ""）时：
+
+self.map_task_status = "started"
+self.taskmng.reviewing_task = True
+self.process_list = []
+self.taskmng.current_process = None
+self.taskmng.add_process(...)
+文件：backend/modules/sns/map_task_manager.py
+函数：MapTaskManager.add_process
+self.taskmng.current_situation = "准备开始执行任务"
+重置 self.ability_list
+调用任务处理主入口：
+self.taskmng.process_task(action="process_activity")
+5. 任务引擎：MapTaskManager.process_task() 之后会调用哪些函数（非常多）
+文件：backend/modules/sns/map_task_manager.py
+函数：process_task(self, **kwargs)
+这个函数是一个状态机/路由器，会根据 action 或 event 继续分派回 AISocialEngine 的各类方法。
+
+启动时走到的关键分支是：
+
+5.1 action = process_activity
+asyncio.create_task(self.parent.ask_agent_instruction_to_process_activity(ask_content))
+这里 parent 就是 AISocialEngine 实例，所以继续调用：
+
+文件：backend/modules/sns/ai_social_engine_adapter.py
+函数：ask_agent_instruction_to_process_activity(self, ask_content)
+最终会进入：handle_ask_agent_instruction_to_process_activity
+构造 prompt 后调用：
+await self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
+而 ask_agent_and_get_instruction 来自：
+
+文件：backend/modules/sns/agent_interaction_mixin.py
+函数：AgentInteractionMixin.ask_agent_and_get_instruction(...)
+它内部关键调用链：
+
+agent_manager.get_agent_by_id(self.ai_chat_cfg.agent_id)
+文件：backend/modules/agent/agent_manager.py（项目里存在）
+reply = await agent.chat(...)
+文件：agent/*（你的 agent 框架）
+self.on_agent_return_instruction(question, reply)
+on_agent_return_instruction 会根据 self.command_status 分派回 MapTaskManager.process_task(event=...)：
+
+文件：backend/modules/sns/agent_interaction_mixin.py
+函数：on_agent_return_instruction(self, question, content)
+典型事件：
+event="agent_instruction_to_process_activity_returned"
+回到：
+
+文件：backend/modules/sns/map_task_manager.py
+分支：event=="agent_instruction_to_process_activity_returned"
+会调用：
+self.parent.parse_agent_instruction_for_process_activity(instruction)
+6. LLM 指令解析后：会触发哪些“分支函数”（这些都属于“启动后会调用到的函数”）
+parse_agent_instruction_for_process_activity 在：
+
+文件：backend/modules/sns/ai_social_engine_adapter.py
+函数：parse_agent_instruction_for_process_activity(self, instruction)
+-> handle_parse_agent_instruction_for_process_activity(self, instruction)
+它会解析得到 action_str（下一行动），并按关键字进入不同分支。你代码里明确出现的分支包括（每个都对应具体函数/文件）：
+
+6.1 移动相关（地图）
+附近逛逛
+self.go_around()
+文件：backend/modules/sns/map_movement_mixin.py
+函数：go_around
+内部会调用：
+self.send_msg_to_map(command) -> backend/modules/sns/ui_display_mixin.py::send_msg_to_map
+self.update_after_moving() -> backend/modules/sns/map_movement_mixin.py::update_after_moving（会 HTTP post 到 ai-sns.org/api/update-location/）
+走路前往
+self.move_ahead(current, target, place)
+文件：backend/modules/sns/map_movement_mixin.py
+函数：move_ahead
+内部会调用：
+send_msg_to_map("move_to_a_place", ...)
+update_after_moving()
+导航服务
+self.get_guidance()（此函数在 adapter 后续未展开行数内，但属于同一类；如果你需要我可以继续定位它定义位置并展开）
+按路线移动
+self.move_by_route() -> backend/modules/sns/map_movement_mixin.py
+send_msg_to_map("route_move_action", ...)
+6.2 沟通/对话相关（XMPP + WebSocket）
+沟通
+self.communicate_with_a_people(...) -> backend/modules/sns/communication_mixin.py
+-> ask_agent_start_to_talk_to_a_people_sync(...)
+-> ask_agent_and_get_instruction(...)（AgentInteractionMixin）
+-> 选人后 talk_to_a_people(...)
+调用：
+send_msg_to_map(("start_talk_to_it", ...)) -> UIDisplayMixin
+sendMessage(...) -> backend/modules/sns/xmpp_mixin.py::sendMessage
+send_xmpp_message(...) -> XMPPClientManager 客户端
+_update_ui_with_sent_message -> send_talk_message(...) -> websocket broadcast
+接收 XMPP 消息（引擎启动后，只要 XMPPClientManager 收到消息就会调用）
+XmppMixin.receiveMessage(event) -> backend/modules/sns/xmpp_mixin.py
+-> handle_receiveMessage(content, from_str)
+-> send_talk_message(...) -> backend/modules/sns/ui_display_mixin.py
+-> self.taskmng.process_task(event="conversation_message_received", ...)
+6.3 工具相关
+工具
+self.use_tools() -> backend/modules/sns/tools_mixin.py::use_tools
+以及更深层的“工具挑选与执行”（由 MapTaskManager 的异常检测/流程触发）：
+
+ask_agent_to_pick_a_tool_sync -> ToolsMixin
+handle_agent_pick_a_tool_result -> ToolsMixin
+call_tool / call_built_in_function / call_service 等 -> ToolsMixin
+6.4 UI 推送相关（WebSocket）
+很多动作最终都会走：
+
+UIDisplayMixin.send_msg_to_map(...) （广播 {"type":"command", ...}）
+UIDisplayMixin.show_status_on_map(...)（广播 {"type":"status_update", ...}）
+UIDisplayMixin.show_alert_on_map(...)（广播 {"type":"alert", ...}）
+UIDisplayMixin._send_to_frontend(...)（广播 {"type":"sns_update", ...}）
+UIDisplayMixin.update_map_charts() / _send_chart_update()
+它们最终落到：
+
+文件：backend/shared/websocket_manager.py
+函数：ConnectionManager.broadcast(...)
+7. 总结：你这次请求“后台具体运行了哪些文件/函数”（最小闭环 + 启动后必跑）
+7.1 一次请求必经的最小闭环（一定执行）
+api_server.py
+app.include_router(sns_router, prefix="/api/sns")
+backend/modules/sns/router.py
+start_social_engine()
+backend/config/database.py
+get_db()（Depends 注入）
+backend/modules/sns/service_async.py
+SNSService.__init__
+SNSService.start_social_engine
+get_db_sync()（创建同步 session）
+backend/modules/sns/ai_social_engine_adapter.py
+AISocialEngine.__init__
+AiChatCfgManager.__init__ / _load_record / connect
+AISocialEngine.async_init
+AISocialEngine.start
+AISocialEngine._run_task_loop（被 create_task 启动）
+backend/modules/sns/data_query_mixin.py
+load_all_user_data
+_parse_position_data
+backend/modules/sns/ui_display_mixin.py
+update_resource_display
+_send_to_frontend
+update_map_charts
+_send_chart_update
+backend/shared/websocket_manager.py
+ConnectionManager.broadcast
+7.2 启动后会进入循环、并可能触发的大量函数（按你代码的实际路径）
+循环 tick
+AISocialEngine._run_task_loop -> AISocialEngine.start_task -> MapTaskManager.process_task
+Agent 回路
+AISocialEngine.ask_agent_instruction_to_process_activity
+AgentInteractionMixin.ask_agent_and_get_instruction
+agent_manager.get_agent_by_id
+agent.chat
+AgentInteractionMixin.on_agent_return_instruction
+MapTaskManager.process_task(event=...)
+AISocialEngine.parse_agent_instruction_for_process_activity
+按指令进入的分支
+地图：go_around / move_ahead / move_by_route / move_to_a_place / update_after_moving ...
+工具：use_tools / ask_agent_to_pick_a_tool_sync / call_tool / call_service ...
+沟通：communicate_with_a_people / talk_to_a_people / sendMessage / send_xmpp_message / receiveMessage ...
+UI：send_msg_to_map / show_status_on_map / show_alert_on_map / _send_to_frontend ...
+你可能最关心的两个点（我直接点出来）
+200 OK 并不等于引擎真的“开始执行任务并成功跑通”：它只表示 start() 成功创建了后台 task（asyncio.create_task）并返回成功。后台 loop 里如果报错，HTTP 仍可能是 200。
+引擎启动后会混用两套 DB：
+FastAPI 模块化层：backend/config/database.py
+SNS 引擎大量：db/DBFactory.py（db/db.sqlite）
+完成状态
+已完成：把 POST /api/sns/start-engine 从路由入口到引擎后台循环（含 DB、WebSocket、Agent、XMPP 的关键路径）按文件/函数维度梳理出完整调用关系，并列出启动后会触发的分支函数集合。
+Feedback submitted
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究renderer/js/modules/sns/SNSPage.js，及backend/modules/sns/ai_social_engine_adapter.py，然后做如下功能优化:
+
+1.当SNSPage.js中的 "现代化底部功能栏"切换成"State 2: Control mode toolbar (menubar002 style)"的时候
+-此时请将后端ai_social_engine_adapter.py的human_take_over设置为True，如果现代化底部功能栏切换回去则重新设置为False
+-如果SNSPage.js中的data-mode是"ai"则将human_talk_type设置为0，否则设置为1，总之前端toggle的时候要注意对后端human_talk_type的值进行切换
+2.前端control-input里面的值提交后，请重新修改一下，要将它发送给ai_social_engine_adapter.py中的human_message_received函数
+
+
+
+
+
+
+
