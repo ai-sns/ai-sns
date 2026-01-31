@@ -112,6 +112,34 @@ async def stop_social_engine(db: AsyncSession = Depends(get_db)):
         }
 
 
+@router.post("/pause-engine")
+async def pause_social_engine(db: AsyncSession = Depends(get_db)):
+    """Pause the AI social engine"""
+    try:
+        service = SNSService(db)
+        result = await service.pause_social_engine()
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to pause social engine: {str(e)}"
+        }
+
+
+@router.post("/resume-engine")
+async def resume_social_engine(db: AsyncSession = Depends(get_db)):
+    """Resume the AI social engine"""
+    try:
+        service = SNSService(db)
+        result = await service.resume_social_engine()
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to resume social engine: {str(e)}"
+        }
+
+
 @router.get("/config", response_model=AIChatConfigResponse)
 async def get_ai_chat_config(user_id: str = None, db: AsyncSession = Depends(get_db)):
     """Get AI chat configuration"""

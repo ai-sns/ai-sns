@@ -1,4 +1,5 @@
 """SNS Module - Business Logic Service - 异步版本"""
+import asyncio
 import logging
 import os
 import uuid
@@ -303,14 +304,52 @@ class SNSService:
                 "running": _social_engine_running
             }
 
-    def get_engine_status(self) -> dict:
-        """Get the current status of the AI social engine"""
-        global _social_engine_running
-        return {
-            "success": True,
-            "running": _social_engine_running,
-            "message": "AI Social Engine is " + ("running" if _social_engine_running else "stopped")
-        }
+    async def pause_social_engine(self) -> dict:
+        """Pause the AI social engine"""
+        global _social_engine_instance, _social_engine_running
+
+        try:
+            if not _social_engine_running or _social_engine_instance is None:
+                return {
+                    "success": False,
+                    "message": "AI Social Engine is not running",
+                    "status": "not_running"
+                }
+
+            result = await _social_engine_instance.pause_engine()
+            return result
+
+        except Exception as e:
+            logger.error(f"Error pausing AI social engine: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to pause AI Social Engine: {str(e)}",
+                "status": "error"
+            }
+
+    async def resume_social_engine(self) -> dict:
+        """Resume the AI social engine"""
+        global _social_engine_instance, _social_engine_running
+
+        try:
+            if not _social_engine_running or _social_engine_instance is None:
+                return {
+                    "success": False,
+                    "message": "AI Social Engine is not running",
+                    "status": "not_running"
+                }
+
+            result = await _social_engine_instance.resume_engine()
+            return result
+
+        except Exception as e:
+            logger.error(f"Error resuming AI social engine: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to resume AI Social Engine: {str(e)}",
+                "status": "error"
+            }
+
 
     async def set_human_control_state(self, human_take_over: bool, human_talk_type: int = None) -> dict:
         global _social_engine_instance
@@ -321,9 +360,24 @@ class SNSService:
                 "message": "AI Social Engine is not initialized"
             }
 
+        prev_take_over = bool(getattr(_social_engine_instance, "human_take_over", False))
         _social_engine_instance.human_take_over = bool(human_take_over)
         if human_talk_type is not None:
             _social_engine_instance.human_talk_type = int(human_talk_type)
+
+        # If we are exiting control mode, resume normal task processing.
+        if prev_take_over and not _social_engine_instance.human_take_over:
+            try:
+                started_flag = bool(getattr(_social_engine_instance, "started_flag", False))
+                map_task_status = getattr(_social_engine_instance, "map_task_status", None)
+                taskmng = getattr(_social_engine_instance, "taskmng", None)
+
+                if started_flag and map_task_status == "started" and taskmng is not None:
+                    ask_content = getattr(taskmng, "current_situation", "") or getattr(taskmng, "current_objective", "")
+                    logger.info("Exiting human control mode: resuming task processing")
+                    asyncio.create_task(taskmng.process_task(action="process_activity", ask_content=ask_content))
+            except Exception as e:
+                logger.error(f"Failed to resume task processing after exiting human control mode: {e}")
 
         return {
             "success": True,

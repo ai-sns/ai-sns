@@ -314,8 +314,9 @@ export default {
         if (startBtn) {
             startBtn.addEventListener('click', async () => {
                 const isRunning = startBtn.classList.contains('running');
-
-                if (!isRunning) {
+                const buttonText = startBtn.textContent.trim();
+                
+                if (!isRunning && buttonText === 'Start') {
                     // 启动引擎
                     startBtn.disabled = true;
                     startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Starting...</span>`;
@@ -338,26 +339,49 @@ export default {
                     } finally {
                         startBtn.disabled = false;
                     }
-                } else {
-                    // 停止引擎
+                } else if (isRunning && buttonText === 'Pause') {
+                    // 暂停引擎
                     startBtn.disabled = true;
-                    startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Stopping...</span>`;
+                    startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Pausing...</span>`;
 
                     try {
-                        const result = await snsApi.stopEngine();
+                        const result = await snsApi.pauseEngine();
 
                         if (result.success) {
                             startBtn.classList.remove('running');
-                            startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Start</span>`;
-                            this.showToast('AI社交引擎已停止', 'success');
+                            startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Resume</span>`;
+                            this.showToast('AI社交引擎已暂停', 'success');
                         } else {
                             startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>Pause</span>`;
-                            this.showToast(`停止失败: ${result.message}`, 'error');
+                            this.showToast(`暂停失败: ${result.message}`, 'error');
                         }
                     } catch (error) {
-                        console.error('停止引擎失败:', error);
+                        console.error('暂停引擎失败:', error);
                         startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>Pause</span>`;
-                        this.showToast(`停止失败: ${error.message}`, 'error');
+                        this.showToast(`暂停失败: ${error.message}`, 'error');
+                    } finally {
+                        startBtn.disabled = false;
+                    }
+                } else if (!isRunning && buttonText === 'Resume') {
+                    // 恢复引擎
+                    startBtn.disabled = true;
+                    startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Resuming...</span>`;
+
+                    try {
+                        const result = await snsApi.resumeEngine();
+
+                        if (result.success) {
+                            startBtn.classList.add('running');
+                            startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>Pause</span>`;
+                            this.showToast('AI社交引擎已恢复', 'success');
+                        } else {
+                            startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Resume</span>`;
+                            this.showToast(`恢复失败: ${result.message}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('恢复引擎失败:', error);
+                        startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Resume</span>`;
+                        this.showToast(`恢复失败: ${error.message}`, 'error');
                     } finally {
                         startBtn.disabled = false;
                     }

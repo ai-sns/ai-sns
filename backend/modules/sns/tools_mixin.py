@@ -115,7 +115,7 @@ class ToolsMixin:
         return result
 
     def update_skill(self, skill_list):
-        self.taskmng.process_task(event="skill_updated")
+        asyncio.create_task(self.taskmng.process_task(event="skill_updated"))
 
     def get_plugin_tool_list(self):
         records = query_tool_list()
@@ -250,14 +250,14 @@ class ToolsMixin:
                 # self.write_thinking_process_to_pane("Use_tool使用工具成功，获得如下反馈：" + res)
                 self.taskmng.current_situation = "Use_tool使用工具成功，获得如下反馈：" + res
                 ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\nUse_tool使用工具成功，获得如下反馈：{res}"
-                self.taskmng.process_task(action="process_activity", ask_content=ask_content)
+                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
             elif flag == "fail":
                 self.taskmng.add_process_info_to_list("Use_tool使用工具失败，获得如下反馈：" + res)
                 self.taskmng.current_situation = "Use_tool使用工具失败，获得如下反馈：" + res
                 self.write_task_process_to_pane("Use_tool使用工具失败，获得如下反馈：" + res + "\n\n")
                 # self.write_thinking_process_to_pane("Use_tool使用工具失败，获得如下反馈：" + res)
                 ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\nUse_tool使用工具失败，获得如下反馈：{res}"
-                self.taskmng.process_task(action="process_activity", ask_content=ask_content)
+                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
 
     def call_tool(self, tool):
         tool_id = tool["id"]
@@ -383,10 +383,10 @@ class ToolsMixin:
         exit_code = response["exit_code"]
         output = response["output"]
         if exit_code == 0:
-            self.taskmng.process_task(event="service_called", result=output)
+            asyncio.create_task(self.taskmng.process_task(event="service_called", result=output))
 
         else:
-            self.taskmng.process_task(event="service_called", result=f"Execute Error,the output:{output}")
+            asyncio.create_task(self.taskmng.process_task(event="service_called", result=f"Execute Error,the output:{output}"))
 
     async def ask_agent_to_use_skill(self, question, function_name, function_description):
         role_prompt = get_prompt_by_title("__ask_agent_use_skill__")
@@ -416,8 +416,8 @@ class ToolsMixin:
         output = execute_result.output
         code_file = execute_result.code_file
         if exit_code == 0:
-            self.taskmng.process_task(event="skill_executed", result=output)
+            asyncio.create_task(self.taskmng.process_task(event="skill_executed", result=output))
 
         else:
-            self.taskmng.process_task(event="skill_executed", result=f"Execute Error,the output:{output}")
+            asyncio.create_task(self.taskmng.process_task(event="skill_executed", result=f"Execute Error,the output:{output}"))
 

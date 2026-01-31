@@ -16,6 +16,7 @@ class MapTaskManager:
         self.message_dict = {}
         self.specified_context_message_list = []
         self.specify_context_message_flag = False
+        self._process_lock = asyncio.Lock()
         self.kwargs = {}
         self.init_flag = False
         self.last_param = {}
@@ -432,9 +433,14 @@ class MapTaskManager:
         return record
 
 
-    def process_task(self,**kwargs):
+    async def process_task(self, **kwargs):
+        async with self._process_lock:
+            return await self._process_task_impl(**kwargs)
+
+
+    async def _process_task_impl(self,**kwargs):
         logger.info("[Step-05],Start process_task...")
-        self.pause_and_wait_for_resume()
+        await self.pause_and_wait_for_resume()
         self.kwargs = kwargs
         action_requested = kwargs.get("action", "")
         event = kwargs.get("event", "")
@@ -709,7 +715,7 @@ class MapTaskManager:
             if self.current_sub_task:
                 self.set_command_status("process_activity")
                 description = kwargs.get("description", "")
-                self.process_task(action="process_activity", ask_content=self.get_current_objective() + description)
+                asyncio.create_task(self.process_task(action="process_activity", ask_content=self.get_current_objective() + description))
 
         elif action_requested == "find_tool_from_list_to_use":
             self.parent.write_on_going_process_to_pane("Is picking a tool")
@@ -767,7 +773,7 @@ class MapTaskManager:
         elif event == "ask_people_help_success":
             if self.parent.command_status == "explore_the_map":
                 result = kwargs.get("result", "")
-                self.process_task(action="process_activity", ask_content=self.get_current_sub_task_str() + result)
+                asyncio.create_task(self.process_task(action="process_activity", ask_content=self.get_current_sub_task_str() + result))
 
 
 
@@ -794,7 +800,7 @@ class MapTaskManager:
             if self.current_sub_task:
                 self.set_command_status("process_activity")
                 result =kwargs.get("result", "")
-                self.process_task(action="process_activity", ask_content=self.get_current_sub_task_str() + result)
+                asyncio.create_task(self.process_task(action="process_activity", ask_content=self.get_current_sub_task_str() + result))
 
         elif action_requested == "explore_the_map":
             self.parent.move_on()
@@ -897,8 +903,30 @@ class MapTaskManager:
 
 
 
-    def pause_and_wait_for_resume(self):
-        pass
+    async def pause_and_wait_for_resume(self):
+        """
+        暂停并等待恢复（异步版本）
+        只有在 map_task_status == "started" 时才继续执行
+        """
+        import asyncio
+        
+        while True:
+            current_status = getattr(self.parent, 'map_task_status', None)
+            
+            # 如果状态为 started，继续执行
+            if current_status == "started":
+                logger.info("Task processing resumed, continuing execution...")
+                break
+            
+            # 如果状态为 paused，等待状态变化
+            elif current_status == "paused":
+                logger.debug("Task processing paused, waiting for resume...")
+                await asyncio.sleep(0.5)  # 异步等待，不阻塞事件循环
+                
+            # 如果状态为其他值（如 stopped），退出循环
+            else:
+                logger.info(f"Task processing stopped due to status: {current_status}")
+                break
 
 
 

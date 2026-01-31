@@ -146,7 +146,7 @@ talk_to_a_people
         else:
             description = "我未找到目标人员。"
 
-            self.taskmng.process_task(event="agent_pick_people_list_fail")
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
 
     def handle_ask_agent_start_to_talk_to_a_people_result(self, content):
         result = json.loads(content)
@@ -165,7 +165,7 @@ talk_to_a_people
         else:
             description = "我未找到目标人员。"
 
-            self.taskmng.process_task(event="agent_pick_people_list_fail")
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
 
     async def ask_agent_to_review_conversation(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation__")
@@ -201,7 +201,7 @@ talk_to_a_people
             self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
             self.write_task_process_to_pane(f"和朋友沟通后得到如下情况：{current_chat_summary}\n\n")
             self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-            self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}")
+            asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
 
         else:
             if not self.taskmng.current_process:
@@ -227,7 +227,7 @@ talk_to_a_people
             else:
                 self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-                self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}")
+                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
 
 
     def ask_other_people_for_help(self, objective_to_achieve):
@@ -297,7 +297,7 @@ talk_to_a_people
         if result == "trade_skill":
             self.initiate_tool_trade(self.get_skill_list())
         elif result == "get_help":
-            self.taskmng.process_task(event="ask_people_help_success", result=summary)
+            asyncio.create_task(self.taskmng.process_task(event="ask_people_help_success", result=summary))
 
         elif result == "talk_to_next_people":
             pass

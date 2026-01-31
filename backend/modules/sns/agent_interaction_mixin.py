@@ -113,42 +113,42 @@ on_agent_return_instruction
         # self.loading_tab.stop_loading()
 
         if command_status == "ask_agent_to_decompose_task":
-            self.taskmng.process_task(event="ask_agent_to_decompose_task_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_decompose_task_returned", result=content))
 
         elif command_status == "ask_agent_instruction_to_process_activity":
-            self.taskmng.process_task(event="agent_instruction_to_process_activity_returned", instruction=content)
+            asyncio.create_task(self.taskmng.process_task(event="agent_instruction_to_process_activity_returned", instruction=content))
 
         elif command_status == "ask_agent_instruction_to_process_human_instruction":
-            self.taskmng.process_task(event="agent_instruction_to_process_human_instruction_returned", instruction=content)
+            asyncio.create_task(self.taskmng.process_task(event="agent_instruction_to_process_human_instruction_returned", instruction=content))
 
 
         elif command_status == "ask_agent_to_review_conversation":
-            self.taskmng.process_task(event="ask_agent_to_review_conversation_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_review_conversation_returned", result=content))
 
         elif command_status == "ask_agent_to_review_conversation_sell":
-            self.taskmng.process_task(event="ask_agent_to_review_conversation_sell_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_review_conversation_sell_returned", result=content))
 
 
         elif command_status == "ask_agent_to_pick_place_list":
-            self.taskmng.process_task(event="agent_pick_place_list_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_place_list_returned", result=content))
 
 
         elif command_status == "ask_agent_to_pick_people_list":
-            self.taskmng.process_task(event="agent_pick_people_list_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_returned", result=content))
 
         elif command_status == "ask_agent_start_to_sell_to_a_people":
-            self.taskmng.process_task(event="ask_agent_start_to_sell_to_a_people_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_start_to_sell_to_a_people_returned", result=content))
 
         elif command_status == "ask_agent_start_to_buy_from_a_people":
-            self.taskmng.process_task(event="ask_agent_start_to_buy_from_a_people_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_start_to_buy_from_a_people_returned", result=content))
 
 
         elif command_status == "ask_agent_how_to_talk":
-            self.taskmng.process_task(event="ask_agent_how_to_talk_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_how_to_talk_returned", result=content))
 
 
         elif command_status == "ask_agent_to_pick_a_tool_to_buy":
-            self.taskmng.process_task(event="ask_agent_to_pick_a_tool_to_buy_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_pick_a_tool_to_buy_returned", result=content))
 
         elif command_status == "ask_agent_to_bargain_for_buyer":
             self.handle_ask_agent_to_bargain_for_buyer_result(content)
@@ -158,7 +158,7 @@ on_agent_return_instruction
 
 
         elif command_status == "ask_agent_to_pick_a_tool":
-            self.taskmng.process_task(event="ask_agent_to_pick_a_tool_returned", result=content)
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_pick_a_tool_returned", result=content))
 
 
         elif command_status == "ask_agent_to_make_a_deal":

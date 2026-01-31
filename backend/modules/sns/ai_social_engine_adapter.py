@@ -325,6 +325,56 @@ class AISocialEngine(
             logger.error(f"Error in stop(): {e}", exc_info=True)
             raise
 
+    async def pause_engine(self):
+        """
+        Pause the AI social engine
+        """
+        try:
+            logger.info("Pausing AI Social Engine...")
+            
+            # 设置暂停状态
+            self.map_task_status = "paused"
+            
+            logger.info("AI Social Engine paused successfully")
+            return {
+                "success": True,
+                "message": "AI Social Engine paused successfully",
+                "status": "paused"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in pause_engine(): {e}", exc_info=True)
+            return {
+                "success": False,
+                "message": f"Failed to pause AI Social Engine: {str(e)}",
+                "status": "error"
+            }
+
+    async def resume_engine(self):
+        """
+        Resume the AI social engine
+        """
+        try:
+            logger.info("Resuming AI Social Engine...")
+            
+            # 设置运行状态
+            self.map_task_status = "started"
+            
+            logger.info("AI Social Engine resumed successfully")
+            return {
+                "success": True,
+                "message": "AI Social Engine resumed successfully",
+                "status": "started"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in resume_engine(): {e}", exc_info=True)
+            return {
+                "success": False,
+                "message": f"Failed to resume AI Social Engine: {str(e)}",
+                "status": "error"
+            }
+
     async def _run_task_loop(self):
         """
         Main task processing loop
@@ -336,7 +386,8 @@ class AISocialEngine(
                 # Process tasks here
                 # This is where you would implement the actual AI social engine logic
                 logger.debug("AI Social Engine is running...")
-                self.start_task()
+                if self.map_task_status == "":
+                    self.start_task()
 
                 # Sleep to prevent busy-waiting
                 await asyncio.sleep(5)
@@ -407,25 +458,15 @@ class AISocialEngine(
                     "status": "enabled"
                 }
             ]
-            self.taskmng.process_task(action="process_activity")
+            asyncio.create_task(self.taskmng.process_task(action="process_activity"))
         elif self.map_task_status == "started":
-            print("[Info]:", "map_task_status is started")
-            self.map_task_status = "paused"
-            icon_path = "images/startcircle.png"  # 暂停时更改为启动图标
-            # self.startButton.setText(QtCore.QCoreApplication.translate("MessageWidget", lt("Resume", "继续"), None))
-            # self.pauseCheckBox.setChecked(True)
-            # self.humantakeoverCheckBox.setEnabled(False)
-            # self.humantakeoverCheckBox.setVisible(False)
-            # self.show_status_on_map("standby")
+            # 状态已经是 started，直接处理任务，不改变状态
+            print("[Info]:", "map_task_status is started, continuing task processing")
+            # 不再自动设置为 paused，让专门的 pause API 来控制
         elif self.map_task_status == "paused":
-            print("[Info]:", "map_task_status is paused")
-            self.map_task_status = "started"  # 从暂停状态继续
-            icon_path = "images/pause.png"  # 继续时更改为暂停图标
-            # self.startButton.setText(QtCore.QCoreApplication.translate("MessageWidget", lt("Pause", "暂停"), None))
-            # self.pauseCheckBox.setChecked(False)
-            # self.humantakeoverCheckBox.setEnabled(True)
-            # self.humantakeoverCheckBox.setVisible(True)
-            # self.show_status_on_map("thinking")
+            # 状态是 paused，等待恢复
+            print("[Info]:", "map_task_status is paused, waiting for resume")
+            # 不再自动恢复，让专门的 resume API 来控制
 
         # self.startButton.setIcon(QtGui.QIcon(icon_path))  # 更新按钮图标
         # 添加可选操作：根据 self.task_status 更新其他 UI 元素或执行操作
@@ -486,7 +527,7 @@ class AISocialEngine(
                 update_map_task(self.taskmng.current_task_record.id, sub_task_list=sub_task_list_str, current_sub_task=current_sub_task_str, current_place=self.current_place, current_position=json.dumps(self.aichatcfg_record.current_position, ensure_ascii=False))
                 self.taskmng.reload_current_task_record()
                 self.taskmng.update_task_plan_in_pane()
-                self.taskmng.process_task(event="task_plan_is_decomposed", sub_task_list=sub_task_list)
+                asyncio.create_task(self.taskmng.process_task(event="task_plan_is_decomposed", sub_task_list=sub_task_list))
 
             else:
                 raise ValueError("JSON 中不包含有效的 'tasks' 列表")
@@ -592,10 +633,10 @@ __current_process__
                     process_over = True
 
                 if not process_over:
-                    self.taskmng.process_task(action="process_activity", ask_content=ask_content)
+                    asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
                 else:
                     self.reviewing_task = False
-                    self.taskmng.process_task(action="explore_the_map", ask_content=ask_content)
+                    asyncio.create_task(self.taskmng.process_task(action="explore_the_map", ask_content=ask_content))
 
 
             else:
@@ -782,7 +823,7 @@ __current_process__
         self.write_task_process_to_pane(action_result + "\n\n")
         self.show_alert_on_map(action_result)
         ask_content = instruction
-        self.taskmng.process_task(action="process_activity", ask_content=ask_content)
+        asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
 
     def get_next_action(self, instruction):
         # 定义分隔标记
@@ -872,7 +913,7 @@ __current_process__
 
             # 将人类指令整合到full_ask_content中
             self.human_instruction = human_instruction
-            self.taskmng.process_task(action="process_human_instruction", ask_content=human_instruction, human_send_flag=True)
+            asyncio.create_task(self.taskmng.process_task(action="process_human_instruction", ask_content=human_instruction, human_send_flag=True))
 
     def handle_aichatcfg_property_updated(self, property_name):
         """

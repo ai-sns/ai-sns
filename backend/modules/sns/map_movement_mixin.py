@@ -204,7 +204,7 @@ class MapMovementMixin:
         self.send_msg_to_map(command)
         place_name = self.place_selected[0].get("place_name", "")
         self.place_selected = None
-        self.taskmng.process_task(event="arrived_at_place", place_name=place_name)
+        asyncio.create_task(self.taskmng.process_task(event="arrived_at_place", place_name=place_name))
 
     def explore_the_map(self):
         # self.write_thinking_process_to_pane("explore the map")
@@ -248,7 +248,7 @@ class MapMovementMixin:
         # self.write_thinking_process_to_pane(lt(f"Arrived the place:{place_name}", f"到达了:{place_name}"), "handle_arrived_at_place")
         description = f"我成功到达地点：{place_name}。"
         self.taskmng.current_situation = description
-        self.taskmng.process_task(event="move_to_a_place_completed", description=description)
+        asyncio.create_task(self.taskmng.process_task(event="move_to_a_place_completed", description=description))
 
     def ask_agent_to_pick_place_list_sync(self, objective_to_achieve, provided_place_list):
         """
@@ -309,7 +309,7 @@ class MapMovementMixin:
             self.place_selected = result_list
 
             if self.place_selected:
-                self.taskmng.process_task(action="move_to_a_place", place_name=self.place_selected[0]["place_name"], lng=self.place_selected[0]["place_position"][0], lat=self.place_selected[0]["place_position"][1], match_score=match_score)
+                asyncio.create_task(self.taskmng.process_task(action="move_to_a_place", place_name=self.place_selected[0]["place_name"], lng=self.place_selected[0]["place_position"][0], lat=self.place_selected[0]["place_position"][1], match_score=match_score))
 
     def move_on(self):
         if self.route_flag:
@@ -325,7 +325,7 @@ class MapMovementMixin:
         self.aichatcfg_record.current_position = [116.01, 29.01]
         self.taskmng.add_process(current_place=self.current_place, current_position=self.aichatcfg_record.current_position)
         ask_content = f"- 当前位置\n{self.current_place}\n- 当前坐标\n{self.aichatcfg_record.current_position}\n- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n{self.taskmng.current_situation}"
-        self.taskmng.process_task(action="process_activity", ask_content=ask_content)
+        asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
 
     def move_on_people(self):
         people = self.get_nearest_people()
@@ -337,7 +337,7 @@ class MapMovementMixin:
         self.aichatcfg_record.current_position = new_pos
         self.taskmng.add_process(current_place=self.current_place, current_position=self.aichatcfg_record.current_position)
         ask_content = f"- 当前位置\n{self.current_place}\n- 当前坐标\n{self.aichatcfg_record.current_position}\n- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n{self.taskmng.current_situation}"
-        self.taskmng.process_task(action="process_activity", ask_content=ask_content)
+        asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
 
     def get_nearest_people(self):
         url = "http://www.ai-sns.org/api/get_nearest_people"

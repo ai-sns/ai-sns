@@ -332,6 +332,46 @@ export default {
         }
     },
 
+    async pauseEngine() {
+        try {
+            const response = await fetch('http://localhost:8788/api/sns/pause-engine', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('暂停AI社交引擎失败:', error);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
+    },
+
+    async resumeEngine() {
+        try {
+            const response = await fetch('http://localhost:8788/api/sns/resume-engine', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('恢复AI社交引擎失败:', error);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
+    },
+
     /**
      * 获取AI模型信息
      */

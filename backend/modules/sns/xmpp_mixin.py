@@ -173,10 +173,10 @@ class XmppMixin:
                     logger.debug(f"Processing as general conversation message from {account}")
 
                 # 处理一般对话消息
-                self.taskmng.process_task(
+                asyncio.create_task(self.taskmng.process_task(
                     event="conversation_message_received",
                     talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
-                )
+                ))
                 message_handled = True
 
             # 保存当前接收的消息
