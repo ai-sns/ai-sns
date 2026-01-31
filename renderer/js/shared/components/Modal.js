@@ -67,7 +67,18 @@ class Modal {
 
             if (action === 'close' || action === 'cancel') {
                 console.log('[Modal] Close/Cancel button clicked');
-                this.close();
+                if (this.onCancel) {
+                    try {
+                        const result = await this.onCancel(this);
+                        if (result !== false) {
+                            this.close();
+                        }
+                    } catch (error) {
+                        console.error('[Modal] Error in onCancel:', error);
+                    }
+                } else {
+                    this.close();
+                }
             } else if (action === 'confirm') {
                 console.log('[Modal] Confirm button clicked');
                 if (this.onConfirm) {
@@ -93,19 +104,41 @@ class Modal {
 
         // 点击遮罩层关闭（如果允许）
         if (this.closeOnClickOutside) {
-            this.element.addEventListener('click', (e) => {
+            this.element.addEventListener('click', async (e) => {
                 if (e.target === this.element) {
                     console.log('[Modal] Clicked outside, closing...');
-                    this.close();
+                    if (this.onCancel) {
+                        try {
+                            const result = await this.onCancel(this);
+                            if (result !== false) {
+                                this.close();
+                            }
+                        } catch (error) {
+                            console.error('[Modal] Error in onCancel:', error);
+                        }
+                    } else {
+                        this.close();
+                    }
                 }
             });
         }
 
         // ESC键关闭
-        this.handleKeydown = (e) => {
+        this.handleKeydown = async (e) => {
             if (e.key === 'Escape') {
                 console.log('[Modal] ESC pressed, closing...');
-                this.close();
+                if (this.onCancel) {
+                    try {
+                        const result = await this.onCancel(this);
+                        if (result !== false) {
+                            this.close();
+                        }
+                    } catch (error) {
+                        console.error('[Modal] Error in onCancel:', error);
+                    }
+                } else {
+                    this.close();
+                }
             }
         };
         document.addEventListener('keydown', this.handleKeydown);

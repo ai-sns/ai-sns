@@ -2,6 +2,8 @@
  * Home Handlers - 事件处理
  */
 
+import InitializationWizard from './InitializationWizard.js';
+
 const homeHandlers = {
     init() {
         this.bindEvents();
@@ -25,33 +27,7 @@ const homeHandlers = {
     },
 
     showInitializationModal() {
-        if (typeof Modal === 'undefined') {
-            console.error('Modal component not loaded');
-            return;
-        }
-
-        Modal.show({
-            title: '初始化设置',
-            content: `
-                <div class="initialization-modal">
-                    <p>欢迎使用 AI-SNS！</p>
-                    <p>这里是系统初始化设置界面。您可以配置:</p>
-                    <ul>
-                        <li>AI模型配置</li>
-                        <li>数据库连接</li>
-                        <li>网络设置</li>
-                        <li>用户偏好</li>
-                    </ul>
-                </div>
-            `,
-            confirmText: '完成',
-            showCancel: true,
-            onConfirm: () => {
-                if (typeof Notification !== 'undefined') {
-                    Notification.success('初始化设置已保存');
-                }
-            }
-        });
+        InitializationWizard.show();
     },
 
     showHelpModal() {

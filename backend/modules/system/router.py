@@ -3,12 +3,13 @@
 System module - API router
 """
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File
+from fastapi.responses import Response
 from typing import List
 
-from .schemas import SystemConfig, WebMngReorderItem
-from .service import SystemService
-from .dependencies import get_system_service
+from .schemas import SystemConfig, WebMngReorderItem, SystemInitDraft, SystemInitSubmit
+from .service import SystemService, SystemInitWizardService
+from .dependencies import get_system_service, get_system_init_wizard_service
 
 logger = logging.getLogger(__name__)
 
@@ -193,4 +194,112 @@ async def delete_web_mng(
         return {"success": True}
     except Exception as e:
         logger.error(f"Error deleting web-mng item: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/init-wizard/draft", response_model=dict)
+async def get_system_init_draft(service: SystemInitWizardService = Depends(get_system_init_wizard_service)):
+    try:
+        data = service.get_draft()
+        return {"success": True, "data": data}
+    except Exception as e:
+        logger.error(f"Error getting system init draft: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/init-wizard/draft", response_model=dict)
+async def save_system_init_draft(
+    payload: SystemInitDraft,
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        res = service.save_draft(payload.dict(exclude_unset=True))
+        return {"success": True, "data": res}
+    except Exception as e:
+        logger.error(f"Error saving system init draft: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/init-wizard/avatar3d", response_model=dict)
+async def list_avatar3d(
+    request: Request,
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        items = service.list_avatar3d(str(request.base_url))
+        return {"success": True, "data": items}
+    except Exception as e:
+        logger.error(f"Error listing avatar3d: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/init-wizard/avatar", response_model=dict)
+async def upload_avatar(
+    avatar_file: UploadFile = File(...),
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        content = await avatar_file.read()
+        ext = ""
+        if avatar_file.filename and "." in avatar_file.filename:
+            ext = "." + avatar_file.filename.split(".")[-1]
+
+        res = service.upload_avatar(content, ext)
+        return {"success": True, "data": res}
+    except Exception as e:
+        logger.error(f"Error uploading avatar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/init-wizard/captcha")
+async def get_captcha_proxy(service: SystemInitWizardService = Depends(get_system_init_wizard_service)):
+    try:
+        data = await service.fetch_captcha()
+        headers = {"X-Captcha-ID": data.get("captcha_id", "")}
+        return Response(content=data.get("content", b""), media_type=data.get("content_type", "image/png"), headers=headers)
+    except Exception as e:
+        logger.error(f"Error fetching captcha: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/init-wizard/submit", response_model=dict)
+async def submit_system_init(
+    payload: SystemInitSubmit,
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        draft = payload.dict(exclude_unset=True)
+        service.save_draft(draft)
+
+        record = service.get_draft()
+        if not record or not record.get("avatar"):
+            raise HTTPException(status_code=400, detail="Avatar not set")
+
+        map_name_without_ext = record["avatar"].rsplit('.', 1)[0]
+        avatar_map_filename = f"{map_name_without_ext}_map.png"
+
+        register_data = {
+            "nation_id": "",
+            "password": record.get("password", ""),
+            "account": record.get("account", ""),
+            "longitude": payload.longitude if payload.longitude is not None else 116.27882,
+            "latitude": payload.latitude if payload.latitude is not None else 39.71164,
+            "captcha_id": payload.captcha_id,
+            "captcha_code": payload.captcha_code,
+            "nick_name": record.get("name", ""),
+            "avatar": record.get("avatar", ""),
+            "avatar_3d": record.get("avatar3d", ""),
+            "profile": record.get("profile", ""),
+            "sns_url": record.get("sns_url", ""),
+            "status": 1,
+        }
+
+        remote_res = await service.register_remote(register_data, avatar_map_filename)
+        nation_id = remote_res.get("nation_id") or remote_res.get("nationId") or remote_res.get("nationid") or ""
+        service.submit(draft, nation_id)
+        return {"success": True, "data": remote_res}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting system init: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -22,3 +22,35 @@ class WebMngReorderItem(BaseModel):
 class WebMngReorderRequest(BaseModel):
     """Web management reorder request"""
     items: List[WebMngReorderItem]
+
+
+class Avatar3DItem(BaseModel):
+    key: str
+    png_url: str
+    glb_url: str
+
+
+class SystemInitDraft(BaseModel):
+    name: Optional[str] = None
+    avatar: Optional[str] = None
+    password: Optional[str] = None
+    confirm_password: Optional[str] = None
+    profile: Optional[str] = None
+    llm: Optional[str] = None
+    llm_server: Optional[str] = None
+    api_key: Optional[str] = None
+    avatar3d: Optional[str] = None
+    account: Optional[str] = None
+    account_password: Optional[str] = None
+    sns_url: Optional[str] = None
+    map: Optional[str] = None
+    map_api_key: Optional[str] = None
+    map_id: Optional[str] = None
+
+
+class SystemInitSubmit(SystemInitDraft):
+    captcha_id: str
+    captcha_code: str
+
+    longitude: Optional[float] = None
+    latitude: Optional[float] = None
