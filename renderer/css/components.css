@@ -2287,6 +2287,8 @@ body.theme-dark .action-btn.active svg {
     color: var(--text-primary);
     margin-bottom: 12px;
     position: relative;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .status-section-title .refresh-btn {
@@ -2322,6 +2324,10 @@ body.theme-dark .action-btn.active svg {
 
 .status-rows {
     font-size: 12px;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 .status-row {
@@ -2329,6 +2335,8 @@ body.theme-dark .action-btn.active svg {
     justify-content: space-between;
     padding: 4px 0;
     color: var(--text-secondary);
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .status-row.sub {
