@@ -1,0 +1,212 @@
+from sqlalchemy.orm import Session
+from backend.database.models.chat import AiChatCfg
+from backend.apps.sns.map_task_manager import MapTaskManager
+from backend.apps.sns.js_task_manager import JsTaskManager
+from backend.apps.sns.xmpp_client import XMPPClientManager
+from backend.modules.agent.agent_manager import agent_manager
+from backend.shared.websocket_manager import manager as websocket_manager
+
+# *********
+import os
+import math
+# 主要用于发送附件
+import asyncio
+import zipfile
+import shutil
+import time
+
+import logging
+
+import re
+
+log = logging.getLogger(__name__)
+from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_title, query_function_mng,
+                          add_function_mng, update_map_task, add_map_visit, get_key_value,
+                          update_map_trade, add_map_trade, add_map_tool, query_single_map_trade, update_AiChatCfg_by_user_id, update_AiChatCfg_map, query_AiChatCfg_map, add_mcp_mng, query_mcp_mng,
+                          delete_map_preset_msg, query_map_preset_msg_all, add_map_preset_msg, query_tool_list, query_single_tool, query_AiChatCfg_map_setting)
+from util import (generate_random_id, add_memory_list)
+from i18n import lt
+from enum import Enum
+from typing import List, Dict, Optional
+import json
+import logging
+import requests
+import geopy.distance
+from geopy.distance import distance
+from geopy.point import Point
+from geographiclib.geodesic import Geodesic
+import random
+
+logger = logging.getLogger(__name__)
+
+
+class MapMovementMixin:
+
+    def go_around(self):
+        radius = 500  # 半径，单位为米
+        # 初始化当前位置和上一个位置
+        current_position = Point(self.aichatcfg_record.current_position[1], self.aichatcfg_record.current_position[0])
+        last_position = Point(self.aichatcfg_record.last_position[1], self.aichatcfg_record.last_position[0])
+
+        # 如果位置相同，跳过象限排除
+        if current_position == last_position:
+            excluded_quadrant = None
+        else:
+            # 确定上一个位置相对于当前坐标的象限
+            last_lon_diff = last_position.longitude - current_position.longitude
+            last_lat_diff = last_position.latitude - current_position.latitude
+
+            # 根据差值计算上个位置所在的象限
+            if last_lon_diff > 0 and last_lat_diff > 0:
+                excluded_quadrant = 1  # 第一象限
+            elif last_lon_diff < 0 and last_lat_diff > 0:
+                excluded_quadrant = 2  # 第二象限
+            elif last_lon_diff < 0 and last_lat_diff < 0:
+                excluded_quadrant = 3  # 第三象限
+            else:
+                excluded_quadrant = 4  # 第四象限
+
+        def generate_random_point(excluded_quadrant):
+            while True:
+                bearing = random.uniform(0, 360)
+                candidate_position = distance(meters=radius).destination(current_position, bearing)
+
+                if abs(candidate_position.latitude) >= 90:
+                    candidate_position = Point(89.999 if candidate_position.latitude > 0 else -89.999,
+                                               current_position.longitude)
+
+                candidate_position = Point(candidate_position.latitude,
+                                           (candidate_position.longitude + 180) % 360 - 180)
+
+                if excluded_quadrant is None:  # 跳过象限排除
+                    return candidate_position
+
+                lon_diff = candidate_position.longitude - current_position.longitude
+                lat_diff = candidate_position.latitude - current_position.latitude
+
+                if lon_diff > 0 and lat_diff > 0:
+                    candidate_quadrant = 1
+                elif lon_diff < 0 and lat_diff > 0:
+                    candidate_quadrant = 2
+                elif lon_diff < 0 and lat_diff < 0:
+                    candidate_quadrant = 3
+                else:
+                    candidate_quadrant = 4
+
+                if candidate_quadrant != excluded_quadrant:
+                    return candidate_position
+
+        target_position = generate_random_point(excluded_quadrant)
+        self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
+        self.aichatcfg_record.current_position = [target_position.longitude, target_position.latitude]
+
+        new_pos = self.aichatcfg_record.current_position
+        command = ("move_to_a_place", str(new_pos[0]), str(new_pos[1]))
+        self.send_msg_to_map(command)
+
+        result = f"你移动了500米，附近没有任何人。"
+        self.update_after_moving()
+        return result
+
+    def initial_bearing(self, p1: Point, p2: Point) -> float:
+        """
+        计算从 p1 指向 p2 的初始方位角（度，0-360）
+        """
+        lon1, lat1 = math.radians(p1.longitude), math.radians(p1.latitude)
+        lon2, lat2 = math.radians(p2.longitude), math.radians(p2.latitude)
+        dlon = lon2 - lon1
+        x = math.sin(dlon) * math.cos(lat2)
+        y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+        return (math.degrees(math.atan2(x, y)) + 360) % 360
+
+    def move_ahead(self, current_position, target_position, target_place):
+        move_distance = 500  # 移动距离（米）
+
+        # 转换为 geopy.Point（Point 接受 lat, lon）
+        if not isinstance(current_position, Point):
+            current_position = Point(current_position[1], current_position[0])
+
+        if not isinstance(target_position, Point):
+            target_position = Point(target_position[1], target_position[0])
+
+            # 计算实际距离
+        actual_distance = distance(current_position, target_position).m
+
+        try:
+            # 情况 1: 已经在目标点（零距离）
+            if actual_distance == 0:
+                self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
+                self.aichatcfg_record.current_position = [current_position.longitude, current_position.latitude]
+                return f"您已到达目标位置{target_place}。"
+
+            # 情况 2: 剩余距离小于一步
+            if actual_distance <= move_distance:
+                self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
+                self.aichatcfg_record.current_position = [target_position.longitude, target_position.latitude]
+                new_pos = self.aichatcfg_record.current_position
+                command = ("move_to_a_place", str(new_pos[0]), str(new_pos[1]))
+                self.send_msg_to_map(command)
+                return f"您已到达目标位置{target_place}（剩余 0 公里）。"
+
+                # 情况 3: 需要计算 bearing
+
+            if abs(current_position.latitude) == 90:
+                # 极点：方向不唯一 -> 默认朝向赤道
+                bearing = 180 if current_position.latitude > 0 else 0
+            else:
+                inv = Geodesic.WGS84.Inverse(
+                    current_position.latitude, current_position.longitude,
+                    target_position.latitude, target_position.longitude
+                )
+                bearing = inv['azi1'] % 360
+
+            # 沿该方向移动 move_distance
+            next_position = distance(meters=move_distance).destination(
+                point=current_position,
+                bearing=bearing
+            )
+
+            self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
+            self.aichatcfg_record.current_position = [next_position.longitude, next_position.latitude]
+
+            new_pos = self.aichatcfg_record.current_position
+            command = ("move_to_a_place", str(new_pos[0]), str(new_pos[1]))
+            self.send_msg_to_map(command)
+
+            print("last_position", self.aichatcfg_record.last_position)
+            print("current_position", self.aichatcfg_record.current_position)
+            print("target_position", target_position)
+
+            # 重新计算剩余距离
+            remaining_distance = distance(next_position, target_position).km
+
+            self.update_after_moving()
+
+            return f"你向目标地点{target_place}移动了{move_distance}米。距离目标还剩 {remaining_distance:.2f} 公里。"
+
+
+        except Exception as e:
+            return f"计算移动坐标时出错：{str(e)}"
+
+    def move_by_route(self):
+        command = ("route_move_action", "", "")
+        self.send_msg_to_map(command)
+        target_place = self.route_target_place
+        route_position_list = self.route_position_list
+        total_distance = self.route_total_distance
+        move_distance = self.route_move_distance
+        remaining_distance = total_distance - move_distance
+        return f"你向目标地点{target_place}移动了{move_distance}米。距离目标还剩 {remaining_distance:.2f} 公里。"
+
+    def update_after_moving(self):
+        lng = self.aichatcfg_record.current_position[0]
+        lat = self.aichatcfg_record.current_position[1]
+        url = "http://www.ai-sns.org/api/update-location/"
+        params = {
+            "nation_id": "AI123451234567890ABCDEF7890",
+            "password": "securePassword123!",
+            "longitude": lng,
+            "latitude": lat,
+        }
+        response = requests.post(url, data=params)
+        print(response)

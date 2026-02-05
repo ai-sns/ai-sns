@@ -224,7 +224,7 @@ var handle_command = function (command, param_1, param_2) {
             div = document.getElementById(param_1);
             if (!div) {
                 console.warn(`Element with ID ${param_1} not found on map`);
-                return;
+                // return;
             }
             hiddenPoints[param_1] = div;
         }
@@ -678,7 +678,7 @@ function mapcfgSetting() {
 
 function open_sns_profile(url) {
     console.log("open_sns_profile", url);
-    
+
     // 向 electron 前端发送消息，在右侧状态面板中添加 Profile 页签
     if (typeof window.parent !== 'undefined') {
         window.parent.postMessage({
@@ -690,7 +690,7 @@ function open_sns_profile(url) {
 
 function close_sns_profile() {
     console.log("close_sns_profile");
-    
+
     // 向 electron 前端发送消息，关闭 Profile 页签
     if (typeof window.parent !== 'undefined') {
         window.parent.postMessage({

@@ -1342,10 +1342,7 @@ function showprofile(nation_id) {
     });
 
     open_sns_profile(person['sns_url']);
-    // 图片加载完毕重绘infoWindow
-    document.getElementById('imgDemo').onload = function () {
-        infoWindow.redraw(); // 防止在网速较慢时生成的信息框高度比图片总高度小，导致图片部分被隐藏
-    };
+
 }
 
 function closeprofile() {

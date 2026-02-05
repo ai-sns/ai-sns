@@ -3339,9 +3339,117 @@ Feedback submitted
 -如果SNSPage.js中的data-mode是"ai"则将human_talk_type设置为0，否则设置为1，总之前端toggle的时候要注意对后端human_talk_type的值进行切换
 2.前端control-input里面的值提交后，请重新修改一下，要将它发送给ai_social_engine_adapter.py中的human_message_received函数
 
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+给我重点研究一下backend\modules\sns这个目录的代码，并看下为何执行任务的过程中卡住了，请给我修复
+
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-01],Init AISocialEngine...
+INFO:backend.modules.sns.ai_social_engine_adapter:Async initializing AISocialEngine...
+INFO:backend.modules.sns.ai_social_engine_adapter:AISocialEngine async initialization complete
+write_on_going_process_to_pane
+self.aichatcfg_record [116.4021788054859, 39.79192151800179]
+self.aichatcfg_recordprofile cjr setok
+INFO:backend.modules.sns.ui_display_mixin:Chart data updated and sent to frontend: {'level': 2, 'credit': 99, 'money': 10276.605905752498, 'life': 104, 'iq': 76, 'energy': 102, 'move': 106.08, 'exp': 39}
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-02],Start AISocialEngine...
+INFO:backend.modules.sns.ai_social_engine_adapter:Starting AI Social Engine...
+INFO:backend.modules.sns.ai_social_engine_adapter:Current position: [116.4021788054859, 39.79192151800179]
+INFO:backend.modules.sns.ai_social_engine_adapter:AI Social Engine started successfully
+INFO:backend.modules.sns.ai_social_engine_adapter:Map task status: 
+INFO:backend.modules.sns.ai_social_engine_adapter:Abilities enabled: 6
+INFO:backend.modules.sns.service_async:AI Social Engine started successfully
+INFO:backend.modules.sns.ui_display_mixin:Sent process update to frontend (section: ongoing)
+INFO:backend.modules.sns.ui_display_mixin:Sent resource update to frontend (section: None)
+INFO:backend.modules.sns.ui_display_mixin:User stats update sent to frontend
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-03],Start run_task_loop...
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+INFO:backend.modules.sns.map_task_manager:[Step-05],Start process_task...
+INFO:backend.modules.sns.map_task_manager:Task processing resumed, continuing execution...
+INFO:     127.0.0.1:64371 - "POST /api/sns/start-engine HTTP/1.1" 200 OK
+[Info]: map_task_status is blank
+write_on_going_process_to_pane
+执行行动：show_information
+INFO:backend.modules.sns.ui_display_mixin:Sent process update to frontend (section: ongoing)
+INFO:backend.modules.sns.ui_display_mixin:Command sent to map: show_information, param_1=Agent is thinking how to proceed:, param_2=
+INFO:backend.modules.agent.agent_instance:LLM客户端已初始化: https://api.chatanywhere.tech/v1
+INFO:backend.modules.agent.agent_instance:Agent实例已创建: Balabala (ID: 12)
+INFO:backend.modules.agent.agent_manager:Agent Balabala (ID: 12) 已加载
+INFO:backend.modules.agent.service:从parameter加载MCP工具列表: 4 个工具
+INFO:backend.modules.agent.agent_instance:Agent Balabala (ID: 12) 已加载 4 个工具
+INFO:backend.modules.agent.agent_instance:已加载工具: mcp_MC202601158934785372_get_weather, mcp_MC202601158934785372_get_current_time, mcp_MC202601158934785372_calculate, mcp_MC202601158934785372_get_system_info
+INFO:backend.modules.agent.agent_instance:准备了 4 个工具用于LLM调用
+INFO:backend.modules.sns.ui_display_mixin:Sent think update to frontend (section: None)
+INFO:httpx:HTTP Request: POST https://api.chatanywhere.tech/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:backend.modules.sns.ui_display_mixin:Sent think update to frontend (section: None)
+INFO:backend.modules.agent.agent_manager:从缓存获取Agent: 12
+INFO:backend.modules.agent.agent_instance:准备了 4 个工具用于LLM调用
+INFO:backend.modules.sns.ui_display_mixin:Status update sent: thinking
+INFO:backend.modules.sns.ui_display_mixin:Sent think update to frontend (section: None)
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+INFO:httpx:HTTP Request: POST https://api.chatanywhere.tech/v1/chat/completions "HTTP/1.1 200 OK"
+C:\dev\agi-ev\ai-sns-el\backend\modules\sns\agent_interaction_mixin.py:119: RuntimeWarning: coroutine 'MapTaskManager.process_task' was never awaited
+  self.taskmng.process_task(event="agent_instruction_to_process_activity_returned", instruction=content)
+RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+INFO:backend.modules.sns.ui_display_mixin:Sent think update to frontend (section: None)
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
+INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
+[Info]: map_task_status is started, continuing task processing
 
 
 
 
 
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究renderer/js/modules/sns/SNSPage.js，及backend/modules/sns/ai_social_engine_adapter.py，.当SNSPage.js中的 "现代化底部功能栏"切换成"State 2: Control mode toolbar (menubar002 style)"的时候,此时后端ai_social_engine_adapter.py的human_take_over设置为True，如果现代化底部功能栏切换回去则重新设置为False
+如果SNSPage.js中的data-mode是"ai"则将human_talk_type设置为0，否则设置为1
+现在有如下问题：
+当我前端切换成Control mode的时候，当前执行的任务会从自动执行改为等待human的指令，根据指令执行。但当我退出Control mode的时候，却发现后端的任务没有接着继续执行。
 
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究renderer\js\modules\home\HomeSidebar.js,然后给我重新优化按钮initialization的功能，具体要求如下:
+1.请参考wizardconfigdialog.py文件的实现，它是一个pyqt版本的实现，我希望你参考它的前端，把前端的功能通过HomeSidebar.js的按钮initialization来实现。wizardconfigdialog.py其他的功能都通过后端功能实现，请将后端的功能代码放在backend目录下，并按现在后端的模块化规范实现。
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究backend/modules/sns/ai_social_engine_adapter.py里面的以下代码:
+        elif "外卖服务" in action_str:
+            action_result = self.set_food_order()
+        elif "远程医疗" in action_str:
+            action_result = self.call_a_doctor()
+
+为何这两个函数被调用之后，compose_full_ask_content这个函数里面调用了以下代码
+        current_status = f"""
+* 资金值: {self.money:.2f}元
+* 生命值: {self.life_point}%
+* 体力值: {self.energy_point}%
+* 行动力: {self.move_point}%
+                    """
+但是上面的值一直都是原始的值，一直没有变化
+
+另外请你看一下，ai_social_engine_adapter.py里面的以下变量，是否都可以使用相应的self.aichatcfg_record属性来代替，比如self.aichatcfg_record.life_point代替self.life_point
+        self.life_point = 100  # db
+        self.energy_point = 100  # db
+        self.move_point = 100  # db
+        self.exp_point = 0  # db
+        self.iq_point = 60  # db
+        self.money = 1000  # db
+        self.credit = 100  # db
+        self.level = 1  # db
+如果上述可以的话，请你把整个后端用到上述变量的全部改成相应的self.aichatcfg_record属性，然后把上述8个属性全部去掉

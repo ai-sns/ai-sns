@@ -30,8 +30,8 @@ class ToolExecutor:
     def _load_builtin_tools(self):
         """加载内置工具（从agent/tools.py）"""
         try:
-            # 动态导入agent.tools模块
-            tools_module = importlib.import_module('agent.tools')
+            module_name = f"{__package__}.tools" if __package__ else "backend.modules.agent.tools"
+            tools_module = importlib.import_module(module_name)
 
             # 获取所有函数
             for name, obj in inspect.getmembers(tools_module):
@@ -39,8 +39,15 @@ class ToolExecutor:
                     self._tool_functions[name] = obj
                     logger.info(f"加载内置工具: {name}")
 
+        except ModuleNotFoundError as e:
+            module_name = f"{__package__}.tools" if __package__ else "backend.modules.agent.tools"
+            if e.name == module_name or e.name == "agent":
+                logger.warning(f"内置工具模块未找到: {module_name}")
+                return
+            logger.error(f"加载内置工具失败: {e}", exc_info=True)
+
         except Exception as e:
-            logger.error(f"加载内置工具失败: {e}")
+            logger.error(f"加载内置工具失败: {e}", exc_info=True)
 
     def load_plugin_tool(self, plugin_id: str, tool_function: callable):
         """

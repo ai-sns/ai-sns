@@ -203,6 +203,64 @@ export default {
 
                 <!-- 右侧状态面板 -->
                 <div class="sns-status-panel" id="snsStatusPanel">
+                    <!-- 搜索栏（默认隐藏，通过右键菜单唤出） -->
+                    <div class="status-search-bar" id="statusSearchBar" style="display: none;">
+                        <div class="search-input-wrapper">
+                            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <input type="text" class="search-input" id="statusSearchInput" placeholder="搜索当前页签内容...">
+                            <button class="search-clear-btn" id="statusSearchClear" title="关闭搜索">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="search-results-info" id="searchResultsInfo" style="display: none;">
+                            <span id="searchResultsText">找到 0 个结果</span>
+                            <div class="search-navigation">
+                                <button class="search-nav-btn" id="searchPrevBtn" title="上一个">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="15 18 9 12 15 6"/>
+                                    </svg>
+                                </button>
+                                <button class="search-nav-btn" id="searchNextBtn" title="下一个">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右键菜单 -->
+                    <div class="status-context-menu" id="statusContextMenu" style="display: none;">
+                        <button class="context-menu-item" data-action="copy">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                            <span>Copy</span>
+                        </button>
+                        <button class="context-menu-item" data-action="selectAll">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 11l3 3L22 4"/>
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                            </svg>
+                            <span>Select All</span>
+                        </button>
+                        <div class="context-menu-divider"></div>
+                        <button class="context-menu-item" data-action="search">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <span>Search</span>
+                        </button>
+                    </div>
+                    
                     <!-- 页签内容区域 - 整个面板内容随页签切换 -->
                     <div class="status-tab-content" id="statusTabContent">
                         <!-- Process 页签内容 -->

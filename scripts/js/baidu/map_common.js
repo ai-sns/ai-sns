@@ -719,8 +719,8 @@ var infoWindow = new BMapGL.InfoWindow("你好呀，我是Y宝", opts);  // 创�
 var infoWindow2 = new BMapGL.InfoWindow("hello,你好！", opts);  // 创建信息窗口对象
 
 function start_talk_to_it(nation_id, content) {
-    div = hiddenPoints[nation_id];
-    div.style.display = 'none';
+    // div = hiddenPoints[nation_id];
+    // div.style.display = 'none';
     alert(nation_id);
     alert(map.getZoom());
     person_target_point = getPersonPointByNationId(nation_id);
@@ -748,7 +748,14 @@ function start_talk_to_it(nation_id, content) {
     setPersonModelPointByNationId(nation_id_me, my_new_point);
     setPersonPointByNationId(nation_id_me,my_new_point.lng,my_new_point.lat);
 
-
+    div = document.getElementById(nation_id);
+            if (!div) {
+                console.warn(`Element with ID ${nation_id} not found on map`);
+                return;
+            }
+            hiddenPoints[param_1] = div;
+div = hiddenPoints[nation_id];
+    div.style.display = 'none';
 }
 
 function talk_to_it(nation_id, content) {
@@ -916,10 +923,7 @@ profile_info_window.addEventListener("close", function() {
     // map.openInfoWindow(infoWindow3, point); //开启信息窗口
     alert("showprofile444");
     open_sns_profile(person['sns_url']);
-    // 图片加载完毕重绘infoWindow
-    document.getElementById('imgDemo').onload = function () {
-        infoWindow.redraw(); // 防止在网速较慢时生成的信息框高度比图片总高度小，导致图片部分被隐藏
-    };
+
 }
 
 function closeprofile(){
@@ -973,11 +977,6 @@ function showprofile3d(geoGroup) {
     var retrievedGeoGroup1 = threeLayer.scene.getObjectByName("geoGroup1");
     console.log("retrievedGeoGroup1", retrievedGeoGroup1);
 
-
-    // 图片加载完毕重绘infoWindow
-    document.getElementById('imgDemo').onload = function () {
-        infoWindow.redraw(); // 防止在网速较慢时生成的信息框高度比图片总高度小，导致图片部分被隐藏
-    };
 }
 
 

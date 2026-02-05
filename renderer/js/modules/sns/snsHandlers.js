@@ -20,6 +20,8 @@ export default {
         this.loadSNSData();
         this.initSNSPanelResizer();
         this.initSNSStatusTabs();
+        this.initSNSContextMenu();
+        this.initSNSSearch();
         this.initSNSToolbar();
         this.initSNSSettingsPanel();
         this.initConfigButtons();
@@ -513,6 +515,38 @@ export default {
 
         if (!tabsContainer || !tabContent) return;
 
+        // 存储每个页签的滚动位置
+        const scrollPositions = {};
+
+        const getActiveTab = () => {
+            const activeBtn = tabsContainer.querySelector('.status-tab.active');
+            return activeBtn ? activeBtn.dataset.tab : null;
+        };
+
+        const saveScrollPosition = (tab) => {
+            if (!tab) return;
+            scrollPositions[tab] = tabContent.scrollTop;
+        };
+
+        const restoreScrollPosition = (tab) => {
+            if (!tab) return;
+            const pos = scrollPositions[tab];
+            tabContent.scrollTop = typeof pos === 'number' ? pos : 0;
+        };
+
+        const ensureTabButtonVisible = (tabBtn) => {
+            if (!tabBtn) return;
+            const containerRect = tabsContainer.getBoundingClientRect();
+            const btnRect = tabBtn.getBoundingClientRect();
+
+            // Only adjust horizontal scroll of the tabs bar; do not trigger vertical scroll.
+            if (btnRect.left < containerRect.left) {
+                tabsContainer.scrollLeft -= (containerRect.left - btnRect.left) + 16;
+            } else if (btnRect.right > containerRect.right) {
+                tabsContainer.scrollLeft += (btnRect.right - containerRect.right) + 16;
+            }
+        };
+
         // 页签切换事件
         tabsContainer.addEventListener('click', (e) => {
             const tabBtn = e.target.closest('.status-tab');
@@ -520,6 +554,10 @@ export default {
 
             const targetTab = tabBtn.dataset.tab;
             if (!targetTab) return;
+
+            // 保存当前激活页签的滚动位置
+            const currentTab = getActiveTab();
+            saveScrollPosition(currentTab);
 
             // 更新按钮激活状态
             tabsContainer.querySelectorAll('.status-tab').forEach(btn => {
@@ -531,12 +569,13 @@ export default {
                 pane.classList.toggle('active', pane.dataset.tab === targetTab);
             });
 
-            // 滚动到激活的页签
-            tabBtn.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'nearest', 
-                inline: 'center' 
+            // 恢复目标页签的滚动位置
+            requestAnimationFrame(() => {
+                restoreScrollPosition(targetTab);
             });
+
+            // 只调整页签按钮容器的横向滚动，不影响内容区域
+            ensureTabButtonVisible(tabBtn);
         });
 
         // 检测滚动状态并添加渐变提示
@@ -569,6 +608,317 @@ export default {
 
         // 初始检查
         setTimeout(updateScrollIndicators, 100);
+    },
+
+    /**
+     * 初始化右键菜单
+     */
+    initSNSContextMenu() {
+        const tabContent = document.getElementById('statusTabContent');
+        const contextMenu = document.getElementById('statusContextMenu');
+        const searchBar = document.getElementById('statusSearchBar');
+        const searchInput = document.getElementById('statusSearchInput');
+
+        if (!tabContent || !contextMenu) return;
+
+        // 阻止默认右键菜单
+        tabContent.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+
+            // 显示自定义右键菜单
+            contextMenu.style.display = 'block';
+            
+            // 计算菜单位置
+            const menuWidth = 180;
+            const menuHeight = 120;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            let x = e.clientX;
+            let y = e.clientY;
+
+            // 防止菜单超出视口
+            if (x + menuWidth > viewportWidth) {
+                x = viewportWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > viewportHeight) {
+                y = viewportHeight - menuHeight - 10;
+            }
+
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+        });
+
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.style.display = 'none';
+            }
+        });
+
+        // 菜单项点击事件
+        contextMenu.addEventListener('click', (e) => {
+            const menuItem = e.target.closest('.context-menu-item');
+            if (!menuItem) return;
+
+            const action = menuItem.dataset.action;
+            const activePane = tabContent.querySelector('.tab-pane.active');
+
+            switch (action) {
+                case 'copy':
+                    // 复制选中的文本
+                    const selectedText = window.getSelection().toString();
+                    if (selectedText) {
+                        navigator.clipboard.writeText(selectedText).then(() => {
+                            console.log('文本已复制到剪贴板');
+                        }).catch(err => {
+                            console.error('复制失败:', err);
+                        });
+                    }
+                    break;
+
+                case 'selectAll':
+                    // 选中当前页签的所有文本
+                    if (activePane) {
+                        const range = document.createRange();
+                        range.selectNodeContents(activePane);
+                        const selection = window.getSelection();
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                    break;
+
+                case 'search':
+                    // 显示搜索栏
+                    if (searchBar) {
+                        searchBar.style.display = 'flex';
+                        // 聚焦到搜索框
+                        setTimeout(() => {
+                            if (searchInput) {
+                                searchInput.focus();
+                                // 如果有选中的文本，自动填充到搜索框
+                                const selectedText = window.getSelection().toString();
+                                if (selectedText) {
+                                    searchInput.value = selectedText;
+                                    // 触发搜索
+                                    const event = new Event('input', { bubbles: true });
+                                    searchInput.dispatchEvent(event);
+                                }
+                            }
+                        }, 100);
+                    }
+                    break;
+            }
+
+            // 关闭菜单
+            contextMenu.style.display = 'none';
+        });
+
+        // ESC 键关闭菜单
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                contextMenu.style.display = 'none';
+            }
+        });
+    },
+
+    /**
+     * 初始化状态面板搜索功能
+     */
+    initSNSSearch() {
+        const searchInput = document.getElementById('statusSearchInput');
+        const searchClear = document.getElementById('statusSearchClear');
+        const searchResultsInfo = document.getElementById('searchResultsInfo');
+        const searchResultsText = document.getElementById('searchResultsText');
+        const searchPrevBtn = document.getElementById('searchPrevBtn');
+        const searchNextBtn = document.getElementById('searchNextBtn');
+        const tabContent = document.getElementById('statusTabContent');
+
+        if (!searchInput || !tabContent) return;
+
+        let currentMatches = [];
+        let currentMatchIndex = -1;
+
+        // 高亮搜索结果
+        const highlightMatches = (searchText) => {
+            // 清除之前的高亮
+            this.clearSearchHighlights();
+
+            if (!searchText.trim()) {
+                searchResultsInfo.style.display = 'none';
+                return;
+            }
+
+            // 获取当前激活的页签
+            const activePane = tabContent.querySelector('.tab-pane.active');
+            if (!activePane) return;
+
+            // 搜索文本内容
+            const textNodes = this.getTextNodes(activePane);
+            currentMatches = [];
+
+            const searchLower = searchText.toLowerCase();
+
+            textNodes.forEach(node => {
+                const text = node.textContent;
+                const textLower = text.toLowerCase();
+                let index = 0;
+
+                while ((index = textLower.indexOf(searchLower, index)) !== -1) {
+                    // 创建高亮标记
+                    const range = document.createRange();
+                    range.setStart(node, index);
+                    range.setEnd(node, index + searchText.length);
+
+                    const mark = document.createElement('mark');
+                    mark.className = 'search-highlight';
+                    mark.textContent = text.substring(index, index + searchText.length);
+
+                    range.deleteContents();
+                    range.insertNode(mark);
+
+                    currentMatches.push(mark);
+                    index += searchText.length;
+
+                    // 更新节点引用（因为DOM已改变）
+                    node = mark.nextSibling;
+                    if (!node || node.nodeType !== Node.TEXT_NODE) break;
+                }
+            });
+
+            // 更新搜索结果信息
+            if (currentMatches.length > 0) {
+                searchResultsInfo.style.display = 'flex';
+                searchResultsText.textContent = `找到 ${currentMatches.length} 个结果`;
+                currentMatchIndex = 0;
+                this.scrollToMatch(currentMatchIndex);
+            } else {
+                searchResultsInfo.style.display = 'flex';
+                searchResultsText.textContent = '未找到结果';
+                currentMatchIndex = -1;
+            }
+        };
+
+        // 获取所有文本节点
+        this.getTextNodes = (element) => {
+            const textNodes = [];
+            const walker = document.createTreeWalker(
+                element,
+                NodeFilter.SHOW_TEXT,
+                {
+                    acceptNode: (node) => {
+                        // 跳过空白节点和已高亮的节点
+                        if (!node.textContent.trim() || node.parentElement.tagName === 'MARK') {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
+                    }
+                }
+            );
+
+            let node;
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+            return textNodes;
+        };
+
+        // 清除搜索高亮
+        this.clearSearchHighlights = () => {
+            const highlights = tabContent.querySelectorAll('.search-highlight');
+            highlights.forEach(mark => {
+                const parent = mark.parentNode;
+                parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                parent.normalize(); // 合并相邻的文本节点
+            });
+            currentMatches = [];
+            currentMatchIndex = -1;
+        };
+
+        // 滚动到指定匹配项
+        this.scrollToMatch = (index) => {
+            if (index < 0 || index >= currentMatches.length) return;
+
+            // 移除之前的当前高亮
+            currentMatches.forEach(mark => mark.classList.remove('search-highlight-current'));
+
+            // 添加当前高亮
+            const currentMark = currentMatches[index];
+            currentMark.classList.add('search-highlight-current');
+
+            // 滚动到视图
+            currentMark.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+            // 更新结果文本
+            searchResultsText.textContent = `${index + 1} / ${currentMatches.length}`;
+        };
+
+        // 搜索输入事件
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                highlightMatches(e.target.value);
+            }, 300); // 防抖
+        });
+
+        // 清除按钮 - 清除搜索并关闭搜索栏
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            this.clearSearchHighlights();
+            searchResultsInfo.style.display = 'none';
+            // 隐藏搜索栏
+            const searchBar = document.getElementById('statusSearchBar');
+            if (searchBar) {
+                searchBar.style.display = 'none';
+            }
+        });
+
+        // 上一个结果
+        searchPrevBtn.addEventListener('click', () => {
+            if (currentMatches.length === 0) return;
+            currentMatchIndex = (currentMatchIndex - 1 + currentMatches.length) % currentMatches.length;
+            this.scrollToMatch(currentMatchIndex);
+        });
+
+        // 下一个结果
+        searchNextBtn.addEventListener('click', () => {
+            if (currentMatches.length === 0) return;
+            currentMatchIndex = (currentMatchIndex + 1) % currentMatches.length;
+            this.scrollToMatch(currentMatchIndex);
+        });
+
+        // 快捷键支持
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    searchPrevBtn.click();
+                } else {
+                    searchNextBtn.click();
+                }
+            } else if (e.key === 'Escape') {
+                searchClear.click();
+            }
+        });
+
+        // 页签切换时清除搜索
+        const tabsContainer = document.getElementById('statusTabs');
+        if (tabsContainer) {
+            tabsContainer.addEventListener('click', (e) => {
+                if (e.target.closest('.status-tab')) {
+                    // 延迟清除，等待页签切换完成
+                    setTimeout(() => {
+                        if (searchInput.value) {
+                            highlightMatches(searchInput.value);
+                        }
+                    }, 100);
+                }
+            });
+        }
     },
 
     /**
@@ -1229,8 +1579,6 @@ export default {
             font-family: monospace;
             font-size: 12px;
             line-height: 1.5;
-            max-height: 600px;
-            overflow-y: auto;
         `;
         contentDiv.textContent = content;
 

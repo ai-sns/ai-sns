@@ -1,2 +1,0 @@
-def getUserName():
-    return "cjrok"

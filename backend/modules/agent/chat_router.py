@@ -26,6 +26,7 @@ class AgentChatRequest(BaseModel):
     """Agent问答请求"""
     message: str
     conversation_id: Optional[str] = None
+    use_tools: bool = True
     use_memory: bool = True
     use_knowledge_base: bool = True
 
@@ -65,6 +66,7 @@ async def agent_chat_by_id(
         reply = await agent.chat(
             message=request.message,
             conversation_id=request.conversation_id,
+            use_tools=request.use_tools,
             use_memory=request.use_memory,
             use_knowledge_base=request.use_knowledge_base
         )
@@ -91,6 +93,7 @@ async def agent_chat_stream_with_files(
     agent_id: int,
     message: str = Form(...),
     conversation_id: Optional[str] = Form(None),
+    use_tools: bool = Form(True),
     use_memory: bool = Form(True),
     use_knowledge_base: bool = Form(True),
     files: List[UploadFile] = File(default=[])
@@ -197,6 +200,7 @@ async def agent_chat_stream_with_files(
                 async for chunk in agent.chat_stream(
                     message=message,
                     conversation_id=conversation_id,
+                    use_tools=use_tools,
                     use_memory=use_memory,
                     use_knowledge_base=use_knowledge_base,
                     attachments_text=attachments_text,
@@ -253,6 +257,7 @@ async def agent_chat_stream_by_id(
                 async for chunk in agent.chat_stream(
                     message=request.message,
                     conversation_id=request.conversation_id,
+                    use_tools=request.use_tools,
                     use_memory=request.use_memory,
                     use_knowledge_base=request.use_knowledge_base
                 ):
@@ -308,6 +313,7 @@ async def agent_chat_by_name(
         reply = await agent.chat(
             message=request.message,
             conversation_id=request.conversation_id,
+            use_tools=request.use_tools,
             use_memory=request.use_memory,
             use_knowledge_base=request.use_knowledge_base
         )
@@ -356,6 +362,7 @@ async def agent_chat_stream_by_name(
                 async for chunk in agent.chat_stream(
                     message=request.message,
                     conversation_id=request.conversation_id,
+                    use_tools=request.use_tools,
                     use_memory=request.use_memory,
                     use_knowledge_base=request.use_knowledge_base
                 ):

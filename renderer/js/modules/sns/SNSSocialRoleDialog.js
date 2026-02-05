@@ -15,24 +15,24 @@ export class SNSSocialRoleDialog {
             <div class="modal-overlay" id="snsSocialRoleDialog">
                 <div class="modal-dialog" style="max-width: 1200px; width: 90vw;">
                     <div class="modal-header">
-                        <h3>社交角色配置</h3>
+                        <h3>Prompt Setting</h3>
                         <button class="modal-close" onclick="document.getElementById('snsSocialRoleDialog').remove()">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="social-role-container">
                             <div class="role-list-section">
-                                <h4>角色列表</h4>
+                                <h4>Prompt list</h4>
                                 <div class="role-list" id="socialRoleList">
                                     <div class="loading">加载中...</div>
                                 </div>
                             </div>
                             <div class="role-detail-section">
                                 <div class="role-detail-header">
-                                    <h4>角色详情</h4>
+                                    <h4>Detail</h4>
                                 </div>
                                 <div class="role-preview" id="rolePreview">
                                     <div class="role-preview-content">
-                                        <p class="placeholder">请选择一个社交角色查看详情</p>
+                                        <p class="placeholder">Please select a prompt.</p>
                                     </div>
                                 </div>
                             </div>
@@ -220,6 +220,8 @@ export class SNSSocialRoleDialog {
                     margin: 0;
                     padding-bottom: 12px;
                     border-bottom: 2px solid #e0e0e0;
+                    user-select: text;
+                    cursor: text;
                 }
                 
                 .role-field {
@@ -242,6 +244,8 @@ export class SNSSocialRoleDialog {
                     background: #f9f9f9;
                     border-radius: 4px;
                     white-space: pre-wrap;
+                    user-select: text;
+                    cursor: text;
                 }
                 
                 .role-field-input,
@@ -279,6 +283,7 @@ export class SNSSocialRoleDialog {
                     padding: 6px 12px;
                     font-size: 13px;
                 }
+                
                 .role-field-input:focus,
                 .role-field-textarea:focus {
                     outline: none;
@@ -356,7 +361,7 @@ export class SNSSocialRoleDialog {
 
         // Show preview
         this.showRolePreview(role);
-        
+
         // Show action buttons and reset to edit mode
         document.getElementById('roleActions').style.display = 'flex';
         document.getElementById('editRoleBtn').style.display = 'inline-block';
@@ -405,8 +410,9 @@ export class SNSSocialRoleDialog {
     cancelEdit() {
         this.isEditing = false;
         this.showRolePreview(this.selectedRole);
-        
+
         // Toggle buttons
+        document.getElementById('deleteRoleBtn').style.display = 'inline-block';
         document.getElementById('editRoleBtn').style.display = 'inline-block';
         document.getElementById('saveRoleBtn').style.display = 'none';
         document.getElementById('cancelEditBtn').style.display = 'none';
@@ -441,10 +447,10 @@ export class SNSSocialRoleDialog {
 
                 // Refresh display
                 this.cancelEdit();
-                
+
                 // Reload list to show updated preview
                 await this.loadSocialRoles();
-                
+
                 // Re-select the updated role
                 const roleItem = document.querySelector(`.role-item[data-role-id="${this.selectedRole.id}"]`);
                 if (roleItem) {

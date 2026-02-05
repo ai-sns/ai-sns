@@ -101,7 +101,7 @@ except Exception as e:
     logger.warning(f"⚠ Wallet module not available: {e}")
 
 try:
-    from backend.modules.sns.router import router as sns_router
+    from backend.apps.sns.router import router as sns_router
 except Exception as e:
     logger.warning(f"⚠ SNS module not available: {e}")
 
@@ -554,7 +554,7 @@ async def startup_event():
     # Start XMPP client
     if sns_router:
         try:
-            from backend.modules.sns.xmpp_client import XMPPClientManager
+            from backend.apps.sns.xmpp_client import XMPPClientManager
             xmpp_manager = XMPPClientManager.get_instance()
             await xmpp_manager.start()
             logger.info("✓ XMPP Client started")
@@ -570,7 +570,7 @@ async def shutdown_event():
     # Stop XMPP client
     if sns_router:
         try:
-            from backend.modules.sns.xmpp_client import XMPPClientManager
+            from backend.apps.sns.xmpp_client import XMPPClientManager
             xmpp_manager = XMPPClientManager.get_instance()
             await xmpp_manager.stop()
             logger.info("✓ XMPP Client stopped")

@@ -367,6 +367,7 @@ IMPORTANT Tool Usage Guidelines:
         self,
         message: str,
         conversation_id: Optional[str] = None,
+        use_tools: bool = True,
         use_memory: bool = True,
         use_knowledge_base: bool = True,
         stream: bool = False,
@@ -391,7 +392,7 @@ IMPORTANT Tool Usage Guidelines:
 
         try:
             # 确保工具已从数据库加载
-            if not self.tools_loaded:
+            if use_tools and not self.tools_loaded:
                 await self.load_tools_from_db()
 
             # 构建消息列表
@@ -436,9 +437,9 @@ IMPORTANT Tool Usage Guidelines:
                 messages.append({'role': 'user', 'content': user_text})
 
             # 准备工具
-            tools = self._prepare_tools_schema()
+            tools = self._prepare_tools_schema() if use_tools else []
 
-            print("[info]:Message Send to llm:",messages)
+            print("[info]:Message Send to llm:", messages)
 
             # 调用LLM
             kwargs = {
@@ -448,7 +449,7 @@ IMPORTANT Tool Usage Guidelines:
                 'max_tokens': self.get_max_tokens()
             }
 
-            if tools:
+            if use_tools and tools:
                 kwargs['tools'] = tools
                 kwargs['tool_choice'] = 'auto'
 
@@ -458,7 +459,7 @@ IMPORTANT Tool Usage Guidelines:
             assistant_message = response.choices[0].message
 
             # 处理工具调用
-            if assistant_message.tool_calls:
+            if use_tools and assistant_message.tool_calls:
                 # 收集工具调用结果
                 tool_messages = []
                 for tool_call in assistant_message.tool_calls:
@@ -523,6 +524,7 @@ IMPORTANT Tool Usage Guidelines:
         self,
         message: str,
         conversation_id: Optional[str] = None,
+        use_tools: bool = True,
         use_memory: bool = True,
         use_knowledge_base: bool = True,
         attachments_text: str = "",
@@ -553,7 +555,7 @@ IMPORTANT Tool Usage Guidelines:
 
         try:
             # 确保工具已从数据库加载
-            if not self.tools_loaded:
+            if use_tools and not self.tools_loaded:
                 await self.load_tools_from_db()
 
             # 构建消息列表（同chat方法）
@@ -597,7 +599,7 @@ IMPORTANT Tool Usage Guidelines:
                 messages.append({'role': 'user', 'content': user_text})
 
             # 准备工具
-            tools = self._prepare_tools_schema()
+            tools = self._prepare_tools_schema() if use_tools else []
 
             # 调用LLM（流式）
             kwargs = {
@@ -608,7 +610,7 @@ IMPORTANT Tool Usage Guidelines:
                 'stream': True
             }
 
-            if tools:
+            if use_tools and tools:
                 kwargs['tools'] = tools
                 kwargs['tool_choice'] = 'auto'
 
@@ -630,7 +632,7 @@ IMPORTANT Tool Usage Guidelines:
                     yield delta.content
 
                 # 处理工具调用（累积delta）
-                if delta.tool_calls:
+                if use_tools and delta.tool_calls:
                     for tc_delta in delta.tool_calls:
                         idx = tc_delta.index
                         if idx not in tool_calls_accumulator:
@@ -648,7 +650,7 @@ IMPORTANT Tool Usage Guidelines:
                                 tool_calls_accumulator[idx]['function']['arguments'] += tc_delta.function.arguments
 
             # 如果有工具调用，执行工具并获取最终回复
-            if tool_calls_accumulator:
+            if use_tools and tool_calls_accumulator:
                 logger.info(f"检测到 {len(tool_calls_accumulator)} 个工具调用")
 
                 # 执行工具
