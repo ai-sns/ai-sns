@@ -3453,3 +3453,29 @@ INFO:backend.modules.sns.ai_social_engine_adapter:[Step-04],Start Start_task...
         self.credit = 100  # db
         self.level = 1  # db
 如果上述可以的话，请你把整个后端用到上述变量的全部改成相应的self.aichatcfg_record属性，然后把上述8个属性全部去掉
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究backend/modules/sns/ai_social_engine_adapter.py里面的以下函数，start_engine，_run_task_loop，start_task，请看下后面2个函数是否可以合并到start_engine里面
+
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究一下backend/modules/sns及backend/modules/agent两个目录里面所有代码，然后重点看下backend/modules/sns/ai_social_engine_adapter.py及backend/modules/sns/agent_interaction_mixin.py，最后给我做如下架构优化
+1.我希望把所有的mixin文件全部放在backend/modules/sns目录下面的mixin目录里面
+2.我希望把agent_interaction_mixin.py的结构调整一下(文件里面的两个函数名称及调用参数返回内容不变)，希望你给我增加一个agent_adapter.py文件，该文件专门用于处理和agent的交互，我希望程序员可以在该文件中做些个性化配置或者开发，而不影响到agent_interaction_mixin.py的业务逻辑。
+3.我希望该adapter文件放在backend/modules/sns目录下面的adapter目录里面
+4.我希望把整个backend/modules/sns目录调整到backend/modules/apps目录下面
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+
+1.请你给我好好研究C:\dev\agi-ev\ai-sns-el\backend\apps\sns\mixin\tools_mixin.py这个文件里面的函数哪些写得有问题，给我优化，同时看下如下错误，并解决
+C:\dev\agi-ev\ai-sns-el\backend\apps\sns\mixin\tools_mixin.py:46: RuntimeWarning: coroutine 'ToolsMixin.ask_agent_to_use_service' was never awaited
+  self.ask_agent_to_use_service(action_str)
+2.给我研究一下scripts/js/interact_python.js
+看一下open_place_web_address这个函数，它在Electron端应该如何进行响应和进行业务处理，具体可参考open_sns_profile这个函数在Electron端的实现方式，我希望它也可以在electron的sns模块的右侧状态面板中增加一个页签并打开响应的url地址，页签名称为Place intro
+
+前端在Electron及Renderer，后端在api_server.py及backend目录下,数据库使用db/db.sqlite，如果你要运行python，请使用如下环境:C:\dev\agi-ev\ai-sns-el\venv\Scripts\python.exe
+请你给我研究一下renderer/js/modules/sns/SNSProfessionDialog.js，然后给我做如下优化
+1.增加一个区块，“交易时的发货方”
+-两个选项:a.发送消息 2.调用工具
+2.如果选择了a.发送消息，则显示一个输入框，让用户输入内容。如果选择了调用工具则显示一个工具选择列表，用户选择一个工具，工具列表请获取Tools模块里面的所有包括plugin tool,mcp,function,skill(computer use)等的所有记录
+3.点击保存后要保存到ai_chatcfg这张表中，如果选择了需要收费的职业，请扣除响应的money
