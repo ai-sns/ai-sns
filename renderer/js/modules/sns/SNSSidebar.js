@@ -111,7 +111,13 @@ export default {
         return `
             <div class="sidebar-section">
                 <div class="sidebar-header-row">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="#1a73e8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93z"/></svg>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1a73e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <!-- 地图轮廓 -->
+  <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+  <!-- 内部折痕 -->
+  <line x1="8" y1="2" x2="8" y2="18"></line>
+  <line x1="16" y1="6" x2="16" y2="22"></line>
+</svg>
                     <span class="sidebar-section-title">Explore the Earth-Y宝</span>
                 </div>
                 <!-- 用户属性面板 -->
@@ -377,7 +383,7 @@ export default {
         const filteredContacts = this.contacts.filter(contact => {
             if (!this.contactSearchQuery) return true;
             const query = this.contactSearchQuery.toLowerCase();
-            return contact.nick_name.toLowerCase().includes(query) || 
+            return contact.nick_name.toLowerCase().includes(query) ||
                    contact.account.toLowerCase().includes(query);
         });
 
@@ -432,7 +438,7 @@ export default {
         const filteredTrades = this.trades.filter(trade => {
             if (!this.tradeSearchQuery) return true;
             const query = this.tradeSearchQuery.toLowerCase();
-            return trade.title.toLowerCase().includes(query) || 
+            return trade.title.toLowerCase().includes(query) ||
                    (trade.detail && trade.detail.toLowerCase().includes(query)) ||
                    trade.trade_with_name.toLowerCase().includes(query);
         });

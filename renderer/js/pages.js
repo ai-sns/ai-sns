@@ -705,23 +705,8 @@ const PageRenderers = {
                 </div>
                 <!-- 聊天列表 -->
                 <div class="chat-list-container" id="chatListContainer">
-                    <div class="chat-list-header">Chat List</div>
                     <div class="chat-tree" id="chatList">
-                        <div class="tree-node">
-                            <span class="tree-toggle">▼</span>
-                            <span class="tree-label">All</span>
-                        </div>
                         <div class="tree-children">
-                            <div class="tree-item"><span class="item-icon">⭐</span><span class="item-text">introduce me to the functio...</span></div>
-                            <div class="tree-item active"><span class="item-text">hello</span></div>
-                            <div class="tree-item"><span class="item-text">@upload:go</span></div>
-                            <div class="tree-item"><span class="item-text">@download:go</span></div>
-                            <div class="tree-item"><span class="item-text">hello</span></div>
-                            <div class="tree-item"><span class="item-text">hello</span></div>
-                            <div class="tree-item"><span class="item-text">hello</span></div>
-                            <div class="tree-item"><span class="item-text">js 如何修改person_data_me的nic...</span></div>
-                            <div class="tree-item"><span class="item-text">请分析一下宇徳时代</span></div>
-                            <div class="tree-item"><span class="item-text">我想购买苹果特斯拉，intel，微软...</span></div>
                         </div>
                     </div>
                 </div>

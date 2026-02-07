@@ -102,9 +102,9 @@ const AgentSidebar = {
         const agentItemsHTML = agents.map(agent => `
             <!-- Agent列表项 -->
             <div class="agent-item" data-agent-id="${agent.id}">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#5f6368">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
+<svg viewBox="0 0 24 24" width="16" height="16" fill="#5f6368">
+  <path d="M12 2c.55 0 1 .45 1 1v1h3c2.21 0 4 1.79 4 4v7c0 2.21-1.79 4-4 4H8c-2.21 0-4-1.79-4-4V8c0-2.21 1.79-4 4-4h3V3c0-.55.45-1 1-1zm-4 7c-.83 0-1.5.67-1.5 1.5S7.17 12 8 12s1.5-.67 1.5-1.5S8.83 9 8 9zm8 0c-.83 0-1.5.67-1.5 1.5S15.17 12 16 12s1.5-.67 1.5-1.5S16.83 9 16 9z"/>
+</svg>
                 <span>${agent.name || 'Unnamed Agent'}</span>
             </div>
 
@@ -172,31 +172,50 @@ const AgentSidebar = {
                         <span class="action-btn-text">Setting</span>
                     </button>
                 </div>
-                <div class="sidebar-section">
-                    <!-- 搜索框 -->
-                    <div class="agent-search">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#9e9e9e">
-                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                        </svg>
-                        <input type="text" class="search-input" placeholder="Keyword+Enter,Blank+Enter to reset" data-agent-id="${agent.id}">
-                    </div>
+                <div class="conversation-section">
                     <!-- Chat List / Tag List 切换 -->
-                    <div class="chat-list-tabs">
-                        <button class="chat-tab active" data-tab="chatList" data-agent-id="${agent.id}">Chat List</button>
-                        <button class="chat-tab" data-tab="tagList" data-agent-id="${agent.id}">Tag List</button>
+                    <div class="sns-sidebar-tabs">
+                        <button class="sidebar-tab active" data-tab="chatList" data-agent-id="${agent.id}">Chat List</button>
+                        <button class="sidebar-tab" data-tab="tagList" data-agent-id="${agent.id}">Tag List</button>
                     </div>
-                    <!-- 聊天列表 -->
-                    <div class="chat-list-container" id="chatListContainer-${agent.id}">
-                        <div class="chat-list-header">Chat List</div>
-                        <div class="chat-tree" id="chatList-${agent.id}">
-                            <div class="tree-node">
-                                <span class="tree-toggle">▼</span>
-                                <span class="tree-label">All</span>
-                            </div>
-                            <div class="tree-children">
-                                <!-- 聊天列表将在这里动态加载 -->
+                    <div class="tab-content active" data-content="chatList" data-agent-id="${agent.id}">
+                        <div class="sns-search-box">
+                            <div class="sns-search-wrapper">
+                                <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                </svg>
+                                <input type="text" class="sns-search-input" id="agentChatSearchInput-${agent.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-agent-id="${agent.id}" />
+                                <button class="sns-search-clear" id="agentChatSearchClear-${agent.id}">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
+                        <!-- 聊天列表 -->
+                        <div class="chat-list-container" id="chatListContainer-${agent.id}">
+                            <div class="chat-tree" id="chatList-${agent.id}">
+                                   <div class="tree-children">
+                                    <!-- 聊天列表将在这里动态加载 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-content" data-content="tagList" data-agent-id="${agent.id}">
+                        <div class="sns-search-box">
+                            <div class="sns-search-wrapper">
+                                <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                </svg>
+                                <input type="text" class="sns-search-input" id="agentTagSearchInput-${agent.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-agent-id="${agent.id}" />
+                                <button class="sns-search-clear" id="agentTagSearchClear-${agent.id}">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="tagListContainer-${agent.id}" style="padding: 8px 0; color: var(--text-muted, #999); font-size: 12px;">No tags</div>
                     </div>
                 </div>
             </div>
@@ -254,18 +273,43 @@ const AgentSidebar = {
         });
 
         // 4. 聊天标签切换
-        document.querySelectorAll('.chat-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-tab[data-agent-id]').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const agentId = tab.dataset.agentId;
                 const tabType = tab.dataset.tab;
 
-                // 找到同一个agent的所有tab
-                const sameSectionTabs = document.querySelectorAll(`.chat-tab[data-agent-id="${agentId}"]`);
+                const sameSectionTabs = document.querySelectorAll(`.sidebar-tab[data-agent-id="${agentId}"]`);
                 sameSectionTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
 
+                const contents = document.querySelectorAll(`.tab-content[data-agent-id="${agentId}"]`);
+                contents.forEach(c => c.classList.remove('active'));
+                const activeContent = document.querySelector(`.tab-content[data-agent-id="${agentId}"][data-content="${tabType}"]`);
+                if (activeContent) {
+                    activeContent.classList.add('active');
+                }
+
                 console.log('[AgentSidebar] 切换tab:', tabType, 'for agent:', agentId);
             });
+        });
+
+        document.querySelectorAll('.sns-search-input[id^="agentChatSearchInput-"], .sns-search-input[id^="agentTagSearchInput-"]').forEach(input => {
+            const clearId = input.id.includes('agentChatSearchInput-')
+                ? input.id.replace('agentChatSearchInput-', 'agentChatSearchClear-')
+                : input.id.replace('agentTagSearchInput-', 'agentTagSearchClear-');
+            const clearBtn = document.getElementById(clearId);
+            if (clearBtn) {
+                input.addEventListener('input', () => {
+                    clearBtn.classList.toggle('visible', input.value.length > 0);
+                });
+                clearBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    input.value = '';
+                    clearBtn.classList.remove('visible');
+                    input.dispatchEvent(new Event('input'));
+                });
+            }
         });
 
         // 5. 管理按钮（模型管理、角色管理、Agent Management）

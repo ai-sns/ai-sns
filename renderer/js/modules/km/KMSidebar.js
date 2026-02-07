@@ -149,19 +149,18 @@ const KMSidebar = {
         return `
             <div class="km-user-section" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
                 <!-- Action buttons -->
-                <div class="km-action-buttons">
-                    <button class="km-action-btn" data-action="new-note" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
+                <div class="agent-action-buttons">
+                    <button class="agent-action-btn" data-action="new-note" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
                         <div class="action-btn-icon">
-                            <svg viewBox="0 0 48 48" width="40" height="40">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="#1a73e8" stroke-width="2"/>
-                                <polyline points="14 2 14 8 20 8" fill="none" stroke="#1a73e8" stroke-width="2"/>
-                                <line x1="12" y1="11" x2="12" y2="17" stroke="#1a73e8" stroke-width="2"/>
-                                <line x1="9" y1="14" x2="15" y2="14" stroke="#1a73e8" stroke-width="2"/>
+                             <svg viewBox="0 0 48 48" width="40" height="40">
+                                <rect x="8" y="8" width="32" height="32" rx="2" fill="none" stroke="#1a73e8" stroke-width="2"/>
+                                <line x1="24" y1="16" x2="24" y2="32" stroke="#1a73e8" stroke-width="2"/>
+                                <line x1="16" y1="24" x2="32" y2="24" stroke="#1a73e8" stroke-width="2"/>
                             </svg>
                         </div>
                         <span class="action-btn-text">New Note</span>
                     </button>
-                    <button class="km-action-btn" data-action="settings" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
+                    <button class="agent-action-btn" data-action="settings" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
                         <div class="action-btn-icon">
                             <svg viewBox="0 0 48 48" width="40" height="40">
                                 <circle cx="24" cy="24" r="16" fill="none" stroke="#1a73e8" stroke-width="2"/>
@@ -172,24 +171,47 @@ const KMSidebar = {
                         <span class="action-btn-text">Setting</span>
                     </button>
                 </div>
-                <div class="sidebar-section">
-                    <!-- Search box -->
-                    <div class="km-search">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#9e9e9e">
-                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                        </svg>
-                        <input type="text" class="search-input" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
+                <div class="km-content-section">
+                    <div class="sns-sidebar-tabs">
+                        <button class="sidebar-tab active" data-tab="all" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">All</button>
+                        <button class="sidebar-tab" data-tab="tag" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">Tag</button>
                     </div>
-                    <!-- Tab switching -->
-                    <div class="km-list-tabs">
-                        <button class="km-tab active" data-tab="all" data-kb-id="${kb.id}">All</button>
-                        <button class="km-tab" data-tab="tag" data-kb-id="${kb.id}">Tag</button>
-                    </div>
-                    <!-- Note list -->
-                    <div class="km-note-container" id="noteContainer-${kb.id}">
-                        <div class="km-note-tree" id="noteTree-${kb.id}" data-km-id="${kb.km_id}">
-                            <!-- Notes will be dynamically loaded here -->
+                    <div class="tab-content active" data-content="all" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
+                        <div class="sns-search-box">
+                            <div class="sns-search-wrapper">
+                                <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                </svg>
+                                <input type="text" class="sns-search-input" id="kmNoteSearchInput-${kb.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}" data-km-id="${kb.km_id}" />
+                                <button class="sns-search-clear" id="kmNoteSearchClear-${kb.id}">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+                        <!-- Note list -->
+                        <div class="km-note-container" id="noteContainer-${kb.id}">
+                            <div class="km-note-tree" id="noteTree-${kb.id}" data-km-id="${kb.km_id}">
+                                <!-- Notes will be dynamically loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-content" data-content="tag" data-kb-id="${kb.id}" data-km-id="${kb.km_id}">
+                        <div class="sns-search-box">
+                            <div class="sns-search-wrapper">
+                                <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                                </svg>
+                                <input type="text" class="sns-search-input" id="kmNoteTagSearchInput-${kb.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}" data-km-id="${kb.km_id}" />
+                                <button class="sns-search-clear" id="kmNoteTagSearchClear-${kb.id}">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="kmNoteTagList-${kb.id}" style="padding: 8px 0; color: var(--text-muted, #999); font-size: 12px;">No tags</div>
                     </div>
                 </div>
             </div>
@@ -203,19 +225,18 @@ const KMSidebar = {
         return `
             <div class="km-user-section" data-kb-id="${kb.id}">
                 <!-- Action buttons -->
-                <div class="km-action-buttons">
-                    <button class="km-action-btn" data-action="add-file" data-kb-id="${kb.id}">
+                <div class="agent-action-buttons">
+                    <button class="agent-action-btn" data-action="add-file" data-kb-id="${kb.id}">
                         <div class="action-btn-icon">
-                            <svg viewBox="0 0 48 48" width="40" height="40">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="none" stroke="#1a73e8" stroke-width="2"/>
-                                <polyline points="14 2 14 8 20 8" fill="none" stroke="#1a73e8" stroke-width="2"/>
-                                <line x1="12" y1="11" x2="12" y2="17" stroke="#1a73e8" stroke-width="2"/>
-                                <line x1="9" y1="14" x2="15" y2="14" stroke="#1a73e8" stroke-width="2"/>
+                             <svg viewBox="0 0 48 48" width="40" height="40">
+                                <rect x="8" y="8" width="32" height="32" rx="2" fill="none" stroke="#1a73e8" stroke-width="2"/>
+                                <line x1="24" y1="16" x2="24" y2="32" stroke="#1a73e8" stroke-width="2"/>
+                                <line x1="16" y1="24" x2="32" y2="24" stroke="#1a73e8" stroke-width="2"/>
                             </svg>
                         </div>
                         <span class="action-btn-text">Add File</span>
                     </button>
-                    <button class="km-action-btn" data-action="settings" data-kb-id="${kb.id}">
+                    <button class="agent-action-btn" data-action="settings" data-kb-id="${kb.id}">
                         <div class="action-btn-icon">
                             <svg viewBox="0 0 48 48" width="40" height="40">
                                 <circle cx="24" cy="24" r="16" fill="none" stroke="#1a73e8" stroke-width="2"/>
@@ -226,13 +247,19 @@ const KMSidebar = {
                         <span class="action-btn-text">Setting</span>
                     </button>
                 </div>
-                <div class="sidebar-section">
-                    <!-- Search box -->
-                    <div class="km-search">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#9e9e9e">
-                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                        </svg>
-                        <input type="text" class="search-input" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}">
+                <div class="km-content-section">
+                    <div class="sns-search-box">
+                        <div class="sns-search-wrapper">
+                            <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            <input type="text" class="sns-search-input" id="kmFileSearchInput-${kb.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}" />
+                            <button class="sns-search-clear" id="kmFileSearchClear-${kb.id}">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <!-- File list -->
                     <div class="km-file-container" id="fileContainer-${kb.id}">
@@ -252,8 +279,8 @@ const KMSidebar = {
         return `
             <div class="km-user-section" data-kb-id="${kb.id}">
                 <!-- Action buttons -->
-                <div class="km-action-buttons">
-                    <button class="km-action-btn" data-action="add-kv" data-kb-id="${kb.id}">
+                <div class="agent-action-buttons">
+                    <button class="agent-action-btn" data-action="add-kv" data-kb-id="${kb.id}">
                         <div class="action-btn-icon">
                             <svg viewBox="0 0 48 48" width="40" height="40">
                                 <rect x="8" y="8" width="32" height="32" rx="2" fill="none" stroke="#1a73e8" stroke-width="2"/>
@@ -263,7 +290,7 @@ const KMSidebar = {
                         </div>
                         <span class="action-btn-text">Add</span>
                     </button>
-                    <button class="km-action-btn" data-action="settings" data-kb-id="${kb.id}">
+                    <button class="agent-action-btn" data-action="settings" data-kb-id="${kb.id}">
                         <div class="action-btn-icon">
                             <svg viewBox="0 0 48 48" width="40" height="40">
                                 <circle cx="24" cy="24" r="16" fill="none" stroke="#1a73e8" stroke-width="2"/>
@@ -274,13 +301,19 @@ const KMSidebar = {
                         <span class="action-btn-text">Setting</span>
                     </button>
                 </div>
-                <div class="sidebar-section">
-                    <!-- Search box -->
-                    <div class="km-search">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#9e9e9e">
-                            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                        </svg>
-                        <input type="text" class="search-input" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}">
+                <div class="km-content-section">
+                    <div class="sns-search-box">
+                        <div class="sns-search-wrapper">
+                            <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                            </svg>
+                            <input type="text" class="sns-search-input" id="kmKvSearchInput-${kb.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-kb-id="${kb.id}" />
+                            <button class="sns-search-clear" id="kmKvSearchClear-${kb.id}">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <!-- Key-value list -->
                     <div class="km-kv-container" id="kvContainer-${kb.id}">
@@ -364,17 +397,47 @@ const KMSidebar = {
         });
 
         // 6. Tab switching
-        document.querySelectorAll('.km-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-tab[data-kb-id]').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const kbId = tab.dataset.kbId;
                 const tabType = tab.dataset.tab;
 
-                // Find all tabs in the same section
-                const sameSectionTabs = document.querySelectorAll(`.km-tab[data-kb-id="${kbId}"]`);
+                const sameSectionTabs = document.querySelectorAll(`.sidebar-tab[data-kb-id="${kbId}"]`);
                 sameSectionTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
 
+                const contents = document.querySelectorAll(`.tab-content[data-kb-id="${kbId}"]`);
+                contents.forEach(c => c.classList.remove('active'));
+                const activeContent = document.querySelector(`.tab-content[data-kb-id="${kbId}"][data-content="${tabType}"]`);
+                if (activeContent) {
+                    activeContent.classList.add('active');
+                }
+
                 console.log('[KMSidebar] Switched tab:', tabType, 'for KB:', kbId);
+            });
+        });
+
+        // Search clear button handling (SNS style)
+        document.querySelectorAll('.sns-search-input[id^="kmNoteSearchInput-"], .sns-search-input[id^="kmNoteTagSearchInput-"], .sns-search-input[id^="kmFileSearchInput-"], .sns-search-input[id^="kmKvSearchInput-"]').forEach(input => {
+            const clearId = input.id
+                .replace('kmNoteSearchInput-', 'kmNoteSearchClear-')
+                .replace('kmNoteTagSearchInput-', 'kmNoteTagSearchClear-')
+                .replace('kmFileSearchInput-', 'kmFileSearchClear-')
+                .replace('kmKvSearchInput-', 'kmKvSearchClear-');
+
+            const clearBtn = document.getElementById(clearId);
+            if (!clearBtn) return;
+
+            input.addEventListener('input', () => {
+                clearBtn.classList.toggle('visible', input.value.length > 0);
+            });
+
+            clearBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                input.value = '';
+                clearBtn.classList.remove('visible');
+                input.dispatchEvent(new Event('input'));
             });
         });
 
@@ -648,7 +711,7 @@ const KMSidebar = {
                         if (list) {
                             list.innerHTML = this.renderKMManageItems(kbsAll);
                         }
-                        
+
                         // Refresh sidebar to show new KB immediately
                         await this.reload();
                         // Switch to the newly created KB

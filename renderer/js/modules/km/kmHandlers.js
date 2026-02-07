@@ -392,7 +392,7 @@ const kmHandlers = {
         });
 
         // Bind search input
-        const searchInput = document.querySelector(`.km-user-section[data-kb-id="${kbId}"] .search-input`);
+        const searchInput = document.getElementById(`kmNoteSearchInput-${kbId}`);
         if (searchInput) {
             searchInput.addEventListener('keypress', async (e) => {
                 if (e.key === 'Enter') {

@@ -2695,6 +2695,15 @@ body.theme-dark .action-btn.active svg {
     color: #fff;
 }
 
+.km-content-section {
+    margin-top: 0;
+}
+
+
+.conversation-section {
+    margin-top: 0;
+}
+
 .contact-section {
     margin-top: 0;
 }
@@ -8146,13 +8155,12 @@ body.theme-dark .control-send-btn:hover {
 
 /* KM Section Container - 展开内容区域 */
 .km-section-container {
-    border-bottom: 1px solid var(--border-light);
-    background: #fafbfc;
+
 }
 
 /* KM User Section 样式 */
 .km-user-section {
-    padding: 0 12px 12px;
+    padding: 0 ;
 }
 
 /* KM 搜索框 */

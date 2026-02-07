@@ -1967,12 +1967,11 @@ body.theme-dark .km-list .km-item.km-management {
 }
 
 body.theme-dark .km-section-container {
-    background: var(--bg-secondary);
-    border-bottom-color: var(--border-color);
+
 }
 
 body.theme-dark .km-user-section {
-    background: var(--bg-secondary);
+
 }
 
 /* KM 搜索框 */

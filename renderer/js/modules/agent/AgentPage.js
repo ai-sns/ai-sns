@@ -42,19 +42,41 @@ const AgentPage = {
                     <!-- 顶部工具栏 -->
                     <div class="agent-chat-toolbar">
                         <div class="toolbar-left">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="#1a73e8">
-                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                            </svg>
-                        </div>
-                        <div class="toolbar-center">
+<svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+     stroke="#1a73e8" stroke-width="1.4" stroke-linecap="round">
+
+  <!-- Input layer -->
+  <circle cx="5" cy="6" r="1.3" fill="#1a73e8"/>
+  <circle cx="5" cy="12" r="1.3" fill="#1a73e8"/>
+  <circle cx="5" cy="18" r="1.3" fill="#1a73e8"/>
+
+  <!-- Hidden layer -->
+  <circle cx="11.5" cy="7" r="1.3" fill="#1a73e8"/>
+  <circle cx="11.5" cy="12" r="1.5" fill="#1a73e8"/>
+  <circle cx="11.5" cy="17" r="1.3" fill="#1a73e8"/>
+
+  <!-- Output layer -->
+  <circle cx="18" cy="9" r="1.3" fill="#1a73e8"/>
+  <circle cx="18" cy="15" r="1.3" fill="#1a73e8"/>
+
+  <!-- Connections: Input → Hidden -->
+  <line x1="5" y1="6" x2="11.5" y2="7"/>
+  <line x1="5" y1="12" x2="11.5" y2="12"/>
+  <line x1="5" y1="18" x2="11.5" y2="17"/>
+
+  <!-- Connections: Hidden → Output -->
+  <line x1="11.5" y1="7" x2="18" y2="9"/>
+  <line x1="11.5" y1="12" x2="18" y2="9"/>
+  <line x1="11.5" y1="12" x2="18" y2="15"/>
+  <line x1="11.5" y1="17" x2="18" y2="15"/>
+</svg>
+
+
+
                             <select class="model-selector" id="modelSelector-${agent.id}" data-agent-id="${agent.id}">
-                                <option value="gpt-4o">Baichuan_local:gpt-4o</option>
-                                <option value="gpt-4">GPT-4</option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                <option value="claude-3">Claude 3</option>
-                                <option value="deepseek">DeepSeek</option>
                             </select>
                         </div>
+
                         <div class="toolbar-right">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="#5f6368">
                                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
@@ -116,17 +138,21 @@ const AgentPage = {
                                         <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
                                     </svg>
                                 </button>
-                                <button class="toolbar-icon-btn" title="添加" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg></button>
-                                <button class="toolbar-icon-btn" title="配置知识库" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></button>
-                                <button class="toolbar-icon-btn" title="附件" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg></button> 
-                                <button class="toolbar-icon-btn" title="列表" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg></button>
-                                <button class="toolbar-icon-btn" title="屏幕" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg></button>
-                                <button class="toolbar-icon-btn" title="视频" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg></button>
-                                <button class="toolbar-icon-btn" title="窗口" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg></button>
+                                <button class="toolbar-icon-btn" title="配置知识库" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+  <path d="M12 2C7.58 2 4 3.79 4 6v12c0 2.21 3.58 4 8 4s8-1.79 8-4V6c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 .99 6 2s-2.13 2-6 2-6-.99-6-2 2.13-2 6-2zm0 14c-3.87 0-6-.99-6-2v-2c1.46 1.01 4.05 1.5 6 1.5s4.54-.49 6-1.5v2c0 1.01-2.13 2-6 2zm0-6c-3.87 0-6-.99-6-2V8c1.46 1.01 4.05 1.5 6 1.5S16.54 9.01 18 8v2c0 1.01-2.13 2-6 2z"/>
+</svg>
+</button>
+                                <button class="toolbar-icon-btn" title="附件" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg></button>
+                                
+                                <button class="toolbar-icon-btn" title="添加" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+  <path d="M19 11h-2v2h2v-2zm-4 0h-2v2h2v-2zm-4 0H9v2h2v-2zm8 4h-2v2h2v-2zm-4 0h-2v2h2v-2zm-4 0H9v2h2v-2zm8-8h-2v2h2V7zm-4 0h-2v2h2V7zm-4 0H9v2h2V7z"/>
+</svg>
+
+</button>
                             </div>
                             <button class="send-btn" id="sendMessageBtn-${agent.id}" data-agent-id="${agent.id}">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+                                    <path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.59 5.58L20 12l-8-8z"/>
                                 </svg>
                             </button>
                         </div>
