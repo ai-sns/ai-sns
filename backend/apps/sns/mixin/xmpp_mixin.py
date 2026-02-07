@@ -122,7 +122,7 @@ class XmppMixin:
                 message_handled = True
 
             else:
-                # 检查是否为购买请求
+                # 检查是否为购买请求,别人主动来向我求购
                 if (buy_flag := self.check_buy_in_received(content)):
                     logger.info(f"Detected buy inquiry from {account}")
                     self.talk_type = "sell"

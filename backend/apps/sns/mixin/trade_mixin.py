@@ -5,6 +5,9 @@ from backend.apps.sns.js_task_manager import JsTaskManager
 from backend.apps.sns.xmpp_client import XMPPClientManager
 from backend.modules.agent.agent_manager import agent_manager
 from backend.shared.websocket_manager import manager as websocket_manager
+from backend.apps.sns.adapter.agent_adapter import AgentAdapter
+from backend.database.repositories.system_repository import PluginMngRepository, FunctionMngRepository, McpMngRepository, SkillMngRepository
+from backend.modules.agent.tool_converter import ToolConverter
 
 # *********
 import os
@@ -40,39 +43,6 @@ import random
 logger = logging.getLogger(__name__)
 
 class TradeMixin:
-
-    def sell_to_a_people(self, action_str, instrunction):
-        human_object = ""
-        self.talk_type = "sell"
-        self.ask_agent_start_to_sell_to_a_people_sync(action_str, human_object)
-
-    def buy_from_a_people(self, action_str, instrunction):
-        human_object = ""
-        self.talk_type = "buy"
-        self.ask_agent_start_to_buy_from_a_people_sync(action_str, human_object)
-
-    def pay_to_a_people(self, target_nation_id, target_person_name, count):
-        nation_id = self.user_map_setting.get("nationid", "")
-        # send_request_pay
-        self.aichatcfg_record.money = float(self.aichatcfg_record.money or 0) - count
-        result = f"已经成功付款{count}元给{target_person_name}。"
-        return result
-
-    def send_good(self):
-        good_content = get_key_value("__good_content__")
-        result = ""
-        job = "医生"
-        if job == "doctor":
-            pass
-        elif job == "driver":
-            pass
-        elif job == "seller":
-            pass
-        else:
-            pass
-
-        result = "交货成功。"
-        return result
 
     def get_guidance(self):
         user_list_stra = """
@@ -133,6 +103,16 @@ class TradeMixin:
         self.aichatcfg_record.money = self.aichatcfg_record.money - 210
         result = f"你支付了210元远程治疗服务，你的生命值已经恢复为{self.aichatcfg_record.life_point}%，当前行动力为{self.aichatcfg_record.move_point}%"
         return result
+
+    def sell_to_a_people(self, action_str, instrunction):
+        human_object = ""
+        self.talk_type = "sell"
+        self.ask_agent_start_to_sell_to_a_people_sync(action_str, human_object)
+
+    def buy_from_a_people(self, action_str, instrunction):
+        human_object = ""
+        self.talk_type = "buy"
+        self.ask_agent_start_to_buy_from_a_people_sync(action_str, human_object)
 
     def ask_agent_start_to_sell_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
@@ -263,6 +243,104 @@ class TradeMixin:
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
                 asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
 
+    def handle_agent_review_conversation_buy_result(self, content):
+
+        self.handle_agent_review_conversation_buy_result_final(content)
+
+    def handle_agent_review_conversation_buy_result_final(self, content):
+        content = content.strip()
+        result = json.loads(content)
+        continue_chat = result["continue_chat"]
+        current_chat_summary = result["summary"]
+        message = result["next_message"]
+
+        buy_score = result.get("buy_score", False)
+        price = result.get("price", 0)
+
+        if buy_score >= 80 and price >= 0:
+            self.send_pay(price)
+            return
+
+        if not continue_chat:
+            self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
+            self.write_task_process_to_pane(f"和朋友沟通后得到如下情况：{current_chat_summary}\n\n")
+            self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
+            asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+
+        else:
+            if not self.taskmng.current_process:
+                self.taskmng.current_process = {"rounds_current_person": 0}
+            if not self.current_talk_people:
+                self.current_talk_people = {
+                    "nation_id": "AI123451234567890ABCDEF7894",
+                    "account": "yangyang@xabber.de",
+                    "location": [
+                        116.30690718139134,
+                        40.06259235539735
+                    ],
+                    "nick_name": "W宝",
+                    "avatar": "img_woman_hi",
+                    "avatar_3d": "smallofficewoman_0_0_0_0_1_0.glb",
+                    "profile": "我是个医生",
+                    "sns_url": "x.com"
+                }
+
+            if self.taskmng.current_process["rounds_current_person"] < self.max_rounds_per_person:
+                self.taskmng.current_process["rounds_current_person"] = self.taskmng.current_process["rounds_current_person"] + 1
+                self.talk_to_a_people(message, self.current_talk_people["nation_id"], self.current_talk_people["account"], self.current_talk_people["nick_name"])
+            else:
+                self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
+                self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
+                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+
+    def check_pay_in_received(self, msg):
+        """
+            从输入字符串中提取 JSON 字符串，位于特定的起始和结束标记之间。
+
+            :param msg: 包含 JSON 字符串的原始输入
+            :return: 提取的 JSON 字符串，如果未找到则返回 None
+            """
+        # 定义正则表达式模式，使用原始字符串以避免转义字符的问题
+        pattern = r'AISNS_INT_001_PAY_SEND_START(.*?)AISNS_INT_001_PAY_SEND_END'
+
+        # 使用 re.search 查找符合模式的部分
+        match = re.search(pattern, msg, re.DOTALL)  # DOTALL 使 . 可以匹配换行符
+
+        # 检查是否找到匹配，并返回提取的内容
+        if match:
+            result = match.group(1).strip()  # 提取并去除首尾空白
+            return result
+        else:
+            return None  # 如果没有匹配，返回 None
+
+    def check_good_in_received(self, msg):
+        """
+            从输入字符串中提取 JSON 字符串，位于特定的起始和结束标记之间。
+
+            :param msg: 包含 JSON 字符串的原始输入
+            :return: 提取的 JSON 字符串，如果未找到则返回 None
+            """
+        # 定义正则表达式模式，使用原始字符串以避免转义字符的问题
+        pattern = r'AISNS_INT_002_GOOD_SEND_START(.*?)AISNS_INT_002_GOOD_SEND_END'
+
+        # 使用 re.search 查找符合模式的部分
+        match = re.search(pattern, msg, re.DOTALL)  # DOTALL 使 . 可以匹配换行符
+
+        # 检查是否找到匹配，并返回提取的内容
+        if match:
+            result = match.group(1).strip()  # 提取并去除首尾空白
+            return result
+        else:
+            return None  # 如果没有匹配，返回 None
+
+    def check_buy_in_received(self, msg):
+        pattern = '[AISNS_INT_003_INQUIRY]'
+
+        if pattern in msg:
+            return True
+        else:
+            return False
+
     def send_pay(self, price) -> None:
         trade_id = generate_random_id()
         current_talk_people = self.current_talk_people
@@ -305,6 +383,7 @@ class TradeMixin:
                 good_str = handle_content
             elif profession == "driver":
                 good_str = handle_content
+
             if profession == "seller":
                 good_str = handle_content
             else:
@@ -312,13 +391,11 @@ class TradeMixin:
                     good_str = handle_content
                 else:
                     tool_name = handle_content
-                    tool_record = query_single_tool(name=tool_name)
-                    tool_id = tool_record.id
                     what_to_do = "## 聊天记录 \n" + talk_history_str
                     print("run tool:", handle_content)
                     print("talk_history_str for run tool", talk_history_str)
                     self.command_status = "run_tool_before_send_good"
-                    good_str = self.ask_agent_to_run_a_tool_sync(tool_id, tool_name, what_to_do)
+                    good_str = self.ask_agent_to_run_a_tool_sync(tool_name, what_to_do,trade_id)
                     return
 
             self.handle_send_goods(good_str, trade_id)
@@ -368,54 +445,177 @@ class TradeMixin:
         except Exception as e:
             print(f"Tool trade sell error: {str(e)}")
 
+    def ask_agent_to_run_a_tool_sync(self,tool_name, what_to_do,trade_id):
+        try:
+            asyncio.create_task(self._ask_agent_to_run_a_tool_and_send_goods(tool_name, what_to_do, trade_id))
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(self._ask_agent_to_run_a_tool_and_send_goods(tool_name, what_to_do, trade_id))
+            finally:
+                loop.close()
+        return ""
+
+    async def _ask_agent_to_run_a_tool_and_send_goods(self, tool_name: str, what_to_do: str, trade_id: str):
+        try:
+            result_text = await self._ask_agent_to_use_configured_tool(tool_name, what_to_do)
+        except Exception as e:
+            logger.error(f"ask agent to run tool before send goods failed: {e}", exc_info=True)
+            result_text = f"工具执行失败: {str(e)}"
+
+        try:
+            self.handle_send_goods(result_text, trade_id)
+        except Exception as e:
+            logger.error(f"handle_send_goods failed after tool execution: {e}", exc_info=True)
+
+    async def _ask_agent_to_use_configured_tool(self, tool_name: str, what_to_do: str) -> str:
+        if not tool_name:
+            raise ValueError("tool_name is empty")
+
+        parts = tool_name.split(":")
+        if len(parts) < 2:
+            raise ValueError(f"invalid tool_name format: {tool_name}")
+
+        tool_type = (parts[0] or "").strip().lower()
+        tool_id = (parts[1] or "").strip()
+        mcp_tool_name = (parts[2] or "").strip() if len(parts) >= 3 else ""
+
+        if not tool_type or not tool_id:
+            raise ValueError(f"invalid tool_name format: {tool_name}")
+
+        if tool_type == "mcp" and not mcp_tool_name:
+            raise ValueError(f"invalid mcp tool_name format (expected mcp:mcp_id:tool_name): {tool_name}")
+
+        if tool_type not in {"plugin", "function", "skill", "mcp"}:
+            raise ValueError(f"unsupported tool type for trade delivery: {tool_type}")
+
+        # Build a single-tool OpenAI schema, then temporarily restrict agent tools to ONLY this tool.
+        tool_def = self._load_tool_def_for_agent(tool_type, tool_id, mcp_tool_name=mcp_tool_name)
+        if tool_def is None:
+            if tool_type == "mcp":
+                raise ValueError(f"tool not found: {tool_type}:{tool_id}:{mcp_tool_name}")
+            raise ValueError(f"tool not found: {tool_type}:{tool_id}")
+
+        agent_adapter = AgentAdapter()
+        agent = agent_adapter.get_agent_for_ai_chat_cfg(self.ai_chat_cfg)
+        if agent is None:
+            raise RuntimeError("agent not configured for current user")
+
+        original_db_tools = getattr(agent, "db_tools", None)
+        original_tools = getattr(agent, "tools", None)
+        original_tools_loaded = getattr(agent, "tools_loaded", None)
+
+        try:
+            agent.db_tools = [tool_def]
+            agent.tools = []
+            agent.tools_loaded = True
+
+            prompt = (
+                "你现在只能使用我提供给你的这一个工具来完成发货内容的生成。\n"
+                "你可以选择调用该工具，也可以选择不调用。\n"
+                "无论是否调用工具，都必须输出最终用于发货的文本内容，不要输出多余解释。\n\n"
+                f"上下文如下：\n{what_to_do}"
+            )
+
+            reply = await agent_adapter.chat(
+                agent=agent,
+                message=prompt,
+                conversation_id=agent_adapter.build_conversation_id(prefix="sns", suffix="trade_delivery"),
+                use_tools=True,
+                use_memory=False,
+                use_knowledge_base=False,
+            )
+
+            reply = (reply or "").strip()
+            if reply:
+                return reply
+            return "（未生成发货内容）"
+        finally:
+            agent.db_tools = original_db_tools
+            agent.tools = original_tools
+            agent.tools_loaded = original_tools_loaded
+
+    def _load_tool_def_for_agent(self, tool_type: str, tool_id: str, *, mcp_tool_name: str = "") -> Optional[dict]:
+        try:
+            if tool_type == "plugin":
+                repo = PluginMngRepository()
+                obj = repo.get_one(plugin_id=tool_id)
+                if not obj:
+                    return None
+                tool_dict = {
+                    "tool_type": "plugin",
+                    "plugin_id": getattr(obj, "plugin_id", tool_id),
+                    "name": getattr(obj, "name", ""),
+                    "description": getattr(obj, "description", ""),
+                    "instruction": getattr(obj, "instruction", ""),
+                    "parameter": getattr(obj, "parameter", "{}"),
+                }
+                return ToolConverter.plugin_to_openai(tool_dict)
+
+            if tool_type == "function":
+                repo = FunctionMngRepository()
+                obj = repo.get_one(function_id=tool_id)
+                if not obj:
+                    return None
+                tool_dict = {
+                    "tool_type": "function",
+                    "function_id": getattr(obj, "function_id", tool_id),
+                    "name": getattr(obj, "name", ""),
+                    "description": getattr(obj, "description", ""),
+                    "instruction": getattr(obj, "instruction", ""),
+                    "parameter": getattr(obj, "parameter", "{}"),
+                }
+                return ToolConverter.function_to_openai(tool_dict)
+
+            if tool_type == "skill":
+                repo = SkillMngRepository()
+                obj = repo.get_one(skill_id=tool_id)
+                if not obj:
+                    return None
+                tool_dict = {
+                    "tool_type": "skill",
+                    "skill_id": getattr(obj, "skill_id", tool_id),
+                    "name": getattr(obj, "name", ""),
+                    "description": getattr(obj, "description", ""),
+                    "instruction": getattr(obj, "instruction", ""),
+                    "parameter": getattr(obj, "parameter", "{}"),
+                }
+                return ToolConverter.skill_to_openai(tool_dict)
+
+            if tool_type == "mcp":
+                if not mcp_tool_name:
+                    return None
+
+                repo = McpMngRepository()
+                obj = repo.get_one(mcp_id=tool_id)
+                if not obj:
+                    return None
+
+                mcp_dict = {
+                    "tool_type": "mcp",
+                    "mcp_id": getattr(obj, "mcp_id", tool_id),
+                    "name": getattr(obj, "name", ""),
+                    "description": getattr(obj, "description", ""),
+                }
+
+                # We don't have per-tool schema stored in DB today, so provide a permissive schema.
+                tool_dict = {
+                    "name": mcp_tool_name,
+                    "description": f"Execute MCP tool '{mcp_tool_name}'",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {},
+                    },
+                }
+
+                return ToolConverter.mcp_to_openai(mcp_dict, tool_dict)
+
+        except Exception as e:
+            logger.error(f"load tool def failed: {tool_type}:{tool_id}: {e}", exc_info=True)
+            return None
+
+        return None
+
     def add_money(self, count):
         money = float(self.aichatcfg_record.money or 0) + count
         self.aichatcfg_record.money = money
-
-    def check_pay_in_received(self, msg):
-        """
-            从输入字符串中提取 JSON 字符串，位于特定的起始和结束标记之间。
-
-            :param msg: 包含 JSON 字符串的原始输入
-            :return: 提取的 JSON 字符串，如果未找到则返回 None
-            """
-        # 定义正则表达式模式，使用原始字符串以避免转义字符的问题
-        pattern = r'AISNS_INT_001_PAY_SEND_START(.*?)AISNS_INT_001_PAY_SEND_END'
-
-        # 使用 re.search 查找符合模式的部分
-        match = re.search(pattern, msg, re.DOTALL)  # DOTALL 使 . 可以匹配换行符
-
-        # 检查是否找到匹配，并返回提取的内容
-        if match:
-            result = match.group(1).strip()  # 提取并去除首尾空白
-            return result
-        else:
-            return None  # 如果没有匹配，返回 None
-
-    def check_good_in_received(self, msg):
-        """
-            从输入字符串中提取 JSON 字符串，位于特定的起始和结束标记之间。
-
-            :param msg: 包含 JSON 字符串的原始输入
-            :return: 提取的 JSON 字符串，如果未找到则返回 None
-            """
-        # 定义正则表达式模式，使用原始字符串以避免转义字符的问题
-        pattern = r'AISNS_INT_002_GOOD_SEND_START(.*?)AISNS_INT_002_GOOD_SEND_END'
-
-        # 使用 re.search 查找符合模式的部分
-        match = re.search(pattern, msg, re.DOTALL)  # DOTALL 使 . 可以匹配换行符
-
-        # 检查是否找到匹配，并返回提取的内容
-        if match:
-            result = match.group(1).strip()  # 提取并去除首尾空白
-            return result
-        else:
-            return None  # 如果没有匹配，返回 None
-
-    def check_buy_in_received(self, msg):
-        pattern = '[AISNS_INT_003_INQUIRY]'
-
-        if pattern in msg:
-            return True
-        else:
-            return False

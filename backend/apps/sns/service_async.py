@@ -547,7 +547,11 @@ class SNSService:
                     "nickname": config.nickname,
                     "sign": config.sign,
                     "sns_url": config.sns_url,
-                    "agent_id": getattr(config, 'agent_id', None)
+                    "agent_id": getattr(config, 'agent_id', None),
+                    "profession": getattr(config, 'profession', None),
+                    "handle_after_trade": getattr(config, 'handle_after_trade', None),
+                    "handle_content": getattr(config, 'handle_content', None),
+                    "money": getattr(config, 'money', None)
                 }
             }
         except Exception as e:
@@ -574,8 +578,46 @@ class SNSService:
                 if hasattr(config, 'agent_id'):
                     config.agent_id = data['agent_id']
 
+            profession_costs = {
+                "医生": 800,
+                "出租车司机": 1000,
+                "食品商贩": 800
+            }
+
+            deducted = 0.0
+            if 'profession' in data:
+                new_profession = data.get('profession')
+                old_profession = getattr(config, 'profession', None)
+
+                if new_profession != old_profession:
+                    cost = float(profession_costs.get(new_profession, 0) or 0)
+                    if cost > 0:
+                        current_money = float(getattr(config, 'money', 0) or 0)
+                        if current_money < cost:
+                            return {
+                                "success": False,
+                                "message": f"余额不足，无法选择该职业，需要{int(cost)}元"
+                            }
+
+                        config.money = current_money - cost
+                        deducted = cost
+
+                config.profession = new_profession
+
+            if 'handle_after_trade' in data and hasattr(config, 'handle_after_trade'):
+                config.handle_after_trade = data.get('handle_after_trade')
+            if 'handle_content' in data and hasattr(config, 'handle_content'):
+                config.handle_content = data.get('handle_content')
+
             await self.db.commit()
-            return {"success": True, "message": "User info updated successfully"}
+            return {
+                "success": True,
+                "message": "User info updated successfully",
+                "data": {
+                    "deducted": deducted,
+                    "money": getattr(config, 'money', None)
+                }
+            }
         except Exception as e:
             logger.error(f"Error updating user info: {e}")
             await self.db.rollback()

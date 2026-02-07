@@ -143,15 +143,17 @@ on_agent_return_instruction
         elif command_status == "ask_agent_instruction_to_process_human_instruction":
             asyncio.create_task(self.taskmng.process_task(event="agent_instruction_to_process_human_instruction_returned", instruction=content))
 
-
         elif command_status == "ask_agent_to_review_conversation":
             asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_review_conversation_returned", result=content))
 
         elif command_status == "ask_agent_to_review_conversation_sell":
             asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_review_conversation_sell_returned", result=content))
 
-        elif command_status == "ask_agent_to_pick_people_list":
-            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_returned", result=content))
+        elif command_status == "ask_agent_to_review_conversation_buy":
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_review_conversation_buy_returned", result=content))
+
+        elif command_status == "ask_agent_start_to_talk_to_a_people":
+            asyncio.create_task(self.taskmng.process_task(event="ask_agent_start_to_talk_to_a_people_returned", result=content))
 
         elif command_status == "ask_agent_start_to_sell_to_a_people":
             asyncio.create_task(self.taskmng.process_task(event="ask_agent_start_to_sell_to_a_people_returned", result=content))
@@ -159,11 +161,6 @@ on_agent_return_instruction
         elif command_status == "ask_agent_start_to_buy_from_a_people":
             asyncio.create_task(self.taskmng.process_task(event="ask_agent_start_to_buy_from_a_people_returned", result=content))
 
-        elif command_status == "ask_agent_to_pick_a_tool":
-            asyncio.create_task(self.taskmng.process_task(event="ask_agent_to_pick_a_tool_returned", result=content))
-
-        elif command_status == "ask_agent_to_use_skill":
-            self.on_ask_agent_to_use_skill_return(content)
 
         elif command_status == "ask_agent_to_use_service":
             self.on_ask_agent_to_use_service_return(content)

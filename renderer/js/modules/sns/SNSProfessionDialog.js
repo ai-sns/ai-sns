@@ -10,6 +10,9 @@ export class SNSProfessionDialog {
         this.selectedTradeOption = null;
         this.messageContent = '';
         this.selectedTool = null;
+        this.selectedMcpToolName = '';
+        this.mcpToolsCache = new Map();
+        this._pendingMcpToolName = '';
         this.availableTools = [];
     }
 
@@ -74,6 +77,13 @@ export class SNSProfessionDialog {
                                     <select id="toolSelect" style="width: 100%; margin-top: 5px; padding: 5px;">
                                         <option value="">请选择工具...</option>
                                     </select>
+
+                                    <div class="mcp-tool-selection-container" id="mcpToolSelectionContainer" style="display: none; margin-top: 10px;">
+                                        <label for="mcpToolSelect">选择 MCP 内部工具:</label>
+                                        <select id="mcpToolSelect" style="width: 100%; margin-top: 5px; padding: 5px;">
+                                            <option value="">请选择 MCP 工具...</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -96,6 +106,9 @@ export class SNSProfessionDialog {
         // Load available tools
         await this.loadTools();
 
+        // Load existing saved user config and apply to UI
+        await this.loadExistingUserConfig();
+
         // Setup event listeners
         this.setupEventListeners();
     }
@@ -108,6 +121,93 @@ export class SNSProfessionDialog {
         } catch (error) {
             console.error('Error loading current config:', error);
             this.currentMoney = 0;
+        }
+    }
+
+    async loadExistingUserConfig() {
+        try {
+            const resp = await fetch('http://localhost:8788/api/sns/user-info');
+            const result = await resp.json();
+
+            if (!result || !result.success || !result.data) {
+                return;
+            }
+
+            const data = result.data;
+
+            if (typeof data.money === 'number') {
+                this.currentMoney = data.money;
+                const balanceEl = document.getElementById('currentBalance');
+                if (balanceEl) {
+                    balanceEl.textContent = this.currentMoney.toFixed(2);
+                }
+            }
+
+            if (data.profession) {
+                this.selectedProfession = data.profession;
+                const radio = document.querySelector(`input[name="profession"][value="${CSS.escape(data.profession)}"]`);
+                if (radio && !radio.disabled) {
+                    radio.checked = true;
+                }
+            }
+
+            if (data.handle_after_trade) {
+                const option = data.handle_after_trade;
+                const tradeRadio = document.querySelector(`input[name="tradeOption"][value="${CSS.escape(option)}"]`);
+                if (tradeRadio) {
+                    tradeRadio.checked = true;
+                }
+
+                this.onTradeOptionChange(option);
+
+                if (option === 'message') {
+                    this.messageContent = data.handle_content || '';
+                    const messageEl = document.getElementById('messageContent');
+                    if (messageEl) {
+                        messageEl.value = this.messageContent;
+                    }
+                } else if (option === 'tool') {
+                    const raw = data.handle_content || '';
+                    // Backward compatible: old data might store only id (e.g. PLxxxx)
+                    this.selectedTool = raw.includes(':') ? raw : raw;
+                    const toolEl = document.getElementById('toolSelect');
+                    const mcpToolEl = document.getElementById('mcpToolSelect');
+                    if (toolEl) {
+                        if (raw.includes(':')) {
+                            if (raw.startsWith('mcp:')) {
+                                const parts = raw.split(':');
+                                const mcpId = parts[1] || '';
+                                const toolName = parts[2] || '';
+                                toolEl.value = mcpId ? `mcp:${mcpId}` : '';
+                                this.selectedMcpToolName = '';
+                                this._pendingMcpToolName = toolName;
+                                await this.onToolSelectionChange(toolEl.value);
+                                if (mcpToolEl && toolName) {
+                                    mcpToolEl.value = toolName;
+                                    this.selectedMcpToolName = toolName;
+                                    this.updateSelectedToolValue();
+                                }
+                            } else {
+                                toolEl.value = raw;
+                                await this.onToolSelectionChange(raw);
+                            }
+                        } else {
+                            // Try to match any option with suffix :<id>
+                            const match = Array.from(toolEl.options).find(opt => opt.value && opt.value.endsWith(`:${raw}`));
+                            if (match) {
+                                toolEl.value = match.value;
+                                this.selectedTool = match.value;
+                                await this.onToolSelectionChange(match.value);
+                            } else {
+                                toolEl.value = '';
+                                await this.onToolSelectionChange('');
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error loading existing user config:', error);
         }
     }
 
@@ -183,9 +283,120 @@ export class SNSProfessionDialog {
         const toolSelect = document.getElementById('toolSelect');
         if (toolSelect) {
             toolSelect.addEventListener('change', (e) => {
-                this.selectedTool = e.target.value;
+                this.onToolSelectionChange(e.target.value);
             });
         }
+
+        const mcpToolSelect = document.getElementById('mcpToolSelect');
+        if (mcpToolSelect) {
+            mcpToolSelect.addEventListener('change', (e) => {
+                this.selectedMcpToolName = e.target.value;
+                this.updateSelectedToolValue();
+            });
+        }
+    }
+
+    async onToolSelectionChange(value) {
+        const mcpContainer = document.getElementById('mcpToolSelectionContainer');
+        const mcpSelect = document.getElementById('mcpToolSelect');
+
+        this.selectedMcpToolName = '';
+
+        if (mcpContainer) {
+            mcpContainer.style.display = 'none';
+        }
+
+        if (mcpSelect) {
+            mcpSelect.innerHTML = '<option value="">请选择 MCP 工具...</option>';
+        }
+
+        if (value && value.startsWith('mcp:')) {
+            const parts = value.split(':');
+            const mcpId = parts[1] || '';
+            if (mcpId) {
+                if (mcpContainer) {
+                    mcpContainer.style.display = 'block';
+                }
+                await this.loadMcpToolsIntoSelect(mcpId);
+                if (mcpSelect && this._pendingMcpToolName) {
+                    const pending = this._pendingMcpToolName;
+                    this._pendingMcpToolName = '';
+                    const exists = Array.from(mcpSelect.options).some(opt => opt.value === pending);
+                    if (exists) {
+                        mcpSelect.value = pending;
+                        this.selectedMcpToolName = pending;
+                    }
+                }
+            }
+        }
+
+        this.selectedTool = value || '';
+        this.updateSelectedToolValue();
+    }
+
+    updateSelectedToolValue() {
+        const base = this.selectedTool || '';
+        if (base.startsWith('mcp:')) {
+            const parts = base.split(':');
+            const mcpId = parts[1] || '';
+            if (mcpId && this.selectedMcpToolName) {
+                this.selectedTool = `mcp:${mcpId}:${this.selectedMcpToolName}`;
+                return;
+            }
+            this.selectedTool = base;
+        }
+    }
+
+    async loadMcpToolsIntoSelect(mcpId) {
+        const mcpSelect = document.getElementById('mcpToolSelect');
+        if (!mcpSelect) return;
+
+        if (this.mcpToolsCache.has(mcpId)) {
+            const cached = this.mcpToolsCache.get(mcpId);
+            this.populateMcpToolSelect(cached);
+            return;
+        }
+
+        try {
+            const resp = await fetch(`http://localhost:8788/api/tools/mcp/${encodeURIComponent(mcpId)}/execute`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+            const data = await resp.json();
+            const tools = this.extractMcpToolsFromExecuteResponse(data);
+            this.mcpToolsCache.set(mcpId, tools);
+            this.populateMcpToolSelect(tools);
+        } catch (e) {
+            console.error('Error loading MCP tools:', e);
+            this.populateMcpToolSelect([]);
+        }
+    }
+
+    extractMcpToolsFromExecuteResponse(data) {
+        try {
+            // Expected: { success: true, result: { connection: { tools: [...] } } }
+            const result = data && data.result ? data.result : null;
+            const connection = result && result.connection ? result.connection : null;
+            const tools = connection && Array.isArray(connection.tools) ? connection.tools : [];
+            return tools
+                .map(t => ({ name: t && t.name ? String(t.name) : '', description: t && t.description ? String(t.description) : '' }))
+                .filter(t => t.name);
+        } catch {
+            return [];
+        }
+    }
+
+    populateMcpToolSelect(tools) {
+        const mcpSelect = document.getElementById('mcpToolSelect');
+        if (!mcpSelect) return;
+        mcpSelect.innerHTML = '<option value="">请选择 MCP 工具...</option>';
+        (tools || []).forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.description ? `${t.name} - ${t.description}` : t.name;
+            mcpSelect.appendChild(opt);
+        });
     }
 
     async saveConfiguration() {
@@ -205,6 +416,23 @@ export class SNSProfessionDialog {
             return;
         }
 
+        if (this.selectedTradeOption === 'tool' && this.selectedTool && !this.selectedTool.includes(':')) {
+            alert('工具配置格式错误，请重新选择工具');
+            return;
+        }
+
+        if (
+            this.selectedTradeOption === 'tool' &&
+            this.selectedTool &&
+            this.selectedTool.startsWith('mcp:')
+        ) {
+            const parts = this.selectedTool.split(':');
+            if (parts.length < 3) {
+                alert('请选择 MCP 内部工具');
+                return;
+            }
+        }
+
         try {
             const configData = {
                 profession: this.selectedProfession,
@@ -222,7 +450,13 @@ export class SNSProfessionDialog {
 
             const result = await response.json();
             if (result.success) {
-                alert('职业设置成功！' + (this.selectedProfession && this.getProfessionCost(this.selectedProfession) > 0 ? `已扣除${this.getProfessionCost(this.selectedProfession)}元开办费。` : ''));
+                const deducted = result.data && typeof result.data.deducted === 'number' ? result.data.deducted : 0;
+                const newMoney = result.data && typeof result.data.money === 'number' ? result.data.money : null;
+                if (typeof newMoney === 'number') {
+                    this.currentMoney = newMoney;
+                }
+
+                alert('职业设置成功！' + (deducted > 0 ? `已扣除${deducted}元开办费。` : ''));
                 this.dialog.remove();
             } else {
                 alert('保存失败：' + (result.message || '未知错误'));
@@ -308,7 +542,7 @@ export class SNSProfessionDialog {
                 
                 tools.forEach(tool => {
                     const option = document.createElement('option');
-                    option.value = tool.id;
+                    option.value = `${tool.type}:${tool.id}`;
                     option.textContent = `${tool.name} - ${tool.description || '无描述'}`;
                     optgroup.appendChild(option);
                 });

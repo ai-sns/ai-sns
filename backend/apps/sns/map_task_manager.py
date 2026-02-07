@@ -231,28 +231,6 @@ class MapTaskManager:
             self.set_command_status("")
             self.parent.parse_agent_instruction_for_process_human_instruction(instruction)
 
-        elif action_requested == "ask_agent_to_pick_people_list":
-            self.parent.write_on_going_process_to_pane("Is picking people to talk")
-            self.js_task_manager.show_information(lt(f"To pick people from list", f"正从名单中筛选人员"))
-            self.set_command_status("ask_agent_to_pick_people_list")
-            provided_profile_list = kwargs.get("provided_profile_list", "")
-            self.parent.ask_agent_to_pick_people_list_sync(provided_profile_list)
-
-        elif event == "agent_pick_people_list_returned":
-            self.show_status_on_map("talking")
-            result = kwargs.get("result", "")
-            people_dict = json.loads(result)
-            if people_dict:
-                nick_name = people_dict["nick_name"]
-            else:
-                nick_name = ""
-            self.parent.write_on_going_process_to_pane(f"Talking with {nick_name}")
-            self.js_task_manager.show_information(lt(f"Agent choose {nick_name} to talk", f"Agent选择{result}进行交谈"))
-            self.set_command_status("")
-            self.last_param = {}
-            self.last_param["people_list_picked"] = result
-            self.parent.handle_agent_pick_people_list_result(result)
-
         elif event == "ask_agent_start_to_talk_to_a_people_returned":
             self.show_status_on_map("talking")
             result = kwargs.get("result", "")
@@ -282,10 +260,6 @@ class MapTaskManager:
             self.last_param = {}
             self.last_param["people_list_picked"] = result
             self.parent.handle_ask_agent_start_to_sell_to_a_people_result(result)
-
-        elif event == "ask_agent_to_review_conversation_sell_returned":
-            result = kwargs.get("result", "")
-            self.parent.handle_agent_review_conversation_sell_result(result)
 
         elif event == "ask_agent_start_to_buy_from_a_people_returned":
             self.show_status_on_map("talking")
@@ -319,16 +293,17 @@ class MapTaskManager:
             result = kwargs.get("result", "")
             self.parent.handle_agent_review_conversation_result(result)
 
-        elif action_requested == "request_the_service":
-            provided_people_list_str = self.last_param.get("people_list_picked", "")
-            self.js_task_manager.show_information(lt(f"Thinking how to talk to the people selected", f"思考如何与选中的人沟通"))
-            self.set_command_status("ask_agent_how_to_request_the_service")
-
-        elif event == "ask_agent_how_to_request_the_service_returned":
+        elif event == "ask_agent_to_review_conversation_sell_returned":
             result = kwargs.get("result", "")
-            self.js_task_manager.show_information(lt(f"Agent tell how to talk:{result}", f"Agent返回如何沟通{result}"))
-            self.set_command_status("")
-            self.parent.handle_agent_tell_me_how_to_talk_result(result)
+            self.parent.handle_agent_review_conversation_sell_result(result)
+
+        elif event == "ask_agent_to_review_conversation_buy_returned":
+            result = kwargs.get("result", "")
+            self.parent.handle_agent_review_conversation_buy_result(result)
+
+
+
+
 
 
     def set_command_status(self, status):

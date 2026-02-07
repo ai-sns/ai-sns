@@ -73,21 +73,6 @@ talk_to_a_people
 
         # self.taskmng.process_task(action="process_activity", ask_content=ask_content)
 
-    def ask_agent_to_pick_people_list_sync(self, provided_profile_list, human_objective_to_achieve=""):
-        # provided_profile_list = json.dumps(self.get_people_list(),indent=4,ensure_ascii=False)
-        objective_to_achieve = self.taskmng.get_current_objective()
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        task_summary = self.taskmng.get_task_summary()
-        current_process = f"- 当前位置\n{self.current_place}\n- 当前坐标\n{self.aichatcfg_record.current_position}\n- 当前目标\n{objective_to_achieve}\n- 当前进展\n{self.taskmng.current_situation}"
-        role_prompt = get_prompt_by_title("__pick_people_list__")
-        role_prompt = role_prompt.replace("__task_summary__", task_summary)
-        role_prompt = role_prompt.replace("__current_process__", current_process)
-        role_prompt = role_prompt.replace("__people__to__select__", provided_profile_list)
-        question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.command_status = "ask_agent_to_pick_people_list"
-        asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
-
     def ask_agent_start_to_talk_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
@@ -98,23 +83,8 @@ talk_to_a_people
         content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
         content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
 
-        self.command_status = "ask_agent_to_pick_people_list"
+        self.command_status = "ask_agent_start_to_talk_to_a_people"
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
-
-    async def ask_agent_to_pick_people_list(self, provided_profile_list, human_objective_to_achieve=""):
-        # provided_profile_list = json.dumps(self.get_people_list(),indent=4,ensure_ascii=False)
-        objective_to_achieve = self.taskmng.get_current_objective()
-        objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
-
-        task_summary = self.taskmng.get_task_summary()
-        current_process = f"- 当前位置\n{self.current_place}\n- 当前坐标\n{self.aichatcfg_record.current_position}\n- 当前目标\n{objective_to_achieve}\n- 当前进展\n{self.taskmng.current_situation}"
-        role_prompt = get_prompt_by_title("__pick_people_list__")
-        role_prompt = role_prompt.replace("__task_summary__", task_summary)
-        role_prompt = role_prompt.replace("__current_process__", current_process)
-        role_prompt = role_prompt.replace("__people__to__select__", provided_profile_list)
-        question = "请严格遵照要求评估，并严格按照格式输出。"
-        self.command_status = "ask_agent_to_pick_people_list"
-        await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     async def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
         provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
@@ -126,27 +96,8 @@ talk_to_a_people
         content_prompt = content_prompt.replace("__action_desc__", objective_to_achieve)
         content_prompt = content_prompt.replace("__people__to__select__", provided_profile_list)
 
-        self.command_status = "ask_agent_to_pick_people_list"
+        self.command_status = "ask_agent_start_to_talk_to_a_people"
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
-
-    def handle_agent_pick_people_list_result(self, content):
-        result = json.loads(content)
-        if result:
-            nation_id = result["nation_id"]
-            account = result["account"]
-            nick_name = result["nick_name"]
-            message = result["message"]
-            self.current_talk_people = result
-
-            self.taskmng.current_process["people_communicated_list"].append(nation_id)
-            self.taskmng.current_process["rounds_current_person"] = 1
-            self.current_talk_history = []
-            self.talk_to_a_people(message, nation_id, account, nick_name)
-
-        else:
-            description = "我未找到目标人员。"
-
-            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
 
     def handle_ask_agent_start_to_talk_to_a_people_result(self, content):
         result = json.loads(content)

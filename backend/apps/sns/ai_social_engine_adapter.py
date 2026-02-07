@@ -475,11 +475,6 @@ class AISocialEngine(
         elif "Web Service" in action_str:
             self.use_service(action_str, instruction)
             return
-        elif "付款" in action_str:
-            action_result = self.pay_to_a_people("", "", 0)
-
-        elif "交货" in action_str:
-            action_result = self.send_good()
 
         elif "导航服务" in action_str:
             if self.move_by_route_flag:
