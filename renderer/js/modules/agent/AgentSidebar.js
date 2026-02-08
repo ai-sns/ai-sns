@@ -102,8 +102,18 @@ const AgentSidebar = {
         const agentItemsHTML = agents.map(agent => `
             <!-- Agent列表项 -->
             <div class="agent-item" data-agent-id="${agent.id}">
-<svg viewBox="0 0 24 24" width="16" height="16" fill="#5f6368">
-  <path d="M12 2c.55 0 1 .45 1 1v1h3c2.21 0 4 1.79 4 4v7c0 2.21-1.79 4-4 4H8c-2.21 0-4-1.79-4-4V8c0-2.21 1.79-4 4-4h3V3c0-.55.45-1 1-1zm-4 7c-.83 0-1.5.67-1.5 1.5S7.17 12 8 12s1.5-.67 1.5-1.5S8.83 9 8 9zm8 0c-.83 0-1.5.67-1.5 1.5S15.17 12 16 12s1.5-.67 1.5-1.5S16.83 9 16 9z"/>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 头部 -->
+  <rect x="3" y="6" width="18" height="14" rx="2" stroke="#5f6368" stroke-width="2"/>
+  <!-- 天线 -->
+  <line x1="12" y1="6" x2="12" y2="3" stroke="#5f6368" stroke-width="2"/>
+  <circle cx="12" cy="2" r="1.5" fill="#5f6368"/>
+  <!-- 眼睛 -->
+  <circle cx="8.5" cy="11.5" r="1.5" fill="#5f6368"/>
+  <circle cx="15.5" cy="11.5" r="1.5" fill="#5f6368"/>
+  <!-- 嘴巴 (修改部分) -->
+  <!-- 原来是直线 M9 16H15，现在改为弧线 -->
+  <path d="M9 15 Q12 18 15 15" stroke="#5f6368" stroke-width="2" stroke-linecap="round"/>
 </svg>
                 <span>${agent.name || 'Unnamed Agent'}</span>
             </div>

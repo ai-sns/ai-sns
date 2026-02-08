@@ -207,43 +207,66 @@ const toolsHandlers = {
         const description = tool.description || 'No description available';
         const type = this.getCategoryDisplayName(category);
 
+        const statusLabel = tool.confirm_needed ? 'Confirm Required' : 'Active';
+        const statusClass = tool.confirm_needed ? 'author-official--confirm' : 'author-official--active';
+
+        const categoryIconMap = {
+            'tools-plugin': 'extension',
+            'mcp': 'dns',
+            'function': 'functions',
+            'computer-use': 'desktop_windows'
+        };
+        const iconName = categoryIconMap[category] || 'construction';
+
+        const instructionLabel = tool.instruction || name;
+        const filePath = tool.file_path || '';
+
         return `
-            <div class="plugin-card tool-card" data-id="${id}" data-category="${category}">
-                <div class="plugin-card-header">
-                    <div class="plugin-icon-lg">
-                        ${this.getToolIcon(category)}
-                    </div>
-                    <div class="plugin-header-info">
-                        <span class="plugin-name">${name}</span>
-                        <span class="plugin-badge-connector">${type}</span>
+            <div class="plugin-card tool-card tools-card-ref" data-id="${id}" data-category="${category}">
+                <div class="tools-card-ref__top">
+                    <div class="tools-card-ref__top-left">
+                        <div class="tools-card-ref__icon">
+                            <span class="material-icons-round">${iconName}</span>
+                        </div>
+                        <div class="tools-card-ref__meta">
+                            <div class="tools-card-ref__title-row">
+                                <h3 class="plugin-name">${name}</h3>
+                                <span class="plugin-badge-connector">${type}</span>
+                            </div>
+                            <div class="plugin-author">
+                                <span class="author-label">AI-SNS</span>
+                                <span class="author-official ${statusClass}">${statusLabel}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="plugin-author">
-                    <span class="author-label">AI-SNS</span>
-                    ${tool.confirm_needed ? '<span class="author-official">Confirm Required</span>' : '<span class="author-official">Active</span>'}
-                </div>
-                <div class="plugin-desc">${description}</div>
-                ${tool.instruction ? `<div class="plugin-instruction">${tool.instruction}</div>` : ''}
-                ${tool.file_path ? `<div class="plugin-file-path"><small>📁 ${tool.file_path}</small></div>` : ''}
-                <div class="plugin-actions">
-                    <button class="plugin-test-btn" data-id="${id}" data-category="${category}" title="测试运行">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                        测试
+                <p class="plugin-desc">${description}</p>
+                ${(instructionLabel || filePath) ? `
+                    <div class="tools-card-ref__codeblock">
+                        <div class="tools-card-ref__codehead">
+                            <span class="material-icons-round">terminal</span>
+                            <span class="tools-card-ref__mono">${instructionLabel}</span>
+                        </div>
+                        ${filePath ? `
+                            <div class="plugin-file-path tools-card-ref__codebody">
+                                <span class="material-icons-round">folder</span>
+                                <span class="tools-card-ref__mono">${filePath}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                <div class="plugin-actions tools-card-ref__actions">
+                    <button class="plugin-test-btn tools-card-ref__btn tools-card-ref__btn--test" data-id="${id}" data-category="${category}" title="测试运行">
+                        <span class="material-icons-round">play_arrow</span>
+                        Test
                     </button>
-                    <button class="plugin-edit-btn" data-id="${id}" data-category="${category}" title="编辑">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                        编辑
+                    <button class="plugin-edit-btn tools-card-ref__btn tools-card-ref__btn--edit" data-id="${id}" data-category="${category}" title="编辑">
+                        <span class="material-icons-round">edit</span>
+                        Edit
                     </button>
-                    <button class="plugin-delete-btn" data-id="${id}" data-category="${category}" title="删除">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14"/>
-                        </svg>
-                        删除
+                    <button class="plugin-delete-btn tools-card-ref__btn tools-card-ref__btn--delete" data-id="${id}" data-category="${category}" title="删除">
+                        <span class="material-icons-round">delete</span>
+                        Delete
                     </button>
                 </div>
             </div>

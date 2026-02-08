@@ -5,28 +5,27 @@
 const ToolsPage = {
     render() {
         return `
-            <div class="tools-page">
-
-                <!-- 插件列表区域 -->
-                <div class="plugin-market">
-                    <div class="plugin-list-header">
-                        <h1 class="plugin-list-title">Plugin List</h1>
-                        <button class="tools-add-btn" onclick="toolsHandlers.showAddDialog(toolsHandlers.currentCategory)">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"/>
-                                <line x1="5" y1="12" x2="19" y2="12"/>
-                            </svg>
-                            Add Tool
-                        </button>
+            <div class="tools-page tools-page-ref">
+                <main class="tools-main-ref">
+                    <div class="tools-main-ref__container">
+                        <header class="tools-main-ref__header plugin-list-header">
+                            <div>
+                                <h1 class="plugin-list-title">Tools Plugin List</h1>
+                                <p class="tools-main-ref__subtitle">Manage and test your Model Context Protocol servers</p>
+                            </div>
+                            <button class="tools-add-btn" onclick="toolsHandlers.showAddDialog(toolsHandlers.currentCategory)">
+                                <span class="material-icons-round tools-main-ref__add-icon">add</span>
+                                Add Tool
+                            </button>
+                        </header>
+                        <div class="plugin-grid" id="pluginGrid">
+                            ${this.renderPluginCards()}
+                        </div>
+                        <div class="plugin-more-section">
+                            <button class="plugin-more-btn" type="button">More...</button>
+                        </div>
                     </div>
-                    <div class="plugin-grid" id="pluginGrid">
-                        ${this.renderPluginCards()}
-                    </div>
-                    <div class="plugin-more-section">
-                        <button class="plugin-more-btn">More...</button>
-                    </div>
-                </div>
-
+                </main>
             </div>
         `;
     },

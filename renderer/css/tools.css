@@ -191,6 +191,7 @@
     line-height: 1.6;
     margin: 0 0 8px 0;
     display: -webkit-box;
+    line-clamp: 3;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -269,67 +270,67 @@
 }
 
 /* Dark Theme Support */
-body.dark-theme .tools-management-page {
+body.theme-dark .tools-management-page {
     background: #111827;
 }
 
-body.dark-theme .tools-header,
-body.dark-theme .tools-tabs {
+body.theme-dark .tools-header,
+body.theme-dark .tools-tabs {
     background: #1f2937;
     border-color: #374151;
 }
 
-body.dark-theme .tools-title {
+body.theme-dark .tools-title {
     color: #f9fafb;
 }
 
-body.dark-theme .tools-subtitle {
+body.theme-dark .tools-subtitle {
     color: #9ca3af;
 }
 
-body.dark-theme .tools-tab-item {
+body.theme-dark .tools-tab-item {
     color: #9ca3af;
     border-color: #374151;
 }
 
-body.dark-theme .tools-tab-item:hover {
+body.theme-dark .tools-tab-item:hover {
     background: #374151;
 }
 
-body.dark-theme .tools-tab-item.active {
+body.theme-dark .tools-tab-item.active {
     background: #1e3a8a;
     border-color: #3b82f6;
     color: #60a5fa;
 }
 
-body.dark-theme .tool-card {
+body.theme-dark .tool-card {
     background: #1f2937;
     border-color: #374151;
 }
 
-body.dark-theme .tool-card:hover {
+body.theme-dark .tool-card:hover {
     border-color: #3b82f6;
 }
 
-body.dark-theme .tool-card-title {
+body.theme-dark .tool-card-title {
     color: #f9fafb;
 }
 
-body.dark-theme .tool-card-description {
+body.theme-dark .tool-card-description {
     color: #9ca3af;
 }
 
-body.dark-theme .tool-card-instruction {
+body.theme-dark .tool-card-instruction {
     background: #111827;
     color: #d1d5db;
 }
 
-body.dark-theme .tool-btn-edit,
-body.dark-theme .tool-btn-delete {
+body.theme-dark .tool-btn-edit,
+body.theme-dark .tool-btn-delete {
     border-color: #374151;
 }
 
-body.dark-theme .tool-card-badge {
+body.theme-dark .tool-card-badge {
     background: #374151;
     color: #d1d5db;
 }

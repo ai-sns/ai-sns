@@ -278,7 +278,7 @@ function createWindow() {
 
         minHeight: 700,
 
-        icon: path.join(__dirname, '../images/logowithe.png'),
+        icon: path.join(__dirname, '../images/aisnsiconv2.png'),
 
         webPreferences: {
 
@@ -468,7 +468,7 @@ async function createMapWindow() {
 
         minHeight: 600,
 
-        icon: path.join(__dirname, '../images/logowithe.png'),
+        icon: path.join(__dirname, '../images/aisnsiconv2.png'),
 
         webPreferences: {
 
@@ -584,7 +584,7 @@ async function createMapWindow() {
 
 function createTray() {
 
-    const iconPath = path.join(__dirname, '../images/logowithe.png');
+    const iconPath = path.join(__dirname, '../images/aisnsiconv2.png');
 
     tray = new Tray(iconPath);
 
