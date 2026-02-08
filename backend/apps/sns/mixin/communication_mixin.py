@@ -37,6 +37,8 @@ from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import random
 
+from backend.shared.utils import robust_json_loads
+
 logger = logging.getLogger(__name__)
 
 
@@ -100,7 +102,10 @@ talk_to_a_people
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
     def handle_ask_agent_start_to_talk_to_a_people_result(self, content):
-        result = json.loads(content)
+        result = robust_json_loads(content, default=None)
+        if not isinstance(result, dict):
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
+            return
         if result:
             nation_id = result["nation_id"]
             account = result["account"]
@@ -131,7 +136,19 @@ talk_to_a_people
 
     def handle_agent_review_conversation_result_final(self, content):
         content = content.strip()
-        result = json.loads(content)
+        result = robust_json_loads(content, default=None)
+        if not isinstance(result, dict):
+            retry_count = getattr(self, "_review_comm_retry_count", 0)
+            if retry_count < 1:
+                setattr(self, "_review_comm_retry_count", retry_count + 1)
+                talk_history_str = json.dumps(self.current_talk_history, ensure_ascii=False)
+                role_prompt = get_prompt_by_title("__review_conversation__")
+                question = "请只输出一个JSON对象，不要输出任何解释或额外文字。\n## 聊天记录 \n" + talk_history_str
+                asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
+            else:
+                setattr(self, "_review_comm_retry_count", 0)
+            return
+        setattr(self, "_review_comm_retry_count", 0)
         continue_chat = result["continue_chat"]
         current_chat_summary = result["summary"]
         message = result["next_message"]

@@ -37,6 +37,8 @@ from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import random
 
+from backend.shared.utils import robust_json_loads, safe_json_dumps
+
 logger = logging.getLogger(__name__)
 
 class TradeMixin:
@@ -178,7 +180,10 @@ class TradeMixin:
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
     def handle_ask_agent_start_to_sell_to_a_people_result(self, content):
-        result = json.loads(content)
+        result = robust_json_loads(content, default=None)
+        if not isinstance(result, dict):
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
+            return
         if result:
             nation_id = result["nation_id"]
             account = result["account"]
@@ -197,7 +202,10 @@ class TradeMixin:
             asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
 
     def handle_ask_agent_start_to_buy_from_a_people_result(self, content):
-        result = json.loads(content)
+        result = robust_json_loads(content, default=None)
+        if not isinstance(result, dict):
+            asyncio.create_task(self.taskmng.process_task(event="agent_pick_people_list_fail"))
+            return
         if result:
             nation_id = result["nation_id"]
             account = result["account"]
@@ -219,13 +227,13 @@ class TradeMixin:
     async def ask_agent_to_review_conversation_sell(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation_sell__")
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
-        question = "请严格遵照要求评估，并严格按照格式输出。"
+        question = "请严格遵照要求评估，并严格按照格式输出。\n## 聊天记录 \n" + (messages_history or "")
         await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     async def ask_agent_to_review_conversation_buy(self, conversation_target, messages_history):
         role_prompt = get_prompt_by_title("__review_conversation_buy__")
         role_prompt = role_prompt.replace("__messages_history__", messages_history)
-        question = "请严格遵照要求评估，并严格按照格式输出。"
+        question = "请严格遵照要求评估，并严格按照格式输出。\n## 聊天记录 \n" + (messages_history or "")
         await  self.ask_agent_and_get_instruction(question, role_prompt)
 
     def handle_agent_review_conversation_sell_result(self, content):
@@ -234,7 +242,20 @@ class TradeMixin:
 
     def handle_agent_review_conversation_sell_result_final(self, content):
         content = content.strip()
-        result = json.loads(content)
+        result = robust_json_loads(content, default=None)
+        if not isinstance(result, dict):
+            retry_count = getattr(self, "_review_sell_retry_count", 0)
+            if retry_count < 1:
+                setattr(self, "_review_sell_retry_count", retry_count + 1)
+                talk_history_str = json.dumps(self.current_talk_history, ensure_ascii=False)
+                role_prompt = get_prompt_by_title("__review_conversation_sell__")
+                role_prompt = role_prompt.replace("__messages_history__", talk_history_str)
+                question = "请只输出一个JSON对象，不要输出任何解释或额外文字。"
+                asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
+            else:
+                setattr(self, "_review_sell_retry_count", 0)
+            return
+        setattr(self, "_review_sell_retry_count", 0)
         continue_chat = result["continue_chat"]
         current_chat_summary = result["summary"]
         message = result["next_message"]
@@ -260,7 +281,20 @@ class TradeMixin:
 
     def handle_agent_review_conversation_buy_result_final(self, content):
         content = content.strip()
-        result = json.loads(content)
+        result = robust_json_loads(content, default=None)
+        if not isinstance(result, dict):
+            retry_count = getattr(self, "_review_buy_retry_count", 0)
+            if retry_count < 1:
+                setattr(self, "_review_buy_retry_count", retry_count + 1)
+                talk_history_str = json.dumps(self.current_talk_history, ensure_ascii=False)
+                role_prompt = get_prompt_by_title("__review_conversation_buy__")
+                role_prompt = role_prompt.replace("__messages_history__", talk_history_str)
+                question = "请只输出一个JSON对象，不要输出任何解释或额外文字。"
+                asyncio.create_task(self.ask_agent_and_get_instruction(question, role_prompt))
+            else:
+                setattr(self, "_review_buy_retry_count", 0)
+            return
+        setattr(self, "_review_buy_retry_count", 0)
         continue_chat = result["continue_chat"]
         current_chat_summary = result["summary"]
         message = result["next_message"]
@@ -345,12 +379,7 @@ class TradeMixin:
             return None  # 如果没有匹配，返回 None
 
     def check_buy_in_received(self, msg):
-        pattern = '[AISNS_INT_003_INQUIRY]'
-
-        if pattern in msg:
-            return True
-        else:
-            return False
+        return "AISNS_INT_003_INQUIRY" in (msg or "")
 
     def send_pay(self, price) -> None:
         trade_id = generate_random_id()
@@ -370,7 +399,11 @@ class TradeMixin:
             trade_with_name = nick_name
             trade_with_account = account
 
-            add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account)
+            existing = query_single_map_trade(trade_id=trade_id)
+            if existing:
+                update_map_trade(trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=1)
+            else:
+                add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=1)
         except Exception as e:
             print(f"Tool trade sell error: {str(e)}")
 
@@ -398,7 +431,12 @@ class TradeMixin:
                 return
 
             tool_name = handle_content
-            what_to_do = "## 聊天记录 \n" + talk_history_str
+            what_to_do = (
+                "你已确认收到买家付款，现在需要向买家交付商品/服务内容。\n"
+                "请根据下面聊天记录推断买家购买了什么，并生成交付内容。\n"
+                "输出要求：只输出交付内容本身，不要解释；如果无法推断，输出一个简短的默认交付内容（例如：已收到付款，稍后补发详细内容）。\n\n"
+                "## 聊天记录 \n" + talk_history_str
+            )
             tool_task = self.run_configured_tool_text_generation_sync(
                 tool_name,
                 what_to_do,
@@ -412,6 +450,14 @@ class TradeMixin:
                     except Exception as e:
                         logger.error(f"ask agent to run tool before send goods failed: {e}", exc_info=True)
                         result_text = f"工具执行失败: {str(e)}"
+                    if isinstance(result_text, str):
+                        normalized = result_text.strip()
+                        if (
+                            not normalized
+                            or "无法从当前对话记录中找到" in normalized
+                            or "请提供聊天记录" in normalized
+                        ):
+                            result_text = "已收到付款，交付内容稍后补发。"
                     try:
                         self.handle_send_goods(result_text, trade_id)
                     except Exception as e:
@@ -435,14 +481,27 @@ class TradeMixin:
             if not trade_id:
                 trade_id = generate_random_id()
 
-            message = f"AISNS_INT_002_GOOD_SEND_START\n{trade_id}__AISNS_INT_SEPARATOR__{good_str}\nAISNS_INT_002_GOOD_SEND_END"
+            good_payload = good_str
+            if not isinstance(good_payload, str):
+                good_payload = safe_json_dumps({"format": "aisns_goods_v1", "content": good_payload}, default=str(good_payload))
+            else:
+                good_payload = good_payload.strip()
+                # Always normalize to structured payload unless it's already a JSON object
+                if not (good_payload.startswith("{") and good_payload.endswith("}")):
+                    good_payload = safe_json_dumps({"format": "aisns_goods_v1", "content": good_payload})
+
+            message = f"AISNS_INT_002_GOOD_SEND_START\n{trade_id}__AISNS_INT_SEPARATOR__{good_payload}\nAISNS_INT_002_GOOD_SEND_END"
             self.talk_to_a_people(message, nation_id, account, nick_name)
             trade_type = "S"
             title = f"Trade with {nick_name}"
-            detail = good_str
+            detail = good_payload
             trade_with_name = nick_name
             trade_with_account = account
-            add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account)
+            existing = query_single_map_trade(trade_id=trade_id)
+            if existing:
+                update_map_trade(trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=2)
+            else:
+                add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=2)
             self.add_money(price)
 
         except Exception as e:
@@ -461,7 +520,7 @@ class TradeMixin:
             goods_detail = goods_str.split("__AISNS_INT_SEPARATOR__")[1]
 
         try:
-            update_map_trade(trade_id, detail=goods_detail)
+            update_map_trade(trade_id, detail=goods_detail, status=3)
         except Exception as e:
             print(f"Tool trade sell error: {str(e)}")
 

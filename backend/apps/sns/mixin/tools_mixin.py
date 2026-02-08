@@ -40,6 +40,8 @@ from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import random
 
+from backend.shared.utils import robust_json_loads
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,10 +99,17 @@ class ToolsMixin:
 
     def parse_content_to_call_service(self, content):
         try:
-            data = json.loads(content)
-            url = data["address"]
-            method = data.get("method", "get").lower()  # Default to 'get' if not specified or invalid
-            params = data.get("Parameter", {})  # Use "Parameter" key, handle missing key gracefully
+            data = robust_json_loads(content, default=None)
+            if not isinstance(data, dict):
+                raise ValueError("Invalid service selection payload (not a JSON object)")
+
+            url = data.get("address")
+            method = (data.get("method") or "get").lower()
+            params = data.get("parameter")
+            if params is None:
+                params = data.get("Parameter", {})
+            if params is None:
+                params = {}
 
             if not isinstance(url, str) or not url.startswith("http"):
                 raise ValueError("Invalid 'address' value. Must be a valid URL.")

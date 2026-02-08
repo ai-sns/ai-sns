@@ -8,6 +8,7 @@ import os
 import json
 import hashlib
 import uuid
+import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
@@ -86,6 +87,33 @@ def safe_json_dumps(obj: Any, default: str = '{}') -> str:
     except (TypeError, ValueError) as e:
         logger.warning(f"Failed to convert to JSON: {e}")
         return default
+
+
+def extract_json_object_str(text: str) -> str:
+    if not text:
+        return text
+    candidate = str(text).strip()
+    candidate = re.sub(r'^\s*```json\s*|\s*```\s*$', '', candidate, flags=re.DOTALL)
+    candidate = candidate.strip()
+    if candidate.startswith('{') and candidate.endswith('}'):
+        return candidate
+    start = candidate.find('{')
+    end = candidate.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        return candidate[start:end + 1]
+    return candidate
+
+
+def robust_json_loads(json_str: str, default: Any = None) -> Any:
+    try:
+        return json.loads(json_str)
+    except Exception:
+        try:
+            extracted = extract_json_object_str(json_str)
+            return json.loads(extracted)
+        except Exception as e:
+            logger.warning(f"Failed to robust-parse JSON: {e}")
+            return default
 
 
 def ensure_dir(path: Union[str, Path]) -> Path:
