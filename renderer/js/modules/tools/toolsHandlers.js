@@ -116,7 +116,7 @@ const toolsHandlers = {
                     </div>
                     <div class="modal-footer" style="display:flex; justify-content:flex-end; gap: 8px; padding: 12px 16px;">
                         <button type="button" class="btn btn-primary" id="docSkillRunBtn">运行</button>
-                        <button type="button" class="btn" onclick="document.getElementById('docSkillRunDialog').remove()">取消</button>
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('docSkillRunDialog').remove()">取消</button>
                     </div>
                 </div>
             </div>
@@ -725,7 +725,7 @@ const toolsHandlers = {
                     </div>
                     <div class="modal-footer" style="display:flex; justify-content:flex-end; gap: 8px; padding: 12px 16px;">
                         <button type="button" class="btn btn-primary" id="docSkillSaveBtn">保存</button>
-                        <button type="button" class="btn" onclick="document.getElementById('docSkillMarkdownDialog').remove()">关闭</button>
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('docSkillMarkdownDialog').remove()">关闭</button>
                     </div>
                 </div>
             </div>
