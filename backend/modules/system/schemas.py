@@ -54,3 +54,20 @@ class SystemInitSubmit(SystemInitDraft):
 
     longitude: Optional[float] = None
     latitude: Optional[float] = None
+
+
+class SystemInitTestLLM(BaseModel):
+    llm: Optional[str] = None
+    llm_server: Optional[str] = None
+    api_key: Optional[str] = None
+
+
+class SystemInitTestXMPP(BaseModel):
+    account: Optional[str] = None
+    account_password: Optional[str] = None
+
+
+class SystemInitTestMap(BaseModel):
+    map: Optional[str] = None
+    map_api_key: Optional[str] = None
+    map_id: Optional[str] = None

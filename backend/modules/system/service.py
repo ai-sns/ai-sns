@@ -3,11 +3,13 @@
 System module - Service layer
 """
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 import os
+import asyncio
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from PIL import Image
@@ -294,6 +296,275 @@ class SystemInitWizardService:
             "avatar": avatar_filename,
             "avatar_map": avatar_map_filename,
         }
+
+    async def test_llm(self, llm: str, llm_server: str, api_key: str) -> Dict[str, Any]:
+        llm_server = (llm_server or "").strip()
+        api_key = (api_key or "").strip()
+        if not llm_server:
+            return {"success": False, "message": "LLM Server 不能为空"}
+        if not api_key:
+            return {"success": False, "message": "API Key 不能为空"}
+
+        try:
+            parsed = urlparse(llm_server)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                return {"success": False, "message": "LLM Server 格式不正确"}
+        except Exception:
+            return {"success": False, "message": "LLM Server 格式不正确"}
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+        }
+
+        models_url = llm_server
+        if "/chat/completions" in llm_server:
+            models_url = llm_server.replace("/chat/completions", "/models")
+        elif llm_server.endswith("/messages"):
+            models_url = llm_server[:-len("/messages")] + "/models"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(models_url, headers=headers)
+                if resp.status_code in (200, 201):
+                    return {"success": True, "message": "LLM 配置测试通过", "data": {"status": resp.status_code}}
+                if resp.status_code in (401, 403):
+                    return {"success": False, "message": "API Key 无效或无权限", "data": {"status": resp.status_code}}
+
+                fallback = await client.request("HEAD", llm_server, headers=headers)
+                if fallback.status_code < 500:
+                    return {"success": True, "message": f"LLM Server 可访问(HTTP {fallback.status_code})，但无法验证 API Key 或模型列表", "data": {"status": fallback.status_code}}
+                return {"success": False, "message": f"LLM Server 响应异常(HTTP {fallback.status_code})", "data": {"status": fallback.status_code}}
+        except httpx.RequestError as e:
+            return {"success": False, "message": f"无法连接 LLM Server: {str(e)}"}
+        except Exception as e:
+            return {"success": False, "message": str(e) or "LLM 测试失败"}
+
+    async def test_xmpp(self, account: str, account_password: str) -> Dict[str, Any]:
+        account = (account or "").strip()
+        account_password = (account_password or "").strip()
+        if not account:
+            return {"success": False, "message": "XMPP账号 不能为空"}
+        if not account_password:
+            return {"success": False, "message": "XMPP密码 不能为空"}
+        if "@" not in account:
+            return {"success": False, "message": "XMPP账号 格式不正确"}
+
+        try:
+            import slixmpp
+        except Exception as e:
+            return {"success": False, "message": f"slixmpp 未安装或不可用: {str(e)}"}
+
+        domain_part = account.split("@", 1)[1]
+        domain_part = domain_part.split("/", 1)[0]
+
+        host = domain_part
+        port_override: Optional[int] = None
+        if ":" in domain_part:
+            maybe_host, maybe_port = domain_part.rsplit(":", 1)
+            if maybe_host and maybe_port.isdigit():
+                host = maybe_host
+                port_override = int(maybe_port)
+
+        if not host:
+            return {"success": False, "message": "XMPP账号 格式不正确"}
+
+        loop = asyncio.get_running_loop()
+
+        class _TestXMPPClient(slixmpp.ClientXMPP):
+            def __init__(self, jid: str, password: str, done_future: asyncio.Future):
+                super().__init__(jid, password)
+                self._done_future = done_future
+                self._connected_target: Optional[str] = None
+
+                self.add_event_handler("session_start", self._on_session_start)
+                self.add_event_handler("failed_auth", self._on_failed_auth)
+                self.add_event_handler("connection_failed", self._on_connection_failed)
+                self.add_event_handler("socket_error", self._on_socket_error)
+                self.add_event_handler("disconnected", self._on_disconnected)
+
+                self.register_plugin('xep_0030')
+                self.register_plugin('xep_0199')
+
+            async def _resolve(self, payload: Dict[str, Any]):
+                if not self._done_future.done():
+                    self._done_future.set_result(payload)
+
+            async def _on_session_start(self, _event):
+                try:
+                    self.send_presence()
+                    await self.get_roster()
+                except Exception:
+                    pass
+
+                msg = "XMPP 登录成功"
+                if self._connected_target:
+                    msg = f"{msg}({self._connected_target})"
+                await self._resolve({"success": True, "message": msg})
+                self.disconnect(wait=False)
+
+            async def _on_failed_auth(self, _event):
+                await self._resolve({"success": False, "message": "XMPP 认证失败(账号或密码错误)"})
+                self.disconnect(wait=False)
+
+            async def _on_connection_failed(self, event):
+                detail = (str(event) or "").strip()
+                msg = "XMPP 连接失败"
+                if self._connected_target:
+                    msg = f"{msg}({self._connected_target})"
+                if detail:
+                    msg = f"{msg}: {detail}"
+                await self._resolve({"success": False, "message": msg})
+
+            async def _on_socket_error(self, event):
+                detail = (str(event) or "").strip()
+                msg = "XMPP Socket 错误"
+                if self._connected_target:
+                    msg = f"{msg}({self._connected_target})"
+                if detail:
+                    msg = f"{msg}: {detail}"
+                await self._resolve({"success": False, "message": msg})
+
+            async def _on_disconnected(self, _event):
+                if not self._done_future.done():
+                    msg = "XMPP 连接断开"
+                    if self._connected_target:
+                        msg = f"{msg}({self._connected_target})"
+                    self._done_future.set_result({"success": False, "message": msg})
+
+        def _get_srv_targets() -> List[Tuple[str, int, bool]]:
+            targets: List[Tuple[str, int, bool]] = []
+            try:
+                import dns.resolver  # type: ignore
+            except Exception:
+                return targets
+
+            try:
+                resolver = dns.resolver.Resolver()
+                resolver.lifetime = 2.5
+                resolver.timeout = 2.5
+            except Exception:
+                return targets
+
+            def _query(name: str, direct_tls: bool) -> None:
+                try:
+                    answers = resolver.resolve(name, "SRV")
+                    for r in answers:
+                        try:
+                            t = str(getattr(r, "target", "") or "").rstrip('.')
+                            p = int(getattr(r, "port", 0) or 0)
+                            if t and p:
+                                targets.append((t, p, direct_tls))
+                        except Exception:
+                            continue
+                except Exception:
+                    return
+
+            _query(f"_xmpp-client._tcp.{host}", False)
+            _query(f"_xmpps-client._tcp.{host}", True)
+            return targets
+
+        async def _attempt(target_host: str, target_port: int, direct_tls: bool, use_srv: bool) -> Dict[str, Any]:
+            fut: asyncio.Future = loop.create_future()
+            xmpp = _TestXMPPClient(account, account_password, fut)
+            xmpp._connected_target = f"{target_host}:{target_port}"
+
+            if direct_tls:
+                xmpp.use_ssl = True
+                xmpp.use_tls = False
+            else:
+                xmpp.use_ssl = False
+                xmpp.use_tls = True
+
+            try:
+                if use_srv:
+                    connected = bool(xmpp.connect())
+                else:
+                    connected = bool(xmpp.connect(address=(target_host, target_port), use_ssl=direct_tls))
+            except Exception as e:
+                return {"success": False, "message": f"无法连接 XMPP 服务器({xmpp._connected_target}): {str(e)}"}
+
+            if not connected:
+                return {"success": False, "message": f"无法连接 XMPP 服务器({xmpp._connected_target})"}
+
+            asyncio.create_task(xmpp.process(forever=False))
+            try:
+                result = await asyncio.wait_for(fut, timeout=12.0)
+            except asyncio.TimeoutError:
+                try:
+                    xmpp.disconnect(wait=False)
+                except Exception:
+                    pass
+                return {"success": False, "message": f"XMPP 登录超时(12s)({xmpp._connected_target})"}
+
+            if isinstance(result, dict) and "success" in result:
+                return result
+            return {"success": False, "message": f"XMPP 测试失败({xmpp._connected_target})"}
+
+        try:
+            candidates: List[Tuple[str, int, bool, bool]] = []
+
+            if port_override:
+                candidates.append((host, port_override, port_override == 5223, False))
+            else:
+                srv_targets = _get_srv_targets()
+                if srv_targets:
+                    candidates.append((host, 0, False, True))
+                for (h, p, tls) in srv_targets[:4]:
+                    candidates.append((h, p, tls, False))
+                candidates.append((host, 5222, False, False))
+                candidates.append((host, 5223, True, False))
+
+            errors: List[str] = []
+            for (h, p, tls, use_srv) in candidates:
+                if use_srv:
+                    res = await _attempt(h, p or 5222, False, True)
+                else:
+                    res = await _attempt(h, p, tls, False)
+                if res.get("success") is True:
+                    return res
+                msg = (res.get("message") or "").strip()
+                if msg:
+                    errors.append(msg)
+
+            brief = " ; ".join(errors[:2]).strip()
+            if brief:
+                return {"success": False, "message": brief}
+            return {"success": False, "message": "无法连接 XMPP 服务器"}
+        except Exception as e:
+            return {"success": False, "message": f"XMPP 测试异常: {str(e)}"}
+
+    async def test_map(self, map_type: str, map_api_key: str, map_id: str) -> Dict[str, Any]:
+        map_type = (map_type or "").strip() or "Google"
+        map_api_key = (map_api_key or "").strip()
+        map_id = (map_id or "").strip()
+
+        if not map_api_key:
+            return {"success": False, "message": "地图 API Key 不能为空"}
+
+        if map_type == "Google" and not map_id:
+            return {"success": False, "message": "地图 ID 不能为空"}
+
+        if map_type == "Baidu":
+            url = f"https://api.map.baidu.com/api?v=3.0&ak={map_api_key}"
+        else:
+            qs = f"key={map_api_key}"
+            if map_id:
+                qs = qs + f"&map_ids={map_id}"
+            url = f"https://maps.googleapis.com/maps/api/js?{qs}"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    return {"success": True, "message": "地图配置测试通过", "data": {"status": resp.status_code}}
+                if resp.status_code in (401, 403):
+                    return {"success": False, "message": "地图 Key 无效或无权限", "data": {"status": resp.status_code}}
+                return {"success": False, "message": f"地图服务响应异常(HTTP {resp.status_code})", "data": {"status": resp.status_code}}
+        except httpx.RequestError as e:
+            return {"success": False, "message": f"无法连接地图服务: {str(e)}"}
+        except Exception as e:
+            return {"success": False, "message": str(e) or "地图测试失败"}
 
     async def fetch_captcha(self) -> Dict[str, Any]:
         url = "http://www.ai-sns.org/api/captcha/"

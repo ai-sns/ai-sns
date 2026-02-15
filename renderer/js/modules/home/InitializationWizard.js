@@ -26,6 +26,33 @@ const InitializationWizard = {
         map_id: ''
     },
 
+    setInlineTestResult(type, message) {
+        if (!this.modal || !this.modal.element) {
+            return;
+        }
+        const root = this.modal.element.querySelector('#initWizard');
+        if (!root) {
+            return;
+        }
+        const el = root.querySelector('#initInlineTestResult');
+        if (!el) {
+            return;
+        }
+        const text = (message || '').toString();
+        if (!text) {
+            el.style.display = 'none';
+            el.textContent = '';
+            return;
+        }
+        el.style.display = 'block';
+        el.textContent = text;
+
+        const ok = type === 'success';
+        el.style.borderColor = ok ? 'rgba(46, 204, 113, 0.65)' : 'rgba(231, 76, 60, 0.65)';
+        el.style.background = ok ? 'rgba(46, 204, 113, 0.08)' : 'rgba(231, 76, 60, 0.08)';
+        el.style.color = ok ? 'rgba(46, 204, 113, 0.95)' : 'rgba(231, 76, 60, 0.95)';
+    },
+
     async show(options = {}) {
         if (typeof Modal === 'undefined') {
             console.error('Modal component not loaded');
@@ -66,6 +93,14 @@ const InitializationWizard = {
                 this.bindStepEvents();
             },
             onCancel: async () => {
+                if (this.step > 0) {
+                    this.collectFormValues();
+                    await this.saveDraftSilently();
+                    this.step -= 1;
+                    this.updateModal();
+                    return false;
+                }
+
                 this.cleanupCaptchaObjectUrl();
                 if (window.electronAPI && typeof window.electronAPI.quitApp === 'function') {
                     window.electronAPI.quitApp();
@@ -84,7 +119,7 @@ const InitializationWizard = {
                     return false;
                 }
 
-                if (this.step < 3) {
+                if (this.step < 4) {
                     await this.saveDraftSilently();
                     this.step += 1;
                     this.updateModal();
@@ -182,23 +217,25 @@ const InitializationWizard = {
         const steps = [
             { key: 'basic', title: '基本配置' },
             { key: 'llm', title: '大模型配置' },
-            { key: 'sns', title: '社交配置' },
-            { key: 'captcha', title: '验证码' }
+            { key: 'xmpp', title: 'XMPP' },
+            { key: 'map', title: 'Map' },
+            { key: 'submit', title: '验证并提交' }
         ];
 
         return `
             <div class="initialization-wizard" id="initWizard">
                 <div class="settings-tabs" style="margin-bottom:12px;">
                     ${steps.map((s, idx) => `
-                        <button class="settings-tab-btn ${idx === this.step ? 'active' : ''}" data-step="${idx}" type="button">${s.title}</button>
+                        <button class="settings-tab-btn ${idx === this.step ? 'active' : ''}" data-step="${idx}" type="button" disabled>${s.title}</button>
                     `).join('')}
                 </div>
 
                 <div class="init-wizard-body">
                     ${this.step === 0 ? this.renderBasicStep() : ''}
                     ${this.step === 1 ? this.renderLlmStep() : ''}
-                    ${this.step === 2 ? this.renderSnsStep() : ''}
-                    ${this.step === 3 ? this.renderCaptchaStep() : ''}
+                    ${this.step === 2 ? this.renderXmppStep() : ''}
+                    ${this.step === 3 ? this.renderMapStep() : ''}
+                    ${this.step === 4 ? this.renderCaptchaStep() : ''}
                 </div>
             </div>
         `;
@@ -274,11 +311,52 @@ const InitializationWizard = {
                     <label>API Key *</label>
                     <input class="form-input" id="initApiKey" type="text" value="${this.escapeHtml(this.state.api_key || '')}" />
                 </div>
+
+                <div class="form-group">
+                    <div id="initInlineTestResult" style="display:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font-size:12px;"></div>
+                </div>
+
+                <div class="form-group" style="display:flex;justify-content:flex-end;">
+                    <button class="btn btn-secondary" id="initTestLlmBtn" type="button">测试</button>
+                </div>
             </div>
         `;
     },
 
-    renderSnsStep() {
+    renderXmppStep() {
+        return `
+            <div class="init-step init-step-xmpp">
+                <div class="form-row" style="display:flex;gap:12px;">
+                    <div class="form-group" style="flex:1;">
+                        <label>XMPP账号 *</label>
+                        <input class="form-input" id="initAccount" type="text" value="${this.escapeHtml(this.state.account || '')}" />
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>XMPP密码 *</label>
+                        <input class="form-input" id="initAccountPassword" type="password" value="${this.escapeHtml(this.state.account_password || '')}" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>SNS主页</label>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <input class="form-input" id="initSnsUrl" type="text" value="${this.escapeHtml(this.state.sns_url || '')}" style="flex:1;" />
+                        <a href="#" id="initSnsRegisterLink" style="font-size:12px;white-space:nowrap;">注册地址</a>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div id="initInlineTestResult" style="display:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font-size:12px;"></div>
+                </div>
+
+                <div class="form-group" style="display:flex;justify-content:flex-end;">
+                    <button class="btn btn-secondary" id="initTestXmppBtn" type="button">测试</button>
+                </div>
+            </div>
+        `;
+    },
+
+    renderMapStep() {
         const avatarGrid = this.avatar3dItems.map(item => {
             const selected = item.glb_url === this.state.avatar3d;
             return `
@@ -293,7 +371,7 @@ const InitializationWizard = {
         const mapIdValue = mapIdReadOnly ? 'do_not_need_map_id' : (this.state.map_id || '');
 
         return `
-            <div class="init-step init-step-sns">
+            <div class="init-step init-step-map">
                 <div class="form-group">
                     <label>请选择您的3D头像 *</label>
                     <div style="display:flex;align-items:center;gap:8px;">
@@ -304,22 +382,6 @@ const InitializationWizard = {
                         <button class="btn btn-secondary" id="avatar3dNextBtn" type="button" style="padding:6px 10px;">▶</button>
                     </div>
                     <input type="hidden" id="initAvatar3d" value="${this.escapeHtml(this.state.avatar3d || '')}" />
-                </div>
-
-                <div class="form-row" style="display:flex;gap:12px;">
-                    <div class="form-group" style="flex:1;">
-                        <label>XMPP账号 *</label>
-                        <input class="form-input" id="initAccount" type="text" value="${this.escapeHtml(this.state.account || '')}" />
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>XMPP密码 *</label>
-                        <input class="form-input" id="initAccountPassword" type="password" value="${this.escapeHtml(this.state.account_password || '')}" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>SNS主页</label>
-                    <input class="form-input" id="initSnsUrl" type="text" value="${this.escapeHtml(this.state.sns_url || '')}" />
                 </div>
 
                 <div class="form-row" style="display:flex;gap:12px;">
@@ -338,7 +400,18 @@ const InitializationWizard = {
 
                 <div class="form-group">
                     <label>地图 ID *</label>
-                    <input class="form-input" id="initMapId" type="text" value="${this.escapeHtml(mapIdValue)}" ${mapIdReadOnly ? 'readonly' : ''} />
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <input class="form-input" id="initMapId" type="text" value="${this.escapeHtml(mapIdValue)}" ${mapIdReadOnly ? 'readonly' : ''} style="flex:1;" />
+                        <a href="#" id="initMapRegisterLink" style="font-size:12px;white-space:nowrap;">注册地址</a>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div id="initInlineTestResult" style="display:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font-size:12px;"></div>
+                </div>
+
+                <div class="form-group" style="display:flex;justify-content:flex-end;">
+                    <button class="btn btn-secondary" id="initTestMapBtn" type="button">测试</button>
                 </div>
             </div>
         `;
@@ -386,7 +459,7 @@ const InitializationWizard = {
         }
 
         if (confirmBtn) {
-            confirmBtn.textContent = this.step < 3 ? '下一步' : '提交';
+            confirmBtn.textContent = this.step < 4 ? '下一步' : '提交';
         }
 
         this.bindStepEvents();
@@ -403,17 +476,106 @@ const InitializationWizard = {
         }
 
         root.querySelectorAll('.settings-tab-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const step = Number(btn.dataset.step);
-                if (Number.isNaN(step) || step < 0 || step > 3) {
-                    return;
-                }
-                this.collectFormValues();
-                await this.saveDraftSilently();
-                this.step = step;
-                this.updateModal();
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
             });
         });
+
+        const testLlmBtn = root.querySelector('#initTestLlmBtn');
+        if (testLlmBtn) {
+            testLlmBtn.addEventListener('click', async () => {
+                this.collectFormValues();
+                this.setInlineTestResult(null, '');
+                try {
+                    const res = await window.api.post('/api/system/init-wizard/test-llm', {
+                        llm: this.state.llm,
+                        llm_server: this.state.llm_server,
+                        api_key: this.state.api_key
+                    });
+                    if (res && res.success) {
+                        this.setInlineTestResult('success', res.message || '测试通过');
+                    } else {
+                        this.setInlineTestResult('error', res?.message || res?.detail || '测试失败');
+                    }
+                } catch (e) {
+                    this.setInlineTestResult('error', e.message || '测试失败');
+                }
+            });
+        }
+
+        const openUrlInDefaultBrowser = (url) => {
+            const u = String(url || '').trim();
+            if (!u) {
+                return;
+            }
+            if (window.electronAPI && typeof window.electronAPI.openUrl === 'function') {
+                window.electronAPI.openUrl(u);
+            } else {
+                window.open(u, '_blank');
+            }
+        };
+
+        const testXmppBtn = root.querySelector('#initTestXmppBtn');
+        if (testXmppBtn) {
+            testXmppBtn.addEventListener('click', async () => {
+                this.collectFormValues();
+                this.setInlineTestResult(null, '');
+                try {
+                    const res = await window.api.post('/api/system/init-wizard/test-xmpp', {
+                        account: this.state.account,
+                        account_password: this.state.account_password
+                    });
+                    if (res && res.success) {
+                        this.setInlineTestResult('success', res.message || '测试通过');
+                    } else {
+                        this.setInlineTestResult('error', res?.message || res?.detail || '测试失败');
+                    }
+                } catch (e) {
+                    this.setInlineTestResult('error', e.message || '测试失败');
+                }
+            });
+        }
+
+        const snsRegisterLink = root.querySelector('#initSnsRegisterLink');
+        if (snsRegisterLink) {
+            snsRegisterLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openUrlInDefaultBrowser('https://www.baidu.com');
+            });
+        }
+
+        const testMapBtn = root.querySelector('#initTestMapBtn');
+        if (testMapBtn) {
+            testMapBtn.addEventListener('click', async () => {
+                this.collectFormValues();
+                this.setInlineTestResult(null, '');
+                try {
+                    const res = await window.api.post('/api/system/init-wizard/test-map', {
+                        map: this.state.map,
+                        map_api_key: this.state.map_api_key,
+                        map_id: this.state.map_id
+                    });
+                    if (res && res.success) {
+                        this.setInlineTestResult('success', res.message || '测试通过');
+                    } else {
+                        this.setInlineTestResult('error', res?.message || res?.detail || '测试失败');
+                    }
+                } catch (e) {
+                    this.setInlineTestResult('error', e.message || '测试失败');
+                }
+            });
+        }
+
+        const mapRegisterLink = root.querySelector('#initMapRegisterLink');
+        if (mapRegisterLink) {
+            mapRegisterLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openUrlInDefaultBrowser('https://map.baidu.com');
+            });
+        }
 
         const fileInput = root.querySelector('#initAvatarFile');
         const fileSelectBtn = root.querySelector('#initAvatarSelectBtn');
@@ -514,6 +676,10 @@ const InitializationWizard = {
         const prevBtn = root.querySelector('#avatar3dPrevBtn');
         const nextBtn = root.querySelector('#avatar3dNextBtn');
         if (avatarGrid) {
+            if (typeof this._avatar3dScrollLeft === 'number') {
+                avatarGrid.scrollLeft = this._avatar3dScrollLeft;
+                this._avatar3dScrollLeft = null;
+            }
             const scrollByAmount = (dir) => {
                 const amount = Math.max(120, Math.floor((avatarGrid.clientWidth || 0) * 0.7));
                 avatarGrid.scrollBy({ left: dir * amount, behavior: 'smooth' });
@@ -535,6 +701,7 @@ const InitializationWizard = {
 
             avatarGrid.querySelectorAll('.avatar3d-item').forEach(item => {
                 item.addEventListener('click', async () => {
+                    this._avatar3dScrollLeft = avatarGrid.scrollLeft;
                     const glbUrl = item.dataset.glbUrl;
                     this.state.avatar3d = glbUrl;
                     const hidden = root.querySelector('#initAvatar3d');
@@ -583,14 +750,15 @@ const InitializationWizard = {
             this.state.llm_server = get('#initLlmServer');
             this.state.api_key = get('#initApiKey');
         } else if (this.step === 2) {
-            this.state.avatar3d = get('#initAvatar3d');
             this.state.account = get('#initAccount');
             this.state.account_password = get('#initAccountPassword');
             this.state.sns_url = get('#initSnsUrl');
+        } else if (this.step === 3) {
+            this.state.avatar3d = get('#initAvatar3d');
             this.state.map = get('#initMapType');
             this.state.map_api_key = get('#initMapApiKey');
             this.state.map_id = get('#initMapId');
-        } else if (this.step === 3) {
+        } else if (this.step === 4) {
             this.state.captcha_code = get('#initCaptchaCode');
         }
     },
@@ -629,9 +797,18 @@ const InitializationWizard = {
         }
 
         if (this.step === 2) {
-            if (!this.state.avatar3d || !this.state.account || !this.state.account_password || !this.state.map || !this.state.map_api_key || !this.state.map_id) {
+            if (!this.state.account || !this.state.account_password) {
                 if (typeof Notification !== 'undefined') {
-                    Notification.error('除了社交主页，其他字段都是必填的。');
+                    Notification.error('请完成 XMPP 配置。');
+                }
+                return false;
+            }
+        }
+
+        if (this.step === 3) {
+            if (!this.state.avatar3d || !this.state.map || !this.state.map_api_key || !this.state.map_id) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Map 配置为必填。');
                 }
                 return false;
             }

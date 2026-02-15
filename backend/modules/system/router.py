@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File
 from fastapi.responses import Response
 from typing import List
 
-from .schemas import SystemConfig, WebMngReorderItem, SystemInitDraft, SystemInitSubmit
+from .schemas import SystemConfig, WebMngReorderItem, SystemInitDraft, SystemInitSubmit, SystemInitTestLLM, SystemInitTestXMPP, SystemInitTestMap
 from .service import SystemService, SystemInitWizardService
 from .dependencies import get_system_service, get_system_init_wizard_service
 
@@ -302,4 +302,43 @@ async def submit_system_init(
         raise
     except Exception as e:
         logger.error(f"Error submitting system init: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/init-wizard/test-llm", response_model=dict)
+async def test_llm_config(
+    payload: SystemInitTestLLM,
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        res = await service.test_llm(payload.llm or "", payload.llm_server or "", payload.api_key or "")
+        return res
+    except Exception as e:
+        logger.error(f"Error testing llm config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/init-wizard/test-xmpp", response_model=dict)
+async def test_xmpp_config(
+    payload: SystemInitTestXMPP,
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        res = await service.test_xmpp(payload.account or "", payload.account_password or "")
+        return res
+    except Exception as e:
+        logger.error(f"Error testing xmpp config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/init-wizard/test-map", response_model=dict)
+async def test_map_config(
+    payload: SystemInitTestMap,
+    service: SystemInitWizardService = Depends(get_system_init_wizard_service)
+):
+    try:
+        res = await service.test_map(payload.map or "", payload.map_api_key or "", payload.map_id or "")
+        return res
+    except Exception as e:
+        logger.error(f"Error testing map config: {e}")
         raise HTTPException(status_code=500, detail=str(e))

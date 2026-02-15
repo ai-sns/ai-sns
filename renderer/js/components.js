@@ -47,16 +47,19 @@ class Modal {
         this.onConfirm = options.onConfirm || null;
         this.onCancel = options.onCancel || null;
         this.onOpen = options.onOpen || null;  // 添加onOpen支持
+        this.onClose = options.onClose || null;
         this.confirmText = options.confirmText || '确认';
         this.cancelText = options.cancelText || '取消';
         this.showCancel = options.showCancel !== false;
+        this.closeOnClickOutside = options.closeOnClickOutside !== false;
+        this.width = options.width || '500px';
         this.element = null;
     }
 
     render() {
         const html = `
             <div class="modal-overlay">
-                <div class="modal">
+                <div class="modal" style="max-width: ${this.width};">
                     <div class="modal-header">
                         <h3 class="modal-title">${this.title}</h3>
                         <button class="modal-close" data-action="close">&times;</button>
@@ -87,17 +90,34 @@ class Modal {
     }
 
     bindEvents() {
-        this.element.addEventListener('click', (e) => {
+        this.element.addEventListener('click', async (e) => {
             const action = e.target.dataset.action;
 
             if (action === 'close' || action === 'cancel') {
-                this.close();
-                if (this.onCancel) this.onCancel();
-            } else if (action === 'confirm') {
+                if (this.onCancel) {
+                    try {
+                        const result = await this.onCancel(this);
+                        if (result !== false) {
+                            this.close();
+                        }
+                    } catch (error) {
+                        console.error('[Modal] Error in onCancel:', error);
+                    }
+                } else {
+                    this.close();
+                }
+                return;
+            }
+
+            if (action === 'confirm') {
                 if (this.onConfirm) {
-                    const result = this.onConfirm(this);
-                    if (result !== false) {
-                        this.close();
+                    try {
+                        const result = await this.onConfirm(this);
+                        if (result !== false) {
+                            this.close();
+                        }
+                    } catch (error) {
+                        console.error('[Modal] Error in onConfirm:', error);
                     }
                 } else {
                     this.close();
@@ -106,18 +126,40 @@ class Modal {
         });
 
         // 点击遮罩层关闭
-        this.element.addEventListener('click', (e) => {
-            if (e.target === this.element) {
-                this.close();
-                if (this.onCancel) this.onCancel();
-            }
-        });
+        if (this.closeOnClickOutside) {
+            this.element.addEventListener('click', async (e) => {
+                if (e.target === this.element) {
+                    if (this.onCancel) {
+                        try {
+                            const result = await this.onCancel(this);
+                            if (result !== false) {
+                                this.close();
+                            }
+                        } catch (error) {
+                            console.error('[Modal] Error in onCancel:', error);
+                        }
+                    } else {
+                        this.close();
+                    }
+                }
+            });
+        }
 
         // ESC键关闭
-        document.addEventListener('keydown', this.handleKeydown = (e) => {
+        document.addEventListener('keydown', this.handleKeydown = async (e) => {
             if (e.key === 'Escape') {
-                this.close();
-                if (this.onCancel) this.onCancel();
+                if (this.onCancel) {
+                    try {
+                        const result = await this.onCancel(this);
+                        if (result !== false) {
+                            this.close();
+                        }
+                    } catch (error) {
+                        console.error('[Modal] Error in onCancel:', error);
+                    }
+                } else {
+                    this.close();
+                }
             }
         });
     }
@@ -126,6 +168,9 @@ class Modal {
         if (this.element) {
             this.element.remove();
             document.removeEventListener('keydown', this.handleKeydown);
+            if (this.onClose) {
+                this.onClose();
+            }
         }
     }
 
