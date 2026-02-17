@@ -9,6 +9,15 @@ import AgentSidebar from './AgentSidebar.js';
 import AgentPage from './AgentPage.js';
 
 const multiAgentHandlers = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     /**
      * 初始化多Agent系统
      */
@@ -16,7 +25,7 @@ const multiAgentHandlers = {
         console.log('[MultiAgentHandlers] 开始初始化多Agent系统...');
 
         // 1. 从API加载Agent列表
-        const response = await fetch('http://localhost:8788/api/agent');
+        const response = await fetch(this.resolve('/api/agent'));
         const result = await response.json();
         const agents = result.success ? (result.data || []) : [];
 
@@ -82,7 +91,8 @@ const multiAgentHandlers = {
     async downloadAndOpenAttachment(conversationId, attachmentId, filename) {
         try {
             if (window.electronAPI && typeof window.electronAPI.downloadAndOpen === 'function') {
-                const url = `http://127.0.0.1:8788/api/chat/conversations/${encodeURIComponent(conversationId)}/attachments/${encodeURIComponent(attachmentId)}`;
+                const path = `/api/chat/conversations/${encodeURIComponent(conversationId)}/attachments/${encodeURIComponent(attachmentId)}`;
+                const url = this.resolve(path);
                 const result = await window.electronAPI.downloadAndOpen(url, filename || 'file');
                 if (result) {
                     console.error('[MultiAgentHandlers] downloadAndOpen失败:', result);
@@ -1113,8 +1123,9 @@ const multiAgentHandlers = {
             // 尝试从API获取conversations，带agent_id参数
             // 如果后端支持按agent筛选，会返回过滤后的结果
             // 如果不支持，我们在客户端进行过滤
-            console.log(`[MultiAgentHandlers] 调用API: http://localhost:8788/api/chat/conversations?limit=50&agent_id=${agentId}`);
-            const response = await fetch(`http://localhost:8788/api/chat/conversations?limit=50&agent_id=${agentId}`);
+            const url = this.resolve(`/api/chat/conversations?limit=50&agent_id=${encodeURIComponent(agentId)}`);
+            console.log(`[MultiAgentHandlers] 调用API: ${url}`);
+            const response = await fetch(url);
             const result = await response.json();
             let conversations = result.data || [];
             console.log(`[MultiAgentHandlers] API返回了 ${conversations.length} 条对话`);
@@ -1535,7 +1546,7 @@ const multiAgentHandlers = {
 
         try {
             // 1. 获取agent的当前配置
-            const agentResponse = await fetch(`http://localhost:8788/api/agent/${agentId}`);
+            const agentResponse = await fetch(this.resolve(`/api/agent/${agentId}`));
             const agentResult = await agentResponse.json();
             const currentAgent = agentResult.success ? agentResult.data : null;
             const agentType = String(currentAgent?.agent_type || 'local').toLowerCase();
@@ -1550,7 +1561,7 @@ const multiAgentHandlers = {
             const currentModelConfigId = currentAgent?.model_config_id || currentAgent?.model;
 
             // 2. 获取所有模型配置
-            const response = await fetch('http://localhost:8788/api/agent/llm-configs');
+            const response = await fetch(this.resolve('/api/agent/llm-configs'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1612,7 +1623,7 @@ const multiAgentHandlers = {
 
         try {
             // 1. 获取agent的当前配置
-            const agentResponse = await fetch(`http://localhost:8788/api/agent/${agentId}`);
+            const agentResponse = await fetch(this.resolve(`/api/agent/${agentId}`));
             const agentResult = await agentResponse.json();
             const currentAgent = agentResult.success ? agentResult.data : null;
             const agentType = String(currentAgent?.agent_type || 'local').toLowerCase();
@@ -1627,7 +1638,7 @@ const multiAgentHandlers = {
             const currentRoleId = currentAgent?.role_id;
 
             // 2. 获取所有角色配置
-            const response = await fetch('http://localhost:8788/api/agent/role-configs');
+            const response = await fetch(this.resolve('/api/agent/role-configs'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1688,7 +1699,7 @@ const multiAgentHandlers = {
      */
     async loadAndApplyModelConfig(configId, agentId, saveToDatabase = true) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/llm-configs/${configId}`);
+            const response = await fetch(this.resolve(`/api/agent/llm-configs/${configId}`));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1715,7 +1726,7 @@ const multiAgentHandlers = {
      */
     async loadAndApplyRoleConfig(roleId, agentId, saveToDatabase = true) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/role-configs/${roleId}`);
+            const response = await fetch(this.resolve(`/api/agent/role-configs/${roleId}`));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1741,7 +1752,7 @@ const multiAgentHandlers = {
      */
     async updateAgentModelConfig(agentId, configId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`, {
+            const response = await fetch(this.resolve(`/api/agent/${agentId}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1779,7 +1790,7 @@ const multiAgentHandlers = {
      */
     async updateAgentRoleConfig(agentId, roleId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`, {
+            const response = await fetch(this.resolve(`/api/agent/${agentId}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1816,7 +1827,7 @@ const multiAgentHandlers = {
      */
     async reloadAgentInstance(agentId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/reload`, {
+            const response = await fetch(this.resolve(`/api/agent/${agentId}/reload`), {
                 method: 'POST'
             });
             const result = await response.json();
@@ -1888,7 +1899,7 @@ const multiAgentHandlers = {
         }
 
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/role-configs/${currentConfig.role_id}`, {
+            const response = await fetch(this.resolve(`/api/agent/role-configs/${currentConfig.role_id}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ system_prompt: prompt })

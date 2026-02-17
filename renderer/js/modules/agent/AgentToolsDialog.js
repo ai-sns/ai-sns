@@ -4,6 +4,15 @@
  */
 
 const AgentToolsDialog = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     // 存储当前所有选中的工具（跨标签页）
     currentSelections: new Set(),
 
@@ -130,7 +139,7 @@ const AgentToolsDialog = {
             const [agentToolsResponse, allTools, agentDocSkillsResponse] = await Promise.all([
                 agentApi.getAgentTools(agentId),
                 this.loadAllTools(),
-                fetch(`http://127.0.0.1:8788/api/skills/agent/${agentId}/skills`).then(r => r.json())
+                fetch(this.resolve(`/api/skills/agent/${agentId}/skills`)).then(r => r.json())
             ]);
 
             // 提取实际的工具数组
@@ -186,11 +195,11 @@ const AgentToolsDialog = {
     async loadAllTools() {
         try {
             const [plugins, mcps, functions, skills, docSkillsPayload] = await Promise.all([
-                fetch('http://localhost:8788/api/tools/plugins').then(r => r.json()),
-                fetch('http://localhost:8788/api/tools/mcp').then(r => r.json()),
-                fetch('http://localhost:8788/api/tools/functions').then(r => r.json()),
-                fetch('http://localhost:8788/api/tools/skills').then(r => r.json()),
-                fetch('http://127.0.0.1:8788/api/skills/list').then(r => r.json())
+                fetch(this.resolve('/api/tools/plugins')).then(r => r.json()),
+                fetch(this.resolve('/api/tools/mcp')).then(r => r.json()),
+                fetch(this.resolve('/api/tools/functions')).then(r => r.json()),
+                fetch(this.resolve('/api/tools/skills')).then(r => r.json()),
+                fetch(this.resolve('/api/skills/list')).then(r => r.json())
             ]);
 
             const docSkills = docSkillsPayload?.data || [];
@@ -454,7 +463,7 @@ const AgentToolsDialog = {
             const result = await agentApi.updateAgentTools(agentId, tools);
 
             // 保存 Doc Skills
-            await fetch(`http://127.0.0.1:8788/api/skills/agent/${agentId}/skills`, {
+            await fetch(this.resolve(`/api/skills/agent/${agentId}/skills`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ skill_keys: Array.from(this.docSkillSelections) })

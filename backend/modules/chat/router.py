@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Optional
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 
@@ -204,17 +204,18 @@ async def download_conversation_attachment(conversation_id: str, attachment_id: 
 
 
 @router.get("/stream")
-async def stream_chat_info():
+async def stream_chat_info(request: Request):
     """
     Stream chat endpoint information (GET request)
 
     Returns:
         Information about how to use the streaming chat endpoint
     """
+    base_url = str(request.base_url).rstrip('/')
     return {
         "message": "这是一个 POST 端点，用于流式聊天",
         "method": "POST",
-        "url": "/api/chat/stream",
+        "url": f"{base_url}/api/chat/stream",
         "content_type": "application/json",
         "accept": "text/event-stream",
         "request_body": {
@@ -226,7 +227,7 @@ async def stream_chat_info():
             "max_tokens": 4096
         },
         "example_curl": (
-            'curl -N -X POST http://localhost:8788/api/chat/stream '
+            f'curl -N -X POST {base_url}/api/chat/stream '
             '-H "Content-Type: application/json" '
             '-H "Accept: text/event-stream" '
             '-d \'{"messages": [{"role": "user", "content": "你好"}]}\''

@@ -1065,7 +1065,10 @@ const KMNotePage = {
                         const formData = new FormData();
                         formData.append('file', file);
 
-                        const response = await fetch(`http://localhost:8788/api/km/${kbId}/upload-image`, {
+                        const url = (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function')
+                            ? window.resolveAgentServerUrl(`/api/km/${kbId}/upload-image`)
+                            : `/api/km/${kbId}/upload-image`;
+                        const response = await fetch(url, {
                             method: 'POST',
                             body: formData
                         });

@@ -47,6 +47,16 @@ logger = logging.getLogger(__name__)
 
 class ToolsMixin:
 
+    def _get_ai_sns_server_base(self):
+        try:
+            from db.DBFactory import query_SystemCfg
+            cfg = query_SystemCfg(is_delete=False)
+            v = getattr(cfg, 'ai_sns_server', None)
+            v = (v or '').strip()
+            return v.rstrip('/') if v else ''
+        except Exception:
+            return ''
+
     def use_service(self, action_str, instrunction):
         asyncio.create_task(
             self.ask_agent_to_use_service(
@@ -56,7 +66,7 @@ class ToolsMixin:
         )
 
     def get_service_list(self):
-        url = "http://www.ai-sns.org/api/get_service_list/"
+        url = f"{self._get_ai_sns_server_base()}/api/get_service_list/"
 
         pos = self.aichatcfg_record.current_position
 
@@ -68,7 +78,7 @@ class ToolsMixin:
         return service_list
 
     def update_service_list(self):
-        url = "http://www.ai-sns.org/api/get_service"
+        url = f"{self._get_ai_sns_server_base()}/api/get_service"
         params = {
             "lng": self.aichatcfg_record.current_position[0],
             "lat": self.aichatcfg_record.current_position[1]

@@ -168,7 +168,8 @@ const MAX_MENU_ITEM_LENGTH = 30;
 // 从网络获取新闻数据并更新菜单项
 async function fetchAndCreateMenuItems() {
     try {
-        const response = await fetch('http://www.ai-sns.org/news.json');
+        const host = (typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '');
+        const response = await fetch(`${host}/news.json`);
         const data = await response.json();
 
         // 更新置顶信息菜单项 (menu-plaza-top)

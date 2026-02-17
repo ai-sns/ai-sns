@@ -60,7 +60,10 @@ const KMSidebar = {
      */
     async loadKnowledgeBasesFromAPI() {
         try {
-            const response = await fetch('http://localhost:8788/api/km');
+            const url = (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function')
+                ? window.resolveAgentServerUrl('/api/km')
+                : '/api/km';
+            const response = await fetch(url);
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -641,7 +644,10 @@ const KMSidebar = {
 
     async fetchAllKnowledgeBasesForManage() {
         try {
-            const response = await fetch('http://localhost:8788/api/km');
+            const url = (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function')
+                ? window.resolveAgentServerUrl('/api/km')
+                : '/api/km';
+            const response = await fetch(url);
             const result = await response.json();
             if (result && result.success && result.data) {
                 return result.data.filter(kb => kb.is_delete === null || kb.is_delete === false);
@@ -803,7 +809,10 @@ const KMSidebar = {
         }));
 
         try {
-            const response = await fetch('http://localhost:8788/api/km/reorder', {
+            const url = (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function')
+                ? window.resolveAgentServerUrl('/api/km/reorder')
+                : '/api/km/reorder';
+            const response = await fetch(url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)

@@ -299,8 +299,8 @@ async def upload_image(
         image_path = images_dir / unique_name
         image_path.write_bytes(content)
 
-        # Return image URL with full HTTP path
-        image_url = f"http://localhost:8788/uploads/km/images/{kb_id}/{unique_name}"
+        # Return image URL as relative path
+        image_url = f"/uploads/km/images/{kb_id}/{unique_name}"
         logger.info(f"Image uploaded: {image_url}")
 
         return {

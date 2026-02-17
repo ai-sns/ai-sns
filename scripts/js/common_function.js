@@ -97,7 +97,7 @@ function getServiceForUser() {
             lat: 39.96070173087282,
             category: 'shopping',
             type: 'web',
-            address: 'http://www.ai-sns.org/aigccenter.html'
+            address: ((typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '')) + '/aigccenter.html'
         },
         {
             name: '商店',

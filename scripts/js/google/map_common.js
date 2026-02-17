@@ -460,7 +460,7 @@ function initMap() {
     loadModel();
     // 加载AI-SNS建筑模型（假设功能类似）
 
-    load_aisns_building();
+    //load_aisns_building();
     const loadModel2 = async () => {
         try {
             // 使用重试机制加载模型

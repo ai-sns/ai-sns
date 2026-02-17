@@ -4,6 +4,15 @@
  */
 
 export default {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     /**
      * 获取SNS节点列表
      */
@@ -263,7 +272,7 @@ export default {
      */
     async chatWithAI(agentIdentifier, message, mode = 'ai') {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/ai-chat', {
+            const response = await fetch(this.resolve('/api/sns/ai-chat'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -291,7 +300,7 @@ export default {
      */
     async startEngine() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/start-engine', {
+            const response = await fetch(this.resolve('/api/sns/start-engine'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -314,7 +323,7 @@ export default {
      */
     async stopEngine() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/stop-engine', {
+            const response = await fetch(this.resolve('/api/sns/stop-engine'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -334,7 +343,7 @@ export default {
 
     async pauseEngine() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/pause-engine', {
+            const response = await fetch(this.resolve('/api/sns/pause-engine'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -354,7 +363,7 @@ export default {
 
     async resumeEngine() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/resume-engine', {
+            const response = await fetch(this.resolve('/api/sns/resume-engine'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -377,7 +386,7 @@ export default {
      */
     async getModelInfo() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/model-info', {
+            const response = await fetch(this.resolve('/api/sns/model-info'), {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -397,7 +406,7 @@ export default {
 
     async setHumanControlState(humanTakeOver, humanTalkType = null) {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/human-control-state', {
+            const response = await fetch(this.resolve('/api/sns/human-control-state'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -421,7 +430,7 @@ export default {
 
     async sendHumanMessage(message) {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/human-message', {
+            const response = await fetch(this.resolve('/api/sns/human-message'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

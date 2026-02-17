@@ -1,5 +1,14 @@
 // ModelManagementPage.js - LLM Model Configuration Management
 const ModelManagementPage = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     state: {
         models: [],
         selectedModel: null,
@@ -20,7 +29,7 @@ const ModelManagementPage = {
 
     async loadModels() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/llm-configs');
+            const response = await fetch(this.resolve('/api/agent/llm-configs'));
             const result = await response.json();
             if (result.success) {
                 this.state.models = result.data;
@@ -387,7 +396,7 @@ const ModelManagementPage = {
 
     async createModel(data) {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/llm-configs', {
+            const response = await fetch(this.resolve('/api/agent/llm-configs'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -413,7 +422,7 @@ const ModelManagementPage = {
 
     async updateModel(configId, data) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/llm-configs/${configId}`, {
+            const response = await fetch(this.resolve(`/api/agent/llm-configs/${configId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -450,7 +459,7 @@ const ModelManagementPage = {
         }
 
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/llm-configs/${configId}`, {
+            const response = await fetch(this.resolve(`/api/agent/llm-configs/${configId}`), {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -470,15 +479,12 @@ const ModelManagementPage = {
         }
     },
 
-    async testConnection(configId, testData = null) {
-        let data;
-
-        if (testData) {
-            data = testData;
-        } else {
+    async testConnection(configId, data = null) {
+        let payload = data;
+        if (!payload) {
             const model = this.state.models.find(m => m.config_id === configId);
             if (!model) return;
-            data = {
+            payload = {
                 api_endpoint: model.api_endpoint,
                 api_key: model.api_key,
                 model_name: model.model_name,
@@ -488,14 +494,12 @@ const ModelManagementPage = {
 
         try {
             window.showNotification?.('正在测试连接...', 'info');
-
-            const response = await fetch('http://localhost:8788/api/agent/llm-configs/test', {
+            const response = await fetch(this.resolve('/api/agent/llm-configs/test'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: JSON.stringify(payload)
             });
             const result = await response.json();
-
             if (result.success) {
                 window.showNotification?.('连接测试成功！', 'success');
             } else {
@@ -508,7 +512,7 @@ const ModelManagementPage = {
 
     async exportModels() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/llm-configs/export/all');
+            const response = await fetch(this.resolve('/api/agent/llm-configs/export/all'));
             const result = await response.json();
 
             if (result.success) {
@@ -587,7 +591,7 @@ const ModelManagementPage = {
                 const text = await file.text();
                 const configs = JSON.parse(text);
 
-                const response = await fetch('http://localhost:8788/api/agent/llm-configs/import', {
+                const response = await fetch(this.resolve('/api/agent/llm-configs/import'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(configs)

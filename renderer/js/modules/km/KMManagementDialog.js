@@ -6,6 +6,15 @@
 import Toast from '../../utils/toast.js';
 
 const KMManagementDialog = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     /**
      * Show create KB dialog
      */
@@ -391,7 +400,7 @@ const KMManagementDialog = {
             // Generate unique km_id
             kbData.km_id = this.generateKMId();
 
-            const response = await fetch('http://localhost:8788/api/km', {
+            const response = await fetch(this.resolve('/api/km'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(kbData)
@@ -421,7 +430,7 @@ const KMManagementDialog = {
         const loading = Toast.loading('Updating knowledge base...');
 
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbData.id}`, {
+            const response = await fetch(this.resolve(`/api/km/${kbData.id}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(kbData)
@@ -451,7 +460,7 @@ const KMManagementDialog = {
         const loading = Toast.loading('Deleting knowledge base...');
 
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbId}`, {
+            const response = await fetch(this.resolve(`/api/km/${kbId}`), {
                 method: 'DELETE'
             });
 

@@ -8,6 +8,16 @@ const AgentSettingsDialog = {
     llmConfigs: [],
     roleConfigs: [],
 
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
+
     /**
      * 显示 Agent 配置对话框
      * @param {object} agent - Agent 对象，如果为 null 则创建新 Agent
@@ -55,12 +65,12 @@ const AgentSettingsDialog = {
     async loadConfigs() {
         try {
             // 加载 LLM 配置
-            const llmResponse = await fetch('http://localhost:8788/api/agent/llm-configs');
+            const llmResponse = await fetch(this.resolve('/api/agent/llm-configs'));
             const llmResult = await llmResponse.json();
             this.llmConfigs = llmResult.success ? llmResult.data : [];
 
             // 加载 Role 配置
-            const roleResponse = await fetch('http://localhost:8788/api/agent/role-configs');
+            const roleResponse = await fetch(this.resolve('/api/agent/role-configs'));
             const roleResult = await roleResponse.json();
             this.roleConfigs = roleResult.success ? roleResult.data : [];
         } catch (error) {
@@ -165,7 +175,7 @@ const AgentSettingsDialog = {
                 <div class="settings-tab-pane" id="${a2aTabId}" data-tab="a2a">
                     <div class="form-group">
                         <label>A2A 端点 URL *</label>
-                        <input type="text" class="form-input" id="agentUrl" value="${this.escapeHtml(data.url)}" placeholder="http://localhost:8788/a2a">
+                        <input type="text" class="form-input" id="agentUrl" value="${this.escapeHtml(data.url)}" placeholder="">
                         <small class="form-hint">Agent 的 A2A 协议访问地址</small>
                     </div>
 
@@ -474,7 +484,7 @@ const AgentSettingsDialog = {
      */
     async createWallet() {
         try {
-            const response = await fetch('http://localhost:8788/api/wallet/create', {
+            const response = await fetch(this.resolve('/api/wallet/create'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ label: 'Agent Wallet' })
@@ -536,7 +546,7 @@ const AgentSettingsDialog = {
                 }
 
                 try {
-                    const response = await fetch('http://localhost:8788/api/wallet/import', {
+                    const response = await fetch(this.resolve('/api/wallet/import'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -699,8 +709,8 @@ const AgentSettingsDialog = {
             // 发送请求
             const isEdit = this.currentAgent !== null;
             const endpoint = isEdit
-                ? `http://localhost:8788/api/agent/${this.currentAgent.id}`
-                : 'http://localhost:8788/api/agent';
+                ? this.resolve(`/api/agent/${this.currentAgent.id}`)
+                : this.resolve('/api/agent');
 
             const method = isEdit ? 'PUT' : 'POST';
 
@@ -723,7 +733,7 @@ const AgentSettingsDialog = {
                 if (isEdit && agentId) {
                     try {
                         // 重新加载后端 agent 实例
-                        const reloadResponse = await fetch(`http://localhost:8788/api/agent/${agentId}/reload`, {
+                        const reloadResponse = await fetch(this.resolve(`/api/agent/${agentId}/reload`), {
                             method: 'POST'
                         });
                         const reloadResult = await reloadResponse.json();

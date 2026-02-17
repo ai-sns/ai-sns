@@ -1,6 +1,32 @@
 // interact with api_server (replaces QWebChannel)
 
-const API_BASE_URL = "http://localhost:8788";
+function normalizeHttpBaseUrl(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    const withScheme = /^https?:\/\//i.test(v) ? v : `http://${v}`;
+    return withScheme.endsWith('/') ? withScheme.slice(0, -1) : withScheme;
+}
+
+let API_BASE_URL = normalizeHttpBaseUrl((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+if (!API_BASE_URL) {
+    try {
+        API_BASE_URL = normalizeHttpBaseUrl(window.location && window.location.origin ? window.location.origin : '');
+    } catch (e) {
+        API_BASE_URL = '';
+    }
+}
+
+function toWebSocketBaseUrl(httpBaseUrl) {
+    try {
+        const u = new URL(normalizeHttpBaseUrl(httpBaseUrl));
+        const wsProto = u.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${u.host}`;
+    } catch (e) {
+        return '';
+    }
+}
+
+const WS_BASE_URL = toWebSocketBaseUrl(API_BASE_URL);
 let websocket = null;
 let requestIdCounter = 0;
 
@@ -44,7 +70,11 @@ async function jsonrpcRequest(method, params = {}) {
 function connectWebSocket() {
     const clientId = `client_${Date.now()}`;
     console.log("Attempting to connect to WebSocket with clientId:", clientId);
-    websocket = new WebSocket(`ws://localhost:8788/ws/${clientId}`);
+    if (!WS_BASE_URL) {
+        console.error('WebSocket base URL not configured');
+        return;
+    }
+    websocket = new WebSocket(`${WS_BASE_URL}/ws/${clientId}`);
 
     websocket.onopen = function () {
         console.log("WebSocket connected successfully with clientId:", clientId);
@@ -115,11 +145,12 @@ function handleWebSocketMessage(data) {
 window.addEventListener('message', function(event) {
     // 验证消息来源 - Electron 窗口可能来自 file:// 或其他协议
     // 允许来自 Electron (file://, app://) 或本地服务器的消息
-    const allowedOrigins = [
-        'file://',
-        'http://localhost:8788',
-        'http://127.0.0.1:8788'
-    ];
+    const allowedOrigins = ['file://'];
+    try {
+        const origin = new URL(API_BASE_URL).origin;
+        allowedOrigins.push(origin);
+    } catch (e) {
+    }
 
     const isAllowedOrigin = allowedOrigins.some(origin =>
         event.origin === origin || event.origin.startsWith('file://')
@@ -559,10 +590,17 @@ async function loadMoreItemsChat() {
 
 function open_url(url) {
     // 在 Electron 中打开链接
-    if (typeof window.electron !== 'undefined') {
-        window.electron.openUrl(url);
+    const u = String(url || '').trim();
+    if (!u) {
+        if (typeof showAlert === 'function') {
+            showAlert('ai_sns_server 未配置', true);
+        }
+        return;
+    }
+    if (window.electronAPI && typeof window.electronAPI.openUrl === 'function') {
+        window.electronAPI.openUrl(u);
     } else {
-        window.open(url, "_blank");
+        window.open(u, "_blank");
     }
 }
 

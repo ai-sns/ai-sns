@@ -16,6 +16,16 @@ export class SNSProfessionDialog {
         this.availableTools = [];
     }
 
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    }
+
     async show() {
         // Load current configuration
         await this.loadCurrentConfig();
@@ -115,7 +125,7 @@ export class SNSProfessionDialog {
 
     async loadCurrentConfig() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/user-stats');
+            const response = await fetch(this.resolve('/api/sns/user-stats'));
             const stats = await response.json();
             this.currentMoney = stats.money || 0;
         } catch (error) {
@@ -126,7 +136,7 @@ export class SNSProfessionDialog {
 
     async loadExistingUserConfig() {
         try {
-            const resp = await fetch('http://localhost:8788/api/sns/user-info');
+            const resp = await fetch(this.resolve('/api/sns/user-info'));
             const result = await resp.json();
 
             if (!result || !result.success || !result.data) {
@@ -213,7 +223,7 @@ export class SNSProfessionDialog {
 
     async loadProfessions() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/professions');
+            const response = await fetch(this.resolve('/api/sns/professions'));
             const professions = await response.json();
 
             const costList = document.getElementById('professionListCost');
@@ -358,7 +368,7 @@ export class SNSProfessionDialog {
         }
 
         try {
-            const resp = await fetch(`http://localhost:8788/api/tools/mcp/${encodeURIComponent(mcpId)}/execute`, {
+            const resp = await fetch(this.resolve(`/api/tools/mcp/${encodeURIComponent(mcpId)}/execute`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -440,7 +450,7 @@ export class SNSProfessionDialog {
                 handle_content: this.selectedTradeOption === 'message' ? this.messageContent : this.selectedTool || ''
             };
 
-            const response = await fetch('http://localhost:8788/api/sns/user-info', {
+            const response = await fetch(this.resolve('/api/sns/user-info'), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
@@ -495,10 +505,10 @@ export class SNSProfessionDialog {
         try {
             // Fetch all tool types from the tools API
             const [pluginsResponse, mcpsResponse, functionsResponse, skillsResponse] = await Promise.all([
-                fetch('http://localhost:8788/api/tools/plugins'),
-                fetch('http://localhost:8788/api/tools/mcp'),
-                fetch('http://localhost:8788/api/tools/functions'),
-                fetch('http://localhost:8788/api/tools/skills')
+                fetch(this.resolve('/api/tools/plugins')),
+                fetch(this.resolve('/api/tools/mcp')),
+                fetch(this.resolve('/api/tools/functions')),
+                fetch(this.resolve('/api/tools/skills'))
             ]);
             
             const plugins = await pluginsResponse.json();

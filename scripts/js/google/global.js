@@ -31,7 +31,7 @@ var overlay;
 var modelhouse;
 var model;
 var model2;
-var base_url = "http://www.ai-sns.org";
+var base_url = (typeof window !== 'undefined' && window.__AI_SNS_SERVER__) ? window.__AI_SNS_SERVER__ : "";
 var persons_loaded_flag =false;
 var personsdata = [];
 

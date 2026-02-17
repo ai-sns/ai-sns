@@ -97,7 +97,7 @@ const PageRenderers = {
                     <div class="home-contact">
                         <h3 class="contact-title">Contact Us</h3>
                         <p class="contact-text">Welcome to visit our website for more information:</p>
-                        <a href="https://www.ai-sns.org" target="_blank" class="contact-link">www.ai-sns.org</a>
+                        <a href="${(window.appConfig && window.appConfig.ai_sns_server) ? window.appConfig.ai_sns_server : ''}" target="_blank" class="contact-link">${(window.appConfig && window.appConfig.ai_sns_server) ? window.appConfig.ai_sns_server : ''}</a>
                     </div>
                 </div>
             </div>
@@ -1297,6 +1297,32 @@ const PageRenderers = {
 // ==================== Page Controllers ====================
 
 const PageControllers = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
+
+    getMapIframeTargetOrigin(iframe) {
+        try {
+            const src = iframe ? iframe.getAttribute('src') : '';
+            if (src) {
+                const u = new URL(src, window.location && window.location.href ? window.location.href : undefined);
+                return u.origin;
+            }
+        } catch (e) {
+        }
+        const agentBase = (window.appConfig && window.appConfig.agent_server) ? String(window.appConfig.agent_server) : '';
+        try {
+            if (agentBase) return new URL(agentBase).origin;
+        } catch (e) {
+        }
+        return '*';
+    },
     // Home 页面控制器
     initHomePage() {
         this.loadHomeStats();
@@ -1456,7 +1482,8 @@ const PageControllers = {
                     agentHelp.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        openUrlInDefaultBrowser('https://www.ai-sns.org');
+                        const url = (window.appConfig && window.appConfig.ai_sns_server) ? window.appConfig.ai_sns_server : '';
+                        openUrlInDefaultBrowser(url);
                     });
                 }
                 const snsHelp = modal.element?.querySelector('#homeCfgAiSnsHelp');
@@ -1464,7 +1491,8 @@ const PageControllers = {
                     snsHelp.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        openUrlInDefaultBrowser('https://www.ai-sns.org');
+                        const url = (window.appConfig && window.appConfig.ai_sns_server) ? window.appConfig.ai_sns_server : '';
+                        openUrlInDefaultBrowser(url);
                     });
                 }
                 await loadConfigIntoModal(modal);
@@ -1759,9 +1787,9 @@ const PageControllers = {
         }
 
         // 获取地图配置
-        let mapUrl = 'http://localhost:8788/scripts/map.html'; // 默认百度地图
+        let mapUrl = this.resolve('/scripts/map.html'); // 默认百度地图
         try {
-            const response = await fetch('http://localhost:8788/api/sns/map-config');
+            const response = await fetch(this.resolve('/api/sns/map-config'));
             const result = await response.json();
 
             console.log('Map config API response:', result);
@@ -1771,7 +1799,7 @@ const PageControllers = {
                 console.log('Map type:', mapType);
 
                 if (mapType === '0') {
-                    mapUrl = 'http://localhost:8788/scripts/googlemap3d.html';
+                    mapUrl = this.resolve('/scripts/googlemap3d.html');
                     console.log('Loading Google Map');
                 } else {
                     console.log('Loading Baidu Map');
@@ -1810,7 +1838,7 @@ const PageControllers = {
             };
 
             try {
-                iframe.contentWindow.postMessage(initialData, 'http://localhost:8788');
+                iframe.contentWindow.postMessage(initialData, this.getMapIframeTargetOrigin(iframe));
                 console.log('已发送初始化消息');
             } catch (error) {
                 console.error('发送消息到地图页面失败:', error);
@@ -1831,7 +1859,7 @@ const PageControllers = {
                     </svg>
                 </div>
                 <p class="map-placeholder-text">地图加载失败</p>
-                <p class="map-placeholder-desc">请检查地图服务器是否运行在 http://localhost:8788</p>
+                <p class="map-placeholder-desc">请检查地图服务器配置是否正确</p>
                 <button class="map-retry-btn" onclick="PageControllers.tryLoadMap()">重试</button>
             `;
             mapContainer.appendChild(errorDiv);
@@ -1839,7 +1867,7 @@ const PageControllers = {
 
         // 监听来自 iframe 的消息
         const handleMessage = (event) => {
-            if (event.origin === 'http://localhost:8788') {
+            if (event.origin === this.getMapIframeTargetOrigin(iframe)) {
                 const data = event.data;
                 console.log('收到地图页面消息:', data);
 
@@ -1942,7 +1970,7 @@ const PageControllers = {
                 type: type,
                 data: data
             };
-            iframe.contentWindow.postMessage(message, 'http://localhost:8788');
+            iframe.contentWindow.postMessage(message, this.getMapIframeTargetOrigin(iframe));
         }
     },
 

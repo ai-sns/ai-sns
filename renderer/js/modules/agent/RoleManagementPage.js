@@ -1,5 +1,14 @@
 // RoleManagementPage.js - Role/Persona Configuration Management
 const RoleManagementPage = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     state: {
         roles: [],
         presets: [],
@@ -23,7 +32,7 @@ const RoleManagementPage = {
 
     async loadRoles() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/role-configs');
+            const response = await fetch(this.resolve('/api/agent/role-configs'));
             const result = await response.json();
             if (result.success) {
                 this.state.roles = result.data;
@@ -37,7 +46,7 @@ const RoleManagementPage = {
 
     async loadPresets() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/role-configs/presets');
+            const response = await fetch(this.resolve('/api/agent/role-configs/presets'));
             const result = await response.json();
             if (result.success) {
                 this.state.presets = result.data;
@@ -383,7 +392,7 @@ const RoleManagementPage = {
 
     async createRole(data) {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/role-configs', {
+            const response = await fetch(this.resolve('/api/agent/role-configs'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -409,7 +418,7 @@ const RoleManagementPage = {
 
     async updateRole(roleId, data) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/role-configs/${roleId}`, {
+            const response = await fetch(this.resolve(`/api/agent/role-configs/${roleId}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -446,7 +455,7 @@ const RoleManagementPage = {
         }
 
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/role-configs/${roleId}`, {
+            const response = await fetch(this.resolve(`/api/agent/role-configs/${roleId}`), {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -468,7 +477,7 @@ const RoleManagementPage = {
 
     async exportRoles() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/role-configs/export/all');
+            const response = await fetch(this.resolve('/api/agent/role-configs/export/all'));
             const result = await response.json();
 
             if (result.success) {
@@ -547,7 +556,7 @@ const RoleManagementPage = {
                 const text = await file.text();
                 const configs = JSON.parse(text);
 
-                const response = await fetch('http://localhost:8788/api/agent/role-configs/import', {
+                const response = await fetch(this.resolve('/api/agent/role-configs/import'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(configs)

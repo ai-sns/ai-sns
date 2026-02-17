@@ -16,7 +16,21 @@ class ToolsManager {
         if (window.electronAPI) {
             this.apiBaseUrl = await window.electronAPI.getApiUrl();
         } else {
-            this.apiBaseUrl = 'http://127.0.0.1:8788';
+            const raw = (window.appConfig && window.appConfig.agent_server)
+                || (window.api && window.api.baseUrl)
+                || '';
+            if (raw) {
+                this.apiBaseUrl = String(raw).replace(/\/+$/, '');
+            } else if (typeof window.resolveAgentServerUrl === 'function') {
+                try {
+                    const u = new URL(window.resolveAgentServerUrl('/'));
+                    this.apiBaseUrl = u.origin;
+                } catch (e) {
+                    this.apiBaseUrl = '';
+                }
+            } else {
+                this.apiBaseUrl = '';
+            }
         }
         console.log('Tools Manager initialized with API:', this.apiBaseUrl);
     }

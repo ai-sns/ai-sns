@@ -588,7 +588,11 @@ class SystemInitWizardService:
             return {"success": False, "message": str(e) or "地图测试失败"}
 
     async def fetch_captcha(self) -> Dict[str, Any]:
-        url = "http://www.ai-sns.org/api/captcha/"
+        cfg = query_SystemCfg(is_delete=False)
+        base = (getattr(cfg, 'ai_sns_server', None) or '').rstrip('/')
+        if not base:
+            raise ValueError("ai_sns_server is not configured")
+        url = f"{base}/api/captcha/"
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url)
             resp.raise_for_status()
@@ -604,7 +608,11 @@ class SystemInitWizardService:
         if not avatar_map_path.exists():
             raise FileNotFoundError(str(avatar_map_path))
 
-        register_url = "http://www.ai-sns.org/api/register/"
+        cfg = query_SystemCfg(is_delete=False)
+        base = (getattr(cfg, 'ai_sns_server', None) or '').rstrip('/')
+        if not base:
+            raise ValueError("ai_sns_server is not configured")
+        register_url = f"{base}/api/register/"
         files = {"avatar_file": (avatar_map_path.name, avatar_map_path.read_bytes(), "image/png")}
 
         async with httpx.AsyncClient(timeout=60.0) as client:

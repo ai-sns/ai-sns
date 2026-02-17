@@ -9,6 +9,16 @@ export class SNSSocialRoleDialog {
         this.isEditing = false;
     }
 
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    }
+
     async show() {
         // Create dialog HTML
         const dialogHTML = `
@@ -320,7 +330,7 @@ export class SNSSocialRoleDialog {
 
     async loadSocialRoles() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/social-roles');
+            const response = await fetch(this.resolve('/api/sns/social-roles'));
             const roles = await response.json();
 
             const roleList = document.getElementById('socialRoleList');
@@ -431,7 +441,7 @@ export class SNSSocialRoleDialog {
         }
 
         try {
-            const response = await fetch(`http://localhost:8788/api/sns/social-roles/${this.selectedRole.id}`, {
+            const response = await fetch(this.resolve(`/api/sns/social-roles/${this.selectedRole.id}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'

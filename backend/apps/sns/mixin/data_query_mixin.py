@@ -41,8 +41,18 @@ logger = logging.getLogger(__name__)
 
 class DataQueryMixin:
 
+    def _get_ai_sns_server_base(self):
+        try:
+            from db.DBFactory import query_SystemCfg
+            cfg = query_SystemCfg(is_delete=False)
+            v = getattr(cfg, 'ai_sns_server', None)
+            v = (v or '').strip()
+            return v.rstrip('/') if v else ''
+        except Exception:
+            return ''
+
     def get_place_list(self):
-        url = "http://www.ai-sns.org/api/get_place_list/"
+        url = f"{self._get_ai_sns_server_base()}/api/get_place_list/"
         params = {
             "lng": self.aichatcfg_record.current_position[0],
             "lat": self.aichatcfg_record.current_position[1]
@@ -51,7 +61,7 @@ class DataQueryMixin:
         return place_list
 
     def get_people_list(self):
-        url = "http://www.ai-sns.org/api/get_people_list/"
+        url = f"{self._get_ai_sns_server_base()}/api/get_people_list/"
         params = {
             "lng": self.aichatcfg_record.current_position[0],
             "lat": self.aichatcfg_record.current_position[1]

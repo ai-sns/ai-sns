@@ -252,11 +252,51 @@ function registerDevToolsHotkeysForWebContents(webContents) {
 
 // API服务器配置
 
-const API_HOST = '127.0.0.1';  // 明确使用 IPv4，避免 IPv6 解析问题
+const DEFAULT_API_BASE_URL = '';
+let API_BASE_URL = DEFAULT_API_BASE_URL;
 
-const API_PORT = 8788;
+function normalizeHttpUrl(raw) {
 
-const API_BASE_URL = `http://${API_HOST}:${API_PORT}`;
+    const v = String(raw || '').trim();
+    if (!v) return '';
+
+    const withScheme = /^https?:\/\//i.test(v) ? v : `http://${v}`;
+    return withScheme.endsWith('/') ? withScheme.slice(0, -1) : withScheme;
+
+}
+
+function loadConfigJsonSync() {
+
+    try {
+
+        const configPath = path.join(process.cwd(), 'config.json');
+        if (!fs.existsSync(configPath)) {
+            return {};
+        }
+
+        const raw = fs.readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+
+    } catch (e) {
+
+        return {};
+
+    }
+
+}
+
+function refreshApiBaseUrlFromConfigSync() {
+
+    const cfg = loadConfigJsonSync();
+    const agentServer = normalizeHttpUrl(cfg.agent_server);
+    API_BASE_URL = agentServer || DEFAULT_API_BASE_URL;
+
+    return { cfg, apiBaseUrl: API_BASE_URL };
+
+}
+
+refreshApiBaseUrlFromConfigSync();
 
 
 
@@ -496,13 +536,22 @@ async function createMapWindow() {
 
     try {
 
-        const response = await fetch(`${API_BASE_URL}/api/sns/map-config`);
+        const { cfg, apiBaseUrl } = refreshApiBaseUrlFromConfigSync();
+        const aiSnsServer = normalizeHttpUrl(cfg.ai_sns_server);
+
+        const response = await fetch(`${apiBaseUrl}/api/sns/map-config`);
 
         const result = await response.json();
 
 
 
-        let mapUrl = `${API_BASE_URL}/scripts/map.html`; // 默认百度地图
+        const qs = new URLSearchParams();
+        qs.set('agent_server', apiBaseUrl);
+        if (aiSnsServer) {
+            qs.set('ai_sns_server', aiSnsServer);
+        }
+
+        let mapUrl = `${apiBaseUrl}/scripts/map.html?${qs.toString()}`; // 默认百度地图
 
 
 
@@ -520,7 +569,7 @@ async function createMapWindow() {
 
             if (mapType === '0') {
 
-                mapUrl = `${API_BASE_URL}/scripts/googlemap3d.html`;
+                mapUrl = `${apiBaseUrl}/scripts/googlemap3d.html?${qs.toString()}`;
 
                 console.log('Loading Google Map');
 
@@ -548,7 +597,14 @@ async function createMapWindow() {
 
         // 出错时使用默认地图
 
-        mapWindow.loadURL(`${API_BASE_URL}/scripts/map.html`);
+        const { cfg, apiBaseUrl } = refreshApiBaseUrlFromConfigSync();
+        const aiSnsServer = normalizeHttpUrl(cfg.ai_sns_server);
+        const qs = new URLSearchParams();
+        qs.set('agent_server', apiBaseUrl);
+        if (aiSnsServer) {
+            qs.set('ai_sns_server', aiSnsServer);
+        }
+        mapWindow.loadURL(`${apiBaseUrl}/scripts/map.html?${qs.toString()}`);
 
     }
 
@@ -692,6 +748,7 @@ function createTray() {
 
 ipcMain.handle('get-api-url', () => {
 
+    refreshApiBaseUrlFromConfigSync();
     return API_BASE_URL;
 
 });

@@ -535,3 +535,4 @@ window.addEventListener('resize', () => {
 
 // ===== 启动初始化 =====
 initializeBuilding();
+setTimeout(load_aisns_building, 6000);

@@ -31,7 +31,8 @@ async function checkAndShowPoints() {
     // 检查是否已加载人员数据
     if (!persons_loaded_flag) {
         // 定义数据URL
-        const dataUrl = "http://www.ai-sns.org/personsdata.json";
+        const host = (typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '');
+        const dataUrl = `${host}/personsdata.json`;
 
         try {
             // 加载人员数据

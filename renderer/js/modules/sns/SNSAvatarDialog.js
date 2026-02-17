@@ -12,6 +12,16 @@ export class SNSAvatarDialog {
         this.existingAgentId = null;
     }
 
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    }
+
     async show() {
         // Create dialog HTML
         const dialogHTML = `
@@ -117,7 +127,7 @@ export class SNSAvatarDialog {
 
     async loadExistingConfig() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/config');
+            const response = await fetch(this.resolve('/api/sns/config'));
             const result = await response.json();
 
             const config = result && typeof result === 'object' && 'data' in result ? result.data : result;
@@ -138,7 +148,7 @@ export class SNSAvatarDialog {
 
     async load3DAvatars() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/avatars3d');
+            const response = await fetch(this.resolve('/api/sns/avatars3d'));
             const avatars = await response.json();
 
             const grid = document.getElementById('avatar3dGrid');
@@ -149,8 +159,9 @@ export class SNSAvatarDialog {
                 item.className = 'avatar3d-item';
                 item.dataset.name = avatar.name;
                 item.dataset.modelUrl = avatar.model_url;
+                const previewUrl = this.resolve(avatar.preview_url);
                 item.innerHTML = `
-                    <img src="http://localhost:8788${avatar.preview_url}" alt="${avatar.name}">
+                    <img src="${previewUrl}" alt="${avatar.name}">
                     <div class="avatar3d-name">${avatar.name}</div>
                 `;
                 item.addEventListener('click', () => this.select3DAvatar(item, avatar));
@@ -264,7 +275,7 @@ export class SNSAvatarDialog {
                     const formData = new FormData();
                     formData.append('file', this.uploadedAvatar);
 
-                    const uploadResponse = await fetch('http://localhost:8788/api/sns/config/upload-avatar', {
+                    const uploadResponse = await fetch(this.resolve('/api/sns/config/upload-avatar'), {
                         method: 'POST',
                         body: formData
                     });
@@ -283,7 +294,7 @@ export class SNSAvatarDialog {
 
                 // Update configuration
                 if (Object.keys(updates).length > 0) {
-                    const response = await fetch('http://localhost:8788/api/sns/config', {
+                    const response = await fetch(this.resolve('/api/sns/config'), {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
@@ -308,7 +319,7 @@ export class SNSAvatarDialog {
                 const snsUrl = document.getElementById('userSnsUrl').value;
                 const agentId = document.getElementById('userAgentId').value;
 
-                const response = await fetch('http://localhost:8788/api/sns/user-info', {
+                const response = await fetch(this.resolve('/api/sns/user-info'), {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -337,7 +348,7 @@ export class SNSAvatarDialog {
 
     async loadUserInfo() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/user-info');
+            const response = await fetch(this.resolve('/api/sns/user-info'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -354,7 +365,7 @@ export class SNSAvatarDialog {
 
     async loadAgentList() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent/list');
+            const response = await fetch(this.resolve('/api/agent/list'));
             const result = await response.json();
 
             if (result.success && result.data) {

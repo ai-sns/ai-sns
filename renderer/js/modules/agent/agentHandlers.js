@@ -7,6 +7,15 @@ import agentState from './agentState.js';
 import agentApi from './agentApi.js';
 
 const agentHandlers = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     currentManagementPage: null, // 跟踪当前打开的管理页面
 
     /**
@@ -689,7 +698,7 @@ const agentHandlers = {
         if (!modelSelector) return;
 
         try {
-            const response = await fetch('http://localhost:8788/api/agent/llm-configs');
+            const response = await fetch(this.resolve('/api/agent/llm-configs'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -729,7 +738,7 @@ const agentHandlers = {
         if (!roleSelector) return;
 
         try {
-            const response = await fetch('http://localhost:8788/api/agent/role-configs');
+            const response = await fetch(this.resolve('/api/agent/role-configs'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1525,7 +1534,7 @@ if __name__ == "__main__":
      */
     async loadAndApplyModelConfig(configId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/llm-configs/${configId}`);
+            const response = await fetch(this.resolve(`/api/agent/llm-configs/${configId}`));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1546,7 +1555,7 @@ if __name__ == "__main__":
      */
     async loadAndApplyRoleConfig(roleId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/role-configs/${roleId}`);
+            const response = await fetch(this.resolve(`/api/agent/role-configs/${roleId}`));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -1683,7 +1692,7 @@ if __name__ == "__main__":
         }
 
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/llm-configs/${currentConfig.config_id}`, {
+            const response = await fetch(this.resolve(`/api/agent/llm-configs/${currentConfig.config_id}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params)
@@ -1715,7 +1724,7 @@ if __name__ == "__main__":
         }
 
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/role-configs/${currentConfig.role_id}`, {
+            const response = await fetch(this.resolve(`/api/agent/role-configs/${currentConfig.role_id}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ system_prompt: prompt })

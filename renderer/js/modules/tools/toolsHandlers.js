@@ -6,8 +6,8 @@ import ToolsEditDialog from './ToolsEditDialog.js';
 
 const toolsHandlers = {
     currentCategory: 'tools-plugin',
-    apiBaseUrl: 'http://127.0.0.1:8788/api/tools',
-    skillsApiBaseUrl: 'http://127.0.0.1:8788/api/skills',
+    apiBaseUrl: '',
+    skillsApiBaseUrl: '',
     editDialog: null,
 
     // 分页状态
@@ -17,6 +17,22 @@ const toolsHandlers = {
     currentData: [],
 
     init() {
+        const normalizeHttpBaseUrl = (raw) => {
+            const v = String(raw || '').trim();
+            if (!v) return '';
+            const withScheme = /^https?:\/\//i.test(v) ? v : `http://${v}`;
+            return withScheme.endsWith('/') ? withScheme.slice(0, -1) : withScheme;
+        };
+
+        const base = normalizeHttpBaseUrl(
+            (window.appConfig && window.appConfig.agent_server)
+            || (window.api && window.api.baseUrl)
+            || ''
+        );
+
+        this.apiBaseUrl = base ? `${base}/api/tools` : '/api/tools';
+        this.skillsApiBaseUrl = base ? `${base}/api/skills` : '/api/skills';
+
         // 确保全局 toolsEditDialog 实例存在
         if (!window.toolsEditDialog) {
             window.toolsEditDialog = new ToolsEditDialog();
@@ -83,7 +99,8 @@ const toolsHandlers = {
     async loadConfig() {
         try {
             // 从API获取系统配置
-            const response = await fetch(`http://127.0.0.1:8788/api/system/config`);
+            const url = window.resolveAgentServerUrl ? window.resolveAgentServerUrl('/api/system/config') : '/api/system/config';
+            const response = await fetch(url);
             if (response.ok) {
                 const config = await response.json();
                 if (config.tools && config.tools.page_size) {

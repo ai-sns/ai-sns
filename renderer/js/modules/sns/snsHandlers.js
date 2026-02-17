@@ -11,6 +11,64 @@ import { SNSSocialRoleDialog } from './SNSSocialRoleDialog.js';
 import { SNSMapConfigDialog } from './SNSMapConfigDialog.js';
 
 export default {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
+
+    getMapIframeTargetOrigin() {
+        try {
+            const iframe = document.querySelector('#mapContainer iframe');
+            const src = iframe ? iframe.getAttribute('src') : '';
+            if (src) {
+                const u = new URL(src, window.location && window.location.href ? window.location.href : undefined);
+                return u.origin;
+            }
+        } catch (e) {
+        }
+        const agentBase = (window.appConfig && window.appConfig.agent_server) ? String(window.appConfig.agent_server) : '';
+        try {
+            if (agentBase) {
+                return new URL(agentBase).origin;
+            }
+        } catch (e) {
+        }
+        return '*';
+    },
+
+    safePostMessageToMap(iframe, message, preferredOrigin = '*') {
+        if (!iframe || !iframe.contentWindow) return false;
+        let origin = preferredOrigin || '*';
+
+        try {
+            // If the iframe is blocked or has opaque origin, prefer '*' to avoid mismatches.
+            // Accessing contentWindow.location may throw due to cross-origin restrictions.
+            const loc = iframe.contentWindow.location;
+            if (loc && typeof loc.origin === 'string' && loc.origin === 'null') {
+                origin = '*';
+            }
+        } catch (e) {
+            origin = '*';
+        }
+
+        try {
+            iframe.contentWindow.postMessage(message, origin);
+            return true;
+        } catch (e) {
+            try {
+                // Last resort
+                iframe.contentWindow.postMessage(message, '*');
+                return true;
+            } catch (e2) {
+                return false;
+            }
+        }
+    },
     /**
      * 初始化SNS页面
      */
@@ -530,7 +588,7 @@ export default {
                         action: actionToTitleMap[action]  // 转换为对应的 data-title
                     };
                     try {
-                        iframe.contentWindow.postMessage(message, 'http://localhost:8788');
+                        iframe.contentWindow.postMessage(message, this.getMapIframeTargetOrigin());
                         console.log('Sent mapButtonAction to iframe:', message);
                     } catch (error) {
                         console.error('Failed to send message to iframe:', error);
@@ -1168,6 +1226,25 @@ export default {
             return;
         }
 
+        const normalizeHttpBaseUrl = (raw) => {
+            const v = String(raw || '').trim();
+            if (!v) return '';
+            const withScheme = /^https?:\/\//i.test(v) ? v : `http://${v}`;
+            return withScheme.endsWith('/') ? withScheme.slice(0, -1) : withScheme;
+        };
+
+        const getAgentServerBaseUrl = () => {
+            const v = (window.appConfig && window.appConfig.agent_server)
+                || (window.api && window.api.baseUrl)
+                || '';
+            return normalizeHttpBaseUrl(v);
+        };
+
+        const getAiSnsServerBaseUrl = () => {
+            const v = (window.appConfig && window.appConfig.ai_sns_server) || '';
+            return normalizeHttpBaseUrl(v);
+        };
+
         console.log('加载地图');
 
         // 立即显示地图内容，不显示加载动画
@@ -1183,10 +1260,21 @@ export default {
             return;
         }
 
+        const agentBaseUrl = getAgentServerBaseUrl();
+        const aiSnsBaseUrl = getAiSnsServerBaseUrl();
+
+        const qs = new URLSearchParams();
+        if (agentBaseUrl) {
+            qs.set('agent_server', agentBaseUrl);
+        }
+        if (aiSnsBaseUrl) {
+            qs.set('ai_sns_server', aiSnsBaseUrl);
+        }
+
         // 获取地图配置
-        let mapUrl = 'http://localhost:8788/scripts/map.html'; // 默认百度地图
+        let mapUrl = agentBaseUrl ? `${agentBaseUrl}/scripts/map.html?${qs.toString()}` : ''; // 默认百度地图
         try {
-            const response = await fetch('http://localhost:8788/api/sns/map-config');
+            const response = await fetch(agentBaseUrl ? `${agentBaseUrl}/api/sns/map-config` : '/api/sns/map-config');
             const result = await response.json();
 
             console.log('Map config API response:', result);
@@ -1196,7 +1284,7 @@ export default {
                 console.log('Map type:', mapType);
 
                 if (mapType === '0') {
-                    mapUrl = 'http://localhost:8788/scripts/googlemap3d.html';
+                    mapUrl = agentBaseUrl ? `${agentBaseUrl}/scripts/googlemap3d.html?${qs.toString()}` : '';
                     console.log('Loading Google Map');
                 } else {
                     console.log('Loading Baidu Map');
@@ -1227,6 +1315,12 @@ export default {
         iframe.onload = () => {
             console.log('地图页面加载完成');
 
+            let targetOrigin = '*';
+            try {
+                targetOrigin = new URL(mapUrl).origin;
+            } catch (e) {
+            }
+
             // 向 iframe 发送初始数据
             const initialData = {
                 type: 'init',
@@ -1237,7 +1331,7 @@ export default {
             };
 
             try {
-                iframe.contentWindow.postMessage(initialData, 'http://localhost:8788');
+                this.safePostMessageToMap(iframe, initialData, targetOrigin);
                 console.log('已发送初始化消息');
             } catch (error) {
                 console.error('发送消息到地图页面失败:', error);
@@ -1252,7 +1346,21 @@ export default {
 
         // 监听来自 iframe 的消息
         const handleMessage = (event) => {
-            if (event.origin === 'http://localhost:8788') {
+            // If we have a reference to the iframe, ensure message is from it.
+            try {
+                if (iframe && iframe.contentWindow && event.source !== iframe.contentWindow) {
+                    return;
+                }
+            } catch (e) {
+            }
+
+            let expectedOrigin = '';
+            try {
+                expectedOrigin = new URL(mapUrl).origin;
+            } catch (e) {
+            }
+
+            if (!expectedOrigin || event.origin === expectedOrigin) {
                 const data = event.data;
                 console.log('收到地图页面消息:', data);
 
@@ -1301,6 +1409,10 @@ export default {
         const errorDiv = document.createElement('div');
         errorDiv.className = 'map-placeholder';
         errorDiv.style.zIndex = '10';
+
+        const agentServer = (window.appConfig && window.appConfig.agent_server)
+            || (window.api && window.api.baseUrl)
+            || '';
         errorDiv.innerHTML = `
             <div class="map-placeholder-icon">
                 <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
@@ -1308,7 +1420,7 @@ export default {
                 </svg>
             </div>
             <p class="map-placeholder-text">地图加载失败</p>
-            <p class="map-placeholder-desc">请检查地图服务器是否运行在 http://localhost:8788</p>
+            <p class="map-placeholder-desc">请检查地图服务器是否运行${agentServer ? `在 ${agentServer}` : ''}</p>
             <button class="map-retry-btn" id="mapRetryBtn">重试</button>
         `;
         mapContainer.appendChild(errorDiv);
@@ -1407,7 +1519,7 @@ export default {
                 type: type,
                 data: data
             };
-            iframe.contentWindow.postMessage(message, 'http://localhost:8788');
+            iframe.contentWindow.postMessage(message, this.getMapIframeTargetOrigin());
         }
     },
 
@@ -1945,7 +2057,7 @@ export default {
                 console.log('Added https: to protocol-relative URL:', url);
             } else if (url.startsWith('/')) {
                 // 相对路径，使用当前服务器
-                url = 'http://localhost:8788' + url;
+                url = this.resolve(url);
                 console.log('Converted relative path to absolute URL:', url);
             } else {
                 // 默认添加 https://
@@ -2098,7 +2210,7 @@ export default {
                 console.log('Added https: to protocol-relative URL:', url);
             } else if (url.startsWith('/')) {
                 // 相对路径，使用当前服务器
-                url = 'http://localhost:8788' + url;
+                url = this.resolve(url);
                 console.log('Converted relative path to absolute URL:', url);
             } else {
                 // 默认添加 https://

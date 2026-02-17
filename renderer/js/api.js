@@ -5,7 +5,7 @@
 
 class APIClient {
     constructor() {
-        this.baseUrl = 'http://localhost:8788';
+        this.baseUrl = '';
         this.wsConnection = null;
         this.wsCallbacks = new Map();
         this.reconnectAttempts = 0;
@@ -21,7 +21,138 @@ class APIClient {
                 console.log('Using default API URL');
             }
         }
+        this.baseUrl = this.normalizeHttpBaseUrl(this.baseUrl);
+        await this.loadAppConfig();
         console.log('API Client initialized with base URL:', this.baseUrl);
+    }
+
+    normalizeHttpBaseUrl(raw) {
+        const v = String(raw || '').trim();
+        if (!v) {
+            return '';
+        }
+        const withScheme = /^https?:\/\//i.test(v) ? v : `http://${v}`;
+        return withScheme.endsWith('/') ? withScheme.slice(0, -1) : withScheme;
+    }
+
+    toWebSocketUrl(clientId) {
+        const base = this.normalizeHttpBaseUrl(this.baseUrl);
+        if (!base) {
+            return '';
+        }
+        const u = new URL(base);
+        const wsProto = u.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${u.host}/ws/${clientId}`;
+    }
+
+    async loadAppConfig() {
+        const cfg = {};
+        try {
+            if (window.electronAPI && typeof window.electronAPI.readConfigJson === 'function') {
+                const local = await window.electronAPI.readConfigJson();
+                if (local && local.success && local.data && typeof local.data === 'object') {
+                    Object.assign(cfg, local.data);
+                }
+            }
+        } catch (e) {
+        }
+
+        try {
+            if (this.baseUrl) {
+                const remote = await this.get('/api/system/config');
+                if (remote && remote.success && remote.data && typeof remote.data === 'object') {
+                    Object.assign(cfg, remote.data);
+                }
+            }
+        } catch (e) {
+        }
+
+        if (!window.appConfig || typeof window.appConfig !== 'object') {
+            window.appConfig = {};
+        }
+
+        if (this.baseUrl) {
+            window.appConfig.agent_server = this.baseUrl;
+        }
+        if (cfg.ai_sns_server) {
+            window.appConfig.ai_sns_server = cfg.ai_sns_server;
+        }
+        if (cfg.agent_server) {
+            window.appConfig.agent_server = this.normalizeHttpBaseUrl(cfg.agent_server);
+            this.baseUrl = window.appConfig.agent_server;
+        }
+
+        const getAgentServer = () => {
+            const v = window.appConfig && window.appConfig.agent_server;
+            return this.normalizeHttpBaseUrl(v || this.baseUrl);
+        };
+
+        const getAiSnsServer = () => {
+            const v = window.appConfig && window.appConfig.ai_sns_server;
+            return this.normalizeHttpBaseUrl(v || '');
+        };
+
+        if (typeof window.resolveAgentServerUrl !== 'function') {
+            window.resolveAgentServerUrl = (inputUrl) => {
+                const base = getAgentServer();
+                const u = String(inputUrl || '').trim();
+                if (!u) return u;
+                if (!base) return u;
+
+                if (u.startsWith('/')) {
+                    return base + u;
+                }
+
+                try {
+                    const parsed = new URL(u);
+                    if ((parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') && parsed.port === '8788') {
+                        const baseParsed = new URL(base);
+                        parsed.protocol = baseParsed.protocol;
+                        parsed.host = baseParsed.host;
+                        return parsed.toString();
+                    }
+                } catch (e) {
+                }
+                return u;
+            };
+        }
+
+        if (typeof window.resolveAiSnsServerUrl !== 'function') {
+            window.resolveAiSnsServerUrl = (inputUrlOrPath) => {
+                const base = getAiSnsServer();
+                const u = String(inputUrlOrPath || '').trim();
+                if (!u) return u;
+                if (!base) return u;
+                if (/^https?:\/\//i.test(u)) {
+                    return u;
+                }
+                if (u.startsWith('/')) {
+                    return base + u;
+                }
+                return base + '/' + u;
+            };
+        }
+
+        if (!window.__agentServerFetchWrapped && typeof window.fetch === 'function') {
+            window.__agentServerFetchWrapped = true;
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = (input, init) => {
+                try {
+                    if (typeof input === 'string' && typeof window.resolveAgentServerUrl === 'function') {
+                        return originalFetch(window.resolveAgentServerUrl(input), init);
+                    }
+                    if (input && typeof input.url === 'string' && typeof window.resolveAgentServerUrl === 'function') {
+                        const nextUrl = window.resolveAgentServerUrl(input.url);
+                        if (nextUrl !== input.url) {
+                            const nextReq = new Request(nextUrl, input);
+                            return originalFetch(nextReq, init);
+                        }
+                    }
+                } catch (e) {
+                }
+                return originalFetch(input, init);
+            };
+        }
     }
 
     // ==================== HTTP 请求方法 ====================
@@ -88,7 +219,11 @@ class APIClient {
 
     connectWebSocket(clientId) {
         return new Promise((resolve, reject) => {
-            const wsUrl = `ws://localhost:8788/ws/${clientId}`;
+            const wsUrl = this.toWebSocketUrl(clientId);
+            if (!wsUrl) {
+                reject(new Error('WebSocket base URL not configured'));
+                return;
+            }
 
             this.wsConnection = new WebSocket(wsUrl);
 

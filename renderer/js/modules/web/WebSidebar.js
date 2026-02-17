@@ -198,7 +198,10 @@ const WebSidebar = {
     getIcon(filename, name) {
         if (filename && filename !== 'openai.png') {
             // Use backend server URL for images
-            const imageUrl = `http://localhost:8788/resource/images/${filename}`;
+            const path = `/resource/images/${filename}`;
+            const imageUrl = (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function')
+                ? window.resolveAgentServerUrl(path)
+                : path;
             return `<img src="${imageUrl}" alt="${name}" class="web-icon-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                     <div class="web-icon-fallback" style="display:none;">${name.charAt(0).toUpperCase()}</div>`;
         }

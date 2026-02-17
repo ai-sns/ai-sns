@@ -1,4 +1,13 @@
 const AgentKnowledgeBaseDialog = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     currentSelections: new Set(),
 
     async open(agentId) {
@@ -58,8 +67,8 @@ const AgentKnowledgeBaseDialog = {
     async loadData(agentId) {
         try {
             const [agentKbResp, allKbsResp] = await Promise.all([
-                fetch(`http://localhost:8788/api/agent/${agentId}/knowledge-bases`).then(r => r.json()),
-                fetch('http://localhost:8788/api/km').then(r => r.json())
+                fetch(this.resolve(`/api/agent/${agentId}/knowledge-bases`)).then(r => r.json()),
+                fetch(this.resolve('/api/km')).then(r => r.json())
             ]);
 
             const selectedKmIds = (agentKbResp && agentKbResp.success && agentKbResp.data && Array.isArray(agentKbResp.data.km_ids))
@@ -202,7 +211,7 @@ const AgentKnowledgeBaseDialog = {
         try {
             const kmIds = Array.from(this.currentSelections);
 
-            const resp = await fetch(`http://localhost:8788/api/agent/${agentId}/knowledge-bases`, {
+            const resp = await fetch(this.resolve(`/api/agent/${agentId}/knowledge-bases`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ km_ids: kmIds })

@@ -8,6 +8,15 @@ import KMFilePage from './KMFilePage.js';
 import KMKeyValuePage from './KMKeyValuePage.js';
 
 const kmHandlers = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     currentKbId: null,
     currentKmId: null,  // String km_id like "note_store"
     currentKbType: null,
@@ -163,7 +172,7 @@ const kmHandlers = {
             }
 
             const loading = Toast.loading('向量化中...');
-            const response = await fetch(`http://localhost:8788/api/km/notes/${encodeURIComponent(String(noteId))}/vectorize`, {
+            const response = await fetch(this.resolve(`/api/km/notes/${encodeURIComponent(String(noteId))}/vectorize`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ km_id: kmId })
@@ -228,7 +237,7 @@ const kmHandlers = {
                 }
 
                 try {
-                    const response = await fetch('http://localhost:8788/api/km/notes/vector-search', {
+                    const response = await fetch(this.resolve('/api/km/notes/vector-search'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ km_id: kmId, query, top_k: 5 })
@@ -285,11 +294,11 @@ const kmHandlers = {
     async downloadAndOpenKmFile(kbId, fileId, filename) {
         try {
             if (!window.electronAPI || typeof window.electronAPI.downloadAndOpen !== 'function') {
-                Toast.error('打开文件失败：Electron能力未就绪，请重启应用');
                 return;
             }
 
-            const url = `http://127.0.0.1:8788/api/km/${encodeURIComponent(String(kbId))}/files/${encodeURIComponent(String(fileId))}/download`;
+            const path = `/api/km/${encodeURIComponent(String(kbId))}/files/${encodeURIComponent(String(fileId))}/download`;
+            const url = this.resolve(path);
             const result = await window.electronAPI.downloadAndOpen(url, filename || 'file');
             if (result) {
                 Toast.error(`打开文件失败: ${result}`);
@@ -313,7 +322,7 @@ const kmHandlers = {
         // 静默加载，不显示loading提示
         try {
             // Use the search endpoint with kmId parameter (no query means get all notes for this KB)
-            const url = `http://localhost:8788/api/km/notes/search?km_id=${encodeURIComponent(kmId)}`;
+            const url = this.resolve(`/api/km/notes/search?km_id=${encodeURIComponent(kmId)}`);
             console.log('[kmHandlers] Loading notes from:', url);
 
             const response = await fetch(url);
@@ -420,7 +429,7 @@ const kmHandlers = {
         const loading = Toast.loading(query ? 'Searching notes...' : 'Loading all notes...');
 
         try {
-            let url = `http://localhost:8788/api/km/notes/search?km_id=${encodeURIComponent(kmId)}`;
+            let url = this.resolve(`/api/km/notes/search?km_id=${encodeURIComponent(kmId)}`);
             if (query) {
                 url += `&query=${encodeURIComponent(query)}`;
             }
@@ -519,7 +528,7 @@ const kmHandlers = {
             let savedNote;
             if (this.currentNoteId) {
                 // Update existing note
-                const response = await fetch(`http://localhost:8788/api/km/notes/${this.currentNoteId}`, {
+                const response = await fetch(this.resolve(`/api/km/notes/${this.currentNoteId}`), {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title, content })
@@ -528,7 +537,7 @@ const kmHandlers = {
                 savedNote = await response.json();
             } else {
                 // Create new note - use string km_id
-                const response = await fetch('http://localhost:8788/api/km/notes', {
+                const response = await fetch(this.resolve('/api/km/notes'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -593,7 +602,7 @@ const kmHandlers = {
 
                 if (confirmed) {
                     try {
-                        const response = await fetch(`http://localhost:8788/api/km/notes/${noteId}`, {
+                        const response = await fetch(this.resolve(`/api/km/notes/${noteId}`), {
                             method: 'DELETE'
                         });
                         if (!response.ok) throw new Error('Delete failed');
@@ -633,7 +642,7 @@ const kmHandlers = {
 
         // 静默加载，不显示loading提示
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbId}/files`);
+            const response = await fetch(this.resolve(`/api/km/${kbId}/files`));
             if (!response.ok) throw new Error('Failed to load files');
 
             const result = await response.json();
@@ -776,7 +785,7 @@ const kmHandlers = {
 
         if (confirmed) {
             try {
-                const response = await fetch(`http://localhost:8788/api/km/${kbId}/files/${fileId}`, {
+                const response = await fetch(this.resolve(`/api/km/${kbId}/files/${fileId}`), {
                     method: 'DELETE'
                 });
                 if (!response.ok) throw new Error('删除失败');
@@ -831,7 +840,7 @@ const kmHandlers = {
 
                 if (confirmed) {
                     try {
-                        const response = await fetch(`http://localhost:8788/api/km/${kbId}/files/${fileId}`, {
+                        const response = await fetch(this.resolve(`/api/km/${kbId}/files/${fileId}`), {
                             method: 'DELETE'
                         });
                         if (!response.ok) throw new Error('Delete failed');
@@ -884,7 +893,7 @@ const kmHandlers = {
         formData.append('km_id', kbId);
 
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbId}/files`, {
+            const response = await fetch(this.resolve(`/api/km/${kbId}/files`), {
                 method: 'POST',
                 body: formData
             });
@@ -916,7 +925,7 @@ const kmHandlers = {
 
         // 静默加载，不显示loading提示
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues`);
+            const response = await fetch(this.resolve(`/api/km/${kbId}/keyvalues`));
             if (!response.ok) throw new Error('Failed to load key-values');
 
             const result = await response.json();
@@ -1051,7 +1060,7 @@ const kmHandlers = {
         if (!confirmed) return;
 
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues/${kvId}`, {
+            const response = await fetch(this.resolve(`/api/km/${kbId}/keyvalues/${kvId}`), {
                 method: 'DELETE'
             });
             if (!response.ok) throw new Error('Delete failed');
@@ -1075,7 +1084,7 @@ const kmHandlers = {
         try {
             let savedKv;
             if (kvId) {
-                const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues/${kvId}`, {
+                const response = await fetch(this.resolve(`/api/km/${kbId}/keyvalues/${kvId}`), {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key, value })
@@ -1084,7 +1093,7 @@ const kmHandlers = {
                 const result = await response.json();
                 savedKv = result.data;
             } else {
-                const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues`, {
+                const response = await fetch(this.resolve(`/api/km/${kbId}/keyvalues`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key, value, km_id: kbId })
@@ -1143,7 +1152,7 @@ const kmHandlers = {
 
                 if (confirmed) {
                     try {
-                        const response = await fetch(`http://localhost:8788/api/km/${kbId}/keyvalues/${kvId}`, {
+                        const response = await fetch(this.resolve(`/api/km/${kbId}/keyvalues/${kvId}`), {
                             method: 'DELETE'
                         });
                         if (!response.ok) throw new Error('Delete failed');
@@ -1203,7 +1212,7 @@ const kmHandlers = {
         searchResults.innerHTML = '<div class="loading">Searching...</div>';
 
         try {
-            const response = await fetch(`http://localhost:8788/api/km/${kbId}/search`, {
+            const response = await fetch(this.resolve(`/api/km/${kbId}/search`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query, top_k: 5 })

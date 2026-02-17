@@ -5,7 +5,20 @@
 
 class ToolsEditDialog {
     constructor() {
-        this.apiBaseUrl = 'http://127.0.0.1:8788/api/tools';
+        const normalizeHttpBaseUrl = (raw) => {
+            const v = String(raw || '').trim();
+            if (!v) return '';
+            const withScheme = /^https?:\/\//i.test(v) ? v : `http://${v}`;
+            return withScheme.endsWith('/') ? withScheme.slice(0, -1) : withScheme;
+        };
+
+        const base = normalizeHttpBaseUrl(
+            (window.appConfig && window.appConfig.agent_server)
+            || (window.api && window.api.baseUrl)
+            || ''
+        );
+
+        this.apiBaseUrl = base ? `${base}/api/tools` : '/api/tools';
         this.currentTool = null;
         this.currentCategory = null;
         this.onSaveCallback = null;

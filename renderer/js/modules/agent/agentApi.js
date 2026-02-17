@@ -4,12 +4,21 @@
  */
 
 const agentApi = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     /**
      * 获取Agent列表
      */
     async getAgents() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent');
+            const response = await fetch(this.resolve('/api/agent'));
             return await response.json();
         } catch (error) {
             console.error('获取Agent列表失败:', error);
@@ -22,7 +31,7 @@ const agentApi = {
      */
     async getAgent(agentId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`);
+            const response = await fetch(this.resolve(`/api/agent/${agentId}`));
             return await response.json();
         } catch (error) {
             console.error('获取 Agent 详情失败:', error);
@@ -44,7 +53,7 @@ const agentApi = {
                 formData.append('files', f);
             });
 
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/chat/stream-with-files`, {
+            const response = await fetch(this.resolve(`/api/agent/${agentId}/chat/stream-with-files`), {
                 method: 'POST',
                 headers: {
                     'Accept': 'text/event-stream'
@@ -123,7 +132,7 @@ const agentApi = {
      */
     async getAgentInfo(agentId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/info`);
+            const response = await fetch(this.resolve(`/api/agent/${agentId}/info`));
             return await response.json();
         } catch (error) {
             console.error('获取Agent实例信息失败:', error);
@@ -136,7 +145,7 @@ const agentApi = {
      */
     async agentChat(agentId, message, conversationId = null, options = {}) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/chat`, {
+            const response = await fetch(this.resolve(`/api/agent/${agentId}/chat`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -158,7 +167,7 @@ const agentApi = {
      */
     async agentChatStream(agentId, message, conversationId = null, callbacks = {}, options = {}) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/chat/stream`, {
+            const response = await fetch(this.resolve(`/api/agent/${agentId}/chat/stream`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -243,7 +252,7 @@ const agentApi = {
      */
     async agentChatByName(agentName, message, conversationId = null, options = {}) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/name/${encodeURIComponent(agentName)}/chat`, {
+            const response = await fetch(this.resolve(`/api/agent/name/${encodeURIComponent(agentName)}/chat`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -265,11 +274,11 @@ const agentApi = {
      */
     async clearAgentMemory(agentId, conversationId = null) {
         try {
-            const url = conversationId
-                ? `http://localhost:8788/api/agent/${agentId}/memory?conversation_id=${conversationId}`
-                : `http://localhost:8788/api/agent/${agentId}/memory`;
+            const path = conversationId
+                ? `/api/agent/${encodeURIComponent(agentId)}/memory?conversation_id=${encodeURIComponent(conversationId)}`
+                : `/api/agent/${encodeURIComponent(agentId)}/memory`;
 
-            const response = await fetch(url, {
+            const response = await fetch(this.resolve(path), {
                 method: 'DELETE'
             });
             return await response.json();
@@ -284,11 +293,11 @@ const agentApi = {
      */
     async getAgentMemory(agentId, conversationId = null) {
         try {
-            const url = conversationId
-                ? `http://localhost:8788/api/agent/${agentId}/memory?conversation_id=${conversationId}`
-                : `http://localhost:8788/api/agent/${agentId}/memory`;
+            const path = conversationId
+                ? `/api/agent/${encodeURIComponent(agentId)}/memory?conversation_id=${encodeURIComponent(conversationId)}`
+                : `/api/agent/${encodeURIComponent(agentId)}/memory`;
 
-            const response = await fetch(url);
+            const response = await fetch(this.resolve(path));
             return await response.json();
         } catch (error) {
             console.error('获取记忆失败:', error);
@@ -301,7 +310,7 @@ const agentApi = {
      */
     async reloadAgent(agentId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/reload`, {
+            const response = await fetch(this.resolve(`/api/agent/${encodeURIComponent(agentId)}/reload`), {
                 method: 'POST'
             });
             return await response.json();
@@ -348,11 +357,11 @@ const agentApi = {
      */
     async getConversations(limit = 50, agentId = null) {
         try {
-            let url = `http://localhost:8788/api/chat/conversations?limit=${limit}`;
+            let path = `/api/chat/conversations?limit=${encodeURIComponent(limit)}`;
             if (agentId !== null) {
-                url += `&agent_id=${agentId}`;
+                path += `&agent_id=${encodeURIComponent(agentId)}`;
             }
-            const response = await fetch(url);
+            const response = await fetch(this.resolve(path));
             const result = await response.json();
             return result;
         } catch (error) {
@@ -366,7 +375,7 @@ const agentApi = {
      */
     async getConversationMessages(conversationId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/chat/conversations/${conversationId}`);
+            const response = await fetch(this.resolve(`/api/chat/conversations/${encodeURIComponent(conversationId)}`));
             const result = await response.json();
             return result;
         } catch (error) {
@@ -398,7 +407,7 @@ const agentApi = {
             }
 
             // 使用 fetch 进行 SSE 请求
-            const response = await fetch('http://localhost:8788/api/chat/stream', {
+            const response = await fetch(this.resolve('/api/chat/stream'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -587,7 +596,7 @@ const agentApi = {
      */
     async createWallet(label = '') {
         try {
-            const response = await fetch('http://localhost:8788/api/wallet/create', {
+            const response = await fetch(this.resolve('/api/wallet/create'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ label })
@@ -604,7 +613,7 @@ const agentApi = {
      */
     async importWallet(privateKey, label = '') {
         try {
-            const response = await fetch('http://localhost:8788/api/wallet/import', {
+            const response = await fetch(this.resolve('/api/wallet/import'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ private_key: privateKey, label })
@@ -621,7 +630,7 @@ const agentApi = {
      */
     async listWallets() {
         try {
-            const response = await fetch('http://localhost:8788/api/wallet/list');
+            const response = await fetch(this.resolve('/api/wallet/list'));
             return await response.json();
         } catch (error) {
             console.error('获取钱包列表失败:', error);
@@ -634,7 +643,7 @@ const agentApi = {
      */
     async getWallet(address) {
         try {
-            const response = await fetch(`http://localhost:8788/api/wallet/${address}`);
+            const response = await fetch(this.resolve(`/api/wallet/${encodeURIComponent(address)}`));
             return await response.json();
         } catch (error) {
             console.error('获取钱包信息失败:', error);
@@ -647,7 +656,7 @@ const agentApi = {
      */
     async updateAgent(agentId, agentData) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`, {
+            const response = await fetch(this.resolve(`/api/agent/${encodeURIComponent(agentId)}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(agentData)
@@ -666,7 +675,7 @@ const agentApi = {
      */
     async getAgentTools(agentId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/tools`);
+            const response = await fetch(this.resolve(`/api/agent/${encodeURIComponent(agentId)}/tools`));
             return await response.json();
         } catch (error) {
             console.error('获取Agent工具失败:', error);
@@ -679,7 +688,7 @@ const agentApi = {
      */
     async updateAgentTools(agentId, tools) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/tools`, {
+            const response = await fetch(this.resolve(`/api/agent/${encodeURIComponent(agentId)}/tools`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tools })
@@ -696,7 +705,7 @@ const agentApi = {
      */
     async getAvailableTools(agentId) {
         try {
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}/available-tools`);
+            const response = await fetch(this.resolve(`/api/agent/${encodeURIComponent(agentId)}/available-tools`));
             return await response.json();
         } catch (error) {
             console.error('获取可用工具失败:', error);

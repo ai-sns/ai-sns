@@ -26,7 +26,8 @@ function truncateText(text, maxLength) {
 // 从网络获取数据
 async function fetchMessageData() {
     try {
-        const response = await fetch('http://www.ai-sns.org/news.json');
+        const host = (typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '');
+        const response = await fetch(`${host}/news.json`);
         const data = await response.json();
 
         // 使用 recommended 分类的内容，并添加 emoji

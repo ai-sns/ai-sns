@@ -4,6 +4,15 @@
  */
 
 const AgentSidebar = {
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    },
     /**
      * 渲染侧边栏 - 返回基础结构，由init()动态填充
      */
@@ -63,7 +72,7 @@ const AgentSidebar = {
      */
     async loadAgentsFromAPI() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent');
+            const response = await fetch(this.resolve('/api/agent'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -78,7 +87,7 @@ const AgentSidebar = {
 
     async fetchAllAgentsForManage() {
         try {
-            const response = await fetch('http://localhost:8788/api/agent');
+            const response = await fetch(this.resolve('/api/agent'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -418,7 +427,7 @@ const AgentSidebar = {
 
         try {
             // 加载agent详情
-            const response = await fetch(`http://localhost:8788/api/agent/${agentId}`);
+            const response = await fetch(this.resolve(`/api/agent/${agentId}`));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -642,7 +651,7 @@ const AgentSidebar = {
         }));
 
         try {
-            const response = await fetch('http://localhost:8788/api/agent/reorder', {
+            const response = await fetch(this.resolve('/api/agent/reorder'), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
@@ -750,7 +759,7 @@ const AgentSidebar = {
         }
 
         try {
-            const response = await fetch('http://localhost:8788/api/agent', {
+            const response = await fetch(this.resolve('/api/agent'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, description, is_active })

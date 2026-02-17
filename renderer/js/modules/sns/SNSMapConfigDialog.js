@@ -8,6 +8,16 @@ export class SNSMapConfigDialog {
         this.originalMapType = null; // Store original map type
     }
 
+    resolve(urlOrPath) {
+        try {
+            if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
+                return window.resolveAgentServerUrl(urlOrPath);
+            }
+        } catch (e) {
+        }
+        return urlOrPath;
+    }
+
     async show() {
         // Create dialog HTML
         const dialogHTML = `
@@ -82,7 +92,7 @@ export class SNSMapConfigDialog {
 
     async loadMapConfig() {
         try {
-            const response = await fetch('http://localhost:8788/api/sns/map-config');
+            const response = await fetch(this.resolve('/api/sns/map-config'));
             const result = await response.json();
 
             if (result.success && result.data) {
@@ -160,7 +170,7 @@ export class SNSMapConfigDialog {
             };
 
             // Send to backend
-            const response = await fetch('http://localhost:8788/api/sns/map-config', {
+            const response = await fetch(this.resolve('/api/sns/map-config'), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'

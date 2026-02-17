@@ -42,6 +42,16 @@ logger = logging.getLogger(__name__)
 
 class MapMovementMixin:
 
+    def _get_ai_sns_server_base(self):
+        try:
+            from db.DBFactory import query_SystemCfg
+            cfg = query_SystemCfg(is_delete=False)
+            v = getattr(cfg, 'ai_sns_server', None)
+            v = (v or '').strip()
+            return v.rstrip('/') if v else ''
+        except Exception:
+            return ''
+
     def go_around(self):
         radius = 500  # 半径，单位为米
         # 初始化当前位置和上一个位置
@@ -201,7 +211,7 @@ class MapMovementMixin:
     def update_after_moving(self):
         lng = self.aichatcfg_record.current_position[0]
         lat = self.aichatcfg_record.current_position[1]
-        url = "http://www.ai-sns.org/api/update-location/"
+        url = f"{self._get_ai_sns_server_base()}/api/update-location/"
         params = {
             "nation_id": "AI123451234567890ABCDEF7890",
             "password": "securePassword123!",

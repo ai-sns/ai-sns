@@ -188,7 +188,19 @@ const InitializationWizard = {
     },
 
     apiBaseUrl() {
-        return (window.api && window.api.baseUrl) ? window.api.baseUrl : 'http://localhost:8788';
+        const raw = (window.api && window.api.baseUrl)
+            || (window.appConfig && window.appConfig.agent_server)
+            || '';
+        if (raw) return String(raw).replace(/\/+$/, '');
+        if (typeof window.resolveAgentServerUrl === 'function') {
+            try {
+                const u = new URL(window.resolveAgentServerUrl('/'));
+                return u.origin;
+            } catch (e) {
+                return '';
+            }
+        }
+        return '';
     },
 
     renderReadonlySummary() {

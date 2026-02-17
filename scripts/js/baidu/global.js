@@ -28,7 +28,7 @@ var init_route_current_position=null;
 var plaza_position = null;
 var person_data_me;
 var nation_id_me = "";
-var base_url = "http://www.ai-sns.org";
+var base_url = (typeof window !== 'undefined' && window.__AI_SNS_SERVER__) ? window.__AI_SNS_SERVER__ : "";
 var persons_loaded_flag =false;
 var personsdata = [];
 var model_loaded_list = {};

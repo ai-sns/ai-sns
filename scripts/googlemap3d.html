@@ -10,6 +10,22 @@
     <link rel="stylesheet" href="css/function_component.css?002">
     <link rel="stylesheet" href="css/indicator.css?001">
     <link rel="stylesheet" href="css/plaza_message.css?001">
+    <script>
+        (function () {
+            try {
+                const p = new URLSearchParams(window.location.search || '');
+                const agentServer = p.get('agent_server');
+                const aiSnsServer = p.get('ai_sns_server');
+                if (agentServer) {
+                    window.__AGENT_SERVER__ = agentServer;
+                }
+                if (aiSnsServer) {
+                    window.__AI_SNS_SERVER__ = aiSnsServer;
+                }
+            } catch (e) {
+            }
+        })();
+    </script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDPXsp-NFBn5AvyaYn71u4m3fgblsUjR8Y&callback=initMap&v=weekly&libraries=geometry" defer></script>
     <script src="js/google/three.min.js"></script>
     <script src="js/google/GLTFLoader.js"></script>
@@ -202,7 +218,7 @@
         </div>
 
         <div class="top-btn" title="help">
-            <i class="fas fa-question-circle" onclick="open_url('http://www.ai-sns.org')"></i>
+            <i class="fas fa-question-circle" onclick="open_url((window.__AI_SNS_SERVER__ || ''))"></i>
         </div>
     </div>
     <div class="top-bar-toggle">
@@ -426,8 +442,8 @@
 <script src="js/status_indicator.js?002"></script>
 <script src="js/page_ui_menu.js?005"></script>
 <script src="js/interact_python.js?001"></script>
-<script src="js/google/map_common.js?002"></script>
-<script src="js/google/aisns_buidingvideookv2.js?013"></script>
+<script src="js/google/map_common.js?003"></script>
+<script src="js/google/aisns_buidingvideookv2.js?001"></script>
 <script src="js/google/person_data.js?002"></script>
 <script src="js/google/cluster_marker.js?003"></script>
 <script src="js/google/route_planner.js?004"></script>

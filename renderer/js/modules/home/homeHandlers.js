@@ -116,7 +116,8 @@ const homeHandlers = {
                     agentHelp.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        openUrlInDefaultBrowser('https://www.ai-sns.org');
+                        const url = (window.appConfig && window.appConfig.ai_sns_server) ? window.appConfig.ai_sns_server : '';
+                        openUrlInDefaultBrowser(url);
                     });
                 }
                 const snsHelp = modal.element?.querySelector('#homeCfgAiSnsHelp');
@@ -124,7 +125,8 @@ const homeHandlers = {
                     snsHelp.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        openUrlInDefaultBrowser('https://www.ai-sns.org');
+                        const url = (window.appConfig && window.appConfig.ai_sns_server) ? window.appConfig.ai_sns_server : '';
+                        openUrlInDefaultBrowser(url);
                     });
                 }
 
