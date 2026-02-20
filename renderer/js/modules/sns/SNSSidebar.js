@@ -1,6 +1,6 @@
 /**
  * SNS Module - Sidebar
- * SNS侧边栏渲染
+ * SNS sidebar rendering
  */
 
 // Get global API client
@@ -154,7 +154,7 @@ export default {
     },
 
     /**
-     * 渲染SNS页面侧边栏
+     * Render SNS page sidebar
      */
     render() {
         return `
@@ -277,7 +277,7 @@ export default {
     },
 
     /**
-     * 初始化图表和事件监听
+     * Initialize charts and event listeners
      */
     async init() {
         await this.loadUserStats();
@@ -291,7 +291,7 @@ export default {
     },
 
     /**
-     * 设置WebSocket消息监听
+     * Set up WebSocket message listener
      */
     setupWebSocketListener() {
         // Listen for WebSocket messages via window event
@@ -300,19 +300,19 @@ export default {
             if (message.type === 'new_message') {
                 this.handleNewMessage(message.data);
             } else if (message.type === 'user_stats_update') {
-                // 处理用户统计数据更新
+                // Handle user stats updates
                 this.handleUserStatsUpdate(message.data);
             }
         });
     },
 
     /**
-     * 处理用户统计数据更新
+     * Handle user stats updates
      */
     handleUserStatsUpdate(data) {
         console.log('Received user stats update:', data);
 
-        // 更新本地userStats对象
+        // Update local userStats
         if (data) {
             this.userStats = {
                 level: data.level || this.userStats.level,
@@ -325,7 +325,7 @@ export default {
                 exp: data.exp || this.userStats.exp
             };
 
-            // 重新渲染图表和统计数据
+            // Re-render charts and stats
             this.renderStats();
 
             console.log('User stats updated successfully:', this.userStats);
@@ -333,7 +333,7 @@ export default {
     },
 
     /**
-     * 处理新收到的消息
+     * Handle newly received message
      */
     handleNewMessage(messageData) {
         const { from_account, content, flag, create_time } = messageData;
@@ -359,7 +359,7 @@ export default {
     },
 
     /**
-     * 标记联系人有未读消息
+     * Mark a contact as unread
      */
     markContactUnread(account) {
         const contactItem = document.querySelector(`.contact-item[data-account="${account}"]`);
@@ -382,7 +382,7 @@ export default {
     },
 
     /**
-     * 加载用户统计数据
+     * Load user stats
      */
     async loadUserStats() {
         try {
@@ -404,7 +404,7 @@ export default {
     },
 
     /**
-     * 加载联系人列表
+     * Load contacts
      */
     async loadContacts() {
         try {
@@ -422,7 +422,7 @@ export default {
     },
 
     /**
-     * 渲染联系人列表
+     * Render contacts
      */
     renderContacts() {
         const contactList = document.getElementById('contactList');
@@ -454,7 +454,7 @@ export default {
     },
 
     /**
-     * 加载交易列表
+     * Load trades
      */
     async loadTrades() {
         try {
@@ -472,7 +472,7 @@ export default {
     },
 
     /**
-     * 渲染交易列表
+     * Render trades
      */
     renderTrades() {
         const tradeList = document.getElementById('tradeList');
@@ -513,7 +513,7 @@ export default {
     },
 
     /**
-     * 设置标签切换
+     * Set up tab switching
      */
     setupTabSwitching() {
         const tabs = document.querySelectorAll('.sidebar-tab');
@@ -540,7 +540,7 @@ export default {
     },
 
     /**
-     * 渲染雷达图
+     * Render radar chart
      */
     renderRadarChart() {
         const canvas = document.getElementById('statsRadarChart');
@@ -581,7 +581,7 @@ export default {
     },
 
     /**
-     * 绘制雷达图
+     * Draw radar chart
      */
     drawRadarChart(ctx, data, width, height) {
         const centerX = width / 2;
@@ -617,7 +617,7 @@ export default {
             ctx.fill();
         }
 
-        // Draw grid - 使用柱状图的配色
+        // Draw grid - use bar-chart palette
         ctx.strokeStyle = gridStroke;
         ctx.lineWidth = 1;
         for (let i = 1; i <= 5; i++) {
@@ -634,7 +634,7 @@ export default {
             ctx.stroke();
         }
 
-        // Draw axes - 使用柱状图的配色
+        // Draw axes - use bar-chart palette
         ctx.strokeStyle = axisStroke;
         ctx.lineWidth = 1;
         for (let i = 0; i < labels.length; i++) {
@@ -646,7 +646,7 @@ export default {
             ctx.lineTo(x, y);
             ctx.stroke();
 
-            // Draw labels with values - 文字后面跟数字，使用柱状图的配色
+            // Draw labels with values - append numbers, use bar-chart palette
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const labelOffset = 16;
@@ -659,7 +659,7 @@ export default {
             this.drawOutlinedText(ctx, `${values[i]}`, labelX, labelY + 6, theme.textPrimary, theme.labelStroke);
         }
 
-        // Draw data - 使用柱状图的配色
+        // Draw data - use bar-chart palette
         ctx.fillStyle = dataFill;
         ctx.strokeStyle = dataStroke;
         ctx.lineWidth = 2;
@@ -676,7 +676,7 @@ export default {
         ctx.fill();
         ctx.stroke();
 
-        // Draw data points - 使用柱状图的配色
+        // Draw data points - use bar-chart palette
         for (let i = 0; i < values.length; i++) {
             const angle = (Math.PI * 2 / values.length) * i - Math.PI / 2;
             const value = Math.min(values[i] / maxValue, 1);
@@ -692,7 +692,7 @@ export default {
     },
 
     /**
-     * 附加事件监听器
+     * Attach event listeners
      */
     attachEventListeners() {
         this.bindChatLinkOpenHandler();
@@ -776,7 +776,7 @@ export default {
     },
 
     /**
-     * 附加联系人点击事件监听器
+     * Attach contact click event listeners
      */
     attachContactListeners() {
         document.querySelectorAll('.contact-item').forEach(item => {
@@ -788,7 +788,7 @@ export default {
     },
 
     /**
-     * 打开聊天窗口
+     * Open chat window
      */
     async openChat(account) {
         const contact = this.contacts.find(c => c.account === account);
@@ -812,7 +812,7 @@ export default {
     },
 
     /**
-     * 清除联系人未读标记
+     * Clear contact unread indicator
      */
     clearContactUnread(account) {
         const contactItem = document.querySelector(`.contact-item[data-account="${account}"]`);
@@ -831,7 +831,7 @@ export default {
     },
 
     /**
-     * 关闭聊天窗口
+     * Close chat window
      */
     closeChat() {
         const chatWindow = document.getElementById('chatWindow');
@@ -842,7 +842,7 @@ export default {
     },
 
     /**
-     * 渲染用户统计数据
+     * Render user stats
      */
     renderStats() {
         const statBars = document.querySelectorAll('.stat-bar-item');
@@ -860,7 +860,7 @@ export default {
     },
 
     /**
-     * 加载聊天历史
+     * Load chat history
      */
     async loadChatHistory(account) {
         try {
@@ -877,7 +877,7 @@ export default {
     },
 
     /**
-     * 渲染聊天消息
+     * Render chat messages
      */
     renderChatMessages(messages) {
         const chatMessages = document.getElementById('chatMessages');
@@ -889,7 +889,7 @@ export default {
     },
 
     /**
-     * 发送消息
+     * Send message
      */
     async sendMessage() {
         const chatInput = document.getElementById('chatInput');
@@ -915,7 +915,7 @@ export default {
     },
 
     /**
-     * 发送文件
+     * Send file
      */
     async sendFile() {
         if (!this.selectedContact) return;

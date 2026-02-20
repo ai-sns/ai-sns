@@ -1,6 +1,6 @@
 /**
  * SNS Module - Event Handlers
- * SNS事件处理和初始化
+ * SNS event handling and initialization
  */
 
 import snsState from './snsState.js';
@@ -19,6 +19,13 @@ export default {
         } catch (e) {
         }
         return urlOrPath;
+    },
+
+    _bindClickOnce(el, handler) {
+        if (!el) return;
+        if (el.dataset && el.dataset.snsClickBound === '1') return;
+        if (el.dataset) el.dataset.snsClickBound = '1';
+        el.addEventListener('click', handler);
     },
 
     getMapIframeTargetOrigin() {
@@ -70,10 +77,10 @@ export default {
         }
     },
     /**
-     * 初始化SNS页面
+     * Initialize SNS page
      */
     init() {
-        console.log('SNS 页面控制器初始化');
+        console.log('Initializing SNS controller');
         this.loadBaiduMap();
         this.loadSNSData();
         this.initSNSPanelResizer();
@@ -319,20 +326,20 @@ export default {
     },
 
     /**
-     * 销毁SNS页面
+     * Destroy SNS page
      */
     destroy() {
-        // 清理事件监听器
+        // Clean up event listeners
         this.cleanupMapListeners();
 
-        // 移除 SNS 更新监听器
+        // Remove SNS update listener
         if (this.snsUpdateListener) {
             window.removeEventListener('websocket-message', this.snsUpdateListener);
         }
     },
 
     /**
-     * 初始化顶部工具栏收缩功能
+     * Initialize top toolbar collapse/expand
      */
     initSNSToolbar() {
         const toolbar = document.getElementById('snsToolbar');
@@ -342,21 +349,21 @@ export default {
 
         if (!toolbar || !collapseBtn || !expandBtn || !mapArea) return;
 
-        // 从 localStorage 恢复状态
+        // Restore state from localStorage
         const savedCollapsed = localStorage.getItem('snsToolbarCollapsed') === 'true';
         if (savedCollapsed) {
             toolbar.classList.add('collapsed');
             mapArea.classList.add('toolbar-hidden');
         }
 
-        // 收起工具栏
+        // Collapse toolbar
         collapseBtn.addEventListener('click', () => {
             toolbar.classList.add('collapsed');
             mapArea.classList.add('toolbar-hidden');
             localStorage.setItem('snsToolbarCollapsed', 'true');
         });
 
-        // 展开工具栏
+        // Expand toolbar
         expandBtn.addEventListener('click', () => {
             toolbar.classList.remove('collapsed');
             mapArea.classList.remove('toolbar-hidden');
@@ -365,7 +372,7 @@ export default {
     },
 
     /**
-     * 初始化右侧设置面板收缩功能
+     * Initialize right-side settings panel collapse/expand
      */
     initSNSSettingsPanel() {
         const panel = document.getElementById('mapSettingsPanel');
@@ -375,21 +382,21 @@ export default {
 
         if (!panel || !collapseBtn || !expandBtn || !mapArea) return;
 
-        // 从 localStorage 恢复状态
+        // Restore state from localStorage
         const savedCollapsed = localStorage.getItem('snsSettingsPanelCollapsed') === 'true';
         if (savedCollapsed) {
             panel.classList.add('collapsed');
             mapArea.classList.add('settings-hidden');
         }
 
-        // 收起设置面板
+        // Collapse settings panel
         collapseBtn.addEventListener('click', () => {
             panel.classList.add('collapsed');
             mapArea.classList.add('settings-hidden');
             localStorage.setItem('snsSettingsPanelCollapsed', 'true');
         });
 
-        // 展开设置面板
+        // Expand settings panel
         expandBtn.addEventListener('click', () => {
             panel.classList.remove('collapsed');
             mapArea.classList.remove('settings-hidden');
@@ -407,7 +414,7 @@ export default {
         // Avatar configuration button
         const avatarBtn = document.getElementById('snsAvatarConfigBtn');
         if (avatarBtn) {
-            avatarBtn.addEventListener('click', async () => {
+            this._bindClickOnce(avatarBtn, async () => {
                 const dialog = new SNSAvatarDialog();
                 await dialog.show();
             });
@@ -416,7 +423,7 @@ export default {
         // Profession configuration button
         const professionBtn = document.getElementById('snsProfessionConfigBtn');
         if (professionBtn) {
-            professionBtn.addEventListener('click', async () => {
+            this._bindClickOnce(professionBtn, async () => {
                 const dialog = new SNSProfessionDialog();
                 await dialog.show();
             });
@@ -425,7 +432,7 @@ export default {
         // Social role configuration button
         const socialRoleBtn = document.getElementById('snsSocialRoleConfigBtn');
         if (socialRoleBtn) {
-            socialRoleBtn.addEventListener('click', async () => {
+            this._bindClickOnce(socialRoleBtn, async () => {
                 const dialog = new SNSSocialRoleDialog();
                 await dialog.show();
             });
@@ -434,7 +441,7 @@ export default {
         // Map configuration button
         const mapConfigBtn = document.getElementById('snsMapConfigBtn');
         if (mapConfigBtn) {
-            mapConfigBtn.addEventListener('click', async () => {
+            this._bindClickOnce(mapConfigBtn, async () => {
                 const dialog = new SNSMapConfigDialog();
                 await dialog.show();
             });
@@ -442,17 +449,20 @@ export default {
     },
 
     /**
-     * 初始化地图重新加载监听器
+     * Initialize map reload listener
      */
     initMapReloadListener() {
+        if (this._snsMapReloadListenerInitialized) return;
+        this._snsMapReloadListenerInitialized = true;
+
         window.addEventListener('reloadMap', () => {
-            console.log('Received reloadMap event - reloading map');
+            console.log('Received reloadMap event - reloading map iframe');
             this.loadBaiduMap();
         });
     },
 
     /**
-     * 初始化底部动作栏
+     * Initialize bottom action bar
      */
     initSNSActionBar() {
         const actionBar = document.querySelector('.map-action-bar');
@@ -549,7 +559,7 @@ export default {
             });
         });
 
-        // 动作按钮点击事件
+        // Action button click events
         actionBar.addEventListener('click', (e) => {
             const btn = e.target.closest('.action-btn, .dropdown-item');
             if (!btn) return;
@@ -557,7 +567,15 @@ export default {
             const action = btn.dataset.action;
             if (!action) return;
 
-            // 更新激活状态
+            if (action === 'help') {
+                // Close dropdowns after selection
+                if (appsDropdown) appsDropdown.style.display = 'none';
+                if (mapDropdown) mapDropdown.style.display = 'none';
+                this.showHelpModal();
+                return;
+            }
+
+            // Update active state
             const allBtns = actionBar.querySelectorAll('.action-btn');
             allBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -566,10 +584,10 @@ export default {
             if (appsDropdown) appsDropdown.style.display = 'none';
             if (mapDropdown) mapDropdown.style.display = 'none';
 
-            // 处理不同的动作
+            // Handle different actions
             console.log('SNS Action:', action);
 
-            // 建立 action 到 map.html 按钮 data-title 的映射
+            // Map actions to map.html button data-title
             const actionToTitleMap = {
                 'home': 'home',
                 'square': 'plaza',
@@ -578,14 +596,14 @@ export default {
                 'board': 'activity'
             };
 
-            // 如果是 home, square, ai, move, board 这些动作，向 map iframe 发送消息
+            // For actions like home/square/ai/move/board, post a message to the map iframe
             const mapActions = ['home', 'square', 'ai', 'move', 'board'];
             if (mapActions.includes(action)) {
                 const iframe = document.querySelector('#mapContainer iframe');
                 if (iframe && iframe.contentWindow) {
                     const message = {
                         type: 'mapButtonAction',
-                        action: actionToTitleMap[action]  // 转换为对应的 data-title
+                        action: actionToTitleMap[action]  // Convert to the corresponding data-title
                     };
                     try {
                         iframe.contentWindow.postMessage(message, this.getMapIframeTargetOrigin());
@@ -599,7 +617,7 @@ export default {
             }
         });
 
-        // Start 按钮
+        // Start button
         const startBtn = document.getElementById('snsStartBtn');
         if (startBtn) {
             startBtn.addEventListener('click', async () => {
@@ -607,7 +625,7 @@ export default {
                 const buttonText = startBtn.textContent.trim();
 
                 if (!isRunning && buttonText === 'Start') {
-                    // 启动引擎
+                    // Start engine
                     startBtn.disabled = true;
                     startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Starting...</span>`;
 
@@ -630,7 +648,7 @@ export default {
                         startBtn.disabled = false;
                     }
                 } else if (isRunning && buttonText === 'Pause') {
-                    // 暂停引擎
+                    // Pause engine
                     startBtn.disabled = true;
                     startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Pausing...</span>`;
 
@@ -653,7 +671,7 @@ export default {
                         startBtn.disabled = false;
                     }
                 } else if (!isRunning && buttonText === 'Resume') {
-                    // 恢复引擎
+                    // Resume engine
                     startBtn.disabled = true;
                     startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="12" r="10" opacity="0.3"/></svg><span>Resuming...</span>`;
 
@@ -679,7 +697,7 @@ export default {
             });
         }
 
-        // Control Send 按钮
+        // Control Send button
         const sendBtn = actionBar.querySelector('.control-send-btn');
         const inputField = actionBar.querySelector('.control-input');
         if (sendBtn && inputField) {
@@ -687,26 +705,27 @@ export default {
                 const message = inputField.value.trim();
                 if (!message) return;
 
-                // 获取当前模式
+                // Get current mode
                 const activeToggle = actionBar.querySelector('.toggle-btn.active');
                 const mode = activeToggle ? activeToggle.dataset.mode : 'ai';
 
-                // 清空输入框
+                // Clear input field
                 inputField.value = '';
 
                 try {
-                    // Forward to backend AISocialEngine.human_message_received
-                    // Ensure backend state matches UI at send time
+                    // Ensure backend state matches UI at send time.
+                    // When mode is "friends", backend will route to XmppMixin.sendMessage(content, by_click=True).
                     const humanTalkType = mode === 'ai' ? 0 : 1;
                     await snsApi.setHumanControlState(true, humanTalkType);
+
                     const result = await snsApi.sendHumanMessage(message);
 
                     if (!result.success) {
-                        this.showToast(`错误: ${result.message || '未知错误'}`, 'error');
+                        this.showToast(`Error: ${result.message || 'Unknown error'}`, 'error');
                     }
                 } catch (error) {
-                    console.error('发送消息失败:', error);
-                    this.showToast(`发送失败: ${error.message}`, 'error');
+                    console.error('Failed to send control message:', error);
+                    this.showToast(`Send failed: ${error.message}`, 'error');
                 }
             };
 
@@ -719,8 +738,41 @@ export default {
         }
     },
 
+    showHelpModal() {
+        if (typeof Modal === 'undefined') {
+            console.error('Modal component not loaded');
+            return;
+        }
+
+        Modal.show({
+            title: 'Help',
+            content: `
+                <div class="help-modal">
+                    <h4>Shortcuts</h4>
+                    <ul class="help-list">
+                        <li><kbd>Ctrl/Cmd + B</kbd> Toggle sidebar</li>
+                        <li><kbd>Ctrl/Cmd + K</kbd> Search</li>
+                        <li><kbd>Ctrl/Cmd + ,</kbd> Settings</li>
+                        <li><kbd>Ctrl/Cmd + 1-6</kbd> Quick navigation</li>
+                    </ul>
+                    <h4>Modules</h4>
+                    <ul class="help-list">
+                        <li><strong>SNS</strong> - Map social exploration</li>
+                        <li><strong>Agent</strong> - AI agent chat</li>
+                        <li><strong>KM</strong> - Knowledge base management</li>
+                        <li><strong>Tools</strong> - Plugin tools</li>
+                        <li><strong>Web</strong> - LLM online services</li>
+                        <li><strong>Home</strong> - Home page settings</li>
+                    </ul>
+                </div>
+            `,
+            showCancel: false,
+            confirmText: 'Close'
+        });
+    },
+
     /**
-     * 初始化右侧面板收缩功能
+     * Initialize right-side panel collapse/expand
      */
     initSNSPanelResizer() {
         const resizer = document.getElementById('snsPanelResizer');
@@ -729,14 +781,14 @@ export default {
 
         if (!resizer || !collapseBtn || !statusPanel) return;
 
-        // 从 localStorage 恢复面板状态
+        // Restore panel state from localStorage
         const savedCollapsed = localStorage.getItem('snsPanelCollapsed') === 'true';
         if (savedCollapsed) {
             resizer.classList.add('collapsed');
             statusPanel.classList.add('collapsed');
         }
 
-        // 折叠/展开按钮点击事件
+        // Collapse/expand button click event
         collapseBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isCollapsed = statusPanel.classList.toggle('collapsed');
@@ -744,7 +796,7 @@ export default {
             localStorage.setItem('snsPanelCollapsed', isCollapsed);
         });
 
-        // 拖拽调整面板宽度
+        // Drag to resize panel width
         let isResizing = false;
         let startX = 0;
         let startWidth = 0;
@@ -760,7 +812,7 @@ export default {
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
 
-            // 禁用 iframe 的鼠标事件，防止拖动时卡顿
+            // Disable iframe pointer events to avoid lag while dragging
             const iframes = document.querySelectorAll('iframe');
             iframes.forEach(iframe => {
                 iframe.style.pointerEvents = 'none';
@@ -772,7 +824,7 @@ export default {
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
-            // 向左拖拽增加宽度,向右拖拽减少宽度
+            // Drag left to increase width; drag right to decrease width
             const deltaX = startX - e.clientX;
             const minPanelWidth = 200;
             const minMapWidth = 0;
@@ -792,7 +844,7 @@ export default {
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
 
-                // 恢复 iframe 的鼠标事件
+                // Restore iframe pointer events
                 const iframes = document.querySelectorAll('iframe');
                 iframes.forEach(iframe => {
                     iframe.style.pointerEvents = '';
@@ -802,7 +854,7 @@ export default {
     },
 
     /**
-     * 初始化状态页签切换
+     * Initialize status tab switching
      */
     initSNSStatusTabs() {
         const tabsContainer = document.getElementById('statusTabs');
@@ -810,7 +862,7 @@ export default {
 
         if (!tabsContainer || !tabContent) return;
 
-        // 存储每个页签的滚动位置
+        // Store scroll position for each tab
         const scrollPositions = {};
 
         const getActiveTab = () => {
@@ -842,7 +894,7 @@ export default {
             }
         };
 
-        // 页签切换事件
+        // Tab switching event
         tabsContainer.addEventListener('click', (e) => {
             const tabBtn = e.target.closest('.status-tab');
             if (!tabBtn) return;
@@ -850,37 +902,37 @@ export default {
             const targetTab = tabBtn.dataset.tab;
             if (!targetTab) return;
 
-            // 保存当前激活页签的滚动位置
+            // Save scroll position for the currently active tab
             const currentTab = getActiveTab();
             saveScrollPosition(currentTab);
 
-            // 更新按钮激活状态
+            // Update active tab button state
             tabsContainer.querySelectorAll('.status-tab').forEach(btn => {
                 btn.classList.toggle('active', btn === tabBtn);
             });
 
-            // 切换内容面板
+            // Switch content panes
             tabContent.querySelectorAll('.tab-pane').forEach(pane => {
                 pane.classList.toggle('active', pane.dataset.tab === targetTab);
             });
 
-            // 恢复目标页签的滚动位置
+            // Restore scroll position for target tab
             requestAnimationFrame(() => {
                 restoreScrollPosition(targetTab);
             });
 
-            // 只调整页签按钮容器的横向滚动，不影响内容区域
+            // Only adjust horizontal scroll of the tab buttons container; do not affect content area
             ensureTabButtonVisible(tabBtn);
         });
 
-        // 检测滚动状态并添加渐变提示
+        // Detect scroll state and add gradient indicators
         const updateScrollIndicators = () => {
             const scrollLeft = tabsContainer.scrollLeft;
             const scrollWidth = tabsContainer.scrollWidth;
             const clientWidth = tabsContainer.clientWidth;
             const maxScroll = scrollWidth - clientWidth;
 
-            // 添加或移除滚动指示类
+            // Add/remove scroll indicator classes
             if (scrollLeft > 5) {
                 tabsContainer.classList.add('can-scroll-left');
             } else {
@@ -894,19 +946,19 @@ export default {
             }
         };
 
-        // 监听滚动事件
+        // Listen for scroll events
         tabsContainer.addEventListener('scroll', updateScrollIndicators);
 
-        // 监听窗口大小变化
+        // Listen for window resize
         const resizeObserver = new ResizeObserver(updateScrollIndicators);
         resizeObserver.observe(tabsContainer);
 
-        // 初始检查
+        // Initial check
         setTimeout(updateScrollIndicators, 100);
     },
 
     /**
-     * 初始化右键菜单
+     * Initialize context menu
      */
     initSNSContextMenu() {
         const tabContent = document.getElementById('statusTabContent');
@@ -916,14 +968,14 @@ export default {
 
         if (!tabContent || !contextMenu) return;
 
-        // 阻止默认右键菜单
+        // Prevent default context menu
         tabContent.addEventListener('contextmenu', (e) => {
             e.preventDefault();
 
-            // 显示自定义右键菜单
+            // Show custom context menu
             contextMenu.style.display = 'block';
 
-            // 计算菜单位置
+            // Calculate menu position
             const menuWidth = 180;
             const menuHeight = 120;
             const viewportWidth = window.innerWidth;
@@ -932,7 +984,7 @@ export default {
             let x = e.clientX;
             let y = e.clientY;
 
-            // 防止菜单超出视口
+            // Prevent menu from overflowing the viewport
             if (x + menuWidth > viewportWidth) {
                 x = viewportWidth - menuWidth - 10;
             }
@@ -944,14 +996,14 @@ export default {
             contextMenu.style.top = y + 'px';
         });
 
-        // 点击其他地方关闭菜单
+        // Click outside to close menu
         document.addEventListener('click', (e) => {
             if (!contextMenu.contains(e.target)) {
                 contextMenu.style.display = 'none';
             }
         });
 
-        // 菜单项点击事件
+        // Menu item click event
         contextMenu.addEventListener('click', (e) => {
             const menuItem = e.target.closest('.context-menu-item');
             if (!menuItem) return;
@@ -961,7 +1013,7 @@ export default {
 
             switch (action) {
                 case 'copy':
-                    // 复制选中的文本
+                    // Copy selected text
                     const selectedText = window.getSelection().toString();
                     if (selectedText) {
                         navigator.clipboard.writeText(selectedText).then(() => {
@@ -973,7 +1025,7 @@ export default {
                     break;
 
                 case 'selectAll':
-                    // 选中当前页签的所有文本
+                    // Select all text in current tab
                     if (activePane) {
                         const range = document.createRange();
                         range.selectNodeContents(activePane);
@@ -984,18 +1036,18 @@ export default {
                     break;
 
                 case 'search':
-                    // 显示搜索栏
+                    // Show search bar
                     if (searchBar) {
                         searchBar.style.display = 'flex';
-                        // 聚焦到搜索框
+                        // Focus the search input
                         setTimeout(() => {
                             if (searchInput) {
                                 searchInput.focus();
-                                // 如果有选中的文本，自动填充到搜索框
+                                // If there is selected text, auto-fill it into the search input
                                 const selectedText = window.getSelection().toString();
                                 if (selectedText) {
                                     searchInput.value = selectedText;
-                                    // 触发搜索
+                                    // Trigger search
                                     const event = new Event('input', { bubbles: true });
                                     searchInput.dispatchEvent(event);
                                 }
@@ -1005,11 +1057,11 @@ export default {
                     break;
             }
 
-            // 关闭菜单
+            // Close menu
             contextMenu.style.display = 'none';
         });
 
-        // ESC 键关闭菜单
+        // Close menu on ESC
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 contextMenu.style.display = 'none';
@@ -1018,7 +1070,7 @@ export default {
     },
 
     /**
-     * 初始化状态面板搜索功能
+     * Initialize status panel search
      */
     initSNSSearch() {
         const searchInput = document.getElementById('statusSearchInput');
@@ -1034,9 +1086,9 @@ export default {
         let currentMatches = [];
         let currentMatchIndex = -1;
 
-        // 高亮搜索结果
+        // Highlight search results
         const highlightMatches = (searchText) => {
-            // 清除之前的高亮
+            // Clear previous highlights
             this.clearSearchHighlights();
 
             if (!searchText.trim()) {
@@ -1044,11 +1096,11 @@ export default {
                 return;
             }
 
-            // 获取当前激活的页签
+            // Get currently active tab
             const activePane = tabContent.querySelector('.tab-pane.active');
             if (!activePane) return;
 
-            // 搜索文本内容
+            // Search text content
             const textNodes = this.getTextNodes(activePane);
             currentMatches = [];
 
@@ -1060,7 +1112,7 @@ export default {
                 let index = 0;
 
                 while ((index = textLower.indexOf(searchLower, index)) !== -1) {
-                    // 创建高亮标记
+                    // Create highlight mark
                     const range = document.createRange();
                     range.setStart(node, index);
                     range.setEnd(node, index + searchText.length);
@@ -1075,13 +1127,13 @@ export default {
                     currentMatches.push(mark);
                     index += searchText.length;
 
-                    // 更新节点引用（因为DOM已改变）
+                    // Update node reference (DOM has changed)
                     node = mark.nextSibling;
                     if (!node || node.nodeType !== Node.TEXT_NODE) break;
                 }
             });
 
-            // 更新搜索结果信息
+            // Update search results info
             if (currentMatches.length > 0) {
                 searchResultsInfo.style.display = 'flex';
                 searchResultsText.textContent = `找到 ${currentMatches.length} 个结果`;
@@ -1094,7 +1146,7 @@ export default {
             }
         };
 
-        // 获取所有文本节点
+        // Get all text nodes
         this.getTextNodes = (element) => {
             const textNodes = [];
             const walker = document.createTreeWalker(
@@ -1102,7 +1154,7 @@ export default {
                 NodeFilter.SHOW_TEXT,
                 {
                     acceptNode: (node) => {
-                        // 跳过空白节点和已高亮的节点
+                        // Skip whitespace nodes and already-highlighted nodes
                         if (!node.textContent.trim() || node.parentElement.tagName === 'MARK') {
                             return NodeFilter.FILTER_REJECT;
                         }
@@ -1118,75 +1170,75 @@ export default {
             return textNodes;
         };
 
-        // 清除搜索高亮
+        // Clear search highlights
         this.clearSearchHighlights = () => {
             const highlights = tabContent.querySelectorAll('.search-highlight');
             highlights.forEach(mark => {
                 const parent = mark.parentNode;
                 parent.replaceChild(document.createTextNode(mark.textContent), mark);
-                parent.normalize(); // 合并相邻的文本节点
+                parent.normalize(); // Merge adjacent text nodes
             });
             currentMatches = [];
             currentMatchIndex = -1;
         };
 
-        // 滚动到指定匹配项
+        // Scroll to specified match
         this.scrollToMatch = (index) => {
             if (index < 0 || index >= currentMatches.length) return;
 
-            // 移除之前的当前高亮
+            // Remove previous current highlight
             currentMatches.forEach(mark => mark.classList.remove('search-highlight-current'));
 
-            // 添加当前高亮
+            // Add current highlight
             const currentMark = currentMatches[index];
             currentMark.classList.add('search-highlight-current');
 
-            // 滚动到视图
+            // Scroll into view
             currentMark.scrollIntoView({
                 behavior: 'smooth',
                 block: 'center'
             });
 
-            // 更新结果文本
+            // Update results text
             searchResultsText.textContent = `${index + 1} / ${currentMatches.length}`;
         };
 
-        // 搜索输入事件
+        // Search input event
         let searchTimeout;
         searchInput.addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 highlightMatches(e.target.value);
-            }, 300); // 防抖
+            }, 300); // Debounce
         });
 
-        // 清除按钮 - 清除搜索并关闭搜索栏
+        // Clear button - clear search and close search bar
         searchClear.addEventListener('click', () => {
             searchInput.value = '';
             this.clearSearchHighlights();
             searchResultsInfo.style.display = 'none';
-            // 隐藏搜索栏
+            // Hide search bar
             const searchBar = document.getElementById('statusSearchBar');
             if (searchBar) {
                 searchBar.style.display = 'none';
             }
         });
 
-        // 上一个结果
+        // Previous result
         searchPrevBtn.addEventListener('click', () => {
             if (currentMatches.length === 0) return;
             currentMatchIndex = (currentMatchIndex - 1 + currentMatches.length) % currentMatches.length;
             this.scrollToMatch(currentMatchIndex);
         });
 
-        // 下一个结果
+        // Next result
         searchNextBtn.addEventListener('click', () => {
             if (currentMatches.length === 0) return;
             currentMatchIndex = (currentMatchIndex + 1) % currentMatches.length;
             this.scrollToMatch(currentMatchIndex);
         });
 
-        // 快捷键支持
+        // Keyboard shortcut support
         searchInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -1200,12 +1252,12 @@ export default {
             }
         });
 
-        // 页签切换时清除搜索
+        // Clear search when switching tabs
         const tabsContainer = document.getElementById('statusTabs');
         if (tabsContainer) {
             tabsContainer.addEventListener('click', (e) => {
                 if (e.target.closest('.status-tab')) {
-                    // 延迟清除，等待页签切换完成
+                    // Delay clearing to wait for tab switch to complete
                     setTimeout(() => {
                         if (searchInput.value) {
                             highlightMatches(searchInput.value);
@@ -1217,12 +1269,12 @@ export default {
     },
 
     /**
-     * 加载百度地图
+     * Load Baidu map
      */
     async loadBaiduMap() {
         const mapContainer = document.getElementById('mapContainer');
         if (!mapContainer) {
-            console.error('地图容器未找到');
+            console.error('Map container not found');
             return;
         }
 
@@ -1245,19 +1297,28 @@ export default {
             return normalizeHttpBaseUrl(v);
         };
 
-        console.log('加载地图');
+        console.log('Loading map iframe');
 
-        // 立即显示地图内容，不显示加载动画
+        // Show map content immediately (no loading animation)
         const placeholder = mapContainer.querySelector('.map-placeholder');
         if (placeholder) {
             placeholder.remove();
         }
 
-        // 检查地图是否已经加载过
+        // Check whether the map has already been loaded
         const existingIframe = mapContainer.querySelector('iframe');
         if (existingIframe) {
-            console.log('地图已加载，直接显示');
+            console.log('Map iframe already exists, skipping reload');
             return;
+        }
+
+        // Ensure we do not leak window message listeners across iframe reloads
+        if (this._mapMessageListener) {
+            try {
+                window.removeEventListener('message', this._mapMessageListener);
+            } catch (e) {
+            }
+            this._mapMessageListener = null;
         }
 
         const agentBaseUrl = getAgentServerBaseUrl();
@@ -1271,8 +1332,8 @@ export default {
             qs.set('ai_sns_server', aiSnsBaseUrl);
         }
 
-        // 获取地图配置
-        let mapUrl = agentBaseUrl ? `${agentBaseUrl}/scripts/map.html?${qs.toString()}` : ''; // 默认百度地图
+        // Get map configuration
+        let mapUrl = agentBaseUrl ? `${agentBaseUrl}/scripts/map.html?${qs.toString()}` : ''; // Default: Baidu map
         try {
             const response = await fetch(agentBaseUrl ? `${agentBaseUrl}/api/sns/map-config` : '/api/sns/map-config');
             const result = await response.json();
@@ -1296,7 +1357,7 @@ export default {
 
         console.log('Final map URL:', mapUrl);
 
-        // 创建 iframe 加载地图页面
+        // Create iframe to load the map page
         const iframe = document.createElement('iframe');
         iframe.src = mapUrl;
         iframe.style.transform = 'scale(0.8)';
@@ -1311,9 +1372,9 @@ export default {
 
         mapContainer.appendChild(iframe);
 
-        // 等待 iframe 加载完成后建立通信
+        // Establish communication after iframe finishes loading
         iframe.onload = () => {
-            console.log('地图页面加载完成');
+            console.log('Map page loaded');
 
             let targetOrigin = '*';
             try {
@@ -1321,7 +1382,7 @@ export default {
             } catch (e) {
             }
 
-            // 向 iframe 发送初始数据
+            // Send initial data to iframe
             const initialData = {
                 type: 'init',
                 data: {
@@ -1332,19 +1393,19 @@ export default {
 
             try {
                 this.safePostMessageToMap(iframe, initialData, targetOrigin);
-                console.log('已发送初始化消息');
+                console.log('Initialization message sent');
             } catch (error) {
-                console.error('发送消息到地图页面失败:', error);
+                console.error('Failed to send message to map iframe:', error);
             }
         };
 
-        // 监听 iframe 加载失败
+        // Listen for iframe load failure
         iframe.onerror = () => {
-            console.error('地图页面加载失败');
+            console.error('Map page failed to load');
             this.showMapError(mapContainer);
         };
 
-        // 监听来自 iframe 的消息
+        // Listen for messages from the iframe
         const handleMessage = (event) => {
             // If we have a reference to the iframe, ensure message is from it.
             try {
@@ -1362,7 +1423,7 @@ export default {
 
             if (!expectedOrigin || event.origin === expectedOrigin) {
                 const data = event.data;
-                console.log('收到地图页面消息:', data);
+                console.log('Received message from map iframe:', data);
 
                 switch (data.type) {
                     case 'received':
@@ -1393,17 +1454,18 @@ export default {
                         this.handleCloseSNSProfile();
                         break;
                     default:
-                        console.log('未知消息类型:', data.type);
+                        console.log('Unknown message type:', data.type);
                 }
             }
         };
 
         window.addEventListener('message', handleMessage);
+        this._mapMessageListener = handleMessage;
         iframe._messageListener = handleMessage;
     },
 
     /**
-     * 显示地图加载错误
+     * Show map loading error
      */
     showMapError(mapContainer) {
         const errorDiv = document.createElement('div');
@@ -1425,7 +1487,7 @@ export default {
         `;
         mapContainer.appendChild(errorDiv);
 
-        // 绑定重试按钮
+        // Bind retry button
         const retryBtn = errorDiv.querySelector('#mapRetryBtn');
         if (retryBtn) {
             retryBtn.addEventListener('click', () => this.tryLoadMap());
@@ -1433,15 +1495,15 @@ export default {
     },
 
     /**
-     * 重试加载地图
+     * Retry loading map
      */
     tryLoadMap() {
         const mapContainer = document.getElementById('mapContainer');
         if (!mapContainer) return;
 
-        console.log('尝试重新加载地图');
+        console.log('Retrying map iframe load');
 
-        // 移除现有的iframe
+        // Remove existing iframe
         const existingIframe = mapContainer.querySelector('iframe');
         if (existingIframe) {
             if (existingIframe._messageListener) {
@@ -1450,13 +1512,21 @@ export default {
             existingIframe.remove();
         }
 
-        // 移除现有的错误提示
+        if (this._mapMessageListener) {
+            try {
+                window.removeEventListener('message', this._mapMessageListener);
+            } catch (e) {
+            }
+            this._mapMessageListener = null;
+        }
+
+        // Remove existing error message
         const existingErrorDiv = mapContainer.querySelector('.map-placeholder');
         if (existingErrorDiv) {
             existingErrorDiv.remove();
         }
 
-        // 创建新的加载动画
+        // Create a new loading indicator
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'map-placeholder';
         loadingDiv.innerHTML = `
@@ -1474,14 +1544,14 @@ export default {
         `;
         mapContainer.appendChild(loadingDiv);
 
-        // 延迟调用loadBaiduMap
+        // Delay calling loadBaiduMap
         setTimeout(() => {
             this.loadBaiduMap();
         }, 500);
     },
 
     /**
-     * 处理位置更新
+     * Handle location update
      */
     handleLocationUpdate(data) {
         console.log('位置更新:', data);
@@ -1496,21 +1566,21 @@ export default {
     },
 
     /**
-     * 处理地图点击事件
+     * Handle map click event
      */
     handleMapClick(data) {
         console.log('地图点击:', data);
     },
 
     /**
-     * 处理添加标记事件
+     * Handle marker add event
      */
     handleMarkerAdd(data) {
         console.log('添加标记:', data);
     },
 
     /**
-     * 向地图页面发送消息
+     * Send message to map page
      */
     sendMessageToMap(type, data) {
         const iframe = document.querySelector('#mapContainer iframe');
@@ -1524,10 +1594,10 @@ export default {
     },
 
     /**
-     * 加载SNS数据
+     * Load SNS data
      */
     loadSNSData() {
-        // 模拟加载SNS数据
+        // Simulate loading SNS data
         const updateValue = (id, value) => {
             const el = document.getElementById(id);
             if (el) el.textContent = value;
@@ -1539,25 +1609,33 @@ export default {
     },
 
     /**
-     * 清理地图监听器
+     * Clean up map listeners
      */
     cleanupMapListeners() {
         const iframe = document.querySelector('#mapContainer iframe');
         if (iframe && iframe._messageListener) {
             window.removeEventListener('message', iframe._messageListener);
         }
+
+        if (this._mapMessageListener) {
+            try {
+                window.removeEventListener('message', this._mapMessageListener);
+            } catch (e) {
+            }
+            this._mapMessageListener = null;
+        }
     },
 
     /**
-     * 显示Toast消息
+     * Show toast message
      */
     showToast(message, type = 'success') {
-        // 创建toast元素
+        // Create toast element
         const toast = document.createElement('div');
         toast.className = `sns-toast sns-toast-${type}`;
         toast.textContent = message;
 
-        // 根据类型选择背景色
+        // Choose background color by type
         let backgroundColor;
         switch (type) {
             case 'error':
@@ -1572,7 +1650,7 @@ export default {
                 break;
         }
 
-        // 添加样式
+        // Apply styles
         toast.style.cssText = `
             position: fixed;
             top: 20px;
@@ -1590,7 +1668,7 @@ export default {
 
         document.body.appendChild(toast);
 
-        // 3秒后自动移除
+        // Auto-remove after 3 seconds
         setTimeout(() => {
             toast.style.animation = 'slideOut 0.3s ease-out';
             setTimeout(() => {
@@ -1600,10 +1678,10 @@ export default {
     },
 
     /**
-     * 初始化SNS更新监听器（使用全局 WebSocket 事件）
+     * Initialize SNS update listener (global WebSocket event)
      */
     initSNSUpdateListener() {
-        // 监听全局 WebSocket 消息事件
+        // Listen for global WebSocket message event
         this.snsUpdateListener = (event) => {
             const message = event.detail;
             if (message.type === 'sns_update') {
@@ -1617,7 +1695,7 @@ export default {
     },
 
     /**
-     * 处理SNS更新消息
+     * Handle SNS update message
      */
     handleSNSUpdate(data) {
         console.log('Handling SNS update:', data);
@@ -1636,21 +1714,21 @@ export default {
     },
 
     /**
-     * 更新Think页签内容
+     * Update Think tab content
      */
     updateThinkTab(content) {
         console.log('updateThinkTab called with content:', content);
-        // 找到Think页签的内容区域
+        // Find the Think tab content area
         const thinkPane = document.querySelector('.tab-pane[data-tab="think"]');
         console.log('Think pane found:', thinkPane);
         if (!thinkPane) return;
 
-        // 找到Thinking Log部分
+        // Find the Thinking Log section
         let thinkingLogSection = thinkPane.querySelector('.status-section:nth-child(2) .status-rows');
         console.log('Thinking log section found:', thinkingLogSection);
         if (!thinkingLogSection) return;
 
-        // 创建新的内容元素
+        // Create a new content element
         const contentDiv = document.createElement('div');
         contentDiv.className = 'thinking-log-entry';
         contentDiv.style.cssText = `
@@ -1666,35 +1744,35 @@ export default {
         `;
         contentDiv.textContent = content;
 
-        // 如果是第一条内容，清除"N/A"
+        // If this is the first entry, clear "N/A"
         if (thinkingLogSection.querySelector('.na')) {
             thinkingLogSection.innerHTML = '';
         }
 
-        // 添加新内容
+        // Append new content
         thinkingLogSection.appendChild(contentDiv);
 
-        // 滚动到底部
+        // Scroll to bottom
         thinkingLogSection.scrollTop = thinkingLogSection.scrollHeight;
         thinkingLogSection.scrollTop = thinkingLogSection.scrollHeight;
     },
 
     /**
-     * 更新Process页签内容
+     * Update Process tab content
      */
     updateProcessTab(content, section = null) {
         console.log('updateProcessTab called with content:', content, 'section:', section);
-        // 找到Process页签的内容区域
+        // Find the Process tab content area
         const processPane = document.querySelector('.tab-pane[data-tab="process"]');
         console.log('Process pane found:', processPane);
         if (!processPane) return;
 
-        // 如果指定了 section，检查是否需要拆分
+        // If section is specified, check whether content needs to be split
         if (section === 'ongoing') {
-            // 检查内容是否包含 Current Status
+            // Check whether content contains Current Status
             if (content.includes('📊 Current Status')) {
                 console.log('Content contains Current Status, parsing...');
-                // 需要拆分内容
+                // Split content
                 const lines = content.split('\n');
                 let currentStatusContent = '';
                 let onGoingContent = '';
@@ -1709,7 +1787,7 @@ export default {
                         continue;
                     }
 
-                    // 跳过分隔线
+                    // Skip divider line
                     if (line.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
                         continue;
                     }
@@ -1721,7 +1799,7 @@ export default {
                     }
                 }
 
-                // 更新两个部分
+                // Update both sections
                 if (currentStatusContent.trim()) {
                     this.updateCurrentStatusSection(processPane, currentStatusContent.trim());
                 }
@@ -1729,7 +1807,7 @@ export default {
                     this.updateOnGoingSection(processPane, onGoingContent.trim());
                 }
             } else {
-                // 只有 On Going 内容
+                // Only On Going content
                 this.updateOnGoingSection(processPane, content);
             }
             return;
@@ -1741,7 +1819,7 @@ export default {
             return;
         }
 
-        // 否则，解析内容并更新三个部分
+        // Otherwise, parse content and update three sections
         const lines = content.split('\n');
         let currentStatusContent = '';
         let onGoingContent = '';
@@ -1760,7 +1838,7 @@ export default {
                 continue;
             }
 
-            // 跳过分隔线
+            // Skip divider line
             if (line.includes('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')) {
                 continue;
             }
@@ -1774,7 +1852,7 @@ export default {
             }
         }
 
-        // 更新各个部分
+        // Update sections
         if (currentStatusContent.trim()) {
             this.updateCurrentStatusSection(processPane, currentStatusContent.trim());
         }
@@ -1789,7 +1867,7 @@ export default {
     },
 
     /**
-     * 更新 Current Status 部分
+     * Update Current Status section
      */
     updateCurrentStatusSection(processPane, content) {
         const statusSection = processPane.querySelector('.status-section:nth-child(1) .status-rows');
@@ -1798,22 +1876,22 @@ export default {
             return;
         }
 
-        // 清空现有内容
+        // Clear existing content
         statusSection.innerHTML = '';
 
-        // 解析内容并创建状态行
+        // Parse content and create status rows
         const lines = content.split('\n');
         for (const line of lines) {
             if (!line.trim()) continue;
 
-            // 创建状态行元素
+            // Create status row element
             const statusRow = document.createElement('div');
             statusRow.className = 'status-row';
 
-            // 检查是否是子行（Location的lng/lat）
+            // Check whether this is a sub-row (Location lng/lat)
             if (line.trim().startsWith('├─') || line.trim().startsWith('└─')) {
                 statusRow.classList.add('sub');
-                // 移除树形符号
+                // Remove tree symbol
                 const cleanLine = line.replace(/[├└]─\s*/, '').trim();
                 const parts = cleanLine.split(':');
                 if (parts.length === 2) {
@@ -1826,7 +1904,7 @@ export default {
                     statusRow.appendChild(value);
                 }
             } else {
-                // 普通状态行
+                // Regular status row
                 const parts = line.split(':');
                 if (parts.length >= 2) {
                     const label = document.createElement('span');
@@ -1837,7 +1915,7 @@ export default {
                     statusRow.appendChild(label);
                     statusRow.appendChild(value);
                 } else {
-                    // 只有标签没有值的行（如 📍 Location）
+                    // Row with only label and no value (e.g., 📍 Location)
                     const label = document.createElement('span');
                     label.textContent = line.trim();
                     statusRow.appendChild(label);
@@ -1851,7 +1929,7 @@ export default {
     },
 
     /**
-     * 更新 On Going 部分
+     * Update On Going section
      */
     updateOnGoingSection(processPane, content) {
         const onGoingSection = processPane.querySelector('.status-section:nth-child(2) .status-rows');
@@ -1878,7 +1956,7 @@ export default {
     },
 
     /**
-     * 更新 Process History 部分
+     * Update Process History section
      */
     updateHistorySection(processPane, content) {
         const historySection = processPane.querySelector('.status-section:nth-child(3) .status-rows');
@@ -1905,26 +1983,26 @@ export default {
     },
 
     /**
-     * 更新 Resource 页签内容
+     * Update Resource tab content
      */
     updateResourceTab(content) {
         console.log('updateResourceTab called with content:', content);
-        // 找到Resource页签的内容区域
+        // Find the Resource tab content area
         const resourcePane = document.querySelector('.tab-pane[data-tab="resource"]');
         console.log('Resource pane found:', resourcePane);
         if (!resourcePane) return;
 
-        // 找到第一个 status-section（Resource Overview）
+        // Find the first status-section (Resource Overview)
         const resourceSection = resourcePane.querySelector('.status-section:nth-child(1) .status-rows');
         console.log('Resource section found:', resourceSection);
         if (!resourceSection) return;
 
-        // 清除 N/A 标记
+        // Clear N/A marker
         if (resourceSection.querySelector('.na')) {
             resourceSection.innerHTML = '';
         }
 
-        // 创建内容元素
+        // Create content element
         const contentDiv = document.createElement('div');
         contentDiv.style.cssText = `
             white-space: pre-wrap;
@@ -1934,14 +2012,14 @@ export default {
         `;
         contentDiv.textContent = content;
 
-        // 更新内容
+        // Update content
         resourceSection.innerHTML = '';
         resourceSection.appendChild(contentDiv);
         console.log('Resource tab updated successfully');
     },
 
     /**
-     * 处理来自 map.html 的打开对话框请求
+     * Handle open dialog requests from map.html
      */
     async handleOpenDialog(dialogType) {
         console.log('handleOpenDialog called with dialogType:', dialogType);
@@ -1972,22 +2050,22 @@ export default {
             }
         } catch (error) {
             console.error('Error opening dialog:', dialogType, error);
-            this.showToast(`打开对话框失败: ${error.message}`, 'error');
+            this.showToast(`Failed to open dialog: ${error.message}`, 'error');
         }
     },
 
     /**
-     * 处理来自 map.html 的面板折叠/展开请求
+     * Handle panel collapse/expand requests from map.html
      */
     handleTogglePanels(action) {
         console.log('handleTogglePanels called with action:', action);
 
-        // 获取侧边栏相关元素（二级侧边栏）
+        // Get sidebar-related elements (secondary sidebar)
         const secondarySidebar = document.getElementById('secondarySidebar');
         const sidebarResizer = document.getElementById('sidebarResizer');
         const mainContent = document.getElementById('mainContent');
 
-        // 获取 SNS 页面右侧面板相关元素
+        // Get SNS page right-side panel related elements
         const statusPanel = document.getElementById('snsStatusPanel');
         const panelResizer = document.getElementById('snsPanelResizer');
 
@@ -1997,14 +2075,14 @@ export default {
         }
 
         if (action === 'collapse') {
-            // 折叠侧边栏
+            // Collapse sidebar
             secondarySidebar.classList.add('collapsed');
             sidebarResizer.classList.add('collapsed');
             mainContent.classList.add('sidebar-collapsed');
 
             console.log('Sidebar collapsed');
         } else if (action === 'expand') {
-            // 展开侧边栏
+            // Expand sidebar
             secondarySidebar.classList.remove('collapsed');
             sidebarResizer.classList.remove('collapsed');
             mainContent.classList.remove('sidebar-collapsed');
@@ -2012,16 +2090,16 @@ export default {
             console.log('Sidebar expanded');
         }
 
-        // 处理右侧状态面板（仅在 SNS 页面时）
+        // Handle right-side status panel (only on SNS page)
         if (statusPanel && panelResizer) {
             if (action === 'collapse') {
-                // 折叠右侧面板
+                // Collapse right-side panel
                 statusPanel.classList.add('collapsed');
                 panelResizer.classList.add('collapsed');
                 localStorage.setItem('snsPanelCollapsed', 'true');
                 console.log('SNS panel collapsed');
             } else if (action === 'expand') {
-                // 展开右侧面板
+                // Expand right-side panel
                 statusPanel.classList.remove('collapsed');
                 panelResizer.classList.remove('collapsed');
                 localStorage.setItem('snsPanelCollapsed', 'false');
@@ -2031,42 +2109,42 @@ export default {
     },
 
     /**
-     * 处理打开 SNS Profile 页签请求
+     * Handle open SNS Profile tab request
      */
     handleOpenSNSProfile(url) {
         console.log('handleOpenSNSProfile called with url:', url);
 
-        // URL 规范化处理
+        // URL normalization
         if (!url || typeof url !== 'string') {
             console.error('Invalid URL provided:', url);
             return;
         }
 
-        // 去除首尾空格
+        // Trim whitespace
         url = url.trim();
 
-        // 检查是否有协议头
+        // Check whether URL has a scheme
         if (!url.match(/^https?:\/\//i)) {
-            // 判断是否是本地地址
+            // Check whether it's a local address
             if (url.startsWith('localhost') || url.startsWith('127.0.0.1') || url.startsWith('192.168.')) {
                 url = 'http://' + url;
                 console.log('Added http:// to local URL:', url);
             } else if (url.startsWith('//')) {
-                // 协议相对 URL
+                // Protocol-relative URL
                 url = 'https:' + url;
                 console.log('Added https: to protocol-relative URL:', url);
             } else if (url.startsWith('/')) {
-                // 相对路径，使用当前服务器
+                // Relative path, use current server
                 url = this.resolve(url);
                 console.log('Converted relative path to absolute URL:', url);
             } else {
-                // 默认添加 https://
+                // Default to adding https://
                 url = 'https://' + url;
                 console.log('Added https:// to URL:', url);
             }
         }
 
-        // 验证 URL 格式
+        // Validate URL format
         try {
             new URL(url);
         } catch (e) {
@@ -2083,19 +2161,19 @@ export default {
             return;
         }
 
-        // 检查是否已存在 Profile 页签
+        // Check whether Profile tab already exists
         let profileTab = statusTabs.querySelector('.status-tab[data-tab="profile"]');
         let profilePane = statusTabContent.querySelector('.tab-pane[data-tab="profile"]');
 
         if (!profileTab) {
-            // 创建 Profile 页签按钮
+            // Create Profile tab button
             profileTab = document.createElement('button');
             profileTab.className = 'status-tab';
             profileTab.dataset.tab = 'profile';
             profileTab.innerHTML = `Profile <span class="tab-close-btn" title="关闭">×</span>`;
             statusTabs.appendChild(profileTab);
 
-            // 绑定关闭按钮事件
+            // Bind close button event
             const closeBtn = profileTab.querySelector('.tab-close-btn');
             closeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2104,7 +2182,7 @@ export default {
         }
 
         if (!profilePane) {
-            // 创建 Profile 页签内容
+            // Create Profile tab content
             profilePane = document.createElement('div');
             profilePane.className = 'tab-pane';
             profilePane.dataset.tab = 'profile';
@@ -2115,14 +2193,14 @@ export default {
             `;
             statusTabContent.appendChild(profilePane);
         } else {
-            // 更新现有 iframe 的 URL
+            // Update URL of existing iframe
             const iframe = profilePane.querySelector('.profile-webview');
             if (iframe) {
                 iframe.src = url;
             }
         }
 
-        // 切换到 Profile 页签
+        // Switch to Profile tab
         statusTabs.querySelectorAll('.status-tab').forEach(btn => {
             btn.classList.toggle('active', btn === profileTab);
         });
@@ -2131,7 +2209,7 @@ export default {
             pane.classList.toggle('active', pane === profilePane);
         });
 
-        // 自动滚动到 Profile 页签（确保可见）
+        // Auto-scroll to the Profile tab (ensure it's visible)
         if (profileTab) {
             profileTab.scrollIntoView({
                 behavior: 'smooth',
@@ -2144,7 +2222,7 @@ export default {
     },
 
     /**
-     * 处理关闭 SNS Profile 页签请求
+     * Handle close SNS Profile tab request
      */
     handleCloseSNSProfile() {
         console.log('handleCloseSNSProfile called');
@@ -2157,7 +2235,7 @@ export default {
             return;
         }
 
-        // 查找并移除 Profile 页签
+        // Find and remove Profile tab
         const profileTab = statusTabs.querySelector('.status-tab[data-tab="profile"]');
         const profilePane = statusTabContent.querySelector('.tab-pane[data-tab="profile"]');
 
@@ -2169,7 +2247,7 @@ export default {
             profilePane.remove();
         }
 
-        // 切换到第一个页签（Process）
+        // Switch to the first tab (Process)
         const firstTab = statusTabs.querySelector('.status-tab');
         const firstPane = statusTabContent.querySelector('.tab-pane');
 
@@ -2184,42 +2262,42 @@ export default {
     ,
 
     /**
-     * 处理打开 Place intro 页签请求
+     * Handle open Place intro tab request
      */
     handleOpenPlaceWebAddress(url) {
         console.log('handleOpenPlaceWebAddress called with url:', url);
 
-        // URL 规范化处理
+        // URL normalization
         if (!url || typeof url !== 'string') {
             console.error('Invalid URL provided:', url);
             return;
         }
 
-        // 去除首尾空格
+        // Trim whitespace
         url = url.trim();
 
-        // 检查是否有协议头
+        // Check whether URL has a scheme
         if (!url.match(/^https?:\/\//i)) {
-            // 判断是否是本地地址
+            // Check whether it's a local address
             if (url.startsWith('localhost') || url.startsWith('127.0.0.1') || url.startsWith('192.168.')) {
                 url = 'http://' + url;
                 console.log('Added http:// to local URL:', url);
             } else if (url.startsWith('//')) {
-                // 协议相对 URL
+                // Protocol-relative URL
                 url = 'https:' + url;
                 console.log('Added https: to protocol-relative URL:', url);
             } else if (url.startsWith('/')) {
-                // 相对路径，使用当前服务器
+                // Relative path, use current server
                 url = this.resolve(url);
                 console.log('Converted relative path to absolute URL:', url);
             } else {
-                // 默认添加 https://
+                // Default to adding https://
                 url = 'https://' + url;
                 console.log('Added https:// to URL:', url);
             }
         }
 
-        // 验证 URL 格式
+        // Validate URL format
         try {
             new URL(url);
         } catch (e) {
@@ -2236,26 +2314,26 @@ export default {
             return;
         }
 
-        // 检查是否已存在 Place intro 页签
+        // Check whether Place intro tab already exists
         let placeTab = statusTabs.querySelector('.status-tab[data-tab="placeIntro"]');
         let placePane = statusTabContent.querySelector('.tab-pane[data-tab="placeIntro"]');
 
         if (!placeTab) {
-            // 创建 Place intro 页签按钮
+            // Create Place intro tab button
             placeTab = document.createElement('button');
             placeTab.className = 'status-tab';
             placeTab.dataset.tab = 'placeIntro';
             placeTab.innerHTML = `Place intro <span class="tab-close-btn" title="关闭">×</span>`;
             statusTabs.appendChild(placeTab);
 
-            // 绑定关闭按钮事件
+            // Bind close button event
             const closeBtn = placeTab.querySelector('.tab-close-btn');
             closeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (placeTab) placeTab.remove();
                 if (placePane) placePane.remove();
 
-                // 切换到第一个页签（Process）
+                // Switch to the first tab (Process)
                 const firstTab = statusTabs.querySelector('.status-tab');
                 const firstPane = statusTabContent.querySelector('.tab-pane');
                 if (firstTab && firstPane) {
@@ -2266,7 +2344,7 @@ export default {
         }
 
         if (!placePane) {
-            // 创建 Place intro 页签内容
+            // Create Place intro tab content
             placePane = document.createElement('div');
             placePane.className = 'tab-pane';
             placePane.dataset.tab = 'placeIntro';
@@ -2277,14 +2355,14 @@ export default {
             `;
             statusTabContent.appendChild(placePane);
         } else {
-            // 更新现有 iframe 的 URL
+            // Update URL of existing iframe
             const iframe = placePane.querySelector('.profile-webview');
             if (iframe) {
                 iframe.src = url;
             }
         }
 
-        // 切换到 Place intro 页签
+        // Switch to Place intro tab
         statusTabs.querySelectorAll('.status-tab').forEach(btn => {
             btn.classList.toggle('active', btn === placeTab);
         });
@@ -2293,7 +2371,7 @@ export default {
             pane.classList.toggle('active', pane === placePane);
         });
 
-        // 自动滚动到 Place intro 页签（确保可见）
+        // Auto-scroll to the Place intro tab (ensure it's visible)
         if (placeTab) {
             placeTab.scrollIntoView({
                 behavior: 'smooth',

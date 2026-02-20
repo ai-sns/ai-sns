@@ -1,5 +1,5 @@
 /**
- * Home Handlers - 事件处理
+ * Home Handlers - event handling
  */
 
 import InitializationWizard from './InitializationWizard.js';
@@ -12,7 +12,7 @@ const homeHandlers = {
     },
 
     bindEvents() {
-        // 绑定设置按钮事件
+        // Bind settings button events
         document.querySelectorAll('.setting-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
@@ -214,7 +214,7 @@ const homeHandlers = {
     },
 
     destroy() {
-        // 清理事件监听器
+        // Clean up event listeners
     }
 };
 

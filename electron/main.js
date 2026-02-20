@@ -14,7 +14,7 @@ const https = require('https');
 
 
 
-// Windows 10 + 无边框窗口：禁用 GPU 硬件加速（可选，根据需要启用）
+// Windows 10 + frameless window: disable GPU hardware acceleration (optional, enable as needed)
 
 // app.disableHardwareAcceleration();
 
@@ -28,9 +28,9 @@ let browserView = null;
 
 
 
-// Azure OpenAI 配置已移至后端 API Server（api_server.py）
+// Azure OpenAI config has been moved to the backend API Server (api_server.py)
 
-// 配置从数据库或环境变量读取
+// Config is loaded from the database or environment variables
 
 // const AZURE_OPENAI_CONFIG = {
 
@@ -250,7 +250,7 @@ function registerDevToolsHotkeysForWebContents(webContents) {
 
 
 
-// API服务器配置
+// API server configuration
 
 const DEFAULT_API_BASE_URL = '';
 let API_BASE_URL = DEFAULT_API_BASE_URL;
@@ -300,7 +300,7 @@ refreshApiBaseUrlFromConfigSync();
 
 
 
-// 开发模式检测
+// Development mode detection
 
 const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 
@@ -328,37 +328,37 @@ function createWindow() {
 
             preload: path.join(__dirname, 'preload.js'),
 
-            webSecurity: false,  // 禁用跨域安全策略，允许加载本地服务器地图
+            webSecurity: false,  // Disable cross-origin security policy to allow loading local server maps
 
-            webviewTag: true,  // 启用 webview 标签
+            webviewTag: true,  // Enable the webview tag
 
-            // 确保输入框可用
+            // Ensure input elements are usable
 
             enableBlinkFeatures: 'KeyboardFocusableScrollers'
 
         },
 
-        // 无边框窗口，使用自定义标题栏
+        // Frameless window with a custom title bar
 
         frame: false,
 
-        // macOS 专用设置
+        // macOS-specific settings
 
         trafficLightPosition: { x: 16, y: 16 },
 
-        // 启用窗口透明效果
+        // Enable window transparency effects
 
         transparent: false,
 
         backgroundColor: '#f5f5f5',
 
-        // 启用窗口阴影
+        // Enable window shadow
 
         hasShadow: true,
 
         show: false,
 
-        // Windows 焦点修复
+        // Windows focus fix
 
         skipTaskbar: false,
 
@@ -368,7 +368,7 @@ function createWindow() {
 
 
 
-    // 拦截响应头，移除阻止iframe嵌入的安全头
+    // Intercept response headers and remove security headers that block iframe embedding
 
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
 
@@ -376,7 +376,7 @@ function createWindow() {
 
 
 
-        // 移除 X-Frame-Options 头
+        // Remove the X-Frame-Options header
 
         delete responseHeaders['x-frame-options'];
 
@@ -384,7 +384,7 @@ function createWindow() {
 
 
 
-        // 修改 Content-Security-Policy 头，移除 frame-ancestors 限制
+        // Update the Content-Security-Policy header to remove the frame-ancestors restriction
 
         if (responseHeaders['content-security-policy']) {
 
@@ -414,7 +414,7 @@ function createWindow() {
 
 
 
-    // 移除应用菜单
+    // Remove application menu
 
     Menu.setApplicationMenu(null);
 
@@ -424,13 +424,13 @@ function createWindow() {
 
 
 
-    // 加载主页面
+    // Load the main page
 
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
 
 
-    // 窗口准备好后显示
+    // Show window after it is ready
 
     mainWindow.once('ready-to-show', () => {
 
@@ -448,7 +448,7 @@ function createWindow() {
 
             mainWindow.webContents.openDevTools({
 
-                mode: 'right' // 在右侧打开开发者工具
+                mode: 'right' // Open DevTools on the right side
 
             });
 
@@ -458,7 +458,7 @@ function createWindow() {
 
 
 
-    // 窗口关闭事件处理（最小化到托盘）
+    // Window close handler (minimize to tray)
 
     mainWindow.on('close', (event) => {
 
@@ -532,7 +532,7 @@ async function createMapWindow() {
 
 
 
-    // 获取地图配置并加载相应的地图页面
+    // Fetch map configuration and load the corresponding map page
 
     try {
 
@@ -551,7 +551,7 @@ async function createMapWindow() {
             qs.set('ai_sns_server', aiSnsServer);
         }
 
-        let mapUrl = `${apiBaseUrl}/scripts/map.html?${qs.toString()}`; // 默认百度地图
+        let mapUrl = `${apiBaseUrl}/scripts/map.html?${qs.toString()}`; // Default: Baidu Map
 
 
 
@@ -595,7 +595,7 @@ async function createMapWindow() {
 
         console.error('Failed to fetch map config:', error);
 
-        // 出错时使用默认地图
+        // Use the default map on error
 
         const { cfg, apiBaseUrl } = refreshApiBaseUrlFromConfigSync();
         const aiSnsServer = normalizeHttpUrl(cfg.ai_sns_server);
@@ -610,7 +610,7 @@ async function createMapWindow() {
 
 
 
-    // 窗口准备好后显示
+    // Show window after it is ready
 
     mapWindow.once('ready-to-show', () => {
 
@@ -744,7 +744,7 @@ function createTray() {
 
 
 
-// IPC通信处理
+// IPC handlers
 
 ipcMain.handle('get-api-url', () => {
 
@@ -897,7 +897,7 @@ ipcMain.on('set-title', (event, title) => {
 
 
 
-// 地图窗口控制 IPC
+// Map window control IPC
 
 ipcMain.on('open-map-window', () => {
 
@@ -951,7 +951,7 @@ ipcMain.on('minimize-map-window', () => {
 
 
 
-// 地图操作 IPC
+// Map operation IPC
 
 ipcMain.on('map-command', (event, data) => {
 
@@ -965,11 +965,11 @@ ipcMain.on('map-command', (event, data) => {
 
 
 
-// 地图配置 IPC
+// Map configuration IPC
 
 ipcMain.handle('load-map-setting', async () => {
 
-    // TODO: 从配置文件或数据库加载地图设置
+    // TODO: Load map settings from a config file or database
 
     return {
 
@@ -991,7 +991,7 @@ ipcMain.handle('load-map-setting', async () => {
 
 ipcMain.handle('save-map-setting', async (event, setting) => {
 
-    // TODO: 保存地图设置到配置文件或数据库
+    // TODO: Save map settings to a config file or database
 
     console.log('Saving map setting:', setting);
 
@@ -1001,7 +1001,7 @@ ipcMain.handle('save-map-setting', async (event, setting) => {
 
 
 
-// 地图聊天 IPC
+// Map chat IPC
 
 ipcMain.on('map-chat-message', (event, data) => {
 
@@ -1015,7 +1015,7 @@ ipcMain.on('map-chat-message', (event, data) => {
 
 
 
-// 打开链接 IPC
+// Open URL IPC
 
 ipcMain.on('open-url', (event, url) => {
 
@@ -1025,7 +1025,7 @@ ipcMain.on('open-url', (event, url) => {
 
 
 
-// 窗口控制 IPC
+// Window control IPC
 
 ipcMain.on('window-minimize', () => {
 
@@ -1101,13 +1101,13 @@ ipcMain.on('quit-app', () => {
 
 
 
-// 修复 Windows 10 无边框窗口输入框焦点问题
+// Fix input focus issues for Windows 10 frameless windows
 
 ipcMain.on('fix-input-focus', () => {
 
     if (mainWindow) {
 
-        // 模拟最小化再还原，强制触发 Windows 焦点事件
+        // Simulate minimize and restore to force Windows focus events
 
         mainWindow.minimize();
 
@@ -1127,7 +1127,7 @@ ipcMain.on('fix-input-focus', () => {
 
 
 
-// Azure OpenAI 流式聊天（通过后端 API Server）
+// Azure OpenAI streaming chat (via the backend API Server)
 
 ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
@@ -1189,7 +1189,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-            // 检查 HTTP 状态码
+            // Check HTTP status code
 
             if (res.statusCode !== 200) {
 
@@ -1221,7 +1221,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-            // 处理 SSE 流
+            // Handle SSE stream
 
             res.on('data', (chunk) => {
 
@@ -1231,11 +1231,11 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-                // 处理 SSE 数据
+                // Process SSE data
 
                 const lines = buffer.split('\n');
 
-                buffer = lines.pop() || ''; // 保留未完成的行
+                buffer = lines.pop() || ''; // Keep the unfinished line
 
 
 
@@ -1245,11 +1245,11 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-                    // SSE 格式: event: message\ndata: {...}
+                    // SSE format: event: message\ndata: {...}
 
                     if (trimmedLine.startsWith('event:')) {
 
-                        // 跳过 event 行
+                        // Skip the event line
 
                         continue;
 
@@ -1269,7 +1269,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-                            // 处理消息内容
+                            // Handle message content
 
                             if (parsed.content) {
 
@@ -1281,7 +1281,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-                            // 处理完成状态
+                            // Handle completion state
 
                             if (parsed.status === 'completed') {
 
@@ -1295,7 +1295,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-                            // 处理错误
+                            // Handle errors
 
                             if (parsed.error) {
 
@@ -1325,7 +1325,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
                 console.log('Stream connection closed');
 
-                // 处理剩余的 buffer
+                // Process the remaining buffer
 
                 if (buffer.trim()) {
 
@@ -1403,7 +1403,7 @@ ipcMain.on('chat-stream-start', async (event, { messages, requestId }) => {
 
 
 
-// Windows 焦点修复：窗口获得焦点时确保 webContents 也获得焦点
+// Windows focus fix: when the window gets focus, ensure webContents gets focus as well
 
 app.on('browser-window-focus', () => {
 
@@ -1419,7 +1419,7 @@ app.on('browser-window-focus', () => {
 
 
 
-// BrowserView 管理
+// BrowserView management
 
 ipcMain.handle('load-url-in-browserview', async (event, url) => {
 
@@ -1429,7 +1429,7 @@ ipcMain.handle('load-url-in-browserview', async (event, url) => {
 
     try {
 
-        // 如果已存在 BrowserView，先移除
+        // If a BrowserView already exists, remove it first
 
         if (browserView) {
 
@@ -1443,7 +1443,7 @@ ipcMain.handle('load-url-in-browserview', async (event, url) => {
 
 
 
-        // 创建新的 BrowserView
+        // Create a new BrowserView
 
         browserView = new BrowserView({
 
@@ -1683,13 +1683,13 @@ ipcMain.handle('load-url-in-browserview', async (event, url) => {
 
 
 
-        // 获取主窗口尺寸并计算 BrowserView 位置
+        // Get main window dimensions and calculate the BrowserView position
 
         const bounds = mainWindow.getContentBounds();
 
-        const sidebarWidth = 360; // 左侧导航(68px) + 二级侧边栏(280px) + 分隔条(8px) + 按钮空间(4px)
+        const sidebarWidth = 360; // Left nav (68px) + secondary sidebar (280px) + divider (8px) + button space (4px)
 
-        const titlebarHeight = 38; // 标题栏高度
+        const titlebarHeight = 38; // Title bar height
 
 
 
@@ -1717,7 +1717,7 @@ ipcMain.handle('load-url-in-browserview', async (event, url) => {
 
 
 
-        // 加载 URL
+        // Load URL
 
         await browserView.webContents.loadURL(url);
 
@@ -1813,7 +1813,7 @@ ipcMain.on('show-browserview', () => {
 
         
 
-        // 恢复 BrowserView 位置
+        // Restore BrowserView position
 
         const bounds = mainWindow.getContentBounds();
 
@@ -1855,7 +1855,7 @@ ipcMain.on('update-browserview-bounds', (event, collapsed) => {
 
         const bounds = mainWindow.getContentBounds();
 
-        const sidebarWidth = collapsed ? 92 : 360; // 折叠: 68+20+4, 展开: 68+280+8+4
+        const sidebarWidth = collapsed ? 92 : 360; // Collapsed: 68+20+4, expanded: 68+280+8+4
 
         const titlebarHeight = 38;
 
@@ -1893,7 +1893,7 @@ ipcMain.handle('get-browserview-bounds', () => {
 
 
 
-// 窗口大小改变时调整 BrowserView
+// Adjust BrowserView when the window size changes
 
 if (mainWindow) {
 
@@ -1903,9 +1903,9 @@ if (mainWindow) {
 
             const bounds = mainWindow.getContentBounds();
 
-            const sidebarWidth = 360; // 左侧导航(68px) + 二级侧边栏(280px) + 分隔条(8px) + 按钮空间(4px)
+            const sidebarWidth = 360; // Left nav (68px) + secondary sidebar (280px) + divider (8px) + button space (4px)
 
-            const titlebarHeight = 38; // 标题栏高度
+            const titlebarHeight = 38; // Title bar height
 
 
 
@@ -1929,7 +1929,7 @@ if (mainWindow) {
 
 
 
-// 应用生命周期
+// App lifecycle
 
 app.whenReady().then(() => {
 
@@ -1997,7 +1997,7 @@ app.on('before-quit', () => {
 
     globalShortcut.unregisterAll();
 
-    // 清理Python进程
+    // Clean up the Python process
 
     if (pythonProcess) {
 
@@ -2009,7 +2009,7 @@ app.on('before-quit', () => {
 
 
 
-// 错误处理
+// Error handling
 
 process.on('uncaughtException', (error) => {
 

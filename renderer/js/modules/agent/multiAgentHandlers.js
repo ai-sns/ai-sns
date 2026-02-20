@@ -1,6 +1,6 @@
 /**
- * Multi-Agent Handlers - 多Agent事件处理扩展
- * 扩展agentHandlers以支持多Agent系统
+ * Multi-Agent Handlers - multi-agent event handling extensions
+ * Extend agentHandlers to support a multi-agent system
  */
 
 import agentState from './agentState.js';
@@ -19,12 +19,12 @@ const multiAgentHandlers = {
         return urlOrPath;
     },
     /**
-     * 初始化多Agent系统
+     * Initialize multi-agent system
      */
     async init() {
         console.log('[MultiAgentHandlers] 开始初始化多Agent系统...');
 
-        // 1. 从API加载Agent列表
+        // 1. Load agent list from API
         const response = await fetch(this.resolve('/api/agent'));
         const result = await response.json();
         const agents = result.success ? (result.data || []) : [];
@@ -34,40 +34,40 @@ const multiAgentHandlers = {
             return;
         }
 
-        // 2. 保存到状态
+        // 2. Save to state
         agentState.setAgents(agents);
         console.log('[MultiAgentHandlers] 已加载agents:', agents.length);
 
-        // 3. 初始化AgentSidebar
+        // 3. Initialize AgentSidebar
         await AgentSidebar.init();
 
-        // 4. 初始化AgentPage
+        // 4. Initialize AgentPage
         await AgentPage.init(agents);
 
-        // 5. 设置当前agent为第一个
+        // 5. Set current agent to the first one
         if (agents.length > 0) {
             agentState.setCurrentAgent(agents[0].id);
             console.log('[MultiAgentHandlers] 当前agent:', agents[0].id);
         }
 
-        // 6. 绑定全局事件
+        // 6. Bind global events
         this.bindGlobalEvents();
 
-        // 7. 绑定所有agent的UI事件
+        // 7. Bind UI events for all agents
         this.bindAllAgentEvents();
 
-        // 8. 为所有agent加载模型和角色选项
+        // 8. Load model and role options for all agents
         for (const agent of agents) {
             await this.loadModelOptionsForAgent(agent.id);
             await this.loadRoleOptionsForAgent(agent.id);
         }
 
-        // 9. 为当前agent加载聊天列表
+        // 9. Load chat list for current agent
         if (agents.length > 0) {
             this.loadChatListForAgent(agents[0].id);
         }
 
-        // 10. 初始化流式监听
+        // 10. Initialize stream listeners
         this.initChatStreamListeners();
 
         console.log('[MultiAgentHandlers] 多Agent系统初始化完成');
@@ -296,42 +296,42 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 绑定全局事件
+     * Bind global events
      */
     bindGlobalEvents() {
         console.log('[MultiAgentHandlers] 绑定全局事件...');
 
-        // 监听agent切换事件
+        // Listen for agent switch events
         window.addEventListener('agent-switched', (e) => {
             const { agentId } = e.detail;
             console.log('[MultiAgentHandlers] Agent切换:', agentId);
 
-            // 更新状态
+            // Update state
             agentState.setCurrentAgent(agentId);
 
-            // 加载该agent的聊天列表
+            // Load chat list for that agent
             this.loadChatListForAgent(agentId);
 
-            // 加载该agent的模型和角色选项
+            // Load model and role options for that agent
             this.loadModelOptionsForAgent(agentId);
             this.loadRoleOptionsForAgent(agentId);
         });
 
-        // 监听new chat事件
+        // Listen for new chat events
         window.addEventListener('agent-new-chat', (e) => {
             const { agentId } = e.detail;
             console.log('[MultiAgentHandlers] New Chat:', agentId);
 
-            // 切换到该agent
+            // Switch to that agent
             agentState.setCurrentAgent(agentId);
 
-            // 处理新建对话
+            // Handle new chat
             this.handleNewChatForAgent(agentId);
         });
     },
 
     /**
-     * 绑定所有agent的UI事件
+     * Bind UI events for all agents
      */
     bindAllAgentEvents() {
         console.log('[MultiAgentHandlers] 绑定所有agent的UI事件...');
@@ -567,7 +567,7 @@ const multiAgentHandlers = {
             });
         }
 
-        // Agent 右侧设置面板拖拽调整宽度（参考 SNS 右侧状态面板做法）
+        // Drag to resize agent right-side settings panel (similar to SNS right-side status panel)
         let isResizingPanel = false;
         let resizingAgentId = null;
         let startX = 0;
@@ -579,7 +579,7 @@ const multiAgentHandlers = {
         const onPanelMouseMove = (e) => {
             if (!isResizingPanel || !activePanel || !activeResizer) return;
 
-            // 向左拖拽增加宽度,向右拖拽减少宽度
+            // Drag left to increase width; drag right to decrease width
             const deltaX = startX - e.clientX;
             const minPanelWidth = 200;
             const minChatWidth = 0;
@@ -616,7 +616,7 @@ const multiAgentHandlers = {
             document.removeEventListener('mouseup', onPanelMouseUp);
         };
 
-        // 1. 发送消息按钮 - 使用事件委托
+        // 1. Send message button - use event delegation
         document.addEventListener('click', (e) => {
             const sendBtn = e.target.closest('.send-btn[data-agent-id]');
             if (sendBtn) {
@@ -626,7 +626,7 @@ const multiAgentHandlers = {
             }
         });
 
-        // 2. 输入框Enter键发送
+        // 2. Press Enter in input to send
         document.addEventListener('keydown', (e) => {
             const chatInput = e.target.closest('.agent-chat-input[data-agent-id]');
             if (chatInput && e.key === 'Enter' && !e.shiftKey) {
@@ -636,14 +636,14 @@ const multiAgentHandlers = {
             }
         });
 
-        // 3. 模型选择器
+        // 3. Model selector
         document.addEventListener('change', async (e) => {
             const modelSelector = e.target.closest('.model-selector[data-agent-id]');
             if (modelSelector) {
                 const agentId = parseInt(modelSelector.dataset.agentId);
                 const configId = modelSelector.value;
 
-                // 检查是否选择了 "Please Select"
+                // Check whether "Please Select" was chosen
                 if (!configId) {
                     console.log('[MultiAgentHandlers] 模型选择器：未选择有效配置');
                     return;
@@ -652,7 +652,7 @@ const multiAgentHandlers = {
                 agentState.setCurrentAgent(agentId);
                 agentState.setModel(configId);
 
-                // 禁用选择器，防止重复点击
+                // Disable selector to prevent repeated clicks
                 modelSelector.disabled = true;
 
                 try {
@@ -664,20 +664,20 @@ const multiAgentHandlers = {
                         Notification.error('更新模型配置失败: ' + error.message);
                     }
                 } finally {
-                    // 重新启用选择器
+                    // Re-enable selector
                     modelSelector.disabled = false;
                 }
             }
         });
 
-        // 4. 角色选择器
+        // 4. Role selector
         document.addEventListener('change', async (e) => {
             const roleSelector = e.target.closest('.role-selector[data-agent-id]');
             if (roleSelector) {
                 const agentId = parseInt(roleSelector.dataset.agentId);
                 const roleId = roleSelector.value;
 
-                // 检查是否选择了 "Please Select"
+                // Check whether "Please Select" was chosen
                 if (!roleId) {
                     console.log('[MultiAgentHandlers] 角色选择器：未选择有效配置');
                     return;
@@ -686,7 +686,7 @@ const multiAgentHandlers = {
                 agentState.setCurrentAgent(agentId);
                 agentState.setRole(roleId);
 
-                // 禁用选择器，防止重复点击
+                // Disable selector to prevent repeated clicks
                 roleSelector.disabled = true;
 
                 try {
@@ -698,20 +698,20 @@ const multiAgentHandlers = {
                         Notification.error('更新角色配置失败: ' + error.message);
                     }
                 } finally {
-                    // 重新启用选择器
+                    // Re-enable selector
                     roleSelector.disabled = false;
                 }
             }
         });
 
-        // 5. 设置面板页签切换
+        // 5. Settings panel tab switching
         document.addEventListener('click', (e) => {
             const tab = e.target.closest('.settings-tab[data-agent-id]');
             if (tab) {
                 const agentId = tab.dataset.agentId;
                 const targetTab = tab.dataset.tab;
 
-                // 切换同一agent的页签
+                // Switch tabs for the same agent
                 const tabs = document.querySelectorAll(`.settings-tab[data-agent-id="${agentId}"]`);
                 const panes = document.querySelectorAll(`#settingsTabContent-${agentId} .tab-pane`);
 
@@ -728,7 +728,7 @@ const multiAgentHandlers = {
             }
         });
 
-        // 6. 设置面板折叠按钮
+        // 6. Settings panel collapse button
         document.addEventListener('click', (e) => {
             const collapseBtn = e.target.closest('.panel-collapse-btn[data-agent-id]');
             if (collapseBtn) {
@@ -745,7 +745,7 @@ const multiAgentHandlers = {
             }
         });
 
-        // 6.1 设置面板拖拽调整宽度（事件委托，支持多Agent）
+        // 6.1 Drag to resize settings panel width (event delegation, multi-agent)
         document.addEventListener('mousedown', (e) => {
             const resizer = e.target.closest('.agent-panel-resizer[data-agent-id]');
             if (!resizer) return;
@@ -767,7 +767,7 @@ const multiAgentHandlers = {
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
 
-            // 禁用 iframe 的鼠标事件，防止拖动时卡顿
+            // Disable iframe pointer events to avoid lag while dragging
             disabledIframes = Array.from(document.querySelectorAll('iframe'));
             disabledIframes.forEach(iframe => {
                 iframe.style.pointerEvents = 'none';
@@ -778,7 +778,7 @@ const multiAgentHandlers = {
             e.preventDefault();
         });
 
-        // 7. Prompt保存按钮
+        // 7. Prompt save button
         document.addEventListener('click', (e) => {
             const saveBtn = e.target.closest('.prompt-save-btn[data-agent-id]');
             if (saveBtn) {
@@ -790,7 +790,7 @@ const multiAgentHandlers = {
             }
         });
 
-        // 8. 插件选择按钮（工具栏的"添加"按钮）
+        // 8. Plugin selection button (toolbar "Add" button)
         document.addEventListener('click', (e) => {
             const addBtn = e.target.closest('.toolbar-icon-btn[title="添加"][data-agent-id]');
             if (addBtn) {
@@ -873,13 +873,13 @@ const multiAgentHandlers = {
                     hasDownloadAndOpen: !!(window.electronAPI && window.electronAPI.downloadAndOpen)
                 });
 
-                // 兼容旧逻辑：如果有本地路径，直接打开
+                // Backwards compatible: if there is a local path, open directly
                 if (filePath) {
                     this.openFilePath(filePath);
                     return;
                 }
 
-                // 新逻辑：从后端按attachment_id下载打开
+                // New logic: download and open from backend by attachment_id
                 if (!conversationId || !attachmentId) {
                     console.warn('[MultiAgentHandlers] 附件缺少conversationId或attachmentId，无法下载打开');
                     if (typeof Notification !== 'undefined' && Notification.error) {
@@ -1108,7 +1108,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 为特定agent加载聊天列表
+     * Load chat list for a specific agent
      */
     async loadChatListForAgent(agentId) {
         console.log(`[MultiAgentHandlers] 开始加载Agent ${agentId} 的chat list`);
@@ -1120,9 +1120,9 @@ const multiAgentHandlers = {
         }
 
         try {
-            // 尝试从API获取conversations，带agent_id参数
-            // 如果后端支持按agent筛选，会返回过滤后的结果
-            // 如果不支持，我们在客户端进行过滤
+            // Try to fetch conversations from API with agent_id param
+            // If backend supports per-agent filtering, it returns filtered results
+            // Otherwise, we filter on the client
             const url = this.resolve(`/api/chat/conversations?limit=50&agent_id=${encodeURIComponent(agentId)}`);
             console.log(`[MultiAgentHandlers] 调用API: ${url}`);
             const response = await fetch(url);
@@ -1130,8 +1130,8 @@ const multiAgentHandlers = {
             let conversations = result.data || [];
             console.log(`[MultiAgentHandlers] API返回了 ${conversations.length} 条对话`);
 
-            // 客户端过滤：只显示属于当前agent的对话
-            // 如果conversation有agent_id字段，则过滤；否则显示所有（向后兼容）
+            // Client-side filtering: only show conversations for current agent
+            // If conversation has agent_id field, filter; otherwise show all (backwards compatible)
             if (conversations.length > 0 && conversations[0].agent_id !== undefined) {
                 conversations = conversations.filter(conv => conv.agent_id == agentId);
                 console.log(`[MultiAgentHandlers] 过滤后剩余 ${conversations.length} 条对话`);
@@ -1154,17 +1154,17 @@ const multiAgentHandlers = {
                 </div>
             `).join('');
 
-            // 绑定点击事件
+            // Bind click events
             treeChildren.querySelectorAll('.tree-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const conversationId = item.dataset.conversationId;
                     const itemAgentId = parseInt(item.dataset.agentId);
 
-                    // 移除其他项的active class
+                    // Remove active class from other items
                     treeChildren.querySelectorAll('.tree-item').forEach(i => i.classList.remove('active'));
                     item.classList.add('active');
 
-                    // 加载对话
+                    // Load conversation
                     this.loadConversationForAgent(conversationId, itemAgentId);
                 });
             });
@@ -1176,12 +1176,12 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 为特定agent发送消息
+     * Send message for a specific agent
      */
     async sendMessageForAgent(agentId) {
         console.log(`[MultiAgentHandlers] Agent ${agentId} 发送消息`);
 
-        // 设置当前agent
+        // Set current agent
         agentState.setCurrentAgent(agentId);
 
         const input = document.getElementById(`chatInput-${agentId}`);
@@ -1193,12 +1193,12 @@ const multiAgentHandlers = {
         const message = input.value.trim();
         if (!message) return;
 
-        // 如果正在进行流式输出，不允许发送新消息
+        // Do not allow sending new messages while streaming is in progress
         if (agentState.getRequestId()) {
             return;
         }
 
-        // 获取当前agent信息
+        // Get current agent info
         const currentAgent = agentState.getCurrentAgent();
         if (!currentAgent) {
             console.error('[MultiAgentHandlers] 没有选中的Agent');
@@ -1213,19 +1213,19 @@ const multiAgentHandlers = {
 
         console.log('[MultiAgentHandlers] 使用Agent发送消息:', currentAgent.name, 'ID:', agentId);
 
-        // 禁用发送按钮
+        // Disable send button
         if (sendBtn) {
             sendBtn.disabled = true;
             sendBtn.classList.add('sending');
         }
 
-        // 隐藏欢迎消息
+        // Hide welcome message
         const welcomeMsg = messagesContainer.querySelector('.welcome-message');
         if (welcomeMsg) {
             welcomeMsg.style.display = 'none';
         }
 
-        // 获取当前时间
+        // Get current time
         const timeStr = new Date().toLocaleString('zh-CN', {
             month: '2-digit',
             day: '2-digit',
@@ -1240,7 +1240,7 @@ const multiAgentHandlers = {
             ? `<div class="message-attachments">${attachments.map(a => `<span class="attachment-chip" data-conversation-id="${this.escapeHtml(String(currentConversationId || ''))}" data-attachment-id="">${this.escapeHtml(a.name || 'file')}</span>`).join('')}</div>`
             : '';
 
-        // 添加用户消息
+        // Add user message
         const userMessageHtml = `
             <div class="message-item user-message">
                 <div class="message-header">
@@ -1258,10 +1258,10 @@ const multiAgentHandlers = {
         input.value = '';
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // 保存用户消息到历史
+        // Save user message to history
         agentState.addMessage('user', message);
 
-        // 获取或生成 conversation_id
+        // Get or generate conversation_id
         let conversationId = currentConversationId;
         if (!conversationId) {
             conversationId = agentState.generateConversationId();
@@ -1270,7 +1270,7 @@ const multiAgentHandlers = {
             console.log('[MultiAgentHandlers] 生成新对话ID:', conversationId);
         }
 
-        // 添加AI回复容器（带思考动画，显示Agent名称）
+        // Add AI reply container (with thinking animation, show agent name)
         const assistantMessageHtml = `
             <div class="message-item assistant-message streaming">
                 <div class="message-header">
@@ -1293,12 +1293,12 @@ const multiAgentHandlers = {
         messagesContainer.insertAdjacentHTML('beforeend', assistantMessageHtml);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // 生成请求ID
+        // Generate request ID
         const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         agentState.setRequestId(requestId);
         agentState.clearStreamingContent();
 
-        // 启用发送按钮的函数
+        // Helper to re-enable the send button
         const enableSendBtn = () => {
             if (sendBtn) {
                 sendBtn.disabled = false;
@@ -1306,7 +1306,7 @@ const multiAgentHandlers = {
             }
         };
 
-        // 发起流式请求 - 使用Agent专属接口
+        // Start streaming request - use agent-specific endpoint
         try {
             if (isRemoteAgent) {
                 if (!currentAgent.url) {
@@ -1318,7 +1318,7 @@ const multiAgentHandlers = {
                 }
             }
 
-            // 准备回调函数（绑定agentId）
+            // Prepare callbacks (bound to agentId)
             const callbacks = {
                 onData: (content) => {
                     agentState.appendStreamingContent(content);
@@ -1332,7 +1332,7 @@ const multiAgentHandlers = {
                     }
                     agentState.clearRequestId();
                     enableSendBtn();
-                    // 重新加载聊天列表
+                    // Reload chat list
                     this.loadChatListForAgent(agentId);
                 },
                 onError: (error) => {
@@ -1342,7 +1342,7 @@ const multiAgentHandlers = {
                 }
             };
 
-            // 调用Agent专属的流式接口
+            // Call agent-specific streaming API
             console.log('[MultiAgentHandlers] 调用Agent专属接口:', `/api/agent/${agentId}/chat/stream`);
             const uploadFiles = (attachments || []).filter(a => a && a.file).map(a => a.file);
             if (uploadFiles.length > 0) {
@@ -1370,14 +1370,14 @@ const multiAgentHandlers = {
                 );
             }
 
-            // 设置超时处理
+            // Setup timeout handling
             setTimeout(() => {
                 if (agentState.getRequestId() === requestId) {
                     this.showStreamErrorForAgent('请求超时，请重试', agentId);
                     agentState.clearRequestId();
                     enableSendBtn();
                 }
-            }, 120000); // 2分钟超时
+            }, 120000); // 2 minute timeout
 
         } catch (error) {
             console.error(`[MultiAgentHandlers] Agent ${agentId} 发送消息失败:`, error);
@@ -1388,7 +1388,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 更新流式消息显示（特定agent）
+     * Update streaming message display (per-agent)
      */
     updateStreamingMessageForAgent(content, agentId) {
         const messagesContainer = document.getElementById(`chatMessages-${agentId}`);
@@ -1402,7 +1402,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 完成流式消息（特定agent）
+     * Finalize streaming message (per-agent)
      */
     finalizeStreamingMessageForAgent(agentId) {
         const messagesContainer = document.getElementById(`chatMessages-${agentId}`);
@@ -1417,20 +1417,20 @@ const multiAgentHandlers = {
                 streamingBody.innerHTML = this.renderMarkdown(content);
                 this.highlightCodeBlocks(streamingBody);
 
-                // 渲染思维导图（如果有）
+                // Render mindmap (if available)
                 if (window.MindmapPlugin) {
                     window.MindmapPlugin.renderInMessage(streamingBody);
                 }
             }
         }
 
-        // 保存到历史
+        // Save to history
         agentState.addMessage('assistant', agentState.getStreamingContent());
         agentState.clearStreamingContent();
     },
 
     /**
-     * 显示流错误（特定agent）
+     * Show streaming error (per-agent)
      */
     showStreamErrorForAgent(error, agentId) {
         const messagesContainer = document.getElementById(`chatMessages-${agentId}`);
@@ -1448,35 +1448,35 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 处理新建对话（特定agent）
+     * Handle new chat (per-agent)
      */
     handleNewChatForAgent(agentId) {
         const messagesContainer = document.getElementById(`chatMessages-${agentId}`);
         if (!messagesContainer) return;
 
-        // 保存欢迎消息（如果有）
+        // Save welcome message (if any)
         const welcomeMsg = messagesContainer.querySelector('.welcome-message');
         let welcomeHTML = '';
         if (welcomeMsg) {
             welcomeHTML = welcomeMsg.outerHTML;
         }
 
-        // 清空整个聊天容器
+        // Clear entire chat container
         messagesContainer.innerHTML = '';
 
-        // 重新添加欢迎消息
+        // Re-add welcome message
         if (welcomeHTML) {
             messagesContainer.innerHTML = welcomeHTML;
         }
 
-        // 生成新的 conversation_id
+        // Generate new conversation_id
         const newConversationId = agentState.generateConversationId();
         agentState.setConversationId(newConversationId);
 
-        // 清空聊天历史
+        // Clear chat history
         agentState.clearChatHistory();
 
-        // 取消所有选中状态
+        // Clear all selections
         const chatList = document.getElementById(`chatList-${agentId}`);
         if (chatList) {
             chatList.querySelectorAll('.tree-item').forEach(item => {
@@ -1488,7 +1488,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 加载对话（特定agent）
+     * Load conversation (per-agent)
      */
     async loadConversationForAgent(conversationId, agentId) {
         try {
@@ -1538,14 +1538,14 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 为特定agent加载模型选项
+     * Load model options for a specific agent
      */
     async loadModelOptionsForAgent(agentId) {
         const modelSelector = document.getElementById(`modelSelector-${agentId}`);
         if (!modelSelector) return;
 
         try {
-            // 1. 获取agent的当前配置
+            // 1. Get agent's current configuration
             const agentResponse = await fetch(this.resolve(`/api/agent/${agentId}`));
             const agentResult = await agentResponse.json();
             const currentAgent = agentResult.success ? agentResult.data : null;
@@ -1560,7 +1560,7 @@ const multiAgentHandlers = {
             this.applyRemoteUiDisableForAgent(agentId, false);
             const currentModelConfigId = currentAgent?.model_config_id || currentAgent?.model;
 
-            // 2. 获取所有模型配置
+            // 2. Get all model configs
             const response = await fetch(this.resolve('/api/agent/llm-configs'));
             const result = await response.json();
 
@@ -1568,32 +1568,32 @@ const multiAgentHandlers = {
                 const models = result.data.filter(m => m.is_active !== false);
 
                 if (models.length > 0) {
-                    // 3. 确定要选中的模型
+                    // 3. Determine which model should be selected
                     let selectedModel = null;
                     let shouldShowPleaseSelect = false;
 
                     if (currentModelConfigId) {
-                        // 如果agent有保存的配置，尝试在列表中查找
+                        // If the agent has a saved config, try to find it in the list
                         selectedModel = models.find(m => m.config_id === currentModelConfigId);
 
-                        // 如果agent的配置不在可用列表中，显示 Please Select
+                        // If the agent config is not in the available list, show Please Select
                         if (!selectedModel) {
                             shouldShowPleaseSelect = true;
                         }
                     } else {
-                        // 如果agent没有配置，显示 Please Select
+                        // If the agent has no config, show Please Select
                         shouldShowPleaseSelect = true;
                     }
 
-                    // 4. 渲染选项
+                    // 4. Render options
                     let optionsHTML = '';
 
-                    // 添加 "Please Select" 选项
+                    // Add "Please Select" option
                     if (shouldShowPleaseSelect) {
                         optionsHTML = '<option value="" selected>Please Select</option>';
                     }
 
-                    // 添加模型选项
+                    // Add model options
                     optionsHTML += models.map(model => `
                         <option value="${model.config_id}" ${selectedModel && model.config_id === selectedModel.config_id ? 'selected' : ''}>
                             ${model.name}${model.provider ? ` (${model.provider})` : ''}
@@ -1602,7 +1602,7 @@ const multiAgentHandlers = {
 
                     modelSelector.innerHTML = optionsHTML;
 
-                    // 5. 加载选中模型的配置（仅当有有效配置时）
+                    // 5. Load selected model config (only when a valid config exists)
                     if (selectedModel) {
                         agentState.setModel(selectedModel.config_id);
                         await this.loadAndApplyModelConfig(selectedModel.config_id, agentId, false);
@@ -1615,14 +1615,14 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 为特定agent加载角色选项
+     * Load role options for a specific agent
      */
     async loadRoleOptionsForAgent(agentId) {
         const roleSelector = document.getElementById(`roleSelector-${agentId}`);
         if (!roleSelector) return;
 
         try {
-            // 1. 获取agent的当前配置
+            // 1. Get agent's current configuration
             const agentResponse = await fetch(this.resolve(`/api/agent/${agentId}`));
             const agentResult = await agentResponse.json();
             const currentAgent = agentResult.success ? agentResult.data : null;
@@ -1637,7 +1637,7 @@ const multiAgentHandlers = {
             this.applyRemoteUiDisableForAgent(agentId, false);
             const currentRoleId = currentAgent?.role_id;
 
-            // 2. 获取所有角色配置
+            // 2. Get all role configs
             const response = await fetch(this.resolve('/api/agent/role-configs'));
             const result = await response.json();
 
@@ -1645,32 +1645,32 @@ const multiAgentHandlers = {
                 const roles = result.data.filter(r => r.is_active !== false);
 
                 if (roles.length > 0) {
-                    // 3. 确定要选中的角色
+                    // 3. Determine which role should be selected
                     let selectedRole = null;
                     let shouldShowPleaseSelect = false;
 
                     if (currentRoleId) {
-                        // 如果agent有保存的配置，尝试在列表中查找
+                        // If the agent has a saved config, try to find it in the list
                         selectedRole = roles.find(r => r.role_id === currentRoleId);
 
-                        // 如果agent的配置不在可用列表中，显示 Please Select
+                        // If the agent config is not in the available list, show Please Select
                         if (!selectedRole) {
                             shouldShowPleaseSelect = true;
                         }
                     } else {
-                        // 如果agent没有配置，显示 Please Select
+                        // If the agent has no config, show Please Select
                         shouldShowPleaseSelect = true;
                     }
 
-                    // 4. 渲染选项
+                    // 4. Render options
                     let optionsHTML = '';
 
-                    // 添加 "Please Select" 选项
+                    // Add "Please Select" option
                     if (shouldShowPleaseSelect) {
                         optionsHTML = '<option value="" selected>Please Select</option>';
                     }
 
-                    // 添加角色选项
+                    // Add role options
                     optionsHTML += roles.map(role => `
                         <option value="${role.role_id}" ${selectedRole && role.role_id === selectedRole.role_id ? 'selected' : ''}>
                             ${role.name}${role.category ? ` - ${role.category}` : ''}
@@ -1679,7 +1679,7 @@ const multiAgentHandlers = {
 
                     roleSelector.innerHTML = optionsHTML;
 
-                    // 5. 加载选中角色的配置（仅当有有效配置时）
+                    // 5. Load selected role config (only when a valid config exists)
                     if (selectedRole) {
                         agentState.setRole(selectedRole.role_id);
                         await this.loadAndApplyRoleConfig(selectedRole.role_id, agentId, false);
@@ -1692,10 +1692,10 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 加载并应用模型配置
-     * @param {string} configId - 模型配置ID
+     * Load and apply model config
+     * @param {string} configId - Model config ID
      * @param {number} agentId - Agent ID
-     * @param {boolean} saveToDatabase - 是否保存到数据库（默认true）
+     * @param {boolean} saveToDatabase - Whether to save to database (default true)
      */
     async loadAndApplyModelConfig(configId, agentId, saveToDatabase = true) {
         try {
@@ -1708,7 +1708,7 @@ const multiAgentHandlers = {
                 this.populateParamTabForAgent(modelConfig, agentId);
                 console.log(`[MultiAgentHandlers] Agent ${agentId} 模型配置已加载:`, modelConfig.name);
 
-                // 如果需要，更新agent配置到数据库
+                // If needed, update agent config in database
                 if (saveToDatabase) {
                     await this.updateAgentModelConfig(agentId, configId);
                 }
@@ -1719,10 +1719,10 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 加载并应用角色配置
-     * @param {string} roleId - 角色ID
+     * Load and apply role config
+     * @param {string} roleId - Role ID
      * @param {number} agentId - Agent ID
-     * @param {boolean} saveToDatabase - 是否保存到数据库（默认true）
+     * @param {boolean} saveToDatabase - Whether to save to database (default true)
      */
     async loadAndApplyRoleConfig(roleId, agentId, saveToDatabase = true) {
         try {
@@ -1735,7 +1735,7 @@ const multiAgentHandlers = {
                 this.populatePromptTabForAgent(roleConfig, agentId);
                 console.log(`[MultiAgentHandlers] Agent ${agentId} 角色配置已加载:`, roleConfig.name);
 
-                // 如果需要，更新agent配置到数据库
+                // If needed, update agent config in database
                 if (saveToDatabase) {
                     await this.updateAgentRoleConfig(agentId, roleId);
                 }
@@ -1746,9 +1746,9 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 更新Agent的模型配置到数据库
+     * Update agent's model config in database
      * @param {number} agentId - Agent ID
-     * @param {string} configId - 模型配置ID
+     * @param {string} configId - Model config ID
      */
     async updateAgentModelConfig(agentId, configId) {
         try {
@@ -1765,14 +1765,14 @@ const multiAgentHandlers = {
             const result = await response.json();
 
             if (!response.ok) {
-                // HTTP错误
+                // HTTP error
                 console.error(`[MultiAgentHandlers] HTTP ${response.status}:`, result);
                 throw new Error(result.detail || `HTTP ${response.status}`);
             }
 
             if (result.success) {
                 console.log(`[MultiAgentHandlers] Agent ${agentId} 模型配置已更新到数据库:`, configId);
-                // 重新加载agent实例以应用新配置
+                // Reload agent instance to apply the new config
                 await this.reloadAgentInstance(agentId);
             } else {
                 console.error(`[MultiAgentHandlers] 更新Agent模型配置失败:`, result.error);
@@ -1784,9 +1784,9 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 更新Agent的角色配置到数据库
+     * Update agent's role config in database
      * @param {number} agentId - Agent ID
-     * @param {string} roleId - 角色ID
+     * @param {string} roleId - Role ID
      */
     async updateAgentRoleConfig(agentId, roleId) {
         try {
@@ -1803,14 +1803,14 @@ const multiAgentHandlers = {
             const result = await response.json();
 
             if (!response.ok) {
-                // HTTP错误
+                // HTTP error
                 console.error(`[MultiAgentHandlers] HTTP ${response.status}:`, result);
                 throw new Error(result.detail || `HTTP ${response.status}`);
             }
 
             if (result.success) {
                 console.log(`[MultiAgentHandlers] Agent ${agentId} 角色配置已更新到数据库:`, roleId);
-                // 重新加载agent实例以应用新配置
+                // Reload agent instance to apply the new config
                 await this.reloadAgentInstance(agentId);
             } else {
                 console.error(`[MultiAgentHandlers] 更新Agent角色配置失败:`, result.error);
@@ -1822,7 +1822,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 重新加载Agent实例（让后端重新从数据库加载配置）
+     * Reload agent instance (let backend reload config from database)
      * @param {number} agentId - Agent ID
      */
     async reloadAgentInstance(agentId) {
@@ -1840,7 +1840,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 填充Param页签（特定agent）
+     * Populate Param tab (per-agent)
      */
     populateParamTabForAgent(modelConfig, agentId) {
         if (!modelConfig) return;
@@ -1875,7 +1875,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 填充Prompt页签（特定agent）
+     * Populate Prompt tab (per-agent)
      */
     populatePromptTabForAgent(roleConfig, agentId) {
         if (!roleConfig) return;
@@ -1887,7 +1887,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 保存角色提示词（特定agent）
+     * Save role system prompt (per-agent)
      */
     async saveRolePromptForAgent(prompt, agentId) {
         const currentConfig = agentState.currentRoleConfig;
@@ -1926,21 +1926,21 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 初始化流式聊天监听器
+     * Initialize streaming chat listeners
      */
     initChatStreamListeners() {
         if (window.electronAPI && window.electronAPI.onChatStreamData) {
-            // Electron环境下的流式监听
+            // Streaming listener in Electron environment
             console.log('[MultiAgentHandlers] 初始化Electron流式监听');
-            // TODO: 实现Electron环境下的流式监听
+            // TODO: Implement streaming listener in Electron environment
         }
     },
 
     /**
-     * Markdown 渲染
+     * Markdown render
      */
     renderMarkdown(text, isStreaming = false) {
-        // 复用agentHandlers的renderMarkdown方法
+        // Reuse agentHandlers.renderMarkdown
         if (window.agentHandlers && window.agentHandlers.renderMarkdown) {
             return window.agentHandlers.renderMarkdown(text, isStreaming);
         }
@@ -1948,20 +1948,20 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 代码高亮
+     * Code highlighting
      */
     highlightCodeBlocks(container) {
-        // 复用agentHandlers的highlightCodeBlocks方法
+        // Reuse agentHandlers.highlightCodeBlocks
         if (window.agentHandlers && window.agentHandlers.highlightCodeBlocks) {
             window.agentHandlers.highlightCodeBlocks(container);
         }
     },
 
     /**
-     * 创建消息元素
+     * Create message element
      */
     createMessageElement(role, content, time) {
-        // 复用agentHandlers的createMessageElement方法
+        // Reuse agentHandlers.createMessageElement
         if (window.agentHandlers && window.agentHandlers.createMessageElement) {
             return window.agentHandlers.createMessageElement(role, content, time);
         }
@@ -1969,7 +1969,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 格式化时间
+     * Format time
      */
     formatTime(timestamp) {
         if (!timestamp) return '';
@@ -1987,7 +1987,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * HTML转义
+     * HTML escape
      */
     escapeHtml(text) {
         const div = document.createElement('div');
@@ -1996,7 +1996,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 处理添加插件（特定agent）
+     * Handle add plugin (per-agent)
      */
     handleAddPlugin(agentId) {
         if (typeof Modal === 'undefined') {
@@ -2033,14 +2033,14 @@ const multiAgentHandlers = {
                     if (typeof Notification !== 'undefined') {
                         Notification.error('请选择一个插件');
                     }
-                    return false; // 阻止模态框关闭
+                    return false; // Prevent modal from closing
                 }
 
                 this.loadPluginForAgent(pluginId, agentId);
             }
         });
 
-        // 绑定插件选择变化事件
+        // Bind plugin selection change event
         setTimeout(() => {
             const select = document.getElementById('pluginSelect');
             const descriptionEl = document.getElementById('pluginDescription');
@@ -2062,12 +2062,12 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 为特定agent加载插件
+     * Load plugin for a specific agent
      */
     loadPluginForAgent(pluginId, agentId) {
         console.log(`[MultiAgentHandlers] 为Agent ${agentId} 加载插件:`, pluginId);
 
-        // 插件配置
+        // Plugin config
         const pluginConfigs = {
             'mindmap': {
                 name: '思维导图',
@@ -2107,7 +2107,7 @@ const multiAgentHandlers = {
             return;
         }
 
-        // 检查插件是否已加载
+        // Check whether the plugin is already loaded
         const existingTab = document.querySelector(`#settingsTabs-${agentId} .settings-tab[data-tab="plugin-${pluginId}"]`);
         if (existingTab) {
             console.log('[MultiAgentHandlers] 插件已存在，切换到该页签');
@@ -2118,7 +2118,7 @@ const multiAgentHandlers = {
             return;
         }
 
-        // 1. 创建页签按钮
+        // 1. Create tab button
         const settingsTabs = document.getElementById(`settingsTabs-${agentId}`);
         if (!settingsTabs) {
             console.error('[MultiAgentHandlers] 未找到设置页签容器');
@@ -2134,7 +2134,7 @@ const multiAgentHandlers = {
             <span class="tab-close-btn" title="关闭">×</span>
         `;
 
-        // 绑定关闭按钮事件
+        // Bind close button event
         const closeBtn = tabButton.querySelector('.tab-close-btn');
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -2144,7 +2144,7 @@ const multiAgentHandlers = {
         settingsTabs.appendChild(tabButton);
         console.log('[MultiAgentHandlers] ✓ 已创建页签按钮');
 
-        // 2. 创建页签内容
+        // 2. Create tab content
         const tabContent = document.getElementById(`settingsTabContent-${agentId}`);
         if (!tabContent) {
             console.error('[MultiAgentHandlers] 未找到页签内容容器');
@@ -2179,10 +2179,10 @@ const multiAgentHandlers = {
         tabContent.appendChild(tabPane);
         console.log('[MultiAgentHandlers] ✓ 已创建页签内容');
 
-        // 3. 激活新创建的页签
+        // 3. Activate the newly created tab
         tabButton.click();
 
-        // 4. 加载插件具体内容
+        // 4. Load plugin content
         this.loadPluginContentForAgent(pluginId, agentId);
 
         if (typeof Notification !== 'undefined') {
@@ -2193,19 +2193,19 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 移除特定agent的插件页签
+     * Remove plugin tab for a specific agent
      */
     removePluginTabForAgent(pluginId, agentId) {
         console.log(`[MultiAgentHandlers] 为Agent ${agentId} 移除插件:`, pluginId);
 
-        // 移除页签按钮
+        // Remove tab button
         const tabButton = document.querySelector(`#settingsTabs-${agentId} .settings-tab[data-tab="plugin-${pluginId}"]`);
         const wasActive = !!(tabButton && tabButton.classList.contains('active'));
         if (tabButton) {
             tabButton.remove();
         }
 
-        // 移除页签内容
+        // Remove tab content
         const tabPane = document.querySelector(`#settingsTabContent-${agentId} .tab-pane[data-tab="plugin-${pluginId}"]`);
         if (tabPane) {
             tabPane.remove();
@@ -2231,7 +2231,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 加载特定agent的插件内容
+     * Load plugin content for a specific agent
      */
     loadPluginContentForAgent(pluginId, agentId) {
         const container = document.getElementById(`plugin-content-${pluginId}-${agentId}`);
@@ -2240,7 +2240,7 @@ const multiAgentHandlers = {
             return;
         }
 
-        // 根据插件 ID 加载不同的内容
+        // Load different content by plugin ID
         switch (pluginId) {
             case 'mindmap':
                 container.innerHTML = `
@@ -2289,7 +2289,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 显示思维导图示例（特定agent）
+     * Show mindmap example (per-agent)
      */
     showMindmapExample(agentId) {
         const input = document.getElementById(`chatInput-${agentId}`);
@@ -2303,7 +2303,7 @@ const multiAgentHandlers = {
     },
 
     /**
-     * 让AI生成思维导图（特定agent）
+     * Ask AI to generate a mindmap (per-agent)
      */
     askAIForMindmap(agentId) {
         const input = document.getElementById(`chatInput-${agentId}`);
@@ -2317,7 +2317,7 @@ const multiAgentHandlers = {
     }
 };
 
-// 导出为全局对象
+// Export as global object
 if (typeof window !== 'undefined') {
     window.multiAgentHandlers = multiAgentHandlers;
 }

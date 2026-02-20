@@ -1,5 +1,5 @@
 /**
- * Web Handlers - 事件处理
+ * Web Handlers - event handling
  */
 
 const webHandlers = {
@@ -195,8 +195,8 @@ const webHandlers = {
         });
     },
 
-    // showAddModal方法已废弃，改用WebSidebar.showAddDialog
-    // 保留此注释以备将来参考
+    // showAddModal() is deprecated; use WebSidebar.showAddDialog instead
+    // Keep this note for future reference
 
     destroy() {
         // Cleanup if needed

@@ -12,6 +12,18 @@ export class SNSAvatarDialog {
         this.existingAgentId = null;
     }
 
+    _isDialogAlive() {
+        return !!(this.dialog && typeof document !== 'undefined' && document.body && document.body.contains(this.dialog));
+    }
+
+    _q(selector) {
+        return this.dialog ? this.dialog.querySelector(selector) : null;
+    }
+
+    _qa(selector) {
+        return this.dialog ? Array.from(this.dialog.querySelectorAll(selector)) : [];
+    }
+
     resolve(urlOrPath) {
         try {
             if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
@@ -23,6 +35,14 @@ export class SNSAvatarDialog {
     }
 
     async show() {
+        const existing = document.getElementById('snsAvatarDialog');
+        if (existing) {
+            try {
+                existing.remove();
+            } catch (e) {
+            }
+        }
+
         // Create dialog HTML
         const dialogHTML = `
             <div class="modal-overlay" id="snsAvatarDialog">
@@ -100,24 +120,34 @@ export class SNSAvatarDialog {
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
         this.dialog = document.getElementById('snsAvatarDialog');
 
+        if (!this._isDialogAlive()) return;
+
         await this.loadExistingConfig();
+
+        if (!this._isDialogAlive()) return;
 
         // Load 3D avatars
         await this.load3DAvatars();
 
+        if (!this._isDialogAlive()) return;
+
         // Load user info
         await this.loadUserInfo();
 
+        if (!this._isDialogAlive()) return;
+
         // Load agent list
         await this.loadAgentList();
+
+        if (!this._isDialogAlive()) return;
 
         // Setup event listeners
         this.setupEventListeners();
     }
 
     setAvatarPreview(avatarSrc) {
-        const img = document.getElementById('avatarPreviewImg');
-        const placeholder = document.getElementById('avatarPlaceholder');
+        const img = this._q('#avatarPreviewImg');
+        const placeholder = this._q('#avatarPlaceholder');
         if (!img || !placeholder || !avatarSrc) return;
 
         img.src = avatarSrc;
@@ -151,7 +181,8 @@ export class SNSAvatarDialog {
             const response = await fetch(this.resolve('/api/sns/avatars3d'));
             const avatars = await response.json();
 
-            const grid = document.getElementById('avatar3dGrid');
+            const grid = this._q('#avatar3dGrid');
+            if (!grid) return;
             grid.innerHTML = '';
 
             avatars.forEach(avatar => {
@@ -177,7 +208,8 @@ export class SNSAvatarDialog {
             }
         } catch (error) {
             console.error('Error loading 3D avatars:', error);
-            document.getElementById('avatar3dGrid').innerHTML = '<div class="error">加载失败</div>';
+            const grid = this._q('#avatar3dGrid');
+            if (grid) grid.innerHTML = '<div class="error">加载失败</div>';
         }
     }
 
@@ -196,7 +228,7 @@ export class SNSAvatarDialog {
 
     setupEventListeners() {
         // Tab switching
-        const modalTabs = this.dialog ? this.dialog.querySelectorAll('.modal-tab') : [];
+        const modalTabs = this._qa('.modal-tab');
         modalTabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
                 const targetTab = e.target.dataset.tab;
@@ -206,13 +238,13 @@ export class SNSAvatarDialog {
                 e.target.classList.add('active');
 
                 // Update tab content
-                const tabContents = this.dialog ? this.dialog.querySelectorAll('.tab-content') : [];
+                const tabContents = this._qa('.tab-content');
                 tabContents.forEach(content => {
                     content.style.display = 'none';
                     content.classList.remove('active');
                 });
 
-                const targetContent = this.dialog ? this.dialog.querySelector(`#${targetTab}Tab`) : null;
+                const targetContent = this._q(`#${targetTab}Tab`);
                 if (targetContent) {
                     targetContent.style.display = 'block';
                     targetContent.classList.add('active');
@@ -221,8 +253,8 @@ export class SNSAvatarDialog {
         });
 
         // Upload button
-        const uploadBtn = this.dialog ? this.dialog.querySelector('#uploadAvatarBtn') : null;
-        const fileInput = this.dialog ? this.dialog.querySelector('#avatarFileInput') : null;
+        const uploadBtn = this._q('#uploadAvatarBtn');
+        const fileInput = this._q('#avatarFileInput');
         if (uploadBtn && fileInput) {
             uploadBtn.addEventListener('click', () => {
                 fileInput.click();
@@ -240,7 +272,7 @@ export class SNSAvatarDialog {
         }
 
         // Save button
-        const saveBtn = this.dialog ? this.dialog.querySelector('#saveAvatarBtn') : null;
+        const saveBtn = this._q('#saveAvatarBtn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 this.saveConfiguration();
@@ -251,8 +283,9 @@ export class SNSAvatarDialog {
     previewAvatar(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            const img = document.getElementById('avatarPreviewImg');
-            const placeholder = document.getElementById('avatarPlaceholder');
+            const img = this._q('#avatarPreviewImg');
+            const placeholder = this._q('#avatarPlaceholder');
+            if (!img || !placeholder) return;
             img.src = e.target.result;
             img.style.display = 'block';
             placeholder.style.display = 'none';
@@ -263,7 +296,7 @@ export class SNSAvatarDialog {
 
     async saveConfiguration() {
         try {
-            const activeTabEl = this.dialog ? this.dialog.querySelector('.modal-tab.active') : null;
+            const activeTabEl = this._q('.modal-tab.active');
             const activeTab = activeTabEl ? activeTabEl.dataset.tab : 'avatar';
 
             if (activeTab === 'avatar') {
@@ -314,10 +347,14 @@ export class SNSAvatarDialog {
                 }
             } else if (activeTab === 'userinfo') {
                 // Save user info
-                const nickname = document.getElementById('userNickname').value;
-                const sign = document.getElementById('userSign').value;
-                const snsUrl = document.getElementById('userSnsUrl').value;
-                const agentId = document.getElementById('userAgentId').value;
+                const nicknameEl = this._q('#userNickname');
+                const signEl = this._q('#userSign');
+                const snsUrlEl = this._q('#userSnsUrl');
+                const agentIdEl = this._q('#userAgentId');
+                const nickname = nicknameEl ? nicknameEl.value : '';
+                const sign = signEl ? signEl.value : '';
+                const snsUrl = snsUrlEl ? snsUrlEl.value : '';
+                const agentId = agentIdEl ? agentIdEl.value : '';
 
                 const response = await fetch(this.resolve('/api/sns/user-info'), {
                     method: 'PUT',
@@ -352,11 +389,15 @@ export class SNSAvatarDialog {
             const result = await response.json();
 
             if (result.success && result.data) {
-                document.getElementById('userNickname').value = result.data.nickname || '';
-                document.getElementById('userSign').value = result.data.sign || '';
-                document.getElementById('userSnsUrl').value = result.data.sns_url || '';
+                const nicknameEl = this._q('#userNickname');
+                const signEl = this._q('#userSign');
+                const snsUrlEl = this._q('#userSnsUrl');
+                if (nicknameEl) nicknameEl.value = result.data.nickname || '';
+                if (signEl) signEl.value = result.data.sign || '';
+                if (snsUrlEl) snsUrlEl.value = result.data.sns_url || '';
                 this.existingAgentId = result.data.agent_id || '';
-                document.getElementById('userAgentId').value = this.existingAgentId;
+                const agentEl = this._q('#userAgentId');
+                if (agentEl) agentEl.value = this.existingAgentId;
             }
         } catch (error) {
             console.error('Error loading user info:', error);
@@ -369,7 +410,8 @@ export class SNSAvatarDialog {
             const result = await response.json();
 
             if (result.success && result.data) {
-                const select = document.getElementById('userAgentId');
+                const select = this._q('#userAgentId');
+                if (!select) return;
                 result.data.forEach(agent => {
                     const option = document.createElement('option');
                     option.value = agent.id;

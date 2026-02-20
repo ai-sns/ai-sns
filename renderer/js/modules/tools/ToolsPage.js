@@ -1,5 +1,5 @@
 /**
- * Tools Page - 主内容渲染
+ * Tools Page - main content rendering
  */
 
 const ToolsPage = {

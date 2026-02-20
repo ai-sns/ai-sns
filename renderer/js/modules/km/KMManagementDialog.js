@@ -1,6 +1,6 @@
 /**
  * KM Management Dialog
- * 知识库管理对话框 - 创建/编辑/删除知识库
+ * Knowledge base management dialog - create/edit/delete knowledge base
  */
 
 import Toast from '../../utils/toast.js';

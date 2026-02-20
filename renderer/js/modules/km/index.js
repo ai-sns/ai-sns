@@ -1,6 +1,6 @@
 /**
  * KM Module - Index
- * 知识库管理模块入口
+ * Knowledge base management module entry
  */
 
 import KMPage from './KMPage.js';
@@ -13,7 +13,7 @@ export default {
     version: '1.0.0',
 
     /**
-     * 渲染主内容区
+     * Render main content area
      */
     renderPage() {
         // Return initial container, content will be rendered dynamically based on KB type
@@ -29,14 +29,14 @@ export default {
     },
 
     /**
-     * 渲染侧边栏
+     * Render sidebar
      */
     renderSidebar() {
         return KMSidebar.render();
     },
 
     /**
-     * 初始化模块
+     * Initialize module
      */
     async init() {
         // Initialize handlers first so the initial kb switch event is not missed
@@ -52,7 +52,7 @@ export default {
     },
 
     /**
-     * 销毁模块
+     * Destroy module
      */
     destroy() {
         kmHandlers.destroy();

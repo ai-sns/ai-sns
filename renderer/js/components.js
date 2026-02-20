@@ -1,37 +1,37 @@
 /**
  * AI-SNS UI Components
- * 可复用的UI组件
+ * Reusable UI components
  */
 
-// ==================== 覆盖原生 alert/confirm/prompt ====================
-// 防止原生弹框破坏 Electron 无边框窗口的焦点状态
+// ==================== Override native alert/confirm/prompt ====================
+// Prevent native dialogs from breaking focus state in Electron frameless window
 
 (function() {
     const originalAlert = window.alert;
     const originalConfirm = window.confirm;
     const originalPrompt = window.prompt;
 
-    // 覆盖 alert - 使用 console.warn 和 Notification 代替
+    // Override alert - use console.warn and Notification instead
     window.alert = function(message) {
         console.warn('[Alert]', message);
-        // 如果 Notification 组件可用，使用它显示消息
+        // If Notification component is available, use it to show message
         if (typeof Notification !== 'undefined' && Notification.warning) {
             Notification.warning(String(message));
         }
-        // 恢复焦点
+        // Restore focus
         setTimeout(() => {
             window.focus();
             document.body.focus();
         }, 10);
     };
 
-    // 覆盖 confirm - 始终返回 true，避免阻塞
+    // Override confirm - always return true to avoid blocking
     window.confirm = function(message) {
         console.warn('[Confirm]', message);
         return true;
     };
 
-    // 覆盖 prompt - 返回空字符串，避免阻塞
+    // Override prompt - return empty string to avoid blocking
     window.prompt = function(message, defaultValue) {
         console.warn('[Prompt]', message);
         return defaultValue || '';
@@ -81,7 +81,7 @@ class Modal {
 
         this.bindEvents();
 
-        // 在渲染完成后调用onOpen回调
+        // Call onOpen callback after rendering completes
         if (this.onOpen) {
             this.onOpen(this);
         }
@@ -130,7 +130,7 @@ class Modal {
             }
         });
 
-        // 点击遮罩层关闭
+        // Click overlay to close
         if (this.closeOnClickOutside) {
             this.element.addEventListener('click', async (e) => {
                 if (e.target === this.element) {
@@ -150,7 +150,7 @@ class Modal {
             });
         }
 
-        // ESC键关闭
+        // Close on ESC key
         document.addEventListener('keydown', this.handleKeydown = async (e) => {
             if (e.key === 'Escape') {
                 if (this.onCancel) {
@@ -234,12 +234,12 @@ class Notification {
 
         this.container.appendChild(notification);
 
-        // 绑定关闭按钮
+        // Bind close button
         notification.querySelector('.notification-close').addEventListener('click', () => {
             this.remove(notification);
         });
 
-        // 自动移除
+        // Auto remove
         if (duration > 0) {
             setTimeout(() => {
                 this.remove(notification);
@@ -313,7 +313,7 @@ function createCard(options = {}) {
         });
     }
 
-    // 绑定操作按钮事件
+    // Bind action button events
     actions.forEach(action => {
         const btn = card.querySelector(`[data-action="${action.action}"]`);
         if (btn && action.onClick) {

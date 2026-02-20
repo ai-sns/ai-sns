@@ -1,6 +1,6 @@
 /**
  * Toast Notification System
- * 提供优雅的toast通知，替代alert/confirm
+ * Provides elegant toast notifications as a replacement for alert/confirm
  */
 
 const Toast = {

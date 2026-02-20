@@ -34,7 +34,7 @@ class AgentService:
         agents = query_AgentCfg_All()
         result = []
         for agent in agents:
-            # 尝试从 memo 字段解析 JSON 存储的额外数据
+            # Try to parse extra JSON data stored in memo
             extra_data = {}
             try:
                 if agent.memo:
@@ -64,10 +64,10 @@ class AgentService:
         Supports both old and new field names.
         New fields (A2A protocol, wallet, etc.) are stored in memo field as JSON.
         """
-        # 提取必需的旧字段
+        # Extract required legacy fields
         name = kwargs.get('name', 'New Agent')
 
-        # 将新字段打包到 memo 中
+        # Pack new fields into memo
         extra_data = {
             'description': kwargs.get('description', ''),
             'agent_type': kwargs.get('agent_type', 'local'),
@@ -89,13 +89,13 @@ class AgentService:
         }
         memo = json.dumps(extra_data, ensure_ascii=False)
 
-        # 准备旧字段参数
+        # Prepare legacy field params
         user_id = kwargs.get('user_id', 'default_user')
         defaultmodel = kwargs.get('model_config_id', kwargs.get('model', 'gpt-4'))
         defaultrole = kwargs.get('role_id', '')
         prompt = kwargs.get('system_prompt', '')
 
-        # 使用默认值调用旧的 add_AgentCfg
+        # Call legacy add_AgentCfg with defaults
         try:
             session = Session()
             agent = AgentCfg(
@@ -159,7 +159,7 @@ class AgentService:
         if not agent:
             return None
 
-        # 解析 memo 中的额外数据
+        # Parse extra data in memo
         extra_data = {}
         try:
             if agent.memo:
@@ -202,7 +202,7 @@ class AgentService:
             session.close()
             raise ValueError(f"Agent {agent_id} not found")
 
-        # 解析现有的 memo
+        # Parse existing memo
         extra_data = {}
         try:
             if agent.memo:
@@ -210,7 +210,7 @@ class AgentService:
         except:
             pass
 
-        # 更新基本字段
+        # Update base fields
         if 'name' in kwargs:
             agent.name = kwargs['name']
         if 'model_config_id' in kwargs or 'model' in kwargs:
@@ -222,7 +222,7 @@ class AgentService:
         if 'is_active' in kwargs:
             agent.is_show = kwargs['is_active']
 
-        # 更新 memo 中的额外字段
+        # Update extra fields in memo
         for key in ['description', 'agent_type', 'url', 'version', 'protocol_version', 'capabilities',
                     'skills', 'default_input_modes', 'default_output_modes', 'security_schemes',
                     'provider_organization', 'provider_url', 'documentation_url',
@@ -288,7 +288,7 @@ class AgentService:
                         tool_detail = {c.name: getattr(tool_obj, c.name) for c in tool_obj.__table__.columns}
                         tool_detail["tool_type"] = "mcp"
 
-                        # 尝试从parameter字段加载缓存的工具列表
+                        # Try loading cached tool list from parameter field
                         parameter = tool_obj.parameter
                         if parameter:
                             try:

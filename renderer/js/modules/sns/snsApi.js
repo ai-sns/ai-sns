@@ -1,6 +1,6 @@
 /**
  * SNS Module - API Calls
- * SNS API调用封装
+ * SNS API wrapper
  */
 
 export default {
@@ -14,11 +14,11 @@ export default {
         return urlOrPath;
     },
     /**
-     * 获取SNS节点列表
+     * Get SNS node list
      */
     async getNodes() {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: []
@@ -33,11 +33,11 @@ export default {
     },
 
     /**
-     * 获取用户信息
+     * Get user info
      */
     async getUserInfo(userId) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: {
@@ -57,11 +57,11 @@ export default {
     },
 
     /**
-     * 更新用户位置
+     * Update user location
      */
     async updateLocation(location) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             console.log('更新位置:', location);
             return {
                 success: true
@@ -76,11 +76,11 @@ export default {
     },
 
     /**
-     * 获取附近的用户
+     * Get nearby users
      */
     async getNearbyUsers(location, radius = 1000) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: []
@@ -95,11 +95,11 @@ export default {
     },
 
     /**
-     * 发送消息
+     * Send message
      */
     async sendMessage(targetId, message) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             console.log('发送消息:', targetId, message);
             return {
                 success: true
@@ -114,11 +114,11 @@ export default {
     },
 
     /**
-     * 获取消息历史
+     * Get message history
      */
     async getMessageHistory(targetId, limit = 50) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: []
@@ -133,14 +133,14 @@ export default {
     },
 
     /**
-     * 建立WebSocket连接
+     * Create WebSocket connection
      */
     connectWebSocket(userId, onMessage, onError) {
         try {
-            // TODO: 实现WebSocket连接
+            // TODO: Implement WebSocket connection
             console.log('建立WebSocket连接:', userId);
 
-            // 模拟连接成功
+            // Simulate successful connection
             setTimeout(() => {
                 if (onMessage) {
                     onMessage({
@@ -169,11 +169,11 @@ export default {
     },
 
     /**
-     * 获取在线统计
+     * Get online stats
      */
     async getOnlineStats() {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: {
@@ -192,11 +192,11 @@ export default {
     },
 
     /**
-     * 获取地图POI数据
+     * Get map POI data
      */
     async getMapPOI(bounds) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: []
@@ -211,11 +211,11 @@ export default {
     },
 
     /**
-     * 获取任务列表
+     * Get task list
      */
     async getTasks() {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             return {
                 success: true,
                 data: []
@@ -230,11 +230,11 @@ export default {
     },
 
     /**
-     * 接受任务
+     * Accept task
      */
     async acceptTask(taskId) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             console.log('接受任务:', taskId);
             return {
                 success: true
@@ -249,11 +249,11 @@ export default {
     },
 
     /**
-     * 完成任务
+     * Complete task
      */
     async completeTask(taskId) {
         try {
-            // TODO: 实现实际的API调用
+            // TODO: Implement actual API call
             console.log('完成任务:', taskId);
             return {
                 success: true
@@ -268,7 +268,7 @@ export default {
     },
 
     /**
-     * 与AI Agent对话
+     * Chat with AI Agent
      */
     async chatWithAI(agentIdentifier, message, mode = 'ai') {
         try {
@@ -296,7 +296,7 @@ export default {
     },
 
     /**
-     * 启动AI社交引擎
+     * Start AI social engine
      */
     async startEngine() {
         try {
@@ -319,7 +319,7 @@ export default {
     },
 
     /**
-     * 停止AI社交引擎
+     * Stop AI social engine
      */
     async stopEngine() {
         try {
@@ -382,7 +382,7 @@ export default {
     },
 
     /**
-     * 获取AI模型信息
+     * Get AI model info
      */
     async getModelInfo() {
         try {
@@ -420,7 +420,7 @@ export default {
             const data = await response.json();
             return data;
         } catch (error) {
-            console.error('设置human control state失败:', error);
+            console.error('Failed to set human control state:', error);
             return {
                 success: false,
                 message: error.message
@@ -443,7 +443,7 @@ export default {
             const data = await response.json();
             return data;
         } catch (error) {
-            console.error('发送human message失败:', error);
+            console.error('Failed to send human message:', error);
             return {
                 success: false,
                 message: error.message

@@ -4,7 +4,7 @@ import json
 
 class JsTaskManager:
     def __init__(self,parent):
-        # 初始化一个字典和几个列表
+        # Initialize a dict and some lists
         self.parent = parent
 
     def show_information(self,info,type_str="1"):

@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil

@@ -1,4 +1,4 @@
-"""SNS Module - Business Logic Service - 异步版本"""
+"""SNS Module - Business Logic Service - Async version."""
 import logging
 import os
 import uuid
@@ -27,7 +27,7 @@ _social_engine_running = False
 
 
 class SNSService:
-    """SNS service for handling social network operations - 异步版本"""
+    """SNS service for handling social network operations - async version."""
 
     def __init__(self, db: AsyncSession):
         self.db = db

@@ -1,9 +1,9 @@
 /**
- * Module Loader - 加载所有模块
- * 这个文件负责导入和注册所有模块到 router
+ * Module Loader - load all modules
+ * This file is responsible for importing and registering all modules to router
  */
 
-// 导入所有模块（注意：需要在HTML中设置 type="module"）
+// Import all modules (note: HTML must set type="module")
 import homeModule from './modules/home/index.js';
 import snsModule from './modules/sns/index.js';
 import agentModule from './modules/agent/index.js';
@@ -12,7 +12,7 @@ import toolsModule from './modules/tools/index.js';
 import webModule from './modules/web/index.js';
 
 /**
- * 初始化并注册所有模块
+ * Initialize and register all modules
  */
 function initializeModules() {
     if (!window.router) {
@@ -20,7 +20,7 @@ function initializeModules() {
         return false;
     }
 
-    // 注册所有模块
+    // Register all modules
     const modules = [
         { name: 'home', module: homeModule },
         { name: 'sns', module: snsModule },
@@ -42,16 +42,16 @@ function initializeModules() {
     return true;
 }
 
-// 导出初始化函数
+// Export init function
 window.initializeModules = initializeModules;
 
-// 如果在浏览器环境中，自动初始化
+// Auto-initialize in browser environment
 if (typeof window !== 'undefined') {
-    // 等待 router 就绪后初始化
+    // Initialize after router is ready
     if (window.router) {
         initializeModules();
     } else {
-        // 如果 router 还未加载，等待 DOMContentLoaded 事件
+        // If router isn't loaded yet, wait for DOMContentLoaded
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(initializeModules, 100);
         });

@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil
@@ -45,17 +45,17 @@ class XmppMixin:
 
     async def receiveMessage(self, event):
         """
-        接收并处理XMPP消息
+        Receive and process XMPP messages.
 
         Args:
-            event: XMPP消息事件，包含'body'和'from'字段
+            event: XMPP message event, contains 'body' and 'from' fields
         """
         if event is None:
             logger.warning("Received None event in receiveMessage")
             return
 
         try:
-            # 提取消息内容和发送者
+            # Extract content and sender
             content = event.get('body', '')
             from_str = str(event.get('from', ''))
 
@@ -65,7 +65,7 @@ class XmppMixin:
 
             logger.info(f"Received message from {from_str}: {content[:50]}...")
 
-            # 默认消息处理流程
+            # Default message processing flow
             await self.handle_receiveMessage(content, from_str)
 
         except KeyError as e:
@@ -75,31 +75,31 @@ class XmppMixin:
 
     async def handle_receiveMessage(self, content, from_str):
         """
-        处理接收到的XMPP消息内容
+        Handle received XMPP message content.
 
         Args:
-            content: 消息内容
-            from_str: 发送者JID
+            content: Message content
+            from_str: Sender JID
         """
         try:
             logger.info(f"Processing message from {from_str}, content length: {len(content)}")
 
-            # 检查map_mode，只在org模式下处理
+            # Check map_mode; only process in org mode
             if self.map_mode != 'org':
                 logger.debug(f"Skipping message processing, map_mode is '{self.map_mode}' (not 'org')")
                 return
 
-            # 提取账户信息
+            # Extract account info
             account = from_str.split('/')[0]
             logger.debug(f"Extracted account: {account}")
 
-            # 发送聊天消息到UI
+            # Send chat message to UI
             try:
                 self.send_talk_message(account, self.ai_chat_cfg.account, content)
             except Exception as e:
                 logger.error(f"Failed to send talk message to UI: {e}")
 
-            # 管理聊天历史
+            # Manage chat history
             if account not in self.talk_history:
                 self.talk_history[account] = []
                 logger.debug(f"Created new talk history for account: {account}")
@@ -108,7 +108,7 @@ class XmppMixin:
             self.current_talk_history.append("Friend:" + content)
             logger.debug(f"Updated talk history for {account}, total messages: {len(self.talk_history[account])}")
 
-            # 消息类型路由 - 使用walrus operator进行条件检查
+            # Message type routing - use walrus operator for conditional checks
             message_handled = False
 
             if (pay_received_str := self.check_pay_in_received(content)):
@@ -122,24 +122,24 @@ class XmppMixin:
                 message_handled = True
 
             else:
-                # 检查是否为购买请求,别人主动来向我求购
+                # Check whether this is a buy inquiry (someone initiates a purchase request)
                 if (buy_flag := self.check_buy_in_received(content)):
                     logger.info(f"Detected buy inquiry from {account}")
                     self.talk_type = "sell"
                 else:
                     logger.debug(f"Processing as general conversation message from {account}")
 
-                # 处理一般对话消息
+                # Process general conversation message
                 asyncio.create_task(self.taskmng.process_task(
                     event="conversation_message_received",
                     talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
                 ))
                 message_handled = True
 
-            # 保存当前接收的消息
+            # Save current received message
             self.current_received_msg = content
 
-            # 检查人工接管标志
+            # Check human takeover flag
             if not self.human_take_over:
                 logger.debug("Human takeover is disabled, continuing automated processing")
             else:
@@ -149,7 +149,7 @@ class XmppMixin:
 
         except Exception as e:
             logger.error(f"Error in handle_receiveMessage: {e}", exc_info=True)
-            # 即使出错也要保存消息内容
+            # Save message content even if an error occurs
             try:
                 self.current_received_msg = content
             except:
@@ -158,14 +158,14 @@ class XmppMixin:
 
     def send_xmpp_message(self, to_jid: str, content: str) -> bool:
         """
-        通过XMPPClientManager发送XMPP消息
+        Send XMPP message via XMPPClientManager.
 
         Args:
-            to_jid: 接收者JID
-            content: 消息内容
+            to_jid: Receiver JID
+            content: Message content
 
         Returns:
-            bool: 发送成功返回True，失败返回False
+            bool: True on success, False on failure
         """
         try:
             client = self.xmpp_manager.get_client()
@@ -182,17 +182,17 @@ class XmppMixin:
 
     def sendMessage(self, content, by_click=False, to_jid=None, to_name=None, back_ground=False):
         """
-        发送XMPP消息
+        Send XMPP message.
 
         Args:
-            content: 消息内容
-            by_click: 是否通过点击触发，默认False
-            to_jid: 接收者JID，默认None（从current_talk_people获取）
-            to_name: 接收者名称，默认None（从current_talk_people获取）
-            back_ground: 是否后台发送，默认False
+            content: Message content
+            by_click: Whether triggered by click (default: False)
+            to_jid: Receiver JID (default: None; read from current_talk_people)
+            to_name: Receiver name (default: None; read from current_talk_people)
+            back_ground: Whether to send in background (default: False)
 
         Returns:
-            bool: 发送成功返回True，失败返回False
+            bool: True on success, False on failure
         """
         if not to_jid:
             if self.current_talk_people:
@@ -202,12 +202,12 @@ class XmppMixin:
             else:
                 return
         try:
-            # 验证消息内容
+            # Validate message content
             if not content:
                 logger.warning("Cannot send empty message")
                 return False
 
-            # 解析接收者信息
+            # Resolve recipient info
             recipient = self._resolve_recipient(to_jid, to_name)
             if not recipient:
                 return False
@@ -217,16 +217,16 @@ class XmppMixin:
 
             logger.info(f"Sending message to {to_jid}: {content[:50]}...")
 
-            # 保存到数据库（如果是通过点击触发）
+            # Save to database (if triggered by click)
             if by_click:
                 self._save_message_to_database(content, to_jid, to_name)
 
-            # 发送XMPP消息
+            # Send XMPP message
             if not self.send_xmpp_message(to_jid, content):
                 logger.error(f"Failed to send XMPP message to {to_jid}")
                 return False
 
-            # 更新UI（如果不是后台发送）
+            # Update UI (if not background)
             if not back_ground:
                 self._update_ui_with_sent_message(to_jid, content)
 
@@ -239,14 +239,14 @@ class XmppMixin:
 
     def _resolve_recipient(self, to_jid=None, to_name=None):
         """
-        解析接收者信息
+        Resolve recipient info.
 
         Args:
-            to_jid: 接收者JID
-            to_name: 接收者名称
+            to_jid: Receiver JID
+            to_name: Receiver name
 
         Returns:
-            dict: 包含jid和name的字典，失败返回None
+            dict: Dict containing jid and name; returns None on failure
         """
         if to_jid:
             return {'jid': to_jid, 'name': to_name}
@@ -263,12 +263,12 @@ class XmppMixin:
 
     def _save_message_to_database(self, content, to_jid, to_name):
         """
-        保存消息到数据库
+        Save message to database.
 
         Args:
-            content: 消息内容
-            to_jid: 接收者JID
-            to_name: 接收者名称
+            content: Message content
+            to_jid: Receiver JID
+            to_name: Receiver name
         """
         try:
             add_AIChatMessages(
@@ -288,11 +288,11 @@ class XmppMixin:
 
     def _update_ui_with_sent_message(self, to_jid, content):
         """
-        更新UI显示发送的消息
+        Update UI to display sent message.
 
         Args:
-            to_jid: 接收者JID
-            content: 消息内容
+            to_jid: Receiver JID
+            content: Message content
         """
         if self.map_mode != 'org':
             logger.debug(f"Skipping UI update, map_mode is '{self.map_mode}' (not 'org')")

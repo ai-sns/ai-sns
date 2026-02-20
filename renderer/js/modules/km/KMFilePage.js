@@ -1,5 +1,5 @@
 /**
- * KM Page - File Search (kmtype=0) - 优化版
+ * KM Page - File Search (kmtype=0) - optimized version
  */
 
 const KMFilePage = {
@@ -42,7 +42,7 @@ const KMFilePage = {
     },
 
     init() {
-        // 绑定搜索按钮事件
+        // Bind search button events
         document.querySelectorAll('[id^="vectorSearchBtn-"]').forEach(btn => {
             const kbId = btn.id.replace('vectorSearchBtn-', '');
             btn.addEventListener('click', () => {
@@ -52,7 +52,7 @@ const KMFilePage = {
             });
         });
 
-        // 绑定回车键搜索
+        // Bind Enter key to search
         document.querySelectorAll('[id^="vectorSearchInput-"]').forEach(input => {
             const kbId = input.id.replace('vectorSearchInput-', '');
             input.addEventListener('keypress', (e) => {
@@ -62,7 +62,7 @@ const KMFilePage = {
             });
         });
 
-        // 绑定文件添加按钮
+        // Bind add-file button
         document.querySelectorAll('[id^="fileAddBtn-"]').forEach(btn => {
             const kbId = btn.id.replace('fileAddBtn-', '');
             btn.addEventListener('click', () => {

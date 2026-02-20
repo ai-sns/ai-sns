@@ -1,6 +1,6 @@
 /**
- * Tools Edit Dialog - 工具编辑对话框
- * 支持 Plugin, MCP, Function, Skill 的创建和编辑
+ * Tools Edit Dialog - tool edit dialog
+ * Supports creating and editing Plugin, MCP, Function, Skill
  */
 
 class ToolsEditDialog {
@@ -25,10 +25,10 @@ class ToolsEditDialog {
     }
 
     /**
-     * 显示对话框
+     * Show dialog
      * @param {string} category - tools-plugin/mcp/function/computer-use
-     * @param {object|null} tool - 要编辑的工具，null表示新建
-     * @param {function} onSave - 保存成功后的回调
+     * @param {object|null} tool - tool to edit; null means create new
+     * @param {function} onSave - callback after successful save
      */
     show(category, tool = null, onSave = null) {
         this.currentCategory = category;
@@ -67,16 +67,16 @@ class ToolsEditDialog {
             </div>
         `;
 
-        // 移除已存在的对话框
+        // Remove existing dialog
         const existing = document.getElementById('toolEditDialog');
         if (existing) {
             existing.remove();
         }
 
-        // 添加新对话框
+        // Insert new dialog
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
 
-        // 如果是编辑模式，填充数据
+        // If edit mode, populate data
         if (isEdit) {
             this.fillFormData(tool);
         }
@@ -217,7 +217,7 @@ class ToolsEditDialog {
     }
 
     fillFormData(tool) {
-        // 填充表单数据
+        // Fill form data
         Object.keys(tool).forEach(key => {
             const input = document.querySelector(`[name="${key}"]`);
             if (input) {
@@ -237,7 +237,7 @@ class ToolsEditDialog {
             return;
         }
 
-        // 收集表单数据
+        // Collect form data
         const formData = new FormData(form);
         const data = {};
 
@@ -253,7 +253,7 @@ class ToolsEditDialog {
             const isEdit = this.currentTool !== null;
             let endpoint, method;
 
-            // 根据类别确定端点
+            // Determine endpoint by category
             switch(this.currentCategory) {
                 case 'tools-plugin':
                     endpoint = isEdit ? `/plugins/${this.currentTool.plugin_id}` : '/plugins';
@@ -273,7 +273,7 @@ class ToolsEditDialog {
 
             method = isEdit ? 'PUT' : 'POST';
 
-            // 发送请求
+            // Send request
             const response = await fetch(`${this.apiBaseUrl}${endpoint}`, {
                 method: method,
                 headers: {
@@ -288,13 +288,13 @@ class ToolsEditDialog {
 
             const result = await response.json();
 
-            // 显示成功消息
+            // Show success message
             this.showMessage(isEdit ? '保存成功' : '创建成功', 'success');
 
-            // 关闭对话框
+            // Close dialog
             this.close();
 
-            // 调用回调函数
+            // Invoke callback
             if (this.onSaveCallback) {
                 this.onSaveCallback(result);
             }
@@ -324,7 +324,7 @@ class ToolsEditDialog {
     showMessage(message, type = 'info') {
         console.log(`[${type}] ${message}`);
 
-        // 创建临时提示
+        // Create temporary toast
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
@@ -350,10 +350,10 @@ class ToolsEditDialog {
     }
 }
 
-// 创建全局实例
+// Create global instance
 window.toolsEditDialog = new ToolsEditDialog();
 
-// 添加样式
+// Add styles
 const style = document.createElement('style');
 style.textContent = `
     .tool-edit-dialog {

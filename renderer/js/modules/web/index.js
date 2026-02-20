@@ -1,6 +1,6 @@
 /**
  * Web Module - Index
- * Web服务模块入口
+ * Web service module entry
  */
 
 import WebPage from './WebPage.js';
@@ -12,21 +12,21 @@ export default {
     version: '1.0.0',
 
     /**
-     * 渲染主内容区
+     * Render main content area
      */
     renderPage() {
         return WebPage.render();
     },
 
     /**
-     * 渲染侧边栏
+     * Render sidebar
      */
     renderSidebar() {
         return WebSidebar.render();
     },
 
     /**
-     * 初始化模块
+     * Initialize module
      */
     async init() {
         console.log('[Web Module] Initializing...');
@@ -61,7 +61,7 @@ export default {
     },
 
     /**
-     * 销毁模块
+     * Destroy module
      */
     destroy() {
         console.log('[Web Module] Destroying...');

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Agent Instance - 独立的Agent对象实例
-每个Agent拥有自己的LLM配置、角色、工具、知识库和memory
+Agent Instance - Independent Agent object instance
+Each agent has its own LLM configuration, role, tools, knowledge bases, and memory
 """
 import logging
 import json
@@ -22,17 +22,17 @@ logger = logging.getLogger(__name__)
 
 class AgentInstance:
     """
-    Agent实例类 - 每个agent是一个独立的对象
+    Agent instance class - each agent is an independent object
 
-    属性:
+    Attributes:
         agent_id: Agent ID
-        name: Agent名称
-        description: Agent描述
-        llm_config: LLM配置（api_endpoint、api_key、model_name等）
-        role_config: 角色配置（system_prompt、greeting等）
-        tools: 可用工具列表
-        knowledge_bases: 关联的知识库
-        memory: 对话历史memory
+        name: Agent name
+        description: Agent description
+        llm_config: LLM configuration (api_endpoint, api_key, model_name, etc.)
+        role_config: Role configuration (system_prompt, greeting, etc.)
+        tools: List of available tools
+        knowledge_bases: Associated knowledge bases
+        memory: Conversation history memory
     """
 
     def __init__(
@@ -48,18 +48,18 @@ class AgentInstance:
         enable_code_execution: bool = False
     ):
         """
-        初始化Agent实例
+        Initialize the agent instance
 
         Args:
             agent_id: Agent ID
-            name: Agent名称
-            description: Agent描述
-            llm_config: LLM配置字典
-            role_config: 角色配置字典
-            tools: 工具列表
-            knowledge_bases: 知识库列表
-            plugins: 插件ID列表
-            enable_code_execution: 是否启用代码执行
+            name: Agent name
+            description: Agent description
+            llm_config: LLM configuration dict
+            role_config: Role configuration dict
+            tools: Tool list
+            knowledge_bases: Knowledge base list
+            plugins: Plugin ID list
+            enable_code_execution: Whether to enable code execution
         """
         self.agent_id = agent_id
         self.name = name
@@ -71,26 +71,26 @@ class AgentInstance:
         self.plugins = plugins or []
         self.enable_code_execution = enable_code_execution
 
-        # Memory - 存储对话历史
+        # Memory - stores conversation history
         self.memory: Dict[str, List[Dict[str, Any]]] = {}
 
-        # 初始化OpenAI客户端
+        # Initialize the OpenAI client
         self._init_llm_client()
 
-        # 初始化代码执行器（如果启用）
+        # Initialize code executor (if enabled)
         self.code_executor = None
         if self.enable_code_execution:
             self.code_executor = CodeExecutor()
 
-        # 初始化工具路由器（用于新的工具调用系统）
+        # Initialize tool router (for the new tool-calling system)
         self.tool_router = ToolRouter(get_tool_executor())
         self.tools_loaded = False
-        self.db_tools = []  # 从数据库加载的工具列表（OpenAI格式）
+        self.db_tools = []  # Tools loaded from DB (OpenAI format)
 
         logger.info(f"Agent实例已创建: {self.name} (ID: {self.agent_id})")
 
     def _init_llm_client(self):
-        """初始化LLM客户端"""
+        """Initialize the LLM client."""
         try:
             api_endpoint = self.llm_config.get('api_endpoint', 'https://api.openai.com/v1')
             api_key = self.llm_config.get('api_key', '')
@@ -100,7 +100,7 @@ class AgentInstance:
                 self.client = None
                 return
 
-            # 创建异步OpenAI客户端
+            # Create async OpenAI client
             self.client = AsyncOpenAI(
                 api_key=api_key,
                 base_url=api_endpoint
@@ -112,12 +112,12 @@ class AgentInstance:
             self.client = None
 
     def get_system_prompt(self) -> str:
-        """获取系统提示词"""
+        """Get the system prompt."""
         base_prompt = self.role_config.get('system_prompt', 'You are a helpful AI assistant.')
 
         prompt = base_prompt
 
-        # 如果Agent有工具，添加工具使用指导
+        # If the agent has tools, append tool usage guidance
         if self.db_tools or self.tools:
             tool_guidance = """
 
@@ -143,26 +143,26 @@ IMPORTANT Tool Usage Guidelines:
         return prompt
 
     def get_model_name(self) -> str:
-        """获取模型名称"""
+        """Get the model name."""
         return self.llm_config.get('model_name', 'gpt-4o-mini')
 
     def get_temperature(self) -> float:
-        """获取temperature参数"""
+        """Get the temperature parameter."""
         return self.llm_config.get('temperature', 0.7)
 
     def get_max_tokens(self) -> int:
-        """获取max_tokens参数"""
+        """Get the max_tokens parameter."""
         return self.llm_config.get('max_tokens', 2048)
 
     def _get_conversation_memory(self, conversation_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        获取对话记忆
+        Get conversation memory.
 
         Args:
-            conversation_id: 对话ID，如果为None则使用默认对话
+            conversation_id: Conversation ID; if None, uses the default conversation
 
         Returns:
-            对话历史消息列表
+            List of conversation history messages
         """
         conv_id = conversation_id or 'default'
         if conv_id not in self.memory:
@@ -171,12 +171,12 @@ IMPORTANT Tool Usage Guidelines:
 
     def _add_to_memory(self, role: str, content: str, conversation_id: Optional[str] = None):
         """
-        添加消息到memory
+        Add a message to memory.
 
         Args:
-            role: 角色（user/assistant/system）
-            content: 消息内容
-            conversation_id: 对话ID
+            role: Role (user/assistant/system)
+            content: Message content
+            conversation_id: Conversation ID
         """
         conv_id = conversation_id or 'default'
         if conv_id not in self.memory:
@@ -188,19 +188,19 @@ IMPORTANT Tool Usage Guidelines:
             'timestamp': datetime.now().isoformat()
         })
 
-        # 限制memory大小（保留最近50条消息）
+        # Limit memory size (keep the most recent 50 messages)
         if len(self.memory[conv_id]) > 50:
-            # 保留system prompt
+            # Keep system prompt messages
             system_messages = [msg for msg in self.memory[conv_id] if msg['role'] == 'system']
             recent_messages = [msg for msg in self.memory[conv_id] if msg['role'] != 'system'][-49:]
             self.memory[conv_id] = system_messages + recent_messages
 
     def clear_memory(self, conversation_id: Optional[str] = None):
         """
-        清除对话记忆
+        Clear conversation memory.
 
         Args:
-            conversation_id: 对话ID，如果为None则清除所有
+            conversation_id: Conversation ID; if None, clears all
         """
         if conversation_id:
             self.memory.pop(conversation_id, None)
@@ -209,26 +209,26 @@ IMPORTANT Tool Usage Guidelines:
 
     async def load_tools_from_db(self):
         """
-        从数据库加载工具并转换为OpenAI格式
+        Load tools from the database and convert them into OpenAI format.
 
-        这个方法会：
-        1. 从数据库获取该Agent关联的所有工具
-        2. 将工具转换为OpenAI Function Calling格式
-        3. 存储到self.db_tools供后续使用
+        This method will:
+        1. Fetch all tools associated with this agent from the database
+        2. Convert tools to OpenAI Function Calling format
+        3. Store them in self.db_tools for later use
         """
         try:
             from backend.modules.agent.service import AgentService
 
-            # 获取Agent的工具列表（包含完整的工具详情）
+            # Get the agent's tool list (including full tool details)
             tools_data = AgentService.get_agent_tools(self.agent_id)
 
-            # 转换为OpenAI格式
+            # Convert to OpenAI format
             self.db_tools = ToolConverter.convert_tools(tools_data)
 
             self.tools_loaded = True
             logger.info(f"Agent {self.name} (ID: {self.agent_id}) 已加载 {len(self.db_tools)} 个工具")
 
-            # 打印工具列表（调试用）
+            # Print tool list (for debugging)
             if self.db_tools:
                 tool_names = [t['function']['name'] for t in self.db_tools]
                 logger.info(f"已加载工具: {', '.join(tool_names)}")
@@ -236,17 +236,17 @@ IMPORTANT Tool Usage Guidelines:
         except Exception as e:
             logger.error(f"从数据库加载工具失败 (Agent {self.name}): {e}", exc_info=True)
             self.db_tools = []
-            self.tools_loaded = True  # 标记为已加载，避免重复尝试
+            self.tools_loaded = True  # Mark as loaded to avoid repeated attempts
 
     async def _search_knowledge_base(self, query: str) -> str:
         """
-        从知识库检索相关信息
+        Retrieve related information from the knowledge base.
 
         Args:
-            query: 查询文本
+            query: Query text
 
         Returns:
-            检索到的相关文本
+            Retrieved related text
         """
         if not self.knowledge_bases:
             return ""
@@ -285,25 +285,25 @@ IMPORTANT Tool Usage Guidelines:
 
     def _prepare_tools_schema(self) -> List[Dict[str, Any]]:
         """
-        准备工具定义schema（OpenAI function calling格式）
+        Prepare the tool schema (OpenAI function calling format).
 
         Returns:
-            工具定义列表
+            Tool definition list
         """
         tools_schema = []
 
-        # 1. 添加从数据库加载的工具（新系统）
+        # 1. Add tools loaded from database (new system)
         if self.db_tools:
             tools_schema.extend(self.db_tools)
             logger.debug(f"已添加 {len(self.db_tools)} 个数据库工具")
 
-        # 2. 添加旧的self.tools配置（向后兼容）
+        # 2. Add legacy self.tools config (backward compatible)
         if self.tools:
             for tool in self.tools:
                 try:
                     tool_name = tool.get('name', '')
 
-                    # 尝试从tool_executor获取签名
+                    # Try to get signature from tool_executor
                     signature = tool_executor.get_tool_signature(tool_name)
                     if signature:
                         tool_def = {
@@ -311,7 +311,7 @@ IMPORTANT Tool Usage Guidelines:
                             "function": signature
                         }
                     else:
-                        # 使用配置中的定义
+                        # Use definition from config
                         tool_def = {
                             "type": "function",
                             "function": {
@@ -373,14 +373,14 @@ IMPORTANT Tool Usage Guidelines:
 
     async def _execute_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Any:
         """
-        执行工具调用
+        Execute a tool call.
 
         Args:
-            tool_name: 工具名称
-            tool_args: 工具参数
+            tool_name: Tool name
+            tool_args: Tool arguments
 
         Returns:
-            工具执行结果
+            Tool execution result
         """
         try:
             if tool_name in ('run_doc_skill', 'read_skill'):
@@ -418,7 +418,7 @@ IMPORTANT Tool Usage Guidelines:
                     logger.error(f"run_doc_skill failed: {e}", exc_info=True)
                     return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
 
-            # 检查是否是代码执行请求
+            # Check whether this is a code execution request
             if tool_name == 'execute_python_code' and self.code_executor:
                 code = tool_args.get('code', '')
                 result = self.code_executor.execute_python(code)
@@ -429,14 +429,14 @@ IMPORTANT Tool Usage Guidelines:
                 result = self.code_executor.execute_shell(command)
                 return json.dumps(result, ensure_ascii=False)
 
-            # 检查是否是数据库工具（新系统）
-            # 工具名称格式: plugin_{id}, mcp_{id}_{tool}, function_{id}, skill_{id}
+            # Check whether this is a DB tool (new system)
+            # Tool name format: plugin_{id}, mcp_{id}_{tool}, function_{id}, skill_{id}
             if tool_name.startswith(('plugin_', 'mcp_', 'function_', 'skill_')):
                 logger.info(f"使用ToolRouter执行数据库工具: {tool_name}")
                 result = await self.tool_router.execute_tool(tool_name, tool_args)
                 return json.dumps(result, ensure_ascii=False)
 
-            # 使用旧的tool_executor执行工具（向后兼容）
+            # Execute tool using legacy tool_executor (backward compatible)
             logger.info(f"使用旧tool_executor执行工具: {tool_name}")
             result = await asyncio.to_thread(
                 tool_executor.execute_tool,
@@ -462,33 +462,33 @@ IMPORTANT Tool Usage Guidelines:
         image_data_urls: Optional[List[str]] = None
     ) -> str:
         """
-        非流式问答
+        Non-streaming Q&A.
 
         Args:
-            message: 用户消息
-            conversation_id: 对话ID
-            use_memory: 是否使用memory
-            use_knowledge_base: 是否使用知识库
-            stream: 是否流式（此方法仅非流式）
+            message: User message
+            conversation_id: Conversation ID
+            use_memory: Whether to use memory
+            use_knowledge_base: Whether to use the knowledge base
+            stream: Whether streaming is enabled (this method is non-streaming only)
 
         Returns:
-            Agent回复
+            Agent reply
         """
         if not self.client:
             return "Error: LLM客户端未配置"
 
         try:
-            # 确保工具已从数据库加载
+            # Ensure tools are loaded from the database
             if use_tools and not self.tools_loaded:
                 await self.load_tools_from_db()
 
-            # 构建消息列表
+            # Build message list
             messages = []
 
-            # 添加system prompt
+            # Add system prompt
             system_prompt = self.get_system_prompt()
 
-            # 如果使用知识库，先检索相关信息
+            # If using the knowledge base, retrieve related information first
             if use_knowledge_base and self.knowledge_bases:
                 kb_context = await self._search_knowledge_base(message)
                 if kb_context:
@@ -499,10 +499,10 @@ IMPORTANT Tool Usage Guidelines:
                 'content': system_prompt
             })
 
-            # 添加历史对话（如果使用memory）
+            # Add conversation history (if using memory)
             if use_memory:
                 history = self._get_conversation_memory(conversation_id)
-                # 只添加user和assistant消息，不包括system
+                # Only add user and assistant messages, excluding system
                 for msg in history:
                     if msg['role'] in ['user', 'assistant']:
                         messages.append({
@@ -523,12 +523,12 @@ IMPORTANT Tool Usage Guidelines:
             else:
                 messages.append({'role': 'user', 'content': user_text})
 
-            # 准备工具
+            # Prepare tools
             tools = self._prepare_tools_schema() if use_tools else []
 
             print("[info]:Message Send to llm:", messages)
 
-            # 调用LLM
+            # Call LLM
             kwargs = {
                 'model': self.get_model_name(),
                 'messages': messages,
@@ -542,10 +542,10 @@ IMPORTANT Tool Usage Guidelines:
 
             response = await self.client.chat.completions.create(**kwargs)
 
-            # 处理响应
+            # Process response
             assistant_message = response.choices[0].message
 
-            # 处理工具调用
+            # Handle tool calls
             reply = assistant_message.content or ""
             if use_tools and assistant_message.tool_calls:
                 # allow multi-round tool chaining (e.g. read_skill -> run_doc_skill)
@@ -603,7 +603,7 @@ IMPORTANT Tool Usage Guidelines:
                     current_assistant_message = response2.choices[0].message
                     reply = current_assistant_message.content or ""
 
-            # 保存到memory
+            # Save to memory
             if use_memory:
                 self._add_to_memory('user', message, conversation_id)
                 self._add_to_memory('assistant', reply, conversation_id)
@@ -626,16 +626,16 @@ IMPORTANT Tool Usage Guidelines:
         attachments_meta: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncIterator[str]:
         """
-        流式问答
+        Streaming chat.
 
         Args:
-            message: 用户消息
-            conversation_id: 对话ID
-            use_memory: 是否使用memory
-            use_knowledge_base: 是否使用知识库
+            message: User message
+            conversation_id: Conversation ID
+            use_memory: Whether to use memory
+            use_knowledge_base: Whether to use knowledge base
 
         Yields:
-            流式返回的文本片段
+            Streamed text chunks
         """
         if not self.client:
             error_msg = (
@@ -648,17 +648,17 @@ IMPORTANT Tool Usage Guidelines:
             return
 
         try:
-            # 确保工具已从数据库加载
+            # Ensure tools are loaded from the database
             if use_tools and not self.tools_loaded:
                 await self.load_tools_from_db()
 
-            # 构建消息列表（同chat方法）
+            # Build message list (same as chat method)
             messages = []
 
-            # 添加system prompt
+            # Add system prompt
             system_prompt = self.get_system_prompt()
 
-            # 如果使用知识库，先检索相关信息
+            # If using knowledge base, retrieve related info first
             if use_knowledge_base and self.knowledge_bases:
                 kb_context = await self._search_knowledge_base(message)
                 if kb_context:
@@ -669,7 +669,7 @@ IMPORTANT Tool Usage Guidelines:
                 'content': system_prompt
             })
 
-            # 添加历史对话
+            # Add conversation history
             if use_memory:
                 history = self._get_conversation_memory(conversation_id)
                 for msg in history:
@@ -692,10 +692,10 @@ IMPORTANT Tool Usage Guidelines:
             else:
                 messages.append({'role': 'user', 'content': user_text})
 
-            # 准备工具
+            # Prepare tools
             tools = self._prepare_tools_schema() if use_tools else []
 
-            # 调用LLM（流式）
+            # Call LLM (streaming)
             kwargs = {
                 'model': self.get_model_name(),
                 'messages': messages,
@@ -710,7 +710,7 @@ IMPORTANT Tool Usage Guidelines:
 
             stream = await self.client.chat.completions.create(**kwargs)
 
-            # 收集完整回复和工具调用
+            # Collect full reply and tool calls
             full_reply = ""
             tool_calls_accumulator = {}
 
@@ -720,12 +720,12 @@ IMPORTANT Tool Usage Guidelines:
 
                 delta = chunk.choices[0].delta
 
-                # 处理内容
+                # Handle content
                 if delta.content:
                     full_reply += delta.content
                     yield delta.content
 
-                # 处理工具调用（累积delta）
+                # Handle tool calls (accumulate delta)
                 if use_tools and delta.tool_calls:
                     for tc_delta in delta.tool_calls:
                         idx = tc_delta.index
@@ -743,7 +743,7 @@ IMPORTANT Tool Usage Guidelines:
                             if tc_delta.function.arguments:
                                 tool_calls_accumulator[idx]['function']['arguments'] += tc_delta.function.arguments
 
-            # 如果有工具调用，执行工具并获取最终回复（允许多轮工具链）
+            # If there are tool calls, execute tools and get final reply (allow multi-round tool chaining)
             if use_tools and tool_calls_accumulator:
                 max_rounds = 5
                 round_idx = 0
@@ -819,12 +819,12 @@ IMPORTANT Tool Usage Guidelines:
 
                     round_idx += 1
 
-            # 保存到memory
+            # Save to memory
             if use_memory:
                 self._add_to_memory('user', message, conversation_id)
                 self._add_to_memory('assistant', full_reply, conversation_id)
 
-            # 保存到数据库（优化：使用单个session进行批量操作）
+            # Save to database (optimization: use a single session for batch ops)
             if conversation_id:
                 try:
                     from backend.database.base import get_session
@@ -832,7 +832,7 @@ IMPORTANT Tool Usage Guidelines:
 
                     session = get_session()
                     try:
-                        # 检查是否是新对话
+                        # Check whether this is a new conversation
                         is_new_conversation = not session.query(AIChatMessages).filter_by(
                             conversation_id=conversation_id,
                             is_first=True
@@ -842,10 +842,10 @@ IMPORTANT Tool Usage Guidelines:
                         current_time = datetime.now()
 
                         if is_new_conversation:
-                            # 保存用户消息作为对话标题
+                            # Save user message as conversation title
                             messages_to_save.append(AIChatMessages(
                                 conversation_id=conversation_id,
-                                agent_id=self.agent_id,  # 添加agent_id
+                                agent_id=self.agent_id,  # Add agent_id
                                 flag=0,  # 0=send
                                 title=message[:50] if len(message) > 50 else message,
                                 content=message,
@@ -858,10 +858,10 @@ IMPORTANT Tool Usage Guidelines:
                                 create_time=current_time
                             ))
                         else:
-                            # 保存普通用户消息
+                            # Save normal user message
                             messages_to_save.append(AIChatMessages(
                                 conversation_id=conversation_id,
-                                agent_id=self.agent_id,  # 添加agent_id
+                                agent_id=self.agent_id,  # Add agent_id
                                 flag=0,  # 0=send
                                 content=message,
                                 attachment_list=json.dumps(attachments_meta, ensure_ascii=False) if attachments_meta else None,
@@ -873,10 +873,10 @@ IMPORTANT Tool Usage Guidelines:
                                 create_time=current_time
                             ))
 
-                        # 保存AI回复
+                        # Save AI reply
                         messages_to_save.append(AIChatMessages(
                             conversation_id=conversation_id,
-                            agent_id=self.agent_id,  # 添加agent_id
+                            agent_id=self.agent_id,  # Add agent_id
                             flag=1,  # 1=receive
                             content=full_reply,
                             owner_name="User",
@@ -887,7 +887,7 @@ IMPORTANT Tool Usage Guidelines:
                             create_time=current_time
                         ))
 
-                        # 批量保存
+                        # Batch save
                         session.add_all(messages_to_save)
                         session.commit()
                         logger.info(f"已保存对话记录到数据库: conversation_id={conversation_id}, count={len(messages_to_save)}")
@@ -907,33 +907,33 @@ IMPORTANT Tool Usage Guidelines:
 
     def _format_tool_result(self, tool_result: Any) -> str:
         """
-        格式化工具结果，使其对LLM更友好
+        Format tool result to be more LLM-friendly.
 
         Args:
-            tool_result: 原始工具结果（可能是JSON字符串或字典）
+            tool_result: Raw tool result (may be a JSON string or dict)
 
         Returns:
-            格式化后的字符串
+            Formatted string
         """
         try:
-            # 如果是字符串，尝试解析为JSON
+            # If string, try parsing as JSON
             if isinstance(tool_result, str):
                 try:
                     result_dict = json.loads(tool_result)
                 except:
-                    # 不是JSON，直接返回字符串
+                    # Not JSON, return as-is
                     return tool_result
             else:
                 result_dict = tool_result
 
-            # 如果不是字典，转为字符串返回
+            # If not a dict, stringify and return
             if not isinstance(result_dict, dict):
                 return str(tool_result)
 
-            # 提取关键信息，以更易读的格式呈现
+            # Extract key information in a more readable format
             formatted_parts = []
 
-            # 1. 状态信息
+            # 1. Status
             status = result_dict.get('status') or result_dict.get('success')
             if status:
                 if status == 'success' or status is True:
@@ -941,16 +941,16 @@ IMPORTANT Tool Usage Guidelines:
                 else:
                     formatted_parts.append(f"✗ 执行失败: {result_dict.get('error', '未知错误')}")
 
-            # 2. 主要消息
+            # 2. Main message
             message = result_dict.get('message')
             if message:
                 formatted_parts.append(f"消息: {message}")
 
-            # 3. 结果数据
+            # 3. Result data
             result_data = result_dict.get('result')
             if result_data:
                 if isinstance(result_data, dict):
-                    # 提取stdout（如果存在）
+                    # Extract stdout (if present)
                     stdout = result_data.get('stdout', '')
                     if stdout:
                         formatted_parts.append(f"输出:\n{stdout.strip()}")
@@ -961,12 +961,12 @@ IMPORTANT Tool Usage Guidelines:
                 else:
                     formatted_parts.append(f"结果: {result_data}")
 
-            # 4. 技能/插件特定的action数据
+            # 4. Skill/plugin-specific action data
             action = result_dict.get('action')
             if action and isinstance(action, dict):
                 action_parts = []
 
-                # 截图相关
+                # Screenshot
                 if action.get('performed') == 'screenshot_capture':
                     filepath = action.get('filepath', '')
                     size = action.get('size', '')
@@ -974,54 +974,54 @@ IMPORTANT Tool Usage Guidelines:
                     if size:
                         action_parts.append(f"尺寸: {size}")
 
-                # 鼠标点击
+                # Mouse click
                 elif action.get('performed') == 'mouse_click':
                     coords = action.get('coordinates', '')
                     button = action.get('button', '')
                     action_parts.append(f"已点击 {button} 按钮于 {coords}")
 
-                # 键盘输入
+                # Keyboard input
                 elif action.get('performed') == 'keyboard_input':
                     text_len = action.get('text_length', 0)
                     action_parts.append(f"已输入 {text_len} 个字符")
 
-                # 通用action输出
+                # Generic action output
                 elif action.get('stdout'):
                     action_parts.append(f"执行输出:\n{action.get('stdout', '').strip()}")
 
                 if action_parts:
                     formatted_parts.extend(action_parts)
 
-            # 5. 输出信息（plugin/function执行结果）
+            # 5. Output (plugin/function execution result)
             output = result_dict.get('output')
             if output and isinstance(output, dict):
                 stdout = output.get('stdout', '')
                 if stdout:
                     formatted_parts.append(f"执行输出:\n{stdout.strip()}")
 
-            # 6. 时间戳
+            # 6. Timestamp
             timestamp = result_dict.get('timestamp')
             if timestamp:
                 formatted_parts.append(f"时间: {timestamp}")
 
-            # 如果有格式化的部分，返回格式化结果
+            # If we have formatted parts, return them
             if formatted_parts:
                 return "\n".join(formatted_parts)
 
-            # 否则返回JSON格式（更紧凑）
+            # Otherwise return compact JSON
             return json.dumps(result_dict, ensure_ascii=False, indent=2)
 
         except Exception as e:
             logger.error(f"格式化工具结果失败: {e}")
-            # 降级：返回原始结果的字符串表示
+            # Fallback: return stringified raw result
             return str(tool_result)
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        转换为字典
+        Convert to dict.
 
         Returns:
-            Agent信息字典
+            Agent info dict
         """
         return {
             'agent_id': self.agent_id,

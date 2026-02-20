@@ -104,10 +104,10 @@ const kmHandlers = {
                 // Note type
                 pageHTML = KMNotePage.render();
             } else if (kbType === 0) {
-                // File type - 传入kbId参数
+                // File type - pass kbId parameter
                 pageHTML = KMFilePage.render(kbId);
             } else if (kbType === 2) {
-                // Key-value type - 传入kbId参数
+                // Key-value type - pass kbId parameter
                 pageHTML = KMKeyValuePage.render(kbId);
             } else {
                 pageHTML = '<div class="km-empty-state"><p style="text-align: center; color: var(--text-muted); padding: 40px;">Unknown KB type</p></div>';
@@ -319,7 +319,7 @@ const kmHandlers = {
             return;
         }
 
-        // 静默加载，不显示loading提示
+        // Silent load; do not show loading indicator
         try {
             // Use the search endpoint with kmId parameter (no query means get all notes for this KB)
             const url = this.resolve(`/api/km/notes/search?km_id=${encodeURIComponent(kmId)}`);
@@ -640,7 +640,7 @@ const kmHandlers = {
         const fileTree = document.getElementById(`fileTree-${kbId}`);
         if (!fileTree) return;
 
-        // 静默加载，不显示loading提示
+        // Silent load; do not show loading indicator
         try {
             const response = await fetch(this.resolve(`/api/km/${kbId}/files`));
             if (!response.ok) throw new Error('Failed to load files');
@@ -738,7 +738,7 @@ const kmHandlers = {
         const fileTree = document.getElementById(`fileTree-${kbId}`);
         if (!fileTree) return;
 
-        // 点击文件项
+        // Click file item
         fileTree.addEventListener('click', (e) => {
             const deleteBtn = e.target.closest('.km-file-action-btn.delete');
             if (deleteBtn) {
@@ -923,7 +923,7 @@ const kmHandlers = {
         const kvTree = document.getElementById(`kvTree-${kbId}`);
         if (!kvTree) return;
 
-        // 静默加载，不显示loading提示
+        // Silent load; do not show loading indicator
         try {
             const response = await fetch(this.resolve(`/api/km/${kbId}/keyvalues`));
             if (!response.ok) throw new Error('Failed to load key-values');

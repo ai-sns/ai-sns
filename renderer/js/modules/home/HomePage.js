@@ -1,5 +1,5 @@
 /**
- * Home Page - 主内容渲染
+ * Home Page - main content rendering
  */
 
 const HomePage = {

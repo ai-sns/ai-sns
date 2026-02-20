@@ -1,6 +1,6 @@
 /**
  * Tools Module - Index
- * 工具管理模块入口
+ * Tools management module entry
  */
 
 import ToolsPage from './ToolsPage.js';
@@ -12,28 +12,28 @@ export default {
     version: '1.0.0',
 
     /**
-     * 渲染主内容区
+     * Render main content area
      */
     renderPage() {
         return ToolsPage.render();
     },
 
     /**
-     * 渲染侧边栏
+     * Render sidebar
      */
     renderSidebar() {
         return ToolsSidebar.render();
     },
 
     /**
-     * 初始化模块
+     * Initialize module
      */
     init() {
         toolsHandlers.init();
     },
 
     /**
-     * 销毁模块
+     * Destroy module
      */
     destroy() {
         toolsHandlers.destroy();

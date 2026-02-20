@@ -1,10 +1,10 @@
 /**
  * AI-SNS Main Application
- * 应用程序入口和初始化
+ * Application entry point and initialization
  */
 
 const App = {
-    currentPage: null,  // 初始为 null，确保首次导航能执行
+    currentPage: null,  // Initially null to ensure first navigation runs
     initialized: false,
     sidebarCollapsed: false,
 
@@ -13,42 +13,42 @@ const App = {
 
         console.log('Initializing AI-SNS...');
 
-        // 初始化主题
+        // Initialize theme
         this.initTheme();
 
-        // 绑定导航事件（优先执行，不阻塞）
+        // Bind navigation events (high priority, non-blocking)
         this.bindNavigationEvents();
 
-        // 绑定侧边栏折叠事件
+        // Bind sidebar collapse events
         this.bindSidebarToggle();
 
-        // 绑定窗口控制按钮
+        // Bind window control buttons
         this.bindWindowControls();
 
-        // 绑定键盘快捷键
+        // Bind keyboard shortcuts
         this.bindKeyboardShortcuts();
 
-        // 监听Electron事件
+        // Listen for Electron events
         this.bindElectronEvents();
 
-        // 根据 system_init.status 决定启动落地页：未初始化 -> Home，已初始化 -> SNS
+        // Decide initial landing page by system_init.status: not initialized -> Home, initialized -> SNS
         const initialPage = await this.getInitialPage();
         this.navigateTo(initialPage);
 
-        // 异步初始化API客户端（不阻塞UI）
+        // Initialize API client asynchronously (non-blocking)
         this.initApiAsync();
 
-        // 修复 Windows 无边框窗口输入框无法编辑的问题
+        // Fix the issue where inputs cannot be edited in Windows frameless windows
         this.fixInputFocus();
 
         this.initialized = true;
         console.log('AI-SNS initialized successfully');
     },
 
-    // 修复输入框焦点问题
+    // Fix input focus issue
     fixInputFocus() {
         setTimeout(() => {
-            // 创建一个临时输入框获取焦点后移除
+            // Create a temporary input to capture focus, then remove it
             const tempInput = document.createElement('input');
             tempInput.style.position = 'absolute';
             tempInput.style.opacity = '0';
@@ -60,9 +60,9 @@ const App = {
         }, 200);
     },
 
-    // 异步初始化 API（不阻塞 UI）
+    // Initialize API asynchronously (non-blocking)
     initApiAsync() {
-        // 使用 Promise 而不是 await，避免阻塞
+        // Use Promise rather than await to avoid blocking
         Promise.resolve().then(async () => {
             try {
                 await this.checkApiConnection();
@@ -92,7 +92,7 @@ const App = {
 
     async checkApiConnection() {
         try {
-            // 设置超时，避免长时间等待
+            // Set a timeout to avoid waiting too long
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Connection timeout')), 3000)
             );
@@ -110,18 +110,18 @@ const App = {
         try {
             await api.connectWebSocket(clientId);
 
-            // 监听聊天响应
+            // Listen for chat responses
             api.onWebSocketMessage('chat_response', (message) => {
                 console.log('Received chat response:', message);
             });
 
-            // 监听地图聊天消息
+            // Listen for map chat messages
             api.onWebSocketMessage('map_chat_message', (message) => {
                 console.log('Received map chat message:', message);
-                // TODO: 处理地图聊天消息，例如显示在地图聊天界面
+                // TODO: Handle map chat messages, e.g. show in map chat UI
             });
 
-            // 监听通知
+            // Listen for notifications
             api.onWebSocketMessage('notification', (message) => {
                 if (typeof Notification !== 'undefined' && Notification.info) {
                     Notification.info(message.content);
@@ -142,7 +142,7 @@ const App = {
     },
 
     bindNavigationEvents() {
-        // 左侧图标导航栏点击事件
+        // Left navigation bar icon click events
         document.querySelectorAll('.nav-icon-item').forEach(item => {
             item.addEventListener('click', () => {
                 const page = item.dataset.page;
@@ -160,7 +160,7 @@ const App = {
 
         if (!resizer || !sidebar) return;
 
-        // 侧边栏宽度范围
+        // Sidebar width bounds
         const minWidth = 200;
         const maxWidth = 450;
         const defaultWidth = 280;
@@ -168,7 +168,7 @@ const App = {
         let isResizing = false;
         let lastClickTime = 0;
 
-        // 折叠按钮点击
+        // Collapse button click
         if (collapseBtn) {
             collapseBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -176,21 +176,21 @@ const App = {
             });
         }
 
-        // 双击折叠
+        // Double click to collapse
         resizer.addEventListener('dblclick', () => {
             if (!this.sidebarCollapsed) {
                 this.toggleSidebar();
             }
         });
 
-        // 折叠状态点击展开
+        // Click to expand when collapsed
         resizer.addEventListener('click', () => {
             if (this.sidebarCollapsed) {
                 this.toggleSidebar();
             }
         });
 
-        // 拖拽调整宽度
+        // Drag to resize width
         resizer.addEventListener('mousedown', (e) => {
             if (this.sidebarCollapsed) return;
             if (e.target === collapseBtn || collapseBtn.contains(e.target)) return;
@@ -200,7 +200,7 @@ const App = {
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
 
-            // 禁用 iframe 的鼠标事件，防止拖动时卡顿
+            // Disable iframe pointer events to avoid lag while dragging
             const iframes = document.querySelectorAll('iframe');
             iframes.forEach(iframe => {
                 iframe.style.pointerEvents = 'none';
@@ -215,10 +215,10 @@ const App = {
                 const deltaX = e.clientX - startX;
                 let newWidth = startWidth + deltaX;
 
-                // 限制宽度范围
+                // Clamp width to bounds
                 newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
 
-                // 如果拖动到很小，自动折叠
+                // If dragged small enough, auto-collapse
                 if (newWidth < minWidth + 20 && deltaX < -50) {
                     this.toggleSidebar();
                     onMouseUp();
@@ -235,7 +235,7 @@ const App = {
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
 
-                // 恢复 iframe 的鼠标事件
+                // Restore iframe pointer events
                 iframes.forEach(iframe => {
                     iframe.style.pointerEvents = '';
                 });
@@ -248,7 +248,7 @@ const App = {
             document.addEventListener('mouseup', onMouseUp);
         });
 
-        // 保存和恢复侧边栏状态
+        // Save and restore sidebar state
         this.restoreSidebarState = () => {
             const savedWidth = localStorage.getItem('sidebarWidth');
             const savedCollapsed = localStorage.getItem('sidebarCollapsed');
@@ -268,12 +268,12 @@ const App = {
             localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
         };
 
-        // 初始恢复状态
+        // Restore initial state
         this.restoreSidebarState();
     },
 
     bindWindowControls() {
-        // 窗口控制按钮
+        // Window control buttons
         const closeBtn = document.getElementById('windowClose');
         const minimizeBtn = document.getElementById('windowMinimize');
         const maximizeBtn = document.getElementById('windowMaximize');
@@ -293,13 +293,13 @@ const App = {
         if (maximizeBtn && window.electronAPI) {
             maximizeBtn.addEventListener('click', async () => {
                 window.electronAPI.windowMaximize();
-                // 更新按钮图标状态
+                // Update button icon state
                 const isMaximized = await window.electronAPI.windowIsMaximized();
                 maximizeBtn.classList.toggle('maximized', isMaximized);
             });
         }
 
-        // 主题切换按钮
+        // Theme toggle button
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         if (themeToggleBtn) {
             themeToggleBtn.addEventListener('click', (e) => {
@@ -329,12 +329,12 @@ const App = {
             mainContent.classList.remove('sidebar-collapsed');
         }
 
-        // 更新 BrowserView 位置
+        // Update BrowserView bounds
         if (window.electronAPI && window.electronAPI.updateBrowserViewBounds) {
             window.electronAPI.updateBrowserViewBounds(this.sidebarCollapsed);
         }
 
-        // 保存状态
+        // Save state
         if (this.saveSidebarState) {
             this.saveSidebarState();
         }
@@ -342,25 +342,25 @@ const App = {
 
     bindKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + B: 折叠/展开侧边栏
+            // Ctrl/Cmd + B: collapse/expand sidebar
             if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
                 e.preventDefault();
                 this.toggleSidebar();
             }
 
-            // Ctrl/Cmd + K: 搜索
+            // Ctrl/Cmd + K: search
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 this.showSearchModal();
             }
 
-            // Ctrl/Cmd + ,: 设置
+            // Ctrl/Cmd + ,: settings
             if ((e.ctrlKey || e.metaKey) && e.key === ',') {
                 e.preventDefault();
                 this.showSettingsModal();
             }
 
-            // Ctrl/Cmd + 1-6: 快速导航
+            // Ctrl/Cmd + 1-6: quick navigation
             if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '6') {
                 e.preventDefault();
                 const pages = ['sns', 'agent', 'km', 'tools', 'web', 'home'];
@@ -375,7 +375,7 @@ const App = {
     bindElectronEvents() {
         if (!window.electronAPI) return;
 
-        // 监听菜单操作
+        // Listen for menu actions
         window.electronAPI.onMenuAction((action) => {
             switch (action) {
                 case 'settings':
@@ -390,23 +390,23 @@ const App = {
             }
         });
 
-        // 监听导航事件
+        // Listen for navigation events
         window.electronAPI.onNavigate((page) => {
             this.navigateTo(page);
         });
     },
 
     navigateTo(page) {
-        // 使用新的 router 系统
+        // Use the new router system
         if (window.router) {
             window.router.navigateTo(page);
         } else {
-            // 回退到旧的方式（向后兼容）
+            // Fallback to the legacy approach (backwards compatible)
             if (this.currentPage === page) return;
 
             console.log(`Navigating to: ${page}`);
 
-            // 保存当前页面状态（如果有）
+            // Save current page state (if any)
             if (this.currentPage) {
                 const currentPageElement = document.getElementById(`page-${this.currentPage}`);
                 if (currentPageElement) {
@@ -416,18 +416,18 @@ const App = {
 
             this.currentPage = page;
 
-            // 更新导航栏状态
+            // Update nav bar state
             document.querySelectorAll('.nav-icon-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.page === page);
             });
 
-            // 渲染侧边栏内容
+            // Render sidebar content
             this.renderSidebar(page);
 
-            // 渲染或显示主内容区
+            // Render or show main content area
             this.renderOrShowMainContent(page);
 
-            // 初始化页面控制器（只在首次渲染时调用）
+            // Initialize page controller (only on first render)
             const pageElement = document.getElementById(`page-${page}`);
             if (!pageElement.dataset.initialized) {
                 this.initPageController(page);
@@ -440,7 +440,7 @@ const App = {
         const sidebar = document.getElementById('secondarySidebar');
         if (!sidebar) return;
 
-        // 渲染对应页面的侧边栏
+        // Render sidebar for the given page
         let sidebarContent = '';
         switch (page) {
             case 'home':
@@ -450,8 +450,8 @@ const App = {
                 sidebarContent = PageRenderers.renderSNSSidebar();
                 break;
             case 'agent':
-                // 使用 AgentSidebar.render() 而不是旧的 PageRenderers
-                // 因为需要动态加载agent列表
+                // Use AgentSidebar.render() rather than legacy PageRenderers
+                // Because we need to load agent list dynamically
                 if (window.AgentSidebar && typeof window.AgentSidebar.render === 'function') {
                     sidebarContent = window.AgentSidebar.render();
                 } else {
@@ -473,7 +473,7 @@ const App = {
 
         sidebar.innerHTML = sidebarContent;
 
-        // 绑定侧边栏事件（根据页面不同） - 等待异步完成
+        // Bind sidebar events (depends on page) - wait for async completion
         await this.bindSidebarEvents(page);
     },
 
@@ -501,7 +501,7 @@ const App = {
     },
 
     bindHomeSidebarEvents() {
-        // Home 页面侧边栏事件
+        // Home page sidebar events
         document.querySelectorAll('.setting-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const action = btn.dataset.action;
@@ -518,7 +518,7 @@ const App = {
     },
 
     bindSNSSidebarEvents() {
-        // SNS 页面侧边栏事件
+        // SNS page sidebar events
         document.querySelectorAll('.sidebar-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.textContent.trim();
@@ -528,10 +528,10 @@ const App = {
     },
 
     async bindAgentSidebarEvents() {
-        // Agent 页面侧边栏事件 - 重新初始化AgentSidebar
+        // Agent page sidebar events - re-initialize AgentSidebar
         console.log('[App] 初始化Agent侧边栏...');
 
-        // 重新加载agent列表（修复：切换页面后agent列表消失的问题）
+        // Reload agent list (fix: agent list disappears after page switch)
         if (window.AgentSidebar && typeof window.AgentSidebar.init === 'function') {
             await window.AgentSidebar.init();
         } else {
@@ -547,7 +547,7 @@ const App = {
     },
 
     bindKMSidebarEvents() {
-        // KM 页面侧边栏事件
+        // KM page sidebar events
         document.querySelectorAll('.km-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
@@ -557,7 +557,7 @@ const App = {
     },
 
     bindToolsSidebarEvents() {
-        // Tools 页面侧边栏事件
+        // Tools page sidebar events
         const searchInput = document.getElementById('toolsSearchInput');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -567,7 +567,7 @@ const App = {
     },
 
     bindWebSidebarEvents() {
-        // Web 页面侧边栏事件
+        // Web page sidebar events
         const addLLMBtn = document.getElementById('addLLMBtn');
         if (addLLMBtn) {
             addLLMBtn.addEventListener('click', () => {
@@ -579,11 +579,11 @@ const App = {
         const mainContent = document.getElementById('mainContent');
         if (!mainContent) return;
 
-        // 检查页面是否已渲染
+        // Check whether page has been rendered
         let pageElement = document.getElementById(`page-${page}`);
 
         if (!pageElement) {
-            // 页面未渲染，创建新的页面容器
+            // Page not rendered yet, create a new page container
             pageElement = document.createElement('div');
             pageElement.id = `page-${page}`;
             pageElement.className = 'page-container';
@@ -615,7 +615,7 @@ const App = {
             pageElement.innerHTML = pageContent;
             mainContent.appendChild(pageElement);
         } else {
-            // 页面已渲染，直接显示
+            // Page already rendered, show directly
             pageElement.classList.remove('hidden');
         }
     },
@@ -711,13 +711,13 @@ const App = {
             }
         });
 
-        // 绑定主题切换按钮事件
+        // Bind theme toggle button events
         setTimeout(() => {
             document.querySelectorAll('.theme-option').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const theme = btn.dataset.theme;
                     this.applyTheme(theme);
-                    // 更新按钮状态
+                    // Update button state
                     document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                 });
@@ -745,7 +745,7 @@ const App = {
         if (savedTheme) {
             this.applyTheme(savedTheme);
         } else {
-            // 检测系统主题偏好
+            // Detect system theme preference
             if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
                 this.applyTheme('dark');
             } else {
@@ -753,7 +753,7 @@ const App = {
             }
         }
 
-        // 监听系统主题变化
+        // Listen for system theme changes
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
                 if (!localStorage.getItem('theme')) {
@@ -824,10 +824,10 @@ const App = {
     }
 };
 
-// 应用初始化
+// App initialization
 document.addEventListener('DOMContentLoaded', () => {
     App.init().catch(console.error);
 });
 
-// 导出全局访问
+// Export for global access
 window.App = App;

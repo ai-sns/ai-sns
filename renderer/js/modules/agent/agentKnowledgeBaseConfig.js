@@ -1,6 +1,6 @@
 /**
  * Agent Knowledge Base Config Event Handler
- * 处理知识库配置按钮的点击事件
+ * Handles click events for the knowledge base configuration button
  */
 
 document.addEventListener('click', function(e) {

@@ -1,6 +1,6 @@
 /**
- * Event Bus - 模块间通信
- * 用于解耦模块之间的直接依赖
+ * Event Bus - inter-module communication
+ * Used to decouple direct dependencies between modules
  */
 
 class EventBus {
@@ -9,9 +9,9 @@ class EventBus {
     }
 
     /**
-     * 订阅事件
-     * @param {string} event - 事件名称
-     * @param {Function} handler - 事件处理函数
+     * Subscribe to an event
+     * @param {string} event - event name
+     * @param {Function} handler - event handler
      */
     on(event, handler) {
         if (!this.events[event]) {
@@ -21,15 +21,15 @@ class EventBus {
     }
 
     /**
-     * 取消订阅事件
-     * @param {string} event - 事件名称
-     * @param {Function} handler - 事件处理函数
+     * Unsubscribe from an event
+     * @param {string} event - event name
+     * @param {Function} handler - event handler
      */
     off(event, handler) {
         if (!this.events[event]) return;
 
         if (!handler) {
-            // 如果没有指定 handler，移除所有该事件的处理函数
+            // If handler is not specified, remove all handlers for this event
             delete this.events[event];
         } else {
             this.events[event] = this.events[event].filter(h => h !== handler);
@@ -37,9 +37,9 @@ class EventBus {
     }
 
     /**
-     * 触发事件
-     * @param {string} event - 事件名称
-     * @param {*} data - 事件数据
+     * Emit an event
+     * @param {string} event - event name
+     * @param {*} data - event data
      */
     emit(event, data) {
         if (!this.events[event]) return;
@@ -54,9 +54,9 @@ class EventBus {
     }
 
     /**
-     * 一次性订阅事件
-     * @param {string} event - 事件名称
-     * @param {Function} handler - 事件处理函数
+     * Subscribe to an event once
+     * @param {string} event - event name
+     * @param {Function} handler - event handler
      */
     once(event, handler) {
         const onceHandler = (data) => {
@@ -67,13 +67,13 @@ class EventBus {
     }
 
     /**
-     * 清除所有事件
+     * Clear all events
      */
     clear() {
         this.events = {};
     }
 }
 
-// 导出单例
+// Export singleton
 const eventBus = new EventBus();
 window.eventBus = eventBus;

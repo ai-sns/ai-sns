@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil
@@ -90,10 +90,10 @@ class TradeMixin:
         return result
 
     def set_taxi_order(self, current_position, target_position, target_place):
-        point1 = (current_position[1], current_position[0])  # 转换成 (纬度, 经度)
-        point2 = (target_position[1], target_position[0])  # 转换成 (纬度, 经度)
+        point1 = (current_position[1], current_position[0])  # Convert to (lat, lon)
+        point2 = (target_position[1], target_position[0])  # Convert to (lat, lon)
 
-        # 使用 geopy 计算距离
+        # Compute distance using geopy
         dist = distance(point1, point2).kilometers
         fee = dist * 2.5
 
@@ -340,43 +340,43 @@ class TradeMixin:
 
     def check_pay_in_received(self, msg):
         """
-            从输入字符串中提取 JSON 字符串，位于特定的起始和结束标记之间。
+            Extract a JSON string from the input, located between specific start/end markers.
 
-            :param msg: 包含 JSON 字符串的原始输入
-            :return: 提取的 JSON 字符串，如果未找到则返回 None
+            :param msg: Raw input containing the JSON string
+            :return: Extracted JSON string, or None if not found
             """
-        # 定义正则表达式模式，使用原始字符串以避免转义字符的问题
+        # Define regex pattern (raw string avoids escape issues)
         pattern = r'AISNS_INT_001_PAY_SEND_START(.*?)AISNS_INT_001_PAY_SEND_END'
 
-        # 使用 re.search 查找符合模式的部分
-        match = re.search(pattern, msg, re.DOTALL)  # DOTALL 使 . 可以匹配换行符
+        # Use re.search to find the matching part
+        match = re.search(pattern, msg, re.DOTALL)  # DOTALL lets '.' match newlines
 
-        # 检查是否找到匹配，并返回提取的内容
+        # If matched, return extracted content
         if match:
-            result = match.group(1).strip()  # 提取并去除首尾空白
+            result = match.group(1).strip()  # Extract and trim whitespace
             return result
         else:
-            return None  # 如果没有匹配，返回 None
+            return None  # No match
 
     def check_good_in_received(self, msg):
         """
-            从输入字符串中提取 JSON 字符串，位于特定的起始和结束标记之间。
+            Extract a JSON string from the input, located between specific start/end markers.
 
-            :param msg: 包含 JSON 字符串的原始输入
-            :return: 提取的 JSON 字符串，如果未找到则返回 None
+            :param msg: Raw input containing the JSON string
+            :return: Extracted JSON string, or None if not found
             """
-        # 定义正则表达式模式，使用原始字符串以避免转义字符的问题
+        # Define regex pattern (raw string avoids escape issues)
         pattern = r'AISNS_INT_002_GOOD_SEND_START(.*?)AISNS_INT_002_GOOD_SEND_END'
 
-        # 使用 re.search 查找符合模式的部分
-        match = re.search(pattern, msg, re.DOTALL)  # DOTALL 使 . 可以匹配换行符
+        # Use re.search to find the matching part
+        match = re.search(pattern, msg, re.DOTALL)  # DOTALL lets '.' match newlines
 
-        # 检查是否找到匹配，并返回提取的内容
+        # If matched, return extracted content
         if match:
-            result = match.group(1).strip()  # 提取并去除首尾空白
+            result = match.group(1).strip()  # Extract and trim whitespace
             return result
         else:
-            return None  # 如果没有匹配，返回 None
+            return None  # No match
 
     def check_buy_in_received(self, msg):
         return "AISNS_INT_003_INQUIRY" in (msg or "")

@@ -45,23 +45,23 @@ const ModelManagementPage = {
         const mainContent = document.getElementById('mainContent');
         if (!mainContent) return;
 
-        // 创建或获取模型管理页面容器
+        // Create or get the model management page container
         let pageContainer = mainContent.querySelector('.model-management-page-container');
 
         if (!pageContainer) {
-            // 首次创建页面容器
+            // Create the page container for the first time
             pageContainer = document.createElement('div');
             pageContainer.className = 'model-management-page-container page-container';
             mainContent.appendChild(pageContainer);
         }
 
-        // 隐藏其他页面，只显示模型管理页面
+        // Hide other pages and only show the model management page
         mainContent.querySelectorAll('.page-container').forEach(page => {
             page.style.display = 'none';
         });
         pageContainer.style.display = 'block';
 
-        // 渲染内容
+        // Render content
         pageContainer.innerHTML = `
             <div class="model-management-page">
                 ${this.renderHeader()}
@@ -405,7 +405,7 @@ const ModelManagementPage = {
 
             if (result.success) {
                 window.showNotification?.('模型创建成功', 'success');
-                // 通知主界面刷新模型选项
+                // Notify main UI to refresh model options
                 if (window.agentHandlers && window.agentHandlers.loadModelOptions) {
                     window.agentHandlers.loadModelOptions();
                 }
@@ -431,7 +431,7 @@ const ModelManagementPage = {
 
             if (result.success) {
                 window.showNotification?.('模型更新成功', 'success');
-                // 通知主界面刷新模型选项
+                // Notify main UI to refresh model options
                 if (window.agentHandlers && window.agentHandlers.loadModelOptions) {
                     window.agentHandlers.loadModelOptions();
                 }
@@ -467,7 +467,7 @@ const ModelManagementPage = {
             if (result.success) {
                 window.showNotification?.('模型删除成功', 'success');
                 await this.loadModels();
-                // 通知主界面刷新模型选项
+                // Notify main UI to refresh model options
                 if (window.agentHandlers && window.agentHandlers.loadModelOptions) {
                     window.agentHandlers.loadModelOptions();
                 }
@@ -616,39 +616,39 @@ const ModelManagementPage = {
     },
 
     /**
-     * 绑定侧边栏点击处理器 - 点击agent或chat list时返回
+     * Bind sidebar click handler - go back when clicking agent or chat list
      */
     bindSidebarClickHandler() {
-        // 使用事件委托监听侧边栏的点击
+        // Use event delegation to listen for sidebar clicks
         document.addEventListener('click', (e) => {
-            // 检查是否点击了agent item或chat list item
+            // Check whether an agent item or chat list item was clicked
             const agentItem = e.target.closest('.agent-item[data-agent-id]');
             const chatItem = e.target.closest('.tree-item[data-conversation-id]');
 
             if (agentItem || chatItem) {
-                // 如果管理页面是打开的，关闭它
+                // If the management page is open, close it
                 const mgmtPage = document.querySelector('.model-management-page-container');
                 if (mgmtPage && mgmtPage.style.display !== 'none') {
                     this.destroy();
                 }
             }
-        }, true); // 使用捕获阶段确保先执行
+        }, true); // Use capture phase to ensure it runs first
     },
 
     /**
-     * 销毁页面 - 在切换到其他页面时调用
+     * Destroy page - called when switching to other pages
      */
     destroy() {
         const mainContent = document.getElementById('mainContent');
         if (!mainContent) return;
 
-        // 隐藏模型管理页面
+        // Hide model management page
         const pageContainer = mainContent.querySelector('.model-management-page-container');
         if (pageContainer) {
             pageContainer.style.display = 'none';
         }
 
-        // 显示 Agent 主页面
+        // Show Agent main page
         const agentPage = mainContent.querySelector('#page-agent, .agent-page-layout');
         if (agentPage) {
             agentPage.style.display = '';

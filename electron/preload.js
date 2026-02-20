@@ -2,23 +2,23 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 
 
-// 暴露安全的API到渲染进程
+// Expose safe APIs to the renderer process
 
 contextBridge.exposeInMainWorld('electronAPI', {
 
-    // 获取API服务器URL
+    // Get API server URL
 
     getApiUrl: () => ipcRenderer.invoke('get-api-url'),
 
 
 
-    // 获取应用路径
+    // Get application path
 
     getAppPath: () => ipcRenderer.invoke('get-app-path'),
 
 
 
-    // 读取/写入工作目录下的 config.json
+    // Read/write config.json under the working directory
 
     readConfigJson: () => ipcRenderer.invoke('read-config-json'),
 
@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 文件对话框
+    // File dialogs
 
     showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
 
@@ -34,19 +34,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 消息对话框
+    // Message dialog
 
     showMessageBox: (options) => ipcRenderer.invoke('show-message-box', options),
 
 
 
-    // 设置窗口标题
+    // Set window title
 
     setTitle: (title) => ipcRenderer.send('set-title', title),
 
 
 
-    // 窗口控制
+    // Window controls
 
     windowMinimize: () => ipcRenderer.send('window-minimize'),
 
@@ -58,25 +58,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 最小化到托盘
+    // Minimize to tray
 
     minimizeToTray: () => ipcRenderer.send('minimize-to-tray'),
 
 
 
-    // 退出应用
+    // Quit the app
 
     quitApp: () => ipcRenderer.send('quit-app'),
 
 
 
-    // 修复输入框焦点问题
+    // Fix input focus issue
 
     fixInputFocus: () => ipcRenderer.send('fix-input-focus'),
 
 
 
-    // 监听菜单操作
+    // Listen for menu actions
 
     onMenuAction: (callback) => {
 
@@ -86,7 +86,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 监听导航事件
+    // Listen for navigation events
 
     onNavigate: (callback) => {
 
@@ -96,7 +96,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 移除监听器
+    // Remove listeners
 
     removeAllListeners: (channel) => {
 
@@ -106,7 +106,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // BrowserView 控制
+    // BrowserView controls
 
     loadUrlInBrowserView: (url) => ipcRenderer.invoke('load-url-in-browserview', url),
 
@@ -128,7 +128,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // AI 聊天流式输出
+    // AI chat streaming output
 
     chatStreamStart: (messages, requestId) => {
 
@@ -166,7 +166,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 地图窗口功能
+    // Map window features
 
     openMapWindow: () => ipcRenderer.send('open-map-window'),
 
@@ -178,7 +178,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 地图操作
+    // Map operations
 
     sendMapCommand: (command, param1, param2) => {
 
@@ -194,7 +194,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 地图配置
+    // Map configuration
 
     loadMapSetting: () => ipcRenderer.invoke('load-map-setting'),
 
@@ -202,7 +202,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 地图聊天
+    // Map chat
 
     sendMapChatMessage: (from, to, msg) => {
 
@@ -218,7 +218,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // 打开链接
+    // Open URL
 
     openUrl: (url) => ipcRenderer.send('open-url', url),
 
@@ -238,7 +238,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-// 暴露平台信息
+// Expose platform info
 
 contextBridge.exposeInMainWorld('platform', {
 

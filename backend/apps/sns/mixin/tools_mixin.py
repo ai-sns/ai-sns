@@ -12,7 +12,7 @@ from backend.modules.agent.tool_converter import ToolConverter
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil

@@ -16,6 +16,18 @@ export class SNSProfessionDialog {
         this.availableTools = [];
     }
 
+    _isDialogAlive() {
+        return !!(this.dialog && typeof document !== 'undefined' && document.body && document.body.contains(this.dialog));
+    }
+
+    _q(selector) {
+        return this.dialog ? this.dialog.querySelector(selector) : null;
+    }
+
+    _qa(selector) {
+        return this.dialog ? Array.from(this.dialog.querySelectorAll(selector)) : [];
+    }
+
     resolve(urlOrPath) {
         try {
             if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
@@ -29,6 +41,14 @@ export class SNSProfessionDialog {
     async show() {
         // Load current configuration
         await this.loadCurrentConfig();
+
+        const existing = document.getElementById('snsProfessionDialog');
+        if (existing) {
+            try {
+                existing.remove();
+            } catch (e) {
+            }
+        }
 
         // Create dialog HTML
         const dialogHTML = `
@@ -110,14 +130,22 @@ export class SNSProfessionDialog {
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
         this.dialog = document.getElementById('snsProfessionDialog');
 
+        if (!this._isDialogAlive()) return;
+
         // Load professions
         await this.loadProfessions();
+
+        if (!this._isDialogAlive()) return;
         
         // Load available tools
         await this.loadTools();
 
+        if (!this._isDialogAlive()) return;
+
         // Load existing saved user config and apply to UI
         await this.loadExistingUserConfig();
+
+        if (!this._isDialogAlive()) return;
 
         // Setup event listeners
         this.setupEventListeners();
@@ -139,6 +167,10 @@ export class SNSProfessionDialog {
             const resp = await fetch(this.resolve('/api/sns/user-info'));
             const result = await resp.json();
 
+            if (!this._isDialogAlive()) {
+                return;
+            }
+
             if (!result || !result.success || !result.data) {
                 return;
             }
@@ -147,7 +179,7 @@ export class SNSProfessionDialog {
 
             if (typeof data.money === 'number') {
                 this.currentMoney = data.money;
-                const balanceEl = document.getElementById('currentBalance');
+                const balanceEl = this._q('#currentBalance');
                 if (balanceEl) {
                     balanceEl.textContent = this.currentMoney.toFixed(2);
                 }
@@ -155,7 +187,7 @@ export class SNSProfessionDialog {
 
             if (data.profession) {
                 this.selectedProfession = data.profession;
-                const radio = document.querySelector(`input[name="profession"][value="${CSS.escape(data.profession)}"]`);
+                const radio = this._q(`input[name="profession"][value="${CSS.escape(data.profession)}"]`);
                 if (radio && !radio.disabled) {
                     radio.checked = true;
                 }
@@ -163,7 +195,7 @@ export class SNSProfessionDialog {
 
             if (data.handle_after_trade) {
                 const option = data.handle_after_trade;
-                const tradeRadio = document.querySelector(`input[name="tradeOption"][value="${CSS.escape(option)}"]`);
+                const tradeRadio = this._q(`input[name="tradeOption"][value="${CSS.escape(option)}"]`);
                 if (tradeRadio) {
                     tradeRadio.checked = true;
                 }
@@ -172,7 +204,7 @@ export class SNSProfessionDialog {
 
                 if (option === 'message') {
                     this.messageContent = data.handle_content || '';
-                    const messageEl = document.getElementById('messageContent');
+                    const messageEl = this._q('#messageContent');
                     if (messageEl) {
                         messageEl.value = this.messageContent;
                     }
@@ -180,8 +212,8 @@ export class SNSProfessionDialog {
                     const raw = data.handle_content || '';
                     // Backward compatible: old data might store only id (e.g. PLxxxx)
                     this.selectedTool = raw.includes(':') ? raw : raw;
-                    const toolEl = document.getElementById('toolSelect');
-                    const mcpToolEl = document.getElementById('mcpToolSelect');
+                    const toolEl = this._q('#toolSelect');
+                    const mcpToolEl = this._q('#mcpToolSelect');
                     if (toolEl) {
                         if (raw.includes(':')) {
                             if (raw.startsWith('mcp:')) {
@@ -226,8 +258,12 @@ export class SNSProfessionDialog {
             const response = await fetch(this.resolve('/api/sns/professions'));
             const professions = await response.json();
 
-            const costList = document.getElementById('professionListCost');
-            const freeList = document.getElementById('professionListFree');
+            const costList = this._q('#professionListCost');
+            const freeList = this._q('#professionListFree');
+
+            if (!costList || !freeList) {
+                return;
+            }
 
             costList.innerHTML = '';
             freeList.innerHTML = '';
@@ -256,33 +292,38 @@ export class SNSProfessionDialog {
             });
         } catch (error) {
             console.error('Error loading professions:', error);
-            document.getElementById('professionListCost').innerHTML = '<div class="error">加载失败</div>';
-            document.getElementById('professionListFree').innerHTML = '<div class="error">加载失败</div>';
+            const costList = this._q('#professionListCost');
+            const freeList = this._q('#professionListFree');
+            if (costList) costList.innerHTML = '<div class="error">加载失败</div>';
+            if (freeList) freeList.innerHTML = '<div class="error">加载失败</div>';
         }
     }
 
     setupEventListeners() {
         // Save button
-        document.getElementById('saveProfessionBtn').addEventListener('click', () => {
-            this.saveConfiguration();
-        });
+        const saveBtn = this._q('#saveProfessionBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                this.saveConfiguration();
+            });
+        }
 
         // Radio button change
-        document.querySelectorAll('input[name="profession"]').forEach(radio => {
+        this._qa('input[name="profession"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 this.selectedProfession = e.target.value;
             });
         });
         
         // Trade option change
-        document.querySelectorAll('input[name="tradeOption"]').forEach(radio => {
+        this._qa('input[name="tradeOption"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 this.onTradeOptionChange(e.target.value);
             });
         });
         
         // Message content change
-        const messageContent = document.getElementById('messageContent');
+        const messageContent = this._q('#messageContent');
         if (messageContent) {
             messageContent.addEventListener('input', (e) => {
                 this.messageContent = e.target.value;
@@ -290,14 +331,14 @@ export class SNSProfessionDialog {
         }
         
         // Tool selection change
-        const toolSelect = document.getElementById('toolSelect');
+        const toolSelect = this._q('#toolSelect');
         if (toolSelect) {
             toolSelect.addEventListener('change', (e) => {
                 this.onToolSelectionChange(e.target.value);
             });
         }
 
-        const mcpToolSelect = document.getElementById('mcpToolSelect');
+        const mcpToolSelect = this._q('#mcpToolSelect');
         if (mcpToolSelect) {
             mcpToolSelect.addEventListener('change', (e) => {
                 this.selectedMcpToolName = e.target.value;
@@ -307,8 +348,8 @@ export class SNSProfessionDialog {
     }
 
     async onToolSelectionChange(value) {
-        const mcpContainer = document.getElementById('mcpToolSelectionContainer');
-        const mcpSelect = document.getElementById('mcpToolSelect');
+        const mcpContainer = this._q('#mcpToolSelectionContainer');
+        const mcpSelect = this._q('#mcpToolSelect');
 
         this.selectedMcpToolName = '';
 
@@ -358,7 +399,7 @@ export class SNSProfessionDialog {
     }
 
     async loadMcpToolsIntoSelect(mcpId) {
-        const mcpSelect = document.getElementById('mcpToolSelect');
+        const mcpSelect = this._q('#mcpToolSelect');
         if (!mcpSelect) return;
 
         if (this.mcpToolsCache.has(mcpId)) {
@@ -398,7 +439,7 @@ export class SNSProfessionDialog {
     }
 
     populateMcpToolSelect(tools) {
-        const mcpSelect = document.getElementById('mcpToolSelect');
+        const mcpSelect = this._q('#mcpToolSelect');
         if (!mcpSelect) return;
         mcpSelect.innerHTML = '<option value="">请选择 MCP 工具...</option>';
         (tools || []).forEach(t => {
@@ -490,14 +531,16 @@ export class SNSProfessionDialog {
         this.selectedTradeOption = option;
         
         // Hide both containers first
-        document.getElementById('messageInputContainer').style.display = 'none';
-        document.getElementById('toolSelectionContainer').style.display = 'none';
+        const messageContainer = this._q('#messageInputContainer');
+        const toolContainer = this._q('#toolSelectionContainer');
+        if (messageContainer) messageContainer.style.display = 'none';
+        if (toolContainer) toolContainer.style.display = 'none';
         
         // Show relevant container
         if (option === 'message') {
-            document.getElementById('messageInputContainer').style.display = 'block';
+            if (messageContainer) messageContainer.style.display = 'block';
         } else if (option === 'tool') {
-            document.getElementById('toolSelectionContainer').style.display = 'block';
+            if (toolContainer) toolContainer.style.display = 'block';
         }
     }
     
@@ -530,7 +573,7 @@ export class SNSProfessionDialog {
     }
     
     populateToolSelect() {
-        const toolSelect = document.getElementById('toolSelect');
+        const toolSelect = this._q('#toolSelect');
         if (!toolSelect) return;
         
         // Clear existing options except the first one

@@ -1,11 +1,11 @@
 /**
- * Mindmap Plugin - 思维导图插件
- * 将 Markdown mindmap 语法转换为可视化思维导图
+ * Mindmap Plugin - mind map plugin
+ * Convert Markdown mindmap syntax into a visual mind map
  */
 
 const MindmapPlugin = {
     /**
-     * 插件信息
+     * Plugin info
      */
     info: {
         id: 'mindmap',
@@ -15,8 +15,8 @@ const MindmapPlugin = {
     },
 
     /**
-     * 解析 mindmap markdown 语法
-     * 支持格式：
+     * Parse mindmap markdown syntax
+     * Supported format:
      * ```mindmap
      * - Root
      *   - Child 1
@@ -30,7 +30,7 @@ const MindmapPlugin = {
         const stack = [root];
 
         lines.forEach(line => {
-            // 计算缩进级别
+            // Compute indentation level
             const match = line.match(/^(\s*)-\s+(.+)$/);
             if (!match) return;
 
@@ -44,7 +44,7 @@ const MindmapPlugin = {
                 level
             };
 
-            // 找到父节点
+            // Find parent node
             while (stack.length > 0 && stack[stack.length - 1].level >= level) {
                 stack.pop();
             }
@@ -58,7 +58,7 @@ const MindmapPlugin = {
     },
 
     /**
-     * 渲染思维导图到 SVG
+     * Render mind map to SVG
      */
     renderToSVG(data, width = 800, height = 600) {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -66,18 +66,18 @@ const MindmapPlugin = {
         svg.setAttribute('height', height);
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
 
-        // 使用 CSS 变量获取当前主题的背景色
+        // Get current theme background color from CSS variables
         const bgColor = getComputedStyle(document.documentElement)
             .getPropertyValue('--bg-secondary').trim() || '#f8f9fa';
 
         svg.style.background = bgColor;
         svg.style.borderRadius = '8px';
 
-        // 定义样式
+        // Define styles
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
         const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
 
-        // 使用 CSS 变量
+        // Use CSS variables
         const primaryColor = getComputedStyle(document.documentElement)
             .getPropertyValue('--color-primary').trim() || '#1976d2';
         const textColor = getComputedStyle(document.documentElement)
@@ -94,7 +94,7 @@ const MindmapPlugin = {
         defs.appendChild(style);
         svg.appendChild(defs);
 
-        // 计算节点位置
+        // Calculate node positions
         const nodeWidth = 120;
         const nodeHeight = 40;
         const levelSpacing = 180;
@@ -117,7 +117,7 @@ const MindmapPlugin = {
 
         calculatePositions(data);
 
-        // 渲染连接线
+        // Render links
         const renderLinks = (node) => {
             const pos = positions.get(node);
             node.children.forEach(child => {
@@ -141,14 +141,14 @@ const MindmapPlugin = {
 
         renderLinks(data);
 
-        // 渲染节点
+        // Render nodes
         const renderNodes = (node, index = 0) => {
             const pos = positions.get(node);
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.setAttribute('class', 'mindmap-node');
             g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
 
-            // 节点背景
+            // Node background
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('width', nodeWidth);
             rect.setAttribute('height', nodeHeight);
@@ -158,7 +158,7 @@ const MindmapPlugin = {
             rect.setAttribute('stroke-width', '2');
             g.appendChild(rect);
 
-            // 节点文本
+            // Node text
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             text.setAttribute('x', nodeWidth / 2);
             text.setAttribute('y', nodeHeight / 2 + 5);
@@ -168,7 +168,7 @@ const MindmapPlugin = {
             text.setAttribute('font-weight', index === 0 ? 'bold' : 'normal');
             text.textContent = node.text.length > 15 ? node.text.substring(0, 15) + '...' : node.text;
 
-            // 添加 title 用于显示完整文本
+            // Add title to show full text
             const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
             title.textContent = node.text;
             text.appendChild(title);
@@ -185,10 +185,10 @@ const MindmapPlugin = {
     },
 
     /**
-     * 检测消息中是否包含 mindmap
+     * Detect whether the message contains mindmap
      */
     detectMindmap(content) {
-        // 检测原始 markdown 格式
+        // Detect raw markdown format
         const mindmapRegex = /```mindmap\s*([\s\S]*?)\s*```/gi;
         const matches = [];
         let match;
@@ -206,12 +206,12 @@ const MindmapPlugin = {
     },
 
     /**
-     * 渲染思维导图到消息中
+     * Render mind map into message
      */
     renderInMessage(messageBody) {
         console.log('[MindmapPlugin] ========== 开始检查消息 ==========');
 
-        // 直接查找所有代码块元素
+        // Find all code block elements directly
         const codeBlocks = messageBody.querySelectorAll('.code-block');
         console.log('[MindmapPlugin] 找到代码块数量:', codeBlocks.length);
 
@@ -232,11 +232,11 @@ const MindmapPlugin = {
                 try {
                     console.log('[MindmapPlugin] ✓ 发现 mindmap 代码块');
 
-                    // 获取原始代码内容
+                    // Get raw code content
                     const mindmapContent = codeElement.dataset.rawCode || codeElement.textContent;
                     console.log('[MindmapPlugin] 代码内容:', mindmapContent.substring(0, 100) + '...');
 
-                    // 解析思维导图数据
+                    // Parse mind map data
                     const data = this.parseMindmap(mindmapContent);
                     console.log('[MindmapPlugin] 解析结果:', data);
 
@@ -245,11 +245,11 @@ const MindmapPlugin = {
                         return;
                     }
 
-                    // 渲染为 SVG
+                    // Render to SVG
                     const svg = this.renderToSVG(data);
                     console.log('[MindmapPlugin] ✓ SVG 已创建');
 
-                    // 创建容器
+                    // Create container
                     const container = document.createElement('div');
                     container.className = 'mindmap-container';
                     container.style.cssText = `
@@ -261,7 +261,7 @@ const MindmapPlugin = {
                         overflow-x: auto;
                     `;
 
-                    // 添加标题
+                    // Add title
                     const title = document.createElement('div');
                     title.style.cssText = `
                         font-size: 13px;
@@ -279,10 +279,10 @@ const MindmapPlugin = {
                     `;
                     container.appendChild(title);
 
-                    // 添加 SVG
+                    // Add SVG
                     container.appendChild(svg);
 
-                    // 替换代码块
+                    // Replace code block
                     block.replaceWith(container);
                     renderedCount++;
                     console.log('[MindmapPlugin] ✓ 已替换为思维导图可视化');
@@ -298,7 +298,7 @@ const MindmapPlugin = {
     },
 
     /**
-     * 生成示例 mindmap markdown
+     * Generate example mindmap markdown
      */
     getExample() {
         return `\`\`\`mindmap
@@ -319,7 +319,7 @@ const MindmapPlugin = {
     }
 };
 
-// 导出插件
+// Export plugin
 if (typeof window !== 'undefined') {
     window.MindmapPlugin = MindmapPlugin;
 }

@@ -1,6 +1,6 @@
 /**
  * Home Module - Index
- * 首页模块入口
+ * Home module entry
  */
 
 import HomePage from './HomePage.js';
@@ -12,28 +12,28 @@ export default {
     version: '1.0.0',
 
     /**
-     * 渲染主内容区
+     * Render main content area
      */
     renderPage() {
         return HomePage.render();
     },
 
     /**
-     * 渲染侧边栏
+     * Render sidebar
      */
     renderSidebar() {
         return HomeSidebar.render();
     },
 
     /**
-     * 初始化模块
+     * Initialize module
      */
     init() {
         homeHandlers.init();
     },
 
     /**
-     * 销毁模块
+     * Destroy module
      */
     destroy() {
         homeHandlers.destroy();

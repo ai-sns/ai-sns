@@ -1,6 +1,6 @@
 /**
- * Agent Handlers - 事件处理
- * 处理用户交互、消息发送、流式响应等
+ * Agent Handlers - event handling
+ * Handle user interactions, message sending, streaming responses, etc.
  */
 
 import agentState from './agentState.js';
@@ -16,10 +16,10 @@ const agentHandlers = {
         }
         return urlOrPath;
     },
-    currentManagementPage: null, // 跟踪当前打开的管理页面
+    currentManagementPage: null, // Track the currently open management page
 
     /**
-     * 初始化
+     * Initialization
      */
     init() {
         this.loadAgentList();
@@ -31,22 +31,22 @@ const agentHandlers = {
     },
 
     /**
-     * 绑定事件
+     * Bind events
      */
     bindEvents() {
-        // 新建对话按钮
+        // New chat button
         const newChatBtn = document.getElementById('newChatBtn');
         if (newChatBtn) {
             newChatBtn.addEventListener('click', () => this.handleNewChat());
         }
 
-        // 设置按钮
+        // Settings button
         const settingBtn = document.getElementById('settingBtn');
         if (settingBtn) {
             settingBtn.addEventListener('click', () => this.handleSettings());
         }
 
-        // 发送消息
+        // Send message
         const sendBtn = document.getElementById('sendMessageBtn');
         const chatInput = document.getElementById('chatInput');
 
@@ -63,29 +63,29 @@ const agentHandlers = {
             });
         }
 
-        // 模型选择器
+        // Model selector
         const modelSelector = document.getElementById('modelSelector');
         if (modelSelector) {
             modelSelector.addEventListener('change', async (e) => {
                 const configId = e.target.value;
                 agentState.setModel(configId);
-                // 加载并保存完整的模型配置
+                // Load and persist the full model configuration
                 await this.loadAndApplyModelConfig(configId);
             });
         }
 
-        // 角色选择器
+        // Role selector
         const roleSelector = document.getElementById('roleSelector');
         if (roleSelector) {
             roleSelector.addEventListener('change', async (e) => {
                 const roleId = e.target.value;
                 agentState.setRole(roleId);
-                // 加载并保存完整的角色配置
+                // Load and persist the full role configuration
                 await this.loadAndApplyRoleConfig(roleId);
             });
         }
 
-        // 聊天标签切换
+        // Chat tab switching
         document.querySelectorAll('.chat-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
@@ -93,49 +93,49 @@ const agentHandlers = {
             });
         });
 
-        // 管理页面导航 - 初始绑定（loadAgentList 后会重新绑定）
+        // Management page navigation - initial binding (re-bound after loadAgentList)
         this.bindManagementButtonEvents();
 
-        // 右侧设置面板 - 页签切换
+        // Right-side settings panel - tab switching
         this.initSettingsPanelTabs();
 
-        // 右侧设置面板 - 折叠/展开
+        // Right-side settings panel - collapse/expand
         this.initSettingsPanelCollapse();
 
-        // Prompt 相关事件
+        // Prompt-related events
         this.initPromptEvents();
 
-        // File 相关事件
+        // File-related events
         this.initFileEvents();
 
-        // Plugin 相关事件
+        // Plugin-related events
         this.initPluginEvents();
     },
 
     /**
-     * 初始化设置面板页签切换
+     * Initialize settings panel tab switching
      */
     initSettingsPanelTabs() {
-        // 使用事件委托绑定到父容器，避免缓存问题
+        // Bind with event delegation on the parent container to avoid caching issues
         const settingsTabs = document.getElementById('settingsTabs');
         if (!settingsTabs) return;
 
         settingsTabs.addEventListener('click', (e) => {
-            // 查找被点击的页签按钮
+            // Find the clicked tab button
             const tab = e.target.closest('.settings-tab');
             if (!tab) return;
 
             const targetTab = tab.dataset.tab;
 
-            // 每次点击时重新查询所有页签（包括动态添加的插件页签）
+            // Re-query all tabs on each click (including dynamically added plugin tabs)
             const allTabs = document.querySelectorAll('.settings-tab');
             const allPanes = document.querySelectorAll('.settings-tab-content .tab-pane');
 
-            // 切换激活状态
+            // Toggle active state
             allTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
 
-            // 切换内容显示
+            // Toggle content visibility
             allPanes.forEach(pane => {
                 if (pane.dataset.tab === targetTab) {
                     pane.classList.add('active');
@@ -147,7 +147,7 @@ const agentHandlers = {
     },
 
     /**
-     * 初始化设置面板折叠/展开（使用SNS的toggle模式）
+     * Initialize settings panel collapse/expand (SNS toggle mode)
      */
     initSettingsPanelCollapse() {
         const panel = document.getElementById('agentSettingsPanel');
@@ -161,12 +161,12 @@ const agentHandlers = {
                 if (resizer) {
                     resizer.classList.toggle('collapsed', isCollapsed);
                 }
-                // 保存状态到 localStorage
+                // Persist state to localStorage
                 localStorage.setItem('agentPanelCollapsed', isCollapsed);
                 console.log('Panel toggled, collapsed:', isCollapsed);
             });
 
-            // 从 localStorage 恢复状态
+            // Restore state from localStorage
             const savedCollapsed = localStorage.getItem('agentPanelCollapsed') === 'true';
             if (savedCollapsed) {
                 panel.classList.add('collapsed');
@@ -178,10 +178,10 @@ const agentHandlers = {
     },
 
     /**
-     * 初始化 Prompt 相关事件
+     * Initialize prompt-related events
      */
     initPromptEvents() {
-        // 保存 System Prompt - 更新到当前角色配置
+        // Save System Prompt - update into the current role configuration
         const saveBtns = document.querySelectorAll('.prompt-save-btn');
         saveBtns.forEach(btn => {
             btn.addEventListener('click', async () => {
@@ -193,7 +193,7 @@ const agentHandlers = {
             });
         });
 
-        // 使用预设 Prompt
+        // Use a preset prompt
         const presetUseBtns = document.querySelectorAll('.preset-use-btn');
         presetUseBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -216,19 +216,19 @@ const agentHandlers = {
             });
         });
 
-        // 绑定参数输入框变化事件 - 实时保存到模型配置
+        // Bind parameter input change events - persist to model config in real time
         this.initParamInputListeners();
     },
 
     /**
-     * 初始化 File 相关事件
+     * Initialize file-related events
      */
     initFileEvents() {
-        // 上传文件按钮
+        // Upload file button
         const uploadBtn = document.querySelector('.file-upload-btn');
         if (uploadBtn) {
             uploadBtn.addEventListener('click', () => {
-                // 创建文件输入元素
+                // Create a file input element
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
                 fileInput.multiple = true;
@@ -247,13 +247,13 @@ const agentHandlers = {
     },
 
     /**
-     * 处理文件上传
+     * Handle file uploads
      */
     handleFileUpload(files) {
         const fileList = document.getElementById('chatFileList');
         if (!fileList) return;
 
-        // 移除空状态
+        // Remove empty state
         const emptyState = fileList.querySelector('.empty-state');
         if (emptyState) {
             emptyState.remove();
@@ -279,12 +279,12 @@ const agentHandlers = {
                 </button>
             `;
 
-            // 绑定移除按钮
+            // Bind remove button
             const removeBtn = fileItem.querySelector('.file-remove-btn');
             removeBtn.addEventListener('click', () => {
                 fileItem.remove();
 
-                // 如果没有文件了，显示空状态
+                // If there are no files left, show the empty state
                 if (fileList.children.length === 0) {
                     fileList.innerHTML = `
                         <div class="empty-state">
@@ -306,7 +306,7 @@ const agentHandlers = {
     },
 
     /**
-     * 格式化文件大小
+     * Format file size
      */
     formatFileSize(bytes) {
         if (bytes === 0) return '0 B';
@@ -317,12 +317,12 @@ const agentHandlers = {
     },
 
     /**
-     * 初始化 Plugin 相关事件
+     * Initialize plugin-related events
      */
     initPluginEvents() {
-        // 绑定输入区域工具栏的"添加"按钮（第一个 toolbar-icon-btn）
+        // Bind the input toolbar "add" button (the first toolbar-icon-btn)
         const toolbarButtons = document.querySelectorAll('.input-toolbar .toolbar-icon-btn');
-        const addToolbarBtn = toolbarButtons[0]; // 第一个按钮是"添加"按钮
+        const addToolbarBtn = toolbarButtons[0]; // The first button is the "add" button
 
         const handleAddPlugin = () => {
             if (typeof Modal === 'undefined') {
@@ -358,14 +358,14 @@ const agentHandlers = {
                         if (typeof Notification !== 'undefined') {
                             Notification.error('请选择一个插件');
                         }
-                        return false; // 阻止模态框关闭
+                        return false; // Prevent the modal from closing
                     }
 
                     this.loadPlugin(pluginId);
                 }
             });
 
-            // 绑定插件选择变化事件
+            // Bind plugin selection change event
             setTimeout(() => {
                 const select = document.getElementById('pluginSelect');
                 const descriptionEl = document.getElementById('pluginDescription');
@@ -385,7 +385,7 @@ const agentHandlers = {
             }, 100);
         };
 
-        // 绑定工具栏"添加"按钮
+        // Bind the toolbar "add" button
         if (addToolbarBtn) {
             addToolbarBtn.addEventListener('click', handleAddPlugin);
             console.log('[AgentHandlers] 已绑定工具栏添加按钮到插件选择');
@@ -395,12 +395,12 @@ const agentHandlers = {
     },
 
     /**
-     * 加载插件 - 动态创建页签和内容
+     * Load plugin - dynamically create tabs and content
      */
     loadPlugin(pluginId) {
         console.log('[AgentHandlers] 开始加载插件:', pluginId);
 
-        // 插件配置
+        // Plugin configuration
         const pluginConfigs = {
             'mindmap': {
                 name: '思维导图',
@@ -434,7 +434,7 @@ const agentHandlers = {
             return;
         }
 
-        // 检查插件是否已加载
+        // Check whether the plugin is already loaded
         const existingTab = document.querySelector(`.settings-tab[data-tab="plugin-${pluginId}"]`);
         if (existingTab) {
             console.log('[AgentHandlers] 插件已存在，切换到该页签');
@@ -445,7 +445,7 @@ const agentHandlers = {
             return;
         }
 
-        // 1. 创建页签按钮
+        // 1. Create tab button
         const settingsTabs = document.getElementById('settingsTabs');
         if (!settingsTabs) {
             console.error('[AgentHandlers] 未找到设置页签容器');
@@ -467,19 +467,19 @@ const agentHandlers = {
             </button>
         `;
 
-        // 绑定关闭按钮事件
+        // Bind close button event
         const closeBtn = tabButton.querySelector('.tab-close-btn');
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.removePluginTab(pluginId);
         });
 
-        // 注意：页签切换事件由 initSettingsPanelTabs() 的事件委托统一处理，这里不需要单独绑定
+        // Note: tab switching is handled by initSettingsPanelTabs() via event delegation; no extra binding needed here
 
         settingsTabs.appendChild(tabButton);
         console.log('[AgentHandlers] ✓ 已创建页签按钮');
 
-        // 2. 创建页签内容
+        // 2. Create tab content
         const tabContent = document.getElementById('settingsTabContent');
         if (!tabContent) {
             console.error('[AgentHandlers] 未找到页签内容容器');
@@ -506,10 +506,10 @@ const agentHandlers = {
         tabContent.appendChild(tabPane);
         console.log('[AgentHandlers] ✓ 已创建页签内容');
 
-        // 3. 激活新创建的页签
+        // 3. Activate the newly created tab
         tabButton.click();
 
-        // 4. 加载插件具体内容
+        // 4. Load plugin content
         this.loadPluginContent(pluginId);
 
         if (typeof Notification !== 'undefined') {
@@ -520,15 +520,15 @@ const agentHandlers = {
     },
 
     /**
-     * 移除插件页签
+     * Remove plugin tab
      */
     removePluginTab(pluginId) {
         console.log('[AgentHandlers] 移除插件:', pluginId);
 
-        // 移除页签按钮
+        // Remove tab button
         const tabButton = document.querySelector(`.settings-tab[data-tab="plugin-${pluginId}"]`);
         if (tabButton) {
-            // 如果当前页签是激活状态，切换到 Param 页签
+            // If the tab is currently active, switch to the Param tab
             if (tabButton.classList.contains('active')) {
                 const paramTab = document.querySelector('.settings-tab[data-tab="param"]');
                 if (paramTab) {
@@ -538,7 +538,7 @@ const agentHandlers = {
             tabButton.remove();
         }
 
-        // 移除页签内容
+        // Remove tab content
         const tabPane = document.querySelector(`.tab-pane[data-tab="plugin-${pluginId}"]`);
         if (tabPane) {
             tabPane.remove();
@@ -552,7 +552,7 @@ const agentHandlers = {
     },
 
     /**
-     * 加载插件内容
+     * Load plugin content
      */
     loadPluginContent(pluginId) {
         const container = document.getElementById(`plugin-content-${pluginId}`);
@@ -561,7 +561,7 @@ const agentHandlers = {
             return;
         }
 
-        // 根据插件 ID 加载不同的内容
+        // Load different content based on plugin ID
         switch (pluginId) {
             case 'mindmap':
                 this.loadMindmapPlugin(container);
@@ -581,7 +581,7 @@ const agentHandlers = {
     },
 
     /**
-     * 加载思维导图插件
+     * Load mindmap plugin
      */
     loadMindmapPlugin(container) {
         container.innerHTML = `
@@ -605,7 +605,7 @@ const agentHandlers = {
     },
 
     /**
-     * 显示思维导图示例 - 直接填充可用的代码
+     * Show mindmap example - directly fill in usable code
      */
     showMindmapExample() {
         const input = document.getElementById('chatInput');
@@ -614,13 +614,13 @@ const agentHandlers = {
             if (typeof Notification !== 'undefined') {
                 Notification.info('已填充示例代码，点击发送按钮即可看到思维导图效果');
             }
-            // 聚焦输入框
+            // Focus the input
             input.focus();
         }
     },
 
     /**
-     * 让 AI 生成思维导图
+     * Ask AI to generate a mindmap
      */
     askAIForMindmap() {
         const input = document.getElementById('chatInput');
@@ -629,13 +629,13 @@ const agentHandlers = {
             if (typeof Notification !== 'undefined') {
                 Notification.info('已填充 AI 请求，发送后等待 AI 按照正确格式回复');
             }
-            // 聚焦输入框
+            // Focus the input
             input.focus();
         }
     },
 
     /**
-     * 加载代码执行插件
+     * Load code execution plugin
      */
     loadCodePlugin(container) {
         if (window.CodePlugin) {
@@ -647,10 +647,10 @@ const agentHandlers = {
     },
 
     /**
-     * 初始化流式聊天监听器
+     * Initialize streaming chat listeners
      */
     initChatStreamListeners() {
-        // 创建内部处理器对象，避免修改 window.electronAPI
+        // Create internal handler object to avoid mutating window.electronAPI
         this._streamHandlers = {
             onData: (data) => {
                 if (data.requestId === agentState.getRequestId()) {
@@ -672,26 +672,26 @@ const agentHandlers = {
             }
         };
 
-        // 如果存在旧的 electronAPI 监听器
+        // If legacy electronAPI listeners exist
         if (window.electronAPI && window.electronAPI.onChatStreamData) {
-            // 清除旧的监听器
+            // Clear old listeners
             if (window.electronAPI.removeChatStreamListeners) {
                 window.electronAPI.removeChatStreamListeners();
             }
 
-            // 监听流式数据
+            // Listen for streaming data
             window.electronAPI.onChatStreamData(this._streamHandlers.onData);
 
-            // 监听流结束
+            // Listen for stream end
             window.electronAPI.onChatStreamEnd(this._streamHandlers.onEnd);
 
-            // 监听错误
+            // Listen for errors
             window.electronAPI.onChatStreamError(this._streamHandlers.onError);
         }
     },
 
     /**
-     * 加载模型选项
+     * Load model options
      */
     async loadModelOptions() {
         const modelSelector = document.getElementById('modelSelector');
@@ -705,7 +705,7 @@ const agentHandlers = {
                 const models = result.data.filter(m => m.is_active !== false);
 
                 if (models.length > 0) {
-                    // 保存第一个选项，如果没有默认模型
+                    // Keep the first option if there is no default model
                     let defaultModel = models.find(m => m.is_default) || models[0];
 
                     modelSelector.innerHTML = models.map(model => `
@@ -714,10 +714,10 @@ const agentHandlers = {
                         </option>
                     `).join('');
 
-                    // 设置当前选中的模型
+                    // Set the currently selected model
                     if (defaultModel) {
                         agentState.setModel(defaultModel.config_id);
-                        // 加载默认模型的完整配置
+                        // Load the full configuration for the default model
                         await this.loadAndApplyModelConfig(defaultModel.config_id);
                     }
                 } else {
@@ -726,12 +726,12 @@ const agentHandlers = {
             }
         } catch (error) {
             console.error('加载模型列表失败:', error);
-            // 保留默认选项
+            // Keep default options
         }
     },
 
     /**
-     * 加载角色选项
+     * Load role options
      */
     async loadRoleOptions() {
         const roleSelector = document.getElementById('roleSelector');
@@ -745,7 +745,7 @@ const agentHandlers = {
                 const roles = result.data.filter(r => r.is_active !== false);
 
                 if (roles.length > 0) {
-                    // 保存第一个选项，如果没有默认角色
+                    // Keep the first option if there is no default role
                     let defaultRole = roles.find(r => r.is_default) || roles[0];
 
                     roleSelector.innerHTML = roles.map(role => `
@@ -754,10 +754,10 @@ const agentHandlers = {
                         </option>
                     `).join('');
 
-                    // 设置当前选中的角色
+                    // Set the currently selected role
                     if (defaultRole) {
                         agentState.setRole(defaultRole.role_id);
-                        // 加载默认角色的完整配置
+                        // Load the full configuration for the default role
                         await this.loadAndApplyRoleConfig(defaultRole.role_id);
                     }
                 } else {
@@ -766,12 +766,12 @@ const agentHandlers = {
             }
         } catch (error) {
             console.error('加载角色列表失败:', error);
-            // 保留默认选项
+            // Keep default options
         }
     },
 
     /**
-     * 加载Agent列表
+     * Load agent list
      */
     async loadAgentList() {
         const agentList = document.getElementById('agentList');
@@ -784,12 +784,12 @@ const agentHandlers = {
 
             if (agents.length === 0) {
                 agentList.innerHTML = '<div class="empty-state">暂无Agent</div>';
-                // 仍然需要添加管理按钮
+                // Management buttons still need to be added
                 this.appendManagementButtons(agentList);
                 return;
             }
 
-            // 保留所有管理按钮
+            // Keep all management buttons
             const managementItems = agentList.querySelectorAll('.agent-management');
 
             agentList.innerHTML = agents.map(agent => `
@@ -801,23 +801,23 @@ const agentHandlers = {
                 </div>
             `).join('');
 
-            // 重新添加所有管理按钮
+            // Re-add all management buttons
             managementItems.forEach(item => {
                 agentList.appendChild(item.cloneNode(true));
             });
 
-            // 重新绑定管理按钮的事件
+            // Re-bind management button events
             this.bindManagementButtonEvents();
         } catch (error) {
             console.error('加载Agent列表失败:', error);
             agentList.innerHTML = '<div class="empty-state error">加载失败</div>';
-            // 加载失败时也添加管理按钮
+            // Add management buttons even when loading fails
             this.appendManagementButtons(agentList);
         }
     },
 
     /**
-     * 添加管理按钮
+     * Append management buttons
      */
     appendManagementButtons(agentList) {
         const managementButtonsHtml = `
@@ -845,16 +845,16 @@ const agentHandlers = {
     },
 
     /**
-     * 绑定管理按钮的事件
+     * Bind management button events
      */
     bindManagementButtonEvents() {
-        // 移除旧的事件监听器，避免重复绑定
+        // Remove existing listeners to avoid duplicate bindings
         document.querySelectorAll('.agent-management[data-page]').forEach(btn => {
-            // 克隆并替换节点以移除旧事件监听器
+            // Clone and replace the node to remove old event listeners
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
 
-            // 添加新的事件监听器
+            // Add new event listener
             newBtn.addEventListener('click', () => {
                 const page = newBtn.dataset.page;
                 console.log('Management button clicked:', page);
@@ -864,14 +864,14 @@ const agentHandlers = {
     },
 
     /**
-     * 加载聊天列表
+     * Load chat list
      */
     async loadChatList() {
         const chatList = document.getElementById('chatList');
         if (!chatList) return;
 
         try {
-            // 调用真实API从数据库加载对话列表
+            // Call real API to load conversation list from the database
             const response = await agentApi.getConversations(50);
             const conversations = response.data || [];
 
@@ -883,14 +883,14 @@ const agentHandlers = {
                 return;
             }
 
-            // 渲染对话列表
+            // Render conversation list
             treeChildren.innerHTML = conversations.map((conv) => `
                 <div class="tree-item" data-conversation-id="${conv.conversation_id}">
                     <span class="item-text">${this.escapeHtml(conv.title || '新对话')}</span>
                 </div>
             `).join('');
 
-            // 绑定点击事件
+            // Bind click events
             this.bindChatListItemEvents();
         } catch (error) {
             console.error('加载聊天列表失败:', error);
@@ -902,35 +902,35 @@ const agentHandlers = {
     },
 
     /**
-     * 绑定聊天列表项点击事件
+     * Bind chat list item click events
      */
     bindChatListItemEvents() {
         document.querySelectorAll('#chatList .tree-item[data-conversation-id]').forEach(item => {
-            // 移除旧的事件监听器
+            // Remove old event listener
             const newItem = item.cloneNode(true);
             item.parentNode.replaceChild(newItem, item);
 
-            // 添加新的事件监听器
+            // Add new event listener
             newItem.addEventListener('click', () => {
                 const conversationId = newItem.dataset.conversationId;
-                // 移除其他项的active class
+                // Remove active class from other items
                 document.querySelectorAll('#chatList .tree-item').forEach(i => i.classList.remove('active'));
-                // 添加当前项的active class
+                // Add active class to current item
                 newItem.classList.add('active');
-                // 加载对话
+                // Load conversation
                 this.loadConversation(conversationId);
             });
         });
     },
 
     /**
-     * 处理新建对话
+     * Handle new chat
      */
     handleNewChat() {
-        // 关闭管理页面
+        // Close management page
         this.closeManagementPage();
 
-        // 清空当前对话
+        // Clear current conversation
         const messagesContainer = document.getElementById('chatMessages');
         if (!messagesContainer) return;
 
@@ -938,18 +938,18 @@ const agentHandlers = {
         if (welcomeMsg) {
             welcomeMsg.style.display = 'block';
         } else {
-            // 如果没有欢迎消息，清空所有消息
+            // If there is no welcome message, clear all messages
             messagesContainer.innerHTML = '';
         }
 
-        // 生成新的 conversation_id
+        // Generate a new conversation_id
         const newConversationId = agentState.generateConversationId();
         agentState.setConversationId(newConversationId);
 
-        // 清空聊天历史
+        // Clear chat history
         agentState.clearChatHistory();
 
-        // 取消所有选中状态
+        // Clear all selections
         document.querySelectorAll('#chatList .tree-item').forEach(item => {
             item.classList.remove('active');
         });
@@ -958,29 +958,29 @@ const agentHandlers = {
     },
 
     /**
-     * 加载对话
+     * Load conversation
      */
     async loadConversation(conversationId) {
         try {
             console.log('[AgentHandlers] 加载对话:', conversationId);
 
-            // 获取对话消息
+            // Fetch conversation messages
             const response = await agentApi.getConversationMessages(conversationId);
             const messages = response.data || [];
 
-            // 清空当前聊天区域
+            // Clear current chat area
             const messagesContainer = document.getElementById('chatMessages');
             if (!messagesContainer) return;
 
             messagesContainer.innerHTML = '';
 
-            // 设置当前 conversation_id
+            // Set current conversation_id
             agentState.setConversationId(conversationId);
 
-            // 清空聊天历史
+            // Clear chat history
             agentState.clearChatHistory();
 
-            // 渲染历史消息
+            // Render message history
             for (const msg of messages) {
                 if (msg.role === 'system') continue;
 
@@ -991,11 +991,11 @@ const agentHandlers = {
                 );
                 messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
 
-                // 添加到状态
+                // Add to state
                 agentState.addMessage(msg.role, msg.content);
             }
 
-            // 滚动到底部
+            // Scroll to bottom
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             console.log('[AgentHandlers] 对话加载完成，消息数:', messages.length);
@@ -1008,7 +1008,7 @@ const agentHandlers = {
     },
 
     /**
-     * 创建消息元素
+     * Create message element
      */
     createMessageElement(role, content, time) {
         const isUser = role === 'user';
@@ -1031,7 +1031,7 @@ const agentHandlers = {
     },
 
     /**
-     * 格式化时间
+     * Format time
      */
     formatTime(timestamp) {
         if (!timestamp) return '';
@@ -1049,13 +1049,13 @@ const agentHandlers = {
     },
 
     /**
-     * 处理设置
+     * Handle settings
      */
     handleSettings() {
-        // 使用新的 Agent Settings Dialog
+        // Use the new Agent Settings Dialog
         if (typeof AgentSettingsDialog !== 'undefined') {
-            // 传入 null 表示创建新 Agent
-            // 如果要编辑现有 Agent，可以传入 agent 对象
+            // Pass null to create a new Agent
+            // To edit an existing Agent, pass an agent object
             AgentSettingsDialog.show(null);
         } else {
             console.error('AgentSettingsDialog not loaded');
@@ -1066,10 +1066,10 @@ const agentHandlers = {
     },
 
     /**
-     * 发送消息
+     * Send message
      */
     async sendMessage() {
-        // 关闭管理页面
+        // Close management page
         this.closeManagementPage();
 
         const input = document.getElementById('chatInput');
@@ -1081,12 +1081,12 @@ const agentHandlers = {
         const message = input.value.trim();
         if (!message) return;
 
-        // 如果正在进行流式输出，不允许发送新消息
+        // Do not allow sending new messages while streaming is in progress
         if (agentState.getRequestId()) {
             return;
         }
 
-        // 获取当前agent
+        // Get current agent
         const currentAgent = agentState.getCurrentAgent();
         if (!currentAgent) {
             console.error('[AgentHandlers] 没有选中的Agent');
@@ -1099,19 +1099,19 @@ const agentHandlers = {
         const agentId = currentAgent.id;
         console.log('[AgentHandlers] 使用Agent发送消息:', currentAgent.name, 'ID:', agentId);
 
-        // 禁用发送按钮
+        // Disable send button
         if (sendBtn) {
             sendBtn.disabled = true;
             sendBtn.classList.add('sending');
         }
 
-        // 隐藏欢迎消息
+        // Hide welcome message
         const welcomeMsg = messagesContainer.querySelector('.welcome-message');
         if (welcomeMsg) {
             welcomeMsg.style.display = 'none';
         }
 
-        // 获取当前时间
+        // Get current time
         const timeStr = new Date().toLocaleString('zh-CN', {
             year: 'numeric',
             month: '2-digit',
@@ -1121,7 +1121,7 @@ const agentHandlers = {
             second: '2-digit'
         });
 
-        // 添加用户消息
+        // Add user message
         const userMessageHtml = `
             <div class="message-item user-message">
                 <div class="message-header">
@@ -1139,10 +1139,10 @@ const agentHandlers = {
         input.value = '';
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // 保存用户消息到历史
+        // Save user message to history
         agentState.addMessage('user', message);
 
-        // 获取或生成 conversation_id
+        // Get or generate conversation_id
         let conversationId = agentState.getConversationId();
         if (!conversationId) {
             conversationId = agentState.generateConversationId();
@@ -1150,7 +1150,7 @@ const agentHandlers = {
             console.log('[AgentHandlers] 生成新对话ID:', conversationId);
         }
 
-        // 添加AI回复容器（带思考动画）
+        // Add AI reply container (with thinking animation)
         const assistantMessageHtml = `
             <div class="message-item assistant-message streaming">
                 <div class="message-header">
@@ -1173,12 +1173,12 @@ const agentHandlers = {
         messagesContainer.insertAdjacentHTML('beforeend', assistantMessageHtml);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // 生成请求ID（用于流式响应跟踪）
+        // Generate request ID (for streaming response tracking)
         const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         agentState.setRequestId(requestId);
         agentState.clearStreamingContent();
 
-        // 启用发送按钮的函数
+        // Helper to re-enable the send button
         const enableSendBtn = () => {
             if (sendBtn) {
                 sendBtn.disabled = false;
@@ -1186,9 +1186,9 @@ const agentHandlers = {
             }
         };
 
-        // 发起流式请求 - 使用Agent专属接口
+        // Start streaming request - use agent-specific endpoint
         try {
-            // 准备回调函数
+            // Prepare callbacks
             const callbacks = {
                 onData: (content) => {
                     agentState.appendStreamingContent(content);
@@ -1198,7 +1198,7 @@ const agentHandlers = {
                     this.finalizeStreamingMessage();
                     agentState.clearRequestId();
                     enableSendBtn();
-                    // 流式响应完成后，重新加载聊天列表以显示新对话
+                    // After streaming completes, reload chat list to show the new conversation
                     this.loadChatList();
                 },
                 onError: (error) => {
@@ -1208,7 +1208,7 @@ const agentHandlers = {
                 }
             };
 
-            // 调用Agent专属的流式接口
+            // Call agent-specific streaming API
             console.log('[AgentHandlers] 调用Agent专属接口:', `/api/agent/${agentId}/chat/stream`);
             await agentApi.agentChatStream(
                 agentId,
@@ -1221,14 +1221,14 @@ const agentHandlers = {
                 }
             );
 
-            // 设置超时处理
+            // Setup timeout handling
             setTimeout(() => {
                 if (agentState.getRequestId() === requestId) {
                     this.showStreamError('请求超时，请重试');
                     agentState.clearRequestId();
                     enableSendBtn();
                 }
-            }, 120000); // 2分钟超时
+            }, 120000); // 2 minute timeout
 
         } catch (error) {
             console.error('发送消息失败:', error);
@@ -1236,10 +1236,11 @@ const agentHandlers = {
             agentState.clearRequestId();
             enableSendBtn();
         }
+
     },
 
     /**
-     * 更新流式消息显示
+     * Update streaming message display
      */
     updateStreamingMessage(content) {
         const streamingBody = document.querySelector('.message-item.streaming .message-body');
@@ -1253,7 +1254,7 @@ const agentHandlers = {
     },
 
     /**
-     * 完成流式消息
+     * Finalize streaming message
      */
     finalizeStreamingMessage() {
         const streamingMsg = document.querySelector('.message-item.streaming');
@@ -1263,22 +1264,22 @@ const agentHandlers = {
             if (streamingBody) {
                 const content = agentState.getStreamingContent();
                 streamingBody.innerHTML = this.renderMarkdown(content);
-                // 高亮代码块
+                // Highlight code blocks
                 this.highlightCodeBlocks(streamingBody);
 
-                // 渲染思维导图（如果有）
+                // Render mindmap (if available)
                 if (window.MindmapPlugin) {
                     window.MindmapPlugin.renderInMessage(streamingBody);
                 }
             }
         }
-        // 保存到历史
+        // Save to history
         agentState.addMessage('assistant', agentState.getStreamingContent());
         agentState.clearStreamingContent();
     },
 
     /**
-     * 显示流错误
+     * Show streaming error
      */
     showStreamError(error) {
         const streamingMsg = document.querySelector('.message-item.streaming');
@@ -1287,13 +1288,14 @@ const agentHandlers = {
             streamingMsg.classList.add('error-message');
             const streamingBody = streamingMsg.querySelector('.message-body');
             if (streamingBody) {
-                streamingBody.innerHTML = `<div class="error-content"><svg viewBox="0 0 24 24" width="16" height="16" fill="#d93025"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>请求失败: ${this.escapeHtml(error)}</span></div>`;
+                streamingBody.innerHTML = `<div class="error-content"><svg viewBox="0 0 24 24" width="16" height="16" fill="#d93025"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><span>
+请求失败: ${this.escapeHtml(error)}</span></div>`;
             }
         }
     },
 
     /**
-     * 模拟流式响应（用于开发测试）
+     * Simulate streaming response (for development/testing)
      */
     simulateStreamResponse(enableSendBtn) {
         const mockResponse = `好的，我来回答你的问题。
@@ -1340,15 +1342,15 @@ if __name__ == "__main__":
     },
 
     /**
-     * Markdown 渲染
+     * Markdown rendering
      */
     renderMarkdown(text, isStreaming = false) {
         if (!text) return '';
 
-        // 保存代码块，避免被其他规则处理
+        // Preserve code blocks to avoid being processed by other rules
         const codeBlocks = [];
 
-        // 完整的代码块处理
+        // Full code block handling
         text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
             const language = lang || 'plaintext';
             const rawCode = code.trim();
@@ -1359,7 +1361,7 @@ if __name__ == "__main__":
             return placeholder;
         });
 
-        // 处理不完整的代码块（流式输出中）
+        // Handle incomplete code blocks (during streaming)
         if (isStreaming) {
             text = text.replace(/```(\w*)\n?([\s\S]*)$/g, (match, lang, code) => {
                 if (match.includes('__CODEBLOCK_')) return match;
@@ -1372,40 +1374,40 @@ if __name__ == "__main__":
             });
         }
 
-        // 行内代码
+        // Inline code
         text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
-        // 粗体
+        // Bold
         text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-        // 斜体
+        // Italic
         text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-        // 标题
+        // Headings
         text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
         text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
         text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-        // 无序列表
+        // Unordered lists
         text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
         text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
-        // 链接
+        // Links
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
-        // 引用块
+        // Blockquotes
         text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
 
-        // 换行处理
+        // Newline handling
         text = text.replace(/\n\n/g, '</p><p>');
         text = text.replace(/\n/g, '<br>');
 
-        // 包裹在段落中
+        // Wrap in paragraph
         if (!text.startsWith('<') && !text.startsWith('__CODEBLOCK_')) {
             text = '<p>' + text + '</p>';
         }
 
-        // 还原代码块
+        // Restore code blocks
         codeBlocks.forEach((block, index) => {
             text = text.replace(`__CODEBLOCK_${index}__`, block);
         });
@@ -1414,7 +1416,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 代码高亮
+     * Code highlighting
      */
     highlightCodeBlocks(container) {
         container.querySelectorAll('pre code').forEach(block => {
@@ -1426,7 +1428,7 @@ if __name__ == "__main__":
 
             let highlighted = this.escapeHtml(code);
 
-            // 关键字高亮
+            // Keyword highlighting
             const keywords = [
                 'function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return',
                 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch',
@@ -1436,13 +1438,13 @@ if __name__ == "__main__":
             const keywordPattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
             highlighted = highlighted.replace(keywordPattern, '<span class="hljs-keyword">$1</span>');
 
-            // 数字高亮
-            highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="hljs-number">$1</span>');
+            // Number highlighting
+            highlighted = highlighted.replace(/\\b(\\d+\\.?\\d*)\\b/g, '<span class="hljs-number">$1</span>');
 
-            // 字符串高亮
+            // String highlighting
             highlighted = highlighted.replace(/(&quot;[^&]*&quot;|&#39;[^&]*&#39;)/g, '<span class="hljs-string">$1</span>');
 
-            // 注释高亮
+            // Comment highlighting
             highlighted = highlighted.replace(/(\/\/.*$|#.*$)/gm, '<span class="hljs-comment">$1</span>');
 
             block.innerHTML = highlighted;
@@ -1450,7 +1452,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 复制代码
+     * Copy code
      */
     copyCode(btn) {
         const codeBlock = btn.closest('.code-block');
@@ -1469,7 +1471,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * HTML转义
+     * HTML escaping
      */
     escapeHtml(text) {
         const div = document.createElement('div');
@@ -1478,7 +1480,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 清除聊天消息
+     * Clear chat messages
      */
     clearChatMessages() {
         const messagesContainer = document.getElementById('chatMessages');
@@ -1486,20 +1488,20 @@ if __name__ == "__main__":
             const welcomeMsg = messagesContainer.querySelector('.welcome-message');
             if (welcomeMsg) {
                 welcomeMsg.style.display = 'block';
-                // 移除其他消息
+                // Remove other messages
                 messagesContainer.querySelectorAll('.message-item').forEach(item => item.remove());
             }
         }
     },
 
     /**
-     * 导航到管理页面
+     * Navigate to management page
      */
     async navigateToManagementPage(page) {
         try {
             console.log('Navigating to management page:', page);
 
-            // 先销毁之前打开的管理页面
+            // Destroy previously opened management page first
             if (this.currentManagementPage) {
                 if (this.currentManagementPage.destroy) {
                     this.currentManagementPage.destroy();
@@ -1530,7 +1532,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 加载并应用模型配置
+     * Load and apply model config
      */
     async loadAndApplyModelConfig(configId) {
         try {
@@ -1539,9 +1541,9 @@ if __name__ == "__main__":
 
             if (result.success && result.data) {
                 const modelConfig = result.data;
-                // 保存到 state
+                // Save to state
                 agentState.currentModelConfig = modelConfig;
-                // 更新右侧面板 param 页签
+                // Update right-side panel Param tab
                 this.populateParamTab(modelConfig);
                 console.log('[AgentHandlers] 模型配置已加载:', modelConfig.name);
             }
@@ -1551,7 +1553,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 加载并应用角色配置
+     * Load and apply role config
      */
     async loadAndApplyRoleConfig(roleId) {
         try {
@@ -1560,9 +1562,9 @@ if __name__ == "__main__":
 
             if (result.success && result.data) {
                 const roleConfig = result.data;
-                // 保存到 state
+                // Save to state
                 agentState.currentRoleConfig = roleConfig;
-                // 更新右侧面板 prompt 页签
+                // Update right-side panel Prompt tab
                 this.populatePromptTab(roleConfig);
                 console.log('[AgentHandlers] 角色配置已加载:', roleConfig.name);
             }
@@ -1572,12 +1574,12 @@ if __name__ == "__main__":
     },
 
     /**
-     * 填充 Param 页签 - 显示选中模型的参数
+     * Populate Param tab - display parameters for the selected model
      */
     populateParamTab(modelConfig) {
         if (!modelConfig) return;
 
-        // 查找 param tab 中的输入框
+        // Find inputs in the param tab
         const paramTab = document.querySelector('[data-tab="param"]');
         if (!paramTab) return;
 
@@ -1601,7 +1603,7 @@ if __name__ == "__main__":
             }
         });
 
-        // Stream 模式
+        // Stream mode
         const streamCheckbox = paramTab.querySelector('input[type="checkbox"]');
         if (streamCheckbox && modelConfig.stream !== undefined) {
             streamCheckbox.checked = modelConfig.stream;
@@ -1609,7 +1611,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 填充 Prompt 页签 - 显示选中角色的提示词
+     * Populate Prompt tab - display the selected role prompt
      */
     populatePromptTab(roleConfig) {
         if (!roleConfig) return;
@@ -1621,28 +1623,28 @@ if __name__ == "__main__":
     },
 
     /**
-     * 初始化参数输入监听器 - 参数变化时保存到后端
+     * Initialize parameter input listeners - persist changes to backend
      */
     initParamInputListeners() {
         const paramTab = document.querySelector('[data-tab="param"]');
         if (!paramTab) return;
 
-        // 使用防抖，避免频繁保存
+        // Use debouncing to avoid frequent saves
         let saveTimeout;
         const debouncedSave = () => {
             clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 this.saveModelParams();
-            }, 1000); // 1秒后保存
+            }, 1000); // Save after 1 second
         };
 
-        // 监听所有参数输入框
+        // Listen to all parameter inputs
         const inputs = paramTab.querySelectorAll('.param-input');
         inputs.forEach(input => {
             input.addEventListener('change', debouncedSave);
         });
 
-        // 监听 checkbox
+        // Listen to checkboxes
         const checkboxes = paramTab.querySelectorAll('input[type="checkbox"]');
         checkboxes.forEach(checkbox => {
             checkbox.addEventListener('change', debouncedSave);
@@ -1650,7 +1652,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 保存模型参数到后端
+     * Save model params to backend
      */
     async saveModelParams() {
         const currentConfig = agentState.currentModelConfig;
@@ -1662,7 +1664,7 @@ if __name__ == "__main__":
         const paramTab = document.querySelector('[data-tab="param"]');
         if (!paramTab) return;
 
-        // 收集参数
+        // Collect params
         const params = {};
         const inputs = paramTab.querySelectorAll('.param-input');
         inputs.forEach(input => {
@@ -1685,7 +1687,7 @@ if __name__ == "__main__":
             }
         });
 
-        // Stream 模式
+        // Stream mode
         const streamCheckbox = paramTab.querySelector('input[type="checkbox"]');
         if (streamCheckbox) {
             params.stream = streamCheckbox.checked;
@@ -1700,7 +1702,7 @@ if __name__ == "__main__":
             const result = await response.json();
 
             if (result.success) {
-                // 更新 state 中的配置
+                // Update config in state
                 Object.assign(agentState.currentModelConfig, params);
                 console.log('[AgentHandlers] 模型参数已保存');
             } else {
@@ -1712,7 +1714,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 保存角色提示词到后端
+     * Save role prompt to backend
      */
     async saveRolePrompt(prompt) {
         const currentConfig = agentState.currentRoleConfig;
@@ -1732,7 +1734,7 @@ if __name__ == "__main__":
             const result = await response.json();
 
             if (result.success) {
-                // 更新 state 中的配置
+                // Update config in state
                 agentState.currentRoleConfig.system_prompt = prompt;
                 if (typeof Notification !== 'undefined') {
                     Notification.success('System Prompt 已保存');
@@ -1752,7 +1754,7 @@ if __name__ == "__main__":
     },
 
     /**
-     * 关闭管理页面，显示主聊天界面
+     * Close management page and show main chat
      */
     closeManagementPage() {
         if (this.currentManagementPage) {
@@ -1761,22 +1763,22 @@ if __name__ == "__main__":
             }
             this.currentManagementPage = null;
 
-            // 重新加载模型和角色选项（因为可能在管理页面中修改了）
+            // Reload model and role options (they may have been modified in management pages)
             this.loadModelOptions();
             this.loadRoleOptions();
         }
     },
 
     /**
-     * 销毁
+     * Destroy
      */
     destroy() {
-        // 清理事件监听器
+        // Clean up event listeners
         agentState.reset();
     }
 };
 
-// 导出为全局对象，以便在HTML中调用
+// Export as a global object to allow calling from HTML
 if (typeof window !== 'undefined') {
     window.agentHandlers = agentHandlers;
 }

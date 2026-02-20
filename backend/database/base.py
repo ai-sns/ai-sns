@@ -14,26 +14,26 @@ print("DBPath", DBPath)
 SQL_DATABASE_URL = fr"sqlite:///{DBPath}"
 
 # Create engine with connection pool settings
-# 注意：对于SQLite，不建议设置太大的连接池
-# 如果需要更高并发，应考虑迁移到PostgreSQL/MySQL
+# Note: For SQLite, it is not recommended to set a very large connection pool
+# For higher concurrency, consider migrating to PostgreSQL/MySQL
 engine = create_engine(
     SQL_DATABASE_URL,
-    pool_size=10,           # 常驻连接数（建议10-20）
-    max_overflow=20,        # 溢出连接数（建议20-30）
-    pool_timeout=60,        # 连接等待超时（秒）
-    pool_recycle=3600,      # 连接回收时间（1小时）
-    pool_pre_ping=True,     # 检查连接健康状态
-    echo=False,             # 生产环境关闭SQL日志
+    pool_size=10,           # Persistent connections (recommended 10-20)
+    max_overflow=20,        # Overflow connections (recommended 20-30)
+    pool_timeout=60,        # Connection wait timeout (seconds)
+    pool_recycle=3600,      # Connection recycle time (1 hour)
+    pool_pre_ping=True,     # Check connection health
+    echo=False,             # Disable SQL logs in production
     connect_args={
-        "check_same_thread": False,  # 允许SQLite跨线程使用
-        "timeout": 30                # SQLite锁超时时间（秒）
+        "check_same_thread": False,  # Allow SQLite across threads
+        "timeout": 30                # SQLite lock timeout (seconds)
     }
 )
 
-# 如果需要更高并发，可以调整为：
-# pool_size=20, max_overflow=30  → 总共50个连接
-# pool_size=30, max_overflow=50  → 总共80个连接
-# 但注意：SQLite写入仍然是单线程的，增加连接池不会提高写入性能
+# For higher concurrency, you can adjust to:
+# pool_size=20, max_overflow=30  -> 50 total connections
+# pool_size=30, max_overflow=50  -> 80 total connections
+# Note: SQLite writes are still single-threaded; increasing the pool will not improve write performance
 
 # Session factory
 SessionLocal = sessionmaker(bind=engine)

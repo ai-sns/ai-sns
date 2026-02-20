@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Code Executor - 代码执行器
-负责安全地执行AI生成的代码
+Code Executor - Code executor
+Responsible for safely executing AI-generated code
 """
 import logging
 import subprocess
@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 class CodeExecutor:
     """
-    代码执行器
+    Code executor
 
-    特性:
-    1. 支持Python代码执行
-    2. 沙箱隔离（使用临时目录）
-    3. 超时控制
-    4. 输出捕获
+    Features:
+    1. Supports Python code execution
+    2. Sandbox isolation (uses a temp directory)
+    3. Timeout control
+    4. Output capture
     """
 
     def __init__(
@@ -31,32 +31,32 @@ class CodeExecutor:
         max_output_size: int = 10000
     ):
         """
-        初始化代码执行器
+        Initialize code executor.
 
         Args:
-            work_dir: 工作目录，如果为None则使用临时目录
-            timeout: 执行超时时间（秒）
-            max_output_size: 最大输出大小（字符）
+            work_dir: Working directory; if None, uses a temp directory
+            timeout: Execution timeout (seconds)
+            max_output_size: Max output size (characters)
         """
         self.work_dir = work_dir or tempfile.mkdtemp(prefix="agent_code_")
         self.timeout = timeout
         self.max_output_size = max_output_size
 
-        # 确保工作目录存在
+        # Ensure work directory exists
         Path(self.work_dir).mkdir(parents=True, exist_ok=True)
 
         logger.info(f"代码执行器已初始化: work_dir={self.work_dir}, timeout={self.timeout}s")
 
     def execute_python(self, code: str, **kwargs) -> Dict[str, Any]:
         """
-        执行Python代码
+        Execute Python code.
 
         Args:
-            code: Python代码
-            **kwargs: 额外参数
+            code: Python code
+            **kwargs: Extra params
 
         Returns:
-            执行结果字典 {
+            Result dict {
                 'success': bool,
                 'output': str,
                 'error': str,
@@ -64,12 +64,12 @@ class CodeExecutor:
             }
         """
         try:
-            # 创建临时文件
+            # Create temp file
             code_file = Path(self.work_dir) / f"code_{os.getpid()}.py"
             with open(code_file, 'w', encoding='utf-8') as f:
                 f.write(code)
 
-            # 执行代码
+            # Execute code
             result = subprocess.run(
                 ['python', str(code_file)],
                 cwd=self.work_dir,
@@ -78,11 +78,11 @@ class CodeExecutor:
                 timeout=self.timeout
             )
 
-            # 限制输出大小
+            # Limit output size
             stdout = result.stdout[:self.max_output_size] if result.stdout else ""
             stderr = result.stderr[:self.max_output_size] if result.stderr else ""
 
-            # 删除临时文件
+            # Delete temp file
             try:
                 code_file.unlink()
             except:
@@ -115,14 +115,14 @@ class CodeExecutor:
 
     def execute_shell(self, command: str, **kwargs) -> Dict[str, Any]:
         """
-        执行Shell命令
+        Execute a shell command.
 
         Args:
-            command: Shell命令
-            **kwargs: 额外参数
+            command: Shell command
+            **kwargs: Extra params
 
         Returns:
-            执行结果字典
+            Result dict
         """
         try:
             result = subprocess.run(
@@ -162,7 +162,7 @@ class CodeExecutor:
             }
 
     def cleanup(self):
-        """清理工作目录"""
+        """Clean up the working directory."""
         try:
             import shutil
             if os.path.exists(self.work_dir) and self.work_dir.startswith(tempfile.gettempdir()):

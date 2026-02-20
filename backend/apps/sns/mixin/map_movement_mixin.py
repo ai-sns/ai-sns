@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil
@@ -53,28 +53,28 @@ class MapMovementMixin:
             return ''
 
     def go_around(self):
-        radius = 500  # 半径，单位为米
-        # 初始化当前位置和上一个位置
+        radius = 500  # Radius (meters)
+        # Initialize current and last position
         current_position = Point(self.aichatcfg_record.current_position[1], self.aichatcfg_record.current_position[0])
         last_position = Point(self.aichatcfg_record.last_position[1], self.aichatcfg_record.last_position[0])
 
-        # 如果位置相同，跳过象限排除
+        # If positions are the same, skip quadrant exclusion
         if current_position == last_position:
             excluded_quadrant = None
         else:
-            # 确定上一个位置相对于当前坐标的象限
+            # Determine the quadrant of last_position relative to current_position
             last_lon_diff = last_position.longitude - current_position.longitude
             last_lat_diff = last_position.latitude - current_position.latitude
 
-            # 根据差值计算上个位置所在的象限
+            # Determine excluded quadrant based on diffs
             if last_lon_diff > 0 and last_lat_diff > 0:
-                excluded_quadrant = 1  # 第一象限
+                excluded_quadrant = 1  # Quadrant I
             elif last_lon_diff < 0 and last_lat_diff > 0:
-                excluded_quadrant = 2  # 第二象限
+                excluded_quadrant = 2  # Quadrant II
             elif last_lon_diff < 0 and last_lat_diff < 0:
-                excluded_quadrant = 3  # 第三象限
+                excluded_quadrant = 3  # Quadrant III
             else:
-                excluded_quadrant = 4  # 第四象限
+                excluded_quadrant = 4  # Quadrant IV
 
         def generate_random_point(excluded_quadrant):
             while True:
@@ -88,7 +88,7 @@ class MapMovementMixin:
                 candidate_position = Point(candidate_position.latitude,
                                            (candidate_position.longitude + 180) % 360 - 180)
 
-                if excluded_quadrant is None:  # 跳过象限排除
+                if excluded_quadrant is None:  # Skip quadrant exclusion
                     return candidate_position
 
                 lon_diff = candidate_position.longitude - current_position.longitude
@@ -120,7 +120,7 @@ class MapMovementMixin:
 
     def initial_bearing(self, p1: Point, p2: Point) -> float:
         """
-        计算从 p1 指向 p2 的初始方位角（度，0-360）
+        Calculate the initial bearing from p1 to p2 (degrees, 0-360).
         """
         lon1, lat1 = math.radians(p1.longitude), math.radians(p1.latitude)
         lon2, lat2 = math.radians(p2.longitude), math.radians(p2.latitude)
@@ -130,26 +130,26 @@ class MapMovementMixin:
         return (math.degrees(math.atan2(x, y)) + 360) % 360
 
     def move_ahead(self, current_position, target_position, target_place):
-        move_distance = 500  # 移动距离（米）
+        move_distance = 500  # Move distance (meters)
 
-        # 转换为 geopy.Point（Point 接受 lat, lon）
+        # Convert to geopy.Point (Point takes lat, lon)
         if not isinstance(current_position, Point):
             current_position = Point(current_position[1], current_position[0])
 
         if not isinstance(target_position, Point):
             target_position = Point(target_position[1], target_position[0])
 
-            # 计算实际距离
+            # Calculate actual distance
         actual_distance = distance(current_position, target_position).m
 
         try:
-            # 情况 1: 已经在目标点（零距离）
+            # Case 1: Already at target (zero distance)
             if actual_distance == 0:
                 self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
                 self.aichatcfg_record.current_position = [current_position.longitude, current_position.latitude]
                 return f"您已到达目标位置{target_place}。"
 
-            # 情况 2: 剩余距离小于一步
+            # Case 2: Remaining distance less than one step
             if actual_distance <= move_distance:
                 self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
                 self.aichatcfg_record.current_position = [target_position.longitude, target_position.latitude]
@@ -158,10 +158,10 @@ class MapMovementMixin:
                 self.send_msg_to_map(command)
                 return f"您已到达目标位置{target_place}（剩余 0 公里）。"
 
-                # 情况 3: 需要计算 bearing
+                # Case 3: Need to compute bearing
 
             if abs(current_position.latitude) == 90:
-                # 极点：方向不唯一 -> 默认朝向赤道
+                # Pole: direction not unique -> default towards equator
                 bearing = 180 if current_position.latitude > 0 else 0
             else:
                 inv = Geodesic.WGS84.Inverse(
@@ -170,7 +170,7 @@ class MapMovementMixin:
                 )
                 bearing = inv['azi1'] % 360
 
-            # 沿该方向移动 move_distance
+            # Move move_distance along that bearing
             next_position = distance(meters=move_distance).destination(
                 point=current_position,
                 bearing=bearing
@@ -187,7 +187,7 @@ class MapMovementMixin:
             print("current_position", self.aichatcfg_record.current_position)
             print("target_position", target_position)
 
-            # 重新计算剩余距离
+            # Recalculate remaining distance
             remaining_distance = distance(next_position, target_position).km
 
             self.update_after_moving()

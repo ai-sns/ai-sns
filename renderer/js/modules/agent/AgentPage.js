@@ -1,18 +1,18 @@
 /**
- * Agent Page - 主内容渲染（多Agent动态加载版本）
- * AI聊天界面
+ * Agent Page - main content rendering (multi-agent dynamic loading version)
+ * AI chat UI
  */
 
 const AgentPage = {
     /**
-     * 渲染主内容区 - 返回基础结构，由init()动态填充
+     * Render main content area - returns base structure; init() fills it dynamically
      */
     render() {
         return `<div id="agent-pages-container"></div>`;
     },
 
     /**
-     * 初始化 - 为每个Agent创建page
+     * Initialize - create a page for each Agent
      */
     async init(agents) {
         console.log('[AgentPage] 开始初始化，agents数量:', agents.length);
@@ -32,7 +32,7 @@ const AgentPage = {
     },
 
     /**
-     * 创建单个Agent的page HTML
+     * Create page HTML for a single Agent
      */
     createAgentPageHTML(agent, isActive = false) {
         const rawAgentType = String(agent.agent_type || 'local').toLowerCase();
@@ -40,9 +40,9 @@ const AgentPage = {
         const agentType = isRemote ? 'remote' : 'local';
         return `
             <div id="page-agent-${agent.id}" class="agent-page-layout" data-agent-id="${agent.id}" data-agent-type="${agentType}" style="display: ${isActive ? 'flex' : 'none'}">
-                <!-- 聊天主区域 -->
+                <!-- Main chat area -->
                 <div class="agent-chat-area">
-                    <!-- 顶部工具栏 -->
+                    <!-- Top toolbar -->
                     <div class="agent-chat-toolbar">
                         <div class="toolbar-left">
 <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
@@ -93,9 +93,9 @@ const AgentPage = {
                         </div>
                     </div>
 
-                    <!-- 消息区域 -->
+                    <!-- Messages area -->
                     <div class="agent-chat-messages" id="chatMessages-${agent.id}" data-agent-id="${agent.id}">
-                        <!-- 欢迎消息 -->
+                        <!-- Welcome message -->
                         <div class="welcome-message">
                             <div class="welcome-icon">
                                 <svg viewBox="0 0 48 48" width="64" height="64">
@@ -128,7 +128,7 @@ const AgentPage = {
                         </div>
                     </div>
 
-                    <!-- 输入区域 -->
+                    <!-- Input area -->
                     <div class="agent-chat-input-area">
                         <div class="input-hint">Input @@ to load tools selector; Ctrl+i To load preset question; Ctrl+/ To insert chat template.</div>
                         <div class="input-wrapper">
@@ -171,7 +171,7 @@ const AgentPage = {
                     </div>
                 </div>
 
-                <!-- 右侧面板分隔条 -->
+                <!-- Right panel resizer -->
                 <div class="agent-panel-resizer" id="agentPanelResizer-${agent.id}" data-agent-id="${agent.id}">
                     <div class="panel-resizer-handle">
                         <div class="panel-resizer-line"></div>
@@ -183,11 +183,11 @@ const AgentPage = {
                     </button>
                 </div>
 
-                <!-- 右侧设置面板 -->
+                <!-- Right settings panel -->
                 <div class="agent-settings-panel" id="agentSettingsPanel-${agent.id}" data-agent-id="${agent.id}">
-                    <!-- 页签内容区域 -->
+                    <!-- Tab content area -->
                     <div class="settings-tab-content" id="settingsTabContent-${agent.id}">
-                        <!-- Param 页签内容 -->
+                        <!-- Param tab content -->
                         <div class="tab-pane active" data-tab="param" ${isRemote ? 'style="opacity:0.6;"' : ''}>
                             <div class="settings-section">
                                 <div class="settings-section-title">
@@ -241,7 +241,7 @@ const AgentPage = {
                             </div>
                         </div>
 
-                        <!-- Prompt 页签内容 -->
+                        <!-- Prompt tab content -->
                         <div class="tab-pane" data-tab="prompt" ${isRemote ? 'style="opacity:0.6;"' : ''}>
                             <div class="settings-section">
                                 <div class="settings-section-title">
@@ -279,7 +279,7 @@ const AgentPage = {
                             </div>
                         </div>
 
-                        <!-- File 页签内容 -->
+                        <!-- File tab content -->
                         <div class="tab-pane" data-tab="file" ${isRemote ? 'style="opacity:0.6;"' : ''}>
                             <div class="settings-section">
                                 <div class="settings-section-title">
@@ -304,10 +304,10 @@ const AgentPage = {
                             </div>
                         </div>
 
-                        <!-- 插件页签将在此处动态添加 -->
+                        <!-- Plugin tabs will be added here dynamically -->
                     </div>
 
-                    <!-- 底部页签按钮 -->
+                    <!-- Bottom tab buttons -->
                     <div class="settings-tabs" id="settingsTabs-${agent.id}">
                         <button class="settings-tab active" data-tab="param" data-agent-id="${agent.id}" ${isRemote ? 'disabled' : ''}>
                             <span>Param</span>

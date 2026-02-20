@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil
@@ -88,7 +88,7 @@ class AISocialEngine(
 
         self.aichatcfg_record = AiChatCfgManager()
         self.aichatcfg_record.connect(self.handle_aichatcfg_property_updated)
-        # self.update_resource_display()  # 移到 load_all_user_data() 之后调用
+        # self.update_resource_display()  # Move to after load_all_user_data() is called
 
         # *******************************************
         self.human_take_over = False
@@ -101,7 +101,7 @@ class AISocialEngine(
         self.messages = []
         self.messages_command = []
         self.page_index = 0
-        self.map_mode = 'org'  # self.map_mode有两种模式，一种是发送给进入服务场景的比如3d的aigccenter 这种是map_application模式，一种是发送到地图的org
+        self.map_mode = 'org'  # Two modes: map_application (for service scenes like 3D aigccenter) and org (for map)
         # Qt GUI setup - disabled for backend use
         # self.setupUi(self)
 
@@ -121,12 +121,12 @@ class AISocialEngine(
         self.first_event = None
         self.first_reply = ""
 
-        # plugin相关
+        # Plugin-related
         self.chess_role = None
         self.chinese_chess_role = None
         self.system_role_prompt = "You are a helpful assistant who provides concise and accurate information."
 
-        # 初始化全局变量
+        # Initialize global variables
         self.user_map_setting = None
         self.current_place = ""  # db
         self.current_position = []  # db
@@ -158,21 +158,21 @@ class AISocialEngine(
 
     async def async_init(self):
         """
-        异步初始化方法
-        用于在创建实例后进行额外的异步初始化
+        Async initialization method.
+        Used to perform additional async initialization after the instance is created.
         """
         logger.info("[Step-01],Init AISocialEngine...")
         logger.info("Async initializing AISocialEngine...")
-        # 这里可以添加需要在 async 上下文中执行的初始化代码
-        # 目前大部分初始化已经在 __init__ 中完成
+        # Add any initialization code that must run in an async context here
+        # Most initialization is already done in __init__
         logger.info("AISocialEngine async initialization complete")
         self.command_status = ""
-        # 初始化当前任务所需技能集合（示例）
+        # Initialize the skill set required for the current task (example)
         self.required_skills = []
-        # 初始化自身可交换技能集合
+        # Initialize the set of skills available for exchange
         self.available_skills = []
         self.route_flag = False
-        # 初始化拥有的Token数量
+        # Initialize token balance
         self.token_balance = 0  # todo remove？
 
         self.taskmng_js = JsTaskManager(self)
@@ -189,10 +189,10 @@ class AISocialEngine(
         self.process_step_index = 0
         self.place_selected = None
         self.max_tool_usage = 4
-        self.max_people_comm = 4  # 最大可沟通人数
-        self.max_rounds_per_person = 6  # 单个人员最大沟通轮数 3
-        self.max_place_arrived = 3  # 单个人员最大沟通轮数
-        self.min_place_move_score = 80  # 单个人员最大沟通轮数
+        self.max_people_comm = 4  # Max number of people to communicate with
+        self.max_rounds_per_person = 6  # Max rounds per person
+        self.max_place_arrived = 3  # Max places to arrive
+        self.min_place_move_score = 80  # Min score to move to a place
         self.search_radius = 10000  # cloud
         self.place_arrived_count = {}
         self.wait_for_trade_download_flag = False
@@ -288,7 +288,7 @@ class AISocialEngine(
         try:
             logger.info("Pausing AI Social Engine...")
 
-            # 设置暂停状态
+            # Set paused state
             self.map_task_status = "paused"
 
             logger.info("AI Social Engine paused successfully")
@@ -313,7 +313,7 @@ class AISocialEngine(
         try:
             logger.info("Resuming AI Social Engine...")
 
-            # 设置运行状态
+            # Set running state
             self.map_task_status = "started"
 
             logger.info("AI Social Engine resumed successfully")
@@ -344,7 +344,7 @@ class AISocialEngine(
 
     def get_task_process_history(self):
         """
-        获取任务处理历史记录，按照指定格式返回字符串
+        Get task processing history and return a formatted string.
         """
         result = "📜 Process history\n"
         result += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -365,7 +365,7 @@ class AISocialEngine(
 
         role_prompt = get_prompt_by_title("__main_control__")
         process_info_list_str = "\n".join(f"{index + 1}. {info}" for index, info in enumerate(self.taskmng.process_info_list))
-        # question_to_llm = ask_content + "请告诉我，我接着应该干什么，具体请从功能列表中挑选。"
+        # question_to_llm = ask_content + "Please tell me what I should do next; pick specifically from the function list."
         question_to_llm = ask_content
         full_ask_content = self.compose_full_ask_content(process_info_list_str, question_to_llm)
         await self.ask_agent_and_get_instruction(full_ask_content, role_prompt)
@@ -441,15 +441,15 @@ class AISocialEngine(
                 action_result = self.go_around()
 
         elif "走路前往" in action_str:
-            # 使用正则表达式提取JSON部分
+            # Extract the JSON part using regex
             json_match = re.search(r'\{.*\}', action_str)
             if not json_match:
                 return None, None
 
-            # 解析JSON
+            # Parse JSON
             data = json.loads(json_match.group(0))
 
-            # 提取所需字段
+            # Extract required fields
             place = data.get('place')
             position = data.get('position')
             target_position = position
@@ -477,7 +477,7 @@ class AISocialEngine(
 
         elif "导航服务" in action_str:
             if self.move_by_route_flag:
-                # 如果按路线移动则不需要导航
+                # If moving by route, navigation is not needed
                 action_result = self.move_by_route()
                 return
             else:
@@ -487,15 +487,15 @@ class AISocialEngine(
             action_result = self.set_food_order()
 
         elif "叫车服务" in action_str:
-            # 使用正则表达式提取JSON部分
+            # Extract the JSON part using regex
             json_match = re.search(r'\{.*\}', action_str)
             if not json_match:
                 return None, None
 
-            # 解析JSON
+            # Parse JSON
             data = json.loads(json_match.group(0))
 
-            # 提取所需字段
+            # Extract required fields
             place = data.get('place')
             position = data.get('position')
 
@@ -516,17 +516,17 @@ class AISocialEngine(
         asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=ask_content))
 
     def get_next_action(self, instruction):
-        # 定义分隔标记
+        # Define delimiter markers
         delimiter = "下一行动"
 
-        # 检查分隔标记是否存在
+        # Check whether delimiter exists
         if delimiter in instruction:
-            # 分割字符串并取最后一部分（防止有多个相同标记）
+            # Split and take the last part (in case there are multiple identical markers)
             parts = instruction.split(delimiter, 1)
             return parts[1].strip() if len(parts) > 1 else ""
         delimiter = "下一步行动"
         if delimiter in instruction:
-            # 分割字符串并取最后一部分（防止有多个相同标记）
+            # Split and take the last part (in case there are multiple identical markers)
             parts = instruction.split(delimiter, 1)
             return parts[1].strip() if len(parts) > 1 else ""
 
@@ -550,7 +550,7 @@ class AISocialEngine(
         if self.human_take_over:
             if self.human_talk_type == 0:
                 if self.agent_replying_flag:
-                    # todo 请给前端发送提示："提示", "Agent正在完成上一个任务，请稍等..."
+                    # TODO: Send a prompt to frontend: "Hint", "Agent is completing the previous task, please wait..."
                     return
                 self.taskmng_js.show_information(lt(f"Human:{instruction}", f"人类:{instruction}"))
                 self.write_on_going_process_to_pane(lt("Human take control...", "人类控制中..."))
@@ -592,84 +592,84 @@ class AISocialEngine(
                 add_memory_list(messages)
                 return
 
-            # 将人类指令整合到full_ask_content中
+            # Merge human instructions into full_ask_content
             self.human_instruction = human_instruction
             asyncio.create_task(self.taskmng.process_task(action="process_human_instruction", ask_content=human_instruction, human_send_flag=True))
 
     def handle_aichatcfg_property_updated(self, property_name):
         """
-        处理AiChatCfg属性更新的函数
-        当特定属性发生变化时，更新相关的界面元素
+        Handle AiChatCfg property updates.
+        When specific properties change, update related UI elements.
 
         Args:
-            property_name (str): 被更新的属性名称
+            property_name (str): Updated property name
         """
-        # 定义需要更新图表的属性
+        # Properties that should trigger chart updates
         chart_related_properties = [
             'iq_point', 'energy_point', 'life_point',
             'move_point', 'exp_point', 'money',
             'credit', 'level'
         ]
 
-        # 定义需要更新进行中进程面板的属性
+        # Properties that should trigger ongoing process panel updates
         process_pane_related_properties = [
             'profession', 'current_position', 'money',
             'life_point', 'energy_point'
         ]
 
-        # 如果属性与图表相关，则更新图表
+        # Update chart if the property is chart-related
         if property_name in chart_related_properties:
             self.update_map_charts()
 
-        # 如果属性与进行中进程面板相关，则更新面板
+        # Update panel if the property is ongoing-process-related
         if property_name in process_pane_related_properties:
             self.write_on_going_process_to_pane(self.current_ongoing_content or "")
 
 
 class AiChatCfgManager:
     """
-    管理AiChatCfg数据库记录的类
-    支持通过属性访问获取最新值，通过属性赋值更新数据库记录
+    Class for managing AiChatCfg DB records.
+    Supports reading the latest values via attribute access and updating DB records via assignment.
     """
 
     def __init__(self, user_id=None):
         """
-        初始化AiChatCfgManager
+        Initialize AiChatCfgManager.
 
         Args:
-            user_id (str, optional): 用户ID，默认为None，使用第一条记录
+            user_id (str, optional): User ID. Defaults to None and uses the first record.
         """
         self._user_id = user_id
         self._record = None
-        self._callbacks = []  # 存储回调函数列表
+        self._callbacks = []  # Callback function list
         self._load_record()
 
     def connect(self, callback):
         """
-        连接回调函数，当属性更新时调用
+        Register a callback, invoked when a property is updated.
 
         Args:
-            callback: 回调函数，接收一个参数(property_name)
+            callback: Callback function receiving one argument (property_name)
         """
         if callback not in self._callbacks:
             self._callbacks.append(callback)
 
     def disconnect(self, callback):
         """
-        断开回调函数
+        Unregister a callback.
 
         Args:
-            callback: 要移除的回调函数
+            callback: Callback function to remove
         """
         if callback in self._callbacks:
             self._callbacks.remove(callback)
 
     def _emit_property_updated(self, property_name):
         """
-        触发属性更新回调
+        Trigger property update callbacks.
 
         Args:
-            property_name: 更新的属性名
+            property_name: Updated property name
         """
         for callback in self._callbacks:
             try:
@@ -678,47 +678,47 @@ class AiChatCfgManager:
                 logger.error(f"Error in property update callback: {e}")
 
     def _load_record(self):
-        """加载数据库记录"""
+        """Load the DB record."""
         if self._user_id:
             self._record = query_AiChatCfg_map_setting(user_id=self._user_id)
         else:
             self._record = query_AiChatCfg_map()
 
     def _refresh_record(self):
-        """刷新记录以获取最新数据"""
+        """Refresh the record to get the latest data."""
         self._load_record()
 
     def __getattr__(self, name):
         """
-        当访问不存在的属性时调用此方法
-        用于获取数据库记录中的字段值
+        Called when accessing an attribute that does not exist.
+        Used to read a field value from the DB record.
 
         Args:
-            name (str): 属性名
+            name (str): Attribute name
 
         Returns:
-            字段值
+            Field value
         """
-        # 避免在__init__过程中调用此方法
+        # Avoid calling this during __init__
         if name.startswith('_'):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-        # 刷新记录以获取最新数据
+        # Refresh record to get latest data
         self._refresh_record()
 
-        # 检查记录是否存在
+        # Ensure record exists
         if self._record is None:
             raise AttributeError(f"No record found in database")
 
-        # 特殊处理 current_position 属性
+        # Special handling for current_position
         if name == 'current_position':
             raw_position = getattr(self._record, name, None)
-            # 创建一个临时实例来调用 _parse_position_data 方法
+            # Create a temporary instance to call _parse_position_data
             temp_instance = type('Temp', (object,), {})()
             temp_instance._parse_position_data = lambda pos_data: self._parse_position_data_impl(pos_data)
             return temp_instance._parse_position_data(raw_position)
 
-        # 特殊处理其他位置相关属性
+        # Special handling for other position-related fields
         other_position_fields = ['last_position', 'home_position', 'route_start', 'route_end', 'route_current_position']
         if name in other_position_fields:
             import json
@@ -731,7 +731,7 @@ class AiChatCfgManager:
             else:
                 return None
 
-        # 检查属性是否存在
+        # Check attribute exists
         if hasattr(self._record, name):
             return getattr(self._record, name)
         else:
@@ -739,108 +739,108 @@ class AiChatCfgManager:
 
     def __setattr__(self, name, value):
         """
-        当设置属性时调用此方法
-        用于更新数据库记录中的字段值
+        Called when setting an attribute.
+        Used to update a field value in the DB record.
 
         Args:
-            name (str): 属性名
-            value: 要设置的值
+            name (str): Attribute name
+            value: Value to set
         """
-        # 处理内部属性
+        # Handle internal attributes
         if name.startswith('_') or name in ['user_id']:
             super().__setattr__(name, value)
             return
 
-        # 需要特殊处理的字段列表
+        # Fields requiring special handling
         position_fields = ['current_position', 'last_position', 'home_position',
                            'route_start', 'route_end', 'route_current_position']
 
-        # 如果是位置相关字段且值为list或dict类型，则转换为字符串
+        # If it's a position field and value is list/dict, serialize to string
         if name in position_fields and isinstance(value, (list, dict)):
             import json
             value = json.dumps(value, ensure_ascii=False)
 
-        # 对于其他属性，更新数据库记录
+        # For other attributes, update DB record
         if '_record' in self.__dict__ and self._record is not None:
-            # 更新数据库
+            # Update DB
             if self._user_id:
                 update_AiChatCfg_by_user_id(self._user_id, **{name: value})
             else:
                 update_AiChatCfg_map(**{name: value})
 
-            # 更新内存中的记录
+            # Update in-memory record
             setattr(self._record, name, value)
 
-            # 触发属性更新回调
+            # Trigger property update callbacks
             self._emit_property_updated(name)
         else:
             super().__setattr__(name, value)
 
     def __getitem__(self, key):
         """
-        支持使用字典索引语法获取属性值
-        例如: value = obj["property_name"]
+        Support dict-style indexing to get attribute values.
+        Example: value = obj["property_name"]
 
         Args:
-            key (str): 属性名
+            key (str): Attribute name
 
         Returns:
-            属性值
+            Attribute value
         """
         return self.__getattr__(key)
 
     def __setitem__(self, key, value):
         """
-        支持使用字典索引语法设置属性值
-        例如: obj["property_name"] = value
+        Support dict-style indexing to set attribute values.
+        Example: obj["property_name"] = value
 
         Args:
-            key (str): 属性名
-            value: 要设置的值
+            key (str): Attribute name
+            value: Value to set
         """
         self.__setattr__(key, value)
 
     def _parse_position_data_impl(self, position_data):
         """
-        解析位置数据，支持以下格式：
-        1. JSON字符串格式：{"lat": 39.51783322503789, "lng": -76.20197639555775}
-        2. JSON数组格式：[116.31633245364759, 39.83663838626669]
-        3. 已经是数组格式：[lng, lat]
-        返回统一的 [lng, lat] 数字数组格式
+        Parse position data. Supports the following formats:
+        1. JSON string: {"lat": 39.51783322503789, "lng": -76.20197639555775}
+        2. JSON array: [116.31633245364759, 39.83663838626669]
+        3. Already an array: [lng, lat]
+        Returns a normalized numeric array: [lng, lat]
         """
         import json
 
         if not position_data:
             return []
 
-        # 如果已经是列表格式，直接返回
+        # If it's already a list, return it directly
         if isinstance(position_data, list):
-            # 确保是 [lng, lat] 格式
+            # Ensure [lng, lat] format
             if len(position_data) >= 2:
                 return [float(position_data[0]), float(position_data[1])]
             else:
                 return []
 
-        # 如果是字符串，尝试解析
+        # If it's a string, try to parse it
         if isinstance(position_data, str):
             try:
-                # 尝试解析为JSON
+                # Try parsing as JSON
                 parsed_data = json.loads(position_data)
 
-                # 如果解析后是字典格式 {"lat": ..., "lng": ...}
+                # Dict format: {"lat": ..., "lng": ...}
                 if isinstance(parsed_data, dict):
                     lat = float(parsed_data.get("lat", 0))
                     lng = float(parsed_data.get("lng", 0))
                     return [lng, lat]
 
-                # 如果解析后是列表格式 [lng, lat] 或 [lat, lng]
+                # List format: [lng, lat] or [lat, lng]
                 elif isinstance(parsed_data, list) and len(parsed_data) >= 2:
-                    # 假设列表中第一个是lng，第二个是lat
+                    # Assume [lng, lat]
                     return [float(parsed_data[0]), float(parsed_data[1])]
 
             except json.JSONDecodeError:
-                # 如果不是有效的JSON，返回空数组
+                # If it's not valid JSON, return empty list
                 return []
 
-        # 其他情况返回空数组
+        # Otherwise return empty list
         return []

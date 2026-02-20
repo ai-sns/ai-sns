@@ -9,6 +9,18 @@ export class SNSSocialRoleDialog {
         this.isEditing = false;
     }
 
+    _isDialogAlive() {
+        return !!(this.dialog && typeof document !== 'undefined' && document.body && document.body.contains(this.dialog));
+    }
+
+    _q(selector) {
+        return this.dialog ? this.dialog.querySelector(selector) : null;
+    }
+
+    _qa(selector) {
+        return this.dialog ? Array.from(this.dialog.querySelectorAll(selector)) : [];
+    }
+
     resolve(urlOrPath) {
         try {
             if (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function') {
@@ -20,6 +32,14 @@ export class SNSSocialRoleDialog {
     }
 
     async show() {
+        const existing = document.getElementById('snsSocialRoleDialog');
+        if (existing) {
+            try {
+                existing.remove();
+            } catch (e) {
+            }
+        }
+
         // Create dialog HTML
         const dialogHTML = `
             <div class="modal-overlay" id="snsSocialRoleDialog">
@@ -321,8 +341,12 @@ export class SNSSocialRoleDialog {
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
         this.dialog = document.getElementById('snsSocialRoleDialog');
 
+        if (!this._isDialogAlive()) return;
+
         // Load social roles
         await this.loadSocialRoles();
+
+        if (!this._isDialogAlive()) return;
 
         // Setup event listeners
         this.setupEventListeners();
@@ -333,7 +357,10 @@ export class SNSSocialRoleDialog {
             const response = await fetch(this.resolve('/api/sns/social-roles'));
             const roles = await response.json();
 
-            const roleList = document.getElementById('socialRoleList');
+            if (!this._isDialogAlive()) return;
+
+            const roleList = this._q('#socialRoleList');
+            if (!roleList) return;
             roleList.innerHTML = '';
 
             if (roles.length === 0) {
@@ -357,13 +384,14 @@ export class SNSSocialRoleDialog {
             });
         } catch (error) {
             console.error('Error loading social roles:', error);
-            document.getElementById('socialRoleList').innerHTML = '<div class="error">加载失败</div>';
+            const roleList = this._q('#socialRoleList');
+            if (roleList) roleList.innerHTML = '<div class="error">加载失败</div>';
         }
     }
 
     selectRole(element, role) {
         // Remove previous selection
-        document.querySelectorAll('.role-item').forEach(item => {
+        this._qa('.role-item').forEach(item => {
             item.classList.remove('selected');
         });
 
@@ -376,14 +404,19 @@ export class SNSSocialRoleDialog {
         this.showRolePreview(role);
 
         // Show action buttons and reset to edit mode
-        document.getElementById('roleActions').style.display = 'flex';
-        document.getElementById('editRoleBtn').style.display = 'inline-block';
-        document.getElementById('saveRoleBtn').style.display = 'none';
-        document.getElementById('cancelEditBtn').style.display = 'none';
+        const actions = this._q('#roleActions');
+        const editBtn = this._q('#editRoleBtn');
+        const saveBtn = this._q('#saveRoleBtn');
+        const cancelBtn = this._q('#cancelEditBtn');
+        if (actions) actions.style.display = 'flex';
+        if (editBtn) editBtn.style.display = 'inline-block';
+        if (saveBtn) saveBtn.style.display = 'none';
+        if (cancelBtn) cancelBtn.style.display = 'none';
     }
 
     showRolePreview(role) {
-        const preview = document.querySelector('#rolePreview .role-preview-content');
+        const preview = this._q('#rolePreview .role-preview-content');
+        if (!preview) return;
         preview.innerHTML = `
             <div class="role-detail" style="flex: 1; display: flex; flex-direction: column;">
                 <h3 class="role-detail-title">${this.escapeHtml(role.title)}</h3>
@@ -400,7 +433,8 @@ export class SNSSocialRoleDialog {
         if (!this.selectedRole) return;
 
         this.isEditing = true;
-        const preview = document.querySelector('#rolePreview .role-preview-content');
+        const preview = this._q('#rolePreview .role-preview-content');
+        if (!preview) return;
         const role = this.selectedRole;
 
         preview.innerHTML = `
@@ -415,9 +449,12 @@ export class SNSSocialRoleDialog {
         `;
 
         // Toggle buttons
-        document.getElementById('editRoleBtn').style.display = 'none';
-        document.getElementById('saveRoleBtn').style.display = 'inline-block';
-        document.getElementById('cancelEditBtn').style.display = 'inline-block';
+        const editBtn = this._q('#editRoleBtn');
+        const saveBtn = this._q('#saveRoleBtn');
+        const cancelBtn = this._q('#cancelEditBtn');
+        if (editBtn) editBtn.style.display = 'none';
+        if (saveBtn) saveBtn.style.display = 'inline-block';
+        if (cancelBtn) cancelBtn.style.display = 'inline-block';
     }
 
     cancelEdit() {
@@ -425,15 +462,19 @@ export class SNSSocialRoleDialog {
         this.showRolePreview(this.selectedRole);
 
         // Toggle buttons
-        document.getElementById('editRoleBtn').style.display = 'inline-block';
-        document.getElementById('saveRoleBtn').style.display = 'none';
-        document.getElementById('cancelEditBtn').style.display = 'none';
+        const editBtn = this._q('#editRoleBtn');
+        const saveBtn = this._q('#saveRoleBtn');
+        const cancelBtn = this._q('#cancelEditBtn');
+        if (editBtn) editBtn.style.display = 'inline-block';
+        if (saveBtn) saveBtn.style.display = 'none';
+        if (cancelBtn) cancelBtn.style.display = 'none';
     }
 
     async saveRole() {
         if (!this.selectedRole) return;
 
-        const content = document.getElementById('editContent').value.trim();
+        const editEl = this._q('#editContent');
+        const content = editEl ? editEl.value.trim() : '';
 
         if (!content) {
             alert('内容不能为空');
@@ -463,8 +504,10 @@ export class SNSSocialRoleDialog {
                 // Reload list to show updated preview
                 await this.loadSocialRoles();
 
+                if (!this._isDialogAlive()) return;
+
                 // Re-select the updated role
-                const roleItem = document.querySelector(`.role-item[data-role-id="${this.selectedRole.id}"]`);
+                const roleItem = this._q(`.role-item[data-role-id="${this.selectedRole.id}"]`);
                 if (roleItem) {
                     roleItem.click();
                 }
@@ -494,18 +537,27 @@ export class SNSSocialRoleDialog {
 
     setupEventListeners() {
         // Edit button
-        document.getElementById('editRoleBtn').addEventListener('click', () => {
-            this.showEditMode();
-        });
+        const editBtn = this._q('#editRoleBtn');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                this.showEditMode();
+            });
+        }
 
         // Save button
-        document.getElementById('saveRoleBtn').addEventListener('click', () => {
-            this.saveRole();
-        });
+        const saveBtn = this._q('#saveRoleBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                this.saveRole();
+            });
+        }
 
         // Cancel button
-        document.getElementById('cancelEditBtn').addEventListener('click', () => {
-            this.cancelEdit();
-        });
+        const cancelBtn = this._q('#cancelEditBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.cancelEdit();
+            });
+        }
     }
 }

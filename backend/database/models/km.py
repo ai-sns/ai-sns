@@ -57,9 +57,9 @@ class NoteMng(Base):
     tag_1 = Column(String(100), doc="Tag 1")
     tag_2 = Column(String(100), doc="Tag 2")
     tag_3 = Column(String(100), doc="Tag 3")
-    tags = Column(Text, doc="Tags as JSON string")  # 新增：存储所有标签的JSON字符串
-    is_pinned = Column(Boolean, default=False, doc="Is pinned")  # 新增：是否置顶
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, doc="Update time")  # 新增：更新时间
+    tags = Column(Text, doc="Tags as JSON string")  # New: stores all tags as a JSON string
+    is_pinned = Column(Boolean, default=False, doc="Is pinned")  # New: whether pinned
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, doc="Update time")  # New: update time
     waitvectorization = Column(Boolean, default=False, doc="Wait for vectorization")
     creator = Column(String(100), doc="Creator")
     is_delete = Column(Boolean, default=False, doc="Soft delete")

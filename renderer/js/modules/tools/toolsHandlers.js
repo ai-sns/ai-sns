@@ -1,5 +1,5 @@
 /**
- * Tools Handlers - 事件处理和内容渲染
+ * Tools Handlers - event handling and content rendering
  */
 
 import ToolsEditDialog from './ToolsEditDialog.js';
@@ -10,9 +10,9 @@ const toolsHandlers = {
     skillsApiBaseUrl: '',
     editDialog: null,
 
-    // 分页状态
+    // Pagination state
     currentOffset: 0,
-    pageSize: 50, // 默认值，会从配置文件读取
+    pageSize: 50, // Default value; will be read from config
     hasMore: true,
     currentData: [],
 
@@ -33,17 +33,17 @@ const toolsHandlers = {
         this.apiBaseUrl = base ? `${base}/api/tools` : '/api/tools';
         this.skillsApiBaseUrl = base ? `${base}/api/skills` : '/api/skills';
 
-        // 确保全局 toolsEditDialog 实例存在
+        // Ensure global toolsEditDialog instance exists
         if (!window.toolsEditDialog) {
             window.toolsEditDialog = new ToolsEditDialog();
         }
         this.editDialog = window.toolsEditDialog;
 
-        // 加载配置
+        // Load config
         this.loadConfig();
 
         this.bindEvents();
-        // 初始加载第一个分类的内容
+        // Initial load for the first category
         this.loadCategoryContent(this.currentCategory);
     },
 
@@ -98,7 +98,7 @@ const toolsHandlers = {
 
     async loadConfig() {
         try {
-            // 从API获取系统配置
+            // Fetch system config from API
             const url = window.resolveAgentServerUrl ? window.resolveAgentServerUrl('/api/system/config') : '/api/system/config';
             const response = await fetch(url);
             if (response.ok) {
@@ -193,13 +193,13 @@ const toolsHandlers = {
     },
 
     bindEvents() {
-        // 分类项点击事件
+        // Category item click
         document.querySelectorAll('.tools-category-item').forEach(item => {
             item.addEventListener('click', () => {
                 const category = item.getAttribute('data-category');
                 this.onCategoryClick(category);
 
-                // 添加选中状态
+                // Set active state
                 document.querySelectorAll('.tools-category-item').forEach(i => {
                     i.classList.remove('active');
                 });
@@ -207,13 +207,13 @@ const toolsHandlers = {
             });
         });
 
-        // More按钮点击事件
+        // More button click
         const moreBtn = document.querySelector('.plugin-more-btn');
         if (moreBtn) {
             moreBtn.addEventListener('click', () => this.loadMoreTools());
         }
 
-        // Add按钮点击事件（需要在页面中添加此按钮）
+        // Add button click (button must exist in the page)
         const addBtn = document.querySelector('.tools-add-btn');
         if (addBtn) {
             addBtn.addEventListener('click', () => this.showAddDialog(this.currentCategory));
@@ -224,14 +224,14 @@ const toolsHandlers = {
         console.log('Category clicked:', category);
         this.currentCategory = category;
 
-        // 重置分页状态
+        // Reset pagination state
         this.currentOffset = 0;
         this.hasMore = true;
         this.currentData = [];
 
         this.loadCategoryContent(category);
 
-        // 触发自定义事件
+        // Emit custom event
         if (typeof window.eventBus !== 'undefined') {
             window.eventBus.emit('tools:category:changed', { category });
         }
@@ -244,13 +244,13 @@ const toolsHandlers = {
             return;
         }
 
-        // 更新标题
+        // Update title
         const titleElement = document.querySelector('.plugin-list-title');
         if (titleElement) {
             titleElement.textContent = `${this.getCategoryDisplayName(category)} List`;
         }
 
-        // 显示加载状态（如果是首次加载）
+        // Show loading state (first load only)
         if (offset === 0) {
             pluginGrid.innerHTML = '<div class="loading-spinner">Loading...</div>';
         }
@@ -259,7 +259,7 @@ const toolsHandlers = {
             let data = [];
             let endpoint = '';
 
-            // 根据分类选择对应的API端点
+            // Pick API endpoint by category
             switch(category) {
                 case 'tools-plugin':
                     endpoint = '/plugins';
@@ -281,7 +281,7 @@ const toolsHandlers = {
                     return;
             }
 
-            // 从API加载数据（只在首次加载时获取）
+            // Load data from API (only fetch on first load)
             if (offset === 0 || this.currentData.length === 0) {
                 const baseUrl = category === 'doc-skill' ? this.skillsApiBaseUrl : this.apiBaseUrl;
                 const response = await fetch(`${baseUrl}${endpoint}`);
@@ -294,18 +294,18 @@ const toolsHandlers = {
 
             console.log(`Loaded ${this.currentData.length} total items for ${category}`);
 
-            // 使用分页大小
+            // Use page size
             const pageSize = limit || this.pageSize;
 
-            // 计算要显示的数据范围
+            // Compute display range
             const endIndex = offset + pageSize;
             const displayData = this.currentData.slice(0, endIndex);
 
-            // 判断是否还有更多数据
+            // Determine whether there is more data
             this.hasMore = endIndex < this.currentData.length;
             this.currentOffset = offset;
 
-            // 渲染内容
+            // Render content
             if (displayData && displayData.length > 0) {
                 pluginGrid.innerHTML = this.renderToolCards(displayData, category);
                 this.bindToolCardEvents();
@@ -313,7 +313,7 @@ const toolsHandlers = {
                 pluginGrid.innerHTML = this.renderEmptyState(category);
             }
 
-            // 更新More按钮状态
+            // Update More button state
             this.updateMoreButton();
 
         } catch (error) {
@@ -474,7 +474,7 @@ const toolsHandlers = {
     },
 
     bindToolCardEvents() {
-        // 测试按钮
+        // Test button
         document.querySelectorAll('.plugin-test-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -484,7 +484,7 @@ const toolsHandlers = {
             });
         });
 
-        // 编辑按钮
+        // Edit button
         document.querySelectorAll('.plugin-edit-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -494,7 +494,7 @@ const toolsHandlers = {
             });
         });
 
-        // 删除按钮
+        // Delete button
         document.querySelectorAll('.plugin-delete-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -511,7 +511,7 @@ const toolsHandlers = {
             return;
         }
 
-        // 显示运行中状态
+        // Show running state
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="spinner-small"></span> 运行中...';
         btn.disabled = true;
@@ -551,7 +551,7 @@ const toolsHandlers = {
 
             const result = await response.json();
 
-            // 显示结果
+            // Show result
             this.showTestResult(result.result || result);
 
         } catch (error) {
@@ -564,7 +564,7 @@ const toolsHandlers = {
     },
 
     showTestResult(result) {
-        // 创建结果对话框
+        // Create result dialog
         const resultHTML = `
             <div class="modal-overlay" id="testResultDialog">
                 <div class="modal-dialog test-result-dialog">
@@ -605,7 +605,7 @@ const toolsHandlers = {
                 return;
             }
 
-            // 获取工具数据
+            // Fetch tool data
             let endpoint = '';
             switch(category) {
                 case 'tools-plugin':
@@ -629,9 +629,9 @@ const toolsHandlers = {
 
             const tool = await response.json();
 
-            // 显示编辑对话框
+            // Show edit dialog
             this.editDialog.show(category, tool, () => {
-                // 保存成功后重新加载
+                // Reload after successful save
                 this.loadCategoryContent(category);
             });
 
@@ -827,7 +827,7 @@ const toolsHandlers = {
     }
 };
 
-// 导出
+// Export
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = toolsHandlers;
 }

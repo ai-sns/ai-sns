@@ -1,6 +1,6 @@
 /**
- * Agent Module - Index（多Agent版本）
- * AI聊天代理模块入口
+ * Agent Module - Index (multi-agent version)
+ * AI chat agent module entry
  */
 
 import AgentPage from './AgentPage.js';
@@ -12,42 +12,42 @@ import RoleManagementPage from './RoleManagementPage.js';
 
 export default {
     name: 'agent',
-    version: '2.0.0', // 升级到2.0.0表示多Agent版本
+    version: '2.0.0', // Upgraded to 2.0.0 to indicate multi-agent version
 
     /**
-     * 渲染主内容区
+     * Render main content area
      */
     renderPage() {
         return AgentPage.render();
     },
 
     /**
-     * 渲染侧边栏
+     * Render sidebar
      */
     renderSidebar() {
         return AgentSidebar.render();
     },
 
     /**
-     * 初始化模块（多Agent版本）
+     * Initialize module (multi-agent version)
      */
     async init() {
         console.log('[AgentModule] 初始化多Agent系统...');
 
         try {
-            // 使用多Agent处理器初始化
+            // Initialize using multi-agent handlers
             await multiAgentHandlers.init();
             console.log('[AgentModule] 多Agent系统初始化完成');
         } catch (error) {
             console.error('[AgentModule] 初始化失败:', error);
-            // 降级到传统模式
+            // Fallback to legacy mode
             console.warn('[AgentModule] 降级到传统单Agent模式');
             agentHandlers.init();
         }
     },
 
     /**
-     * 销毁模块
+     * Destroy module
      */
     destroy() {
         if (agentHandlers && agentHandlers.destroy) {
@@ -56,13 +56,13 @@ export default {
     },
 
     /**
-     * 导出管理页面
+     * Export management pages
      */
     ModelManagementPage,
     RoleManagementPage,
 
     /**
-     * 导出handlers供外部使用
+     * Export handlers for external use
      */
     agentHandlers,
     multiAgentHandlers

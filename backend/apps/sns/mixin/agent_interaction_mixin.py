@@ -1,6 +1,6 @@
 """
-Agent 和 AI 交互相关的 Mixin
-包含与 AI Agent 的对话、指令获取、任务规划等功能
+Mixin related to interactions between Agent and AI.
+Includes functions such as chatting with AI agents, fetching instructions, and task planning.
 """
 import logging
 import json
@@ -63,7 +63,7 @@ class AgentInteractionMixin:
         )
         return reply
 
-    # a.请求agent指示
+    # a. Request agent instruction
     async def ask_agent_and_get_instruction(self, question, system_role_prompt, type_flag="command"):
         if self.stopping_ai_process_flag:
             self.stop_AI_process_finished()
@@ -97,7 +97,7 @@ ask_agent_and_get_instruction
             return
 
         agent = self.agent
-        # agent.give_it_plugin(pluginname)#使用配置里面的第一个
+        # agent.give_it_plugin(pluginname)  # Use the first one in the config
         # agent.give_it_km(vector_path, embedding_model_name)
         self.messages_command = []
         self.messages_command.append({"role": "user", "content": question})
@@ -108,7 +108,7 @@ ask_agent_and_get_instruction
             self.messages_command[0]["content"] = system_role_prompt
 
         messages = self.messages_command
-        # 保存原始system prompt
+        # Save original system prompt
         original_prompt = agent.role_config.get('system_prompt', '')
 
         modified_prompt = agent_adapter.build_system_prompt(
@@ -119,7 +119,7 @@ ask_agent_and_get_instruction
             agent=agent,
         )
 
-        # 临时修改system prompt
+        # Temporarily override system prompt
         agent.role_config['system_prompt'] = modified_prompt
 
         restore_role = agent_adapter.apply_role_config_overrides(
@@ -132,7 +132,7 @@ ask_agent_and_get_instruction
         )
 
         try:
-            # 调用Agent进行对话
+            # Call agent to chat
             use_tools = getattr(getattr(self, "ai_chat_cfg", None), "use_tools", None)
             if use_tools is None:
                 use_tools = getattr(self, "use_tools", None)
@@ -146,7 +146,7 @@ ask_agent_and_get_instruction
             )
             # return reply
         finally:
-            # 恢复原始system prompt
+            # Restore original system prompt
             agent.role_config['system_prompt'] = original_prompt
             restore_role()
 
@@ -154,7 +154,7 @@ ask_agent_and_get_instruction
 
         agent.role_config['system_prompt'] = original_prompt
 
-    # b.agent返回指示
+    # b. Agent returns instruction
     def on_agent_return_instruction(self, question, content):
         self.agent_replying_flag = False
         if self.stopping_ai_process_flag:

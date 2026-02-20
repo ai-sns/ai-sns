@@ -1,6 +1,6 @@
 /**
- * Agent API - API调用封装
- * 处理与后端的通信
+ * Agent API - API call wrapper
+ * Handles communication with the backend
  */
 
 const agentApi = {
@@ -14,7 +14,7 @@ const agentApi = {
         return urlOrPath;
     },
     /**
-     * 获取Agent列表
+     * Get agent list
      */
     async getAgents() {
         try {
@@ -27,7 +27,7 @@ const agentApi = {
     },
 
     /**
-     * 获取单个Agent详情
+     * Get agent details
      */
     async getAgent(agentId) {
         try {
@@ -128,7 +128,7 @@ const agentApi = {
     },
 
     /**
-     * 获取Agent实例信息
+     * Get agent instance info
      */
     async getAgentInfo(agentId) {
         try {
@@ -141,7 +141,7 @@ const agentApi = {
     },
 
     /**
-     * Agent非流式问答（按ID）
+     * Agent non-streaming chat (by ID)
      */
     async agentChat(agentId, message, conversationId = null, options = {}) {
         try {
@@ -163,7 +163,7 @@ const agentApi = {
     },
 
     /**
-     * Agent流式问答（按ID）
+     * Agent streaming chat (by ID)
      */
     async agentChatStream(agentId, message, conversationId = null, callbacks = {}, options = {}) {
         try {
@@ -248,7 +248,7 @@ const agentApi = {
     },
 
     /**
-     * Agent问答（按名称）
+     * Agent chat (by name)
      */
     async agentChatByName(agentName, message, conversationId = null, options = {}) {
         try {
@@ -270,7 +270,7 @@ const agentApi = {
     },
 
     /**
-     * 清除Agent记忆
+     * Clear agent memory
      */
     async clearAgentMemory(agentId, conversationId = null) {
         try {
@@ -289,7 +289,7 @@ const agentApi = {
     },
 
     /**
-     * 获取Agent记忆
+     * Get agent memory
      */
     async getAgentMemory(agentId, conversationId = null) {
         try {
@@ -306,7 +306,7 @@ const agentApi = {
     },
 
     /**
-     * 重新加载Agent
+     * Reload agent
      */
     async reloadAgent(agentId) {
         try {
@@ -321,14 +321,14 @@ const agentApi = {
     },
 
     /**
-     * 创建Agent
+     * Create agent
      */
     async createAgent(agentData) {
         try {
             if (window.api && window.api.createAgent) {
                 return await window.api.createAgent(agentData);
             }
-            // 模拟创建
+            // Mock create
             return {
                 success: true,
                 data: { id: Date.now(), ...agentData }
@@ -340,11 +340,11 @@ const agentApi = {
     },
 
     /**
-     * 获取聊天历史
+     * Get chat history
      */
     async getChatHistory() {
         try {
-            // 调用新的对话列表API
+            // Call the newer conversations list API
             return await this.getConversations();
         } catch (error) {
             console.error('获取聊天历史失败:', error);
@@ -353,7 +353,7 @@ const agentApi = {
     },
 
     /**
-     * 获取对话列表
+     * Get conversations list
      */
     async getConversations(limit = 50, agentId = null) {
         try {
@@ -371,7 +371,7 @@ const agentApi = {
     },
 
     /**
-     * 获取对话消息
+     * Get conversation messages
      */
     async getConversationMessages(conversationId) {
         try {
@@ -385,18 +385,18 @@ const agentApi = {
     },
 
     /**
-     * 发送消息 (流式) - 使用 HTTP SSE
+     * Send message (streaming) - via HTTP SSE
      */
     async sendMessageStream(messages, requestId, modelConfigId = null, modelConfig = null, conversationId = null, callbacks = {}) {
         try {
-            // 构建请求体
+            // Build request payload
             const requestBody = {
                 messages: messages,
-                conversation_id: conversationId,  // 添加conversation_id
+                conversation_id: conversationId,  // Add conversation_id
                 model_config_id: modelConfigId
             };
 
-            // 如果提供了模型配置，使用其参数
+            // If a model config is provided, use its params
             if (modelConfig) {
                 if (modelConfig.temperature !== undefined) {
                     requestBody.temperature = modelConfig.temperature;
@@ -406,7 +406,7 @@ const agentApi = {
                 }
             }
 
-            // 使用 fetch 进行 SSE 请求
+            // Use fetch to make the SSE request
             const response = await fetch(this.resolve('/api/chat/stream'), {
                 method: 'POST',
                 headers: {
@@ -424,22 +424,22 @@ const agentApi = {
             const decoder = new TextDecoder();
             let buffer = '';
 
-            // 读取流式数据
+            // Read streaming data
             while (true) {
                 const { done, value } = await reader.read();
 
                 if (done) {
-                    // 通知流结束
+                    // Notify stream end
                     if (callbacks.onEnd) {
                         callbacks.onEnd({ requestId });
                     }
                     break;
                 }
 
-                // 解码数据
+                // Decode data
                 buffer += decoder.decode(value, { stream: true });
 
-                // 按行分割
+                // Split by line
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || ''; // 保留不完整的行
 
@@ -448,7 +448,7 @@ const agentApi = {
                         const data = line.slice(6);
 
                         if (data === '[DONE]') {
-                            // 流结束
+                            // Stream ended
                             if (callbacks.onEnd) {
                                 callbacks.onEnd({ requestId });
                             }
@@ -458,7 +458,7 @@ const agentApi = {
                         try {
                             const parsed = JSON.parse(data);
 
-                            // 处理错误
+                            // Handle error
                             if (parsed.error) {
                                 if (callbacks.onError) {
                                     callbacks.onError({
@@ -469,7 +469,7 @@ const agentApi = {
                                 return { success: false, error: parsed.error };
                             }
 
-                            // 处理内容
+                            // Handle content
                             if (parsed.content) {
                                 if (callbacks.onData) {
                                     callbacks.onData({
@@ -484,7 +484,7 @@ const agentApi = {
                     } else if (line.startsWith('event: ')) {
                         const event = line.slice(7);
                         if (event === 'error') {
-                            // 错误事件将在下一行的 data 中
+                            // The error event details will be in data on the next line
                             continue;
                         }
                     }
@@ -495,7 +495,7 @@ const agentApi = {
         } catch (error) {
             console.error('发送消息失败:', error);
 
-            // 通知错误
+            // Notify error
             if (callbacks.onError) {
                 callbacks.onError({
                     requestId,
@@ -508,7 +508,7 @@ const agentApi = {
     },
 
     /**
-     * 发送消息 (流式) - 兼容旧的 electronAPI 方式
+     * Send message (streaming) - legacy electronAPI compatibility
      */
     async sendMessageStreamLegacy(messages, requestId) {
         try {
@@ -516,7 +516,7 @@ const agentApi = {
                 window.electronAPI.chatStreamStart(messages, requestId);
                 return { success: true };
             }
-            // 如果没有 electronAPI，返回失败
+            // If electronAPI is not available, fail
             throw new Error('流式聊天API不可用');
         } catch (error) {
             console.error('发送消息失败:', error);
@@ -525,14 +525,14 @@ const agentApi = {
     },
 
     /**
-     * 发送消息 (非流式，用于兼容)
+     * Send message (non-streaming, for compatibility)
      */
     async sendMessage(messages) {
         try {
             if (window.api && window.api.chat) {
                 return await window.api.chat({ messages });
             }
-            // 模拟响应
+            // Mock response
             return {
                 success: true,
                 data: {
@@ -547,7 +547,7 @@ const agentApi = {
     },
 
     /**
-     * 删除聊天
+     * Delete chat
      */
     async deleteChat(chatId) {
         try {
@@ -562,7 +562,7 @@ const agentApi = {
     },
 
     /**
-     * 更新聊天标题
+     * Update chat title
      */
     async updateChatTitle(chatId, title) {
         try {
@@ -577,7 +577,7 @@ const agentApi = {
     },
 
     /**
-     * 收藏/取消收藏聊天
+     * Star/unstar chat
      */
     async toggleChatStar(chatId, starred) {
         try {
@@ -592,7 +592,7 @@ const agentApi = {
     },
 
     /**
-     * 创建区块链钱包
+     * Create blockchain wallet
      */
     async createWallet(label = '') {
         try {
@@ -609,7 +609,7 @@ const agentApi = {
     },
 
     /**
-     * 导入区块链钱包
+     * Import blockchain wallet
      */
     async importWallet(privateKey, label = '') {
         try {
@@ -626,7 +626,7 @@ const agentApi = {
     },
 
     /**
-     * 获取钱包列表
+     * Get wallet list
      */
     async listWallets() {
         try {
@@ -639,7 +639,7 @@ const agentApi = {
     },
 
     /**
-     * 获取钱包信息
+     * Get wallet info
      */
     async getWallet(address) {
         try {
@@ -652,7 +652,7 @@ const agentApi = {
     },
 
     /**
-     * 更新 Agent 配置
+     * Update agent config
      */
     async updateAgent(agentId, agentData) {
         try {
@@ -671,7 +671,7 @@ const agentApi = {
     // ==================== Agent Tools Management ====================
 
     /**
-     * 获取Agent的关联工具
+     * Get agent linked tools
      */
     async getAgentTools(agentId) {
         try {
@@ -684,7 +684,7 @@ const agentApi = {
     },
 
     /**
-     * 更新Agent的关联工具
+     * Update agent linked tools
      */
     async updateAgentTools(agentId, tools) {
         try {
@@ -701,7 +701,7 @@ const agentApi = {
     },
 
     /**
-     * 获取所有可用工具
+     * Get all available tools
      */
     async getAvailableTools(agentId) {
         try {
@@ -713,11 +713,11 @@ const agentApi = {
         }
     },
 
-    // ==================== 以下是旧的通用Chat API（保留兼容性） ====================
+    // ==================== Legacy generic Chat API (kept for compatibility) ====================
 };
 
-// 导出为ES6模块
+// Export as ES6 module
 export default agentApi;
 
-// 同时导出到window对象供非模块脚本使用
+// Also export to window for non-module scripts
 window.agentApi = agentApi;

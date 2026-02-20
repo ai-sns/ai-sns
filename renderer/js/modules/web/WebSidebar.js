@@ -1,5 +1,5 @@
 /**
- * Web Sidebar - 侧边栏渲染
+ * Web Sidebar - sidebar rendering
  */
 
 const WebSidebar = {
@@ -21,7 +21,7 @@ const WebSidebar = {
                 const response = await window.api.get('/api/system/web-mng');
                 console.log('[WebSidebar] API response:', response);
                 if (response && response.data) {
-                    // 过滤并排序LLM数据
+                    // Filter and sort LLM data
                     this.llmData = response.data
                         .filter(item => item.type === 'LLM' && !item.is_delete)
                         .sort((a, b) => {
@@ -30,7 +30,7 @@ const WebSidebar = {
                             return posA - posB;
                         });
                     
-                    // 过滤并排序Tool数据
+                    // Filter and sort Tool data
                     this.toolData = response.data
                         .filter(item => item.type === 'Tool' && !item.is_delete)
                         .sort((a, b) => {
@@ -208,7 +208,7 @@ const WebSidebar = {
         return `<div class="web-icon-fallback">${name.charAt(0).toUpperCase()}</div>`;
     },
 
-    // 搜索功能
+    // Search
     handleLLMSearch(searchText) {
         this.llmSearchText = searchText;
         this.refreshLLMIcons();
@@ -233,12 +233,12 @@ const WebSidebar = {
         }
     },
 
-    // 管理对话框
+    // Manage dialog
     showManageDialog(type) {
         const data = type === 'LLM' ? this.llmData : this.toolData;
         const title = type === 'LLM' ? 'Manage LLM Services' : 'Manage AI Tools';
         
-        // 隐藏 BrowserView 以防止遮挡对话框
+        // Hide BrowserView to prevent it from covering the dialog
         if (window.electronAPI && window.electronAPI.hideBrowserView) {
             window.electronAPI.hideBrowserView();
         }
@@ -263,17 +263,17 @@ const WebSidebar = {
             </div>
         `;
 
-        // 移除旧对话框
+        // Remove old dialog
         const oldDialog = document.getElementById('webManageDialog');
         if (oldDialog) oldDialog.remove();
 
-        // 添加新对话框
+        // Insert new dialog
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
 
-        // 初始化拖拽
+        // Init drag & drop
         this.initDragAndDrop(type);
 
-        // 绑定按钮事件
+        // Bind button events
         this.bindManageDialogEvents(type);
     },
 
@@ -281,7 +281,7 @@ const WebSidebar = {
         const dialog = document.getElementById('webManageDialog');
         if (!dialog) return;
 
-        // 事件委托处理所有按钮点击
+        // Event delegation for all button clicks
         dialog.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button) return;
@@ -343,19 +343,19 @@ const WebSidebar = {
     closeManageDialog() {
         const dialog = document.getElementById('webManageDialog');
         if (dialog) {
-            // 获取对话框类型
+            // Get dialog type
             const list = dialog.querySelector('#webManageList');
             const type = list ? list.dataset.type : null;
             
-            // 移除对话框
+            // Remove dialog
             dialog.remove();
             
-            // 恢复显示 BrowserView
+            // Restore BrowserView
             if (window.electronAPI && window.electronAPI.showBrowserView) {
                 window.electronAPI.showBrowserView();
             }
             
-            // 刷新侧边栏显示（使用当前内存中的数据）
+            // Refresh sidebar (using current in-memory data)
             if (type === 'LLM') {
                 this.refreshLLMIcons();
             } else if (type === 'Tool') {
@@ -366,13 +366,13 @@ const WebSidebar = {
         }
     },
 
-    // 编辑功能
+    // Edit
     async editItem(itemId, type) {
         const data = type === 'LLM' ? this.llmData : this.toolData;
         const item = data.find(i => i.id === itemId);
         if (!item) return;
 
-        // 不需要再次隐藏 BrowserView，因为管理对话框已经隐藏了它
+        // No need to hide BrowserView again; manage dialog already did it
         
         const editHTML = `
             <div class="web-edit-dialog-overlay" id="webEditDialog">
@@ -419,7 +419,7 @@ const WebSidebar = {
 
         document.body.insertAdjacentHTML('beforeend', editHTML);
 
-        // 绑定编辑对话框事件
+        // Bind edit dialog events
         this.bindEditDialogEvents(itemId, type);
     },
 
@@ -427,7 +427,7 @@ const WebSidebar = {
         const dialog = document.getElementById('webEditDialog');
         if (!dialog) return;
 
-        // 事件委托处理所有按钮点击
+        // Event delegation for all button clicks
         dialog.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button) return;
@@ -478,7 +478,7 @@ const WebSidebar = {
             if (response && response.success) {
                 console.log('[WebSidebar] Item updated successfully');
                 
-                // 更新内存中的数据
+                // Update in-memory data
                 const data = type === 'LLM' ? this.llmData : this.toolData;
                 const item = data.find(i => i.id === itemId);
                 if (item) {
@@ -489,10 +489,10 @@ const WebSidebar = {
                     item.filename = filename;
                 }
                 
-                // 关闭编辑对话框
+                // Close edit dialog
                 this.closeEditDialog();
                 
-                // 重新渲染管理对话框以显示更新
+                // Re-render manage dialog to show updates
                 const list = document.getElementById('webManageList');
                 if (list) {
                     list.innerHTML = this.renderManageItems(data, type);
@@ -506,7 +506,7 @@ const WebSidebar = {
         }
     },
 
-    // 删除功能
+    // Delete
     async deleteItem(itemId, type) {
         if (!confirm('Are you sure you want to delete this item?')) {
             return;
@@ -518,7 +518,7 @@ const WebSidebar = {
             if (response && response.success) {
                 console.log('[WebSidebar] Item deleted successfully');
                 
-                // 从内存中的数据移除该项
+                // Remove item from in-memory data
                 if (type === 'LLM') {
                     const index = this.llmData.findIndex(i => i.id === itemId);
                     if (index !== -1) {
@@ -531,7 +531,7 @@ const WebSidebar = {
                     }
                 }
                 
-                // 重新渲染管理对话框以显示更新
+                // Re-render manage dialog to show updates
                 const data = type === 'LLM' ? this.llmData : this.toolData;
                 const list = document.getElementById('webManageList');
                 if (list) {
@@ -546,7 +546,7 @@ const WebSidebar = {
         }
     },
 
-    // 拖拽排序功能
+    // Drag-and-drop sorting
     initDragAndDrop(type) {
         const list = document.getElementById('webManageList');
         if (!list) return;
@@ -604,7 +604,7 @@ const WebSidebar = {
         const list = document.getElementById('webManageList');
         const items = [...list.querySelectorAll('.web-manage-item')];
         
-        // 使用不同的 position 范围避免冲突
+        // Use different position ranges to avoid conflicts
         // LLM: 0-999, Tool: 1000-1999
         const basePosition = type === 'LLM' ? 0 : 1000;
         
@@ -622,8 +622,8 @@ const WebSidebar = {
             if (response && response.success) {
                 console.log('[WebSidebar] Positions updated successfully');
                 
-                // 只更新内存中的数据，不重新加载
-                // 更新对应类型的数据的 position
+                // Update in-memory data only; do not reload
+                // Update positions for the corresponding type
                 if (type === 'LLM') {
                     updates.forEach(update => {
                         const item = this.llmData.find(i => i.id === update.id);
@@ -631,7 +631,7 @@ const WebSidebar = {
                             item.position = update.position;
                         }
                     });
-                    // 重新排序
+                    // Re-sort
                     this.llmData.sort((a, b) => {
                         const posA = a.position !== null && a.position !== undefined ? a.position : 999;
                         const posB = b.position !== null && b.position !== undefined ? b.position : 999;
@@ -644,7 +644,7 @@ const WebSidebar = {
                             item.position = update.position;
                         }
                     });
-                    // 重新排序
+                    // Re-sort
                     this.toolData.sort((a, b) => {
                         const posA = a.position !== null && a.position !== undefined ? a.position : 999;
                         const posB = b.position !== null && b.position !== undefined ? b.position : 999;
@@ -652,8 +652,8 @@ const WebSidebar = {
                     });
                 }
                 
-                // 不重新加载，不刷新侧边栏，不重新打开对话框
-                // 用户可以继续拖拽调整
+                // Do not reload/refresh/reopen dialogs
+                // User can keep dragging to adjust
                 console.log('[WebSidebar] Local data updated, ready for next drag');
             }
         } catch (error) {
@@ -663,11 +663,11 @@ const WebSidebar = {
         }
     },
 
-    // Add对话框
+    // Add dialog
     showAddDialog(type) {
         const title = type === 'LLM' ? 'Add LLM Service' : 'Add AI Tool';
         
-        // 隐藏 BrowserView 以防止遮挡对话框
+        // Hide BrowserView to prevent it from covering the dialog
         if (window.electronAPI && window.electronAPI.hideBrowserView) {
             window.electronAPI.hideBrowserView();
         }
@@ -711,14 +711,14 @@ const WebSidebar = {
             </div>
         `;
 
-        // 移除旧对话框
+        // Remove old dialog
         const oldDialog = document.getElementById('webAddDialog');
         if (oldDialog) oldDialog.remove();
 
-        // 添加新对话框
+        // Insert new dialog
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
 
-        // 绑定按钮事件
+        // Bind button events
         this.bindAddDialogEvents(type);
     },
 
@@ -726,7 +726,7 @@ const WebSidebar = {
         const dialog = document.getElementById('webAddDialog');
         if (!dialog) return;
 
-        // 事件委托处理所有按钮点击
+        // Event delegation for all button clicks
         dialog.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button) return;
@@ -751,7 +751,7 @@ const WebSidebar = {
         if (dialog) {
             dialog.remove();
             
-            // 恢复显示 BrowserView
+            // Restore BrowserView
             if (window.electronAPI && window.electronAPI.showBrowserView) {
                 window.electronAPI.showBrowserView();
             }
@@ -783,19 +783,19 @@ const WebSidebar = {
             if (response && response.success) {
                 console.log('[WebSidebar] Item added successfully');
                 
-                // 重新加载数据
+                // Reload data
                 await this.loadData();
                 
-                // 刷新sidebar
+                // Refresh sidebar
                 const sidebar = document.getElementById('sidebar-web');
                 if (sidebar) {
                     sidebar.innerHTML = this.render();
                 }
                 
-                // 关闭对话框（会自动恢复BrowserView）
+                // Close dialog (BrowserView will be restored automatically)
                 this.closeAddDialog();
                 
-                // 显示成功消息
+                // Show success message
                 alert(`${type} service added successfully`);
             }
         } catch (error) {

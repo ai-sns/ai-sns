@@ -1,10 +1,10 @@
 /**
  * SNS Module - State Management
- * SNS状态管理
+ * SNS state management
  */
 
 const snsState = {
-    // 地图状态
+    // Map state
     map: {
         initialized: false,
         center: { lng: 116.404, lat: 39.915 },
@@ -12,7 +12,7 @@ const snsState = {
         markers: []
     },
 
-    // 用户状态
+    // User state
     user: {
         money: 10996.61,
         life: 125,
@@ -27,7 +27,7 @@ const snsState = {
         }
     },
 
-    // 在线状态
+    // Online state
     online: {
         status: 'online',
         nodes: 0,
@@ -35,10 +35,10 @@ const snsState = {
         messageCount: 0
     },
 
-    // 移动模式
+    // Move mode
     moveMode: 'free', // 'route', 'free', 'follow'
 
-    // 面板状态
+    // Panel state
     panels: {
         toolbar: {
             collapsed: false
@@ -52,7 +52,7 @@ const snsState = {
         }
     },
 
-    // WebSocket连接状态
+    // WebSocket connection state
     websocket: {
         connected: false,
         reconnecting: false
@@ -61,42 +61,42 @@ const snsState = {
 
 export default {
     /**
-     * 获取状态
+     * Get state
      */
     getState() {
         return snsState;
     },
 
     /**
-     * 更新地图状态
+     * Update map state
      */
     updateMap(mapData) {
         Object.assign(snsState.map, mapData);
     },
 
     /**
-     * 更新用户状态
+     * Update user state
      */
     updateUser(userData) {
         Object.assign(snsState.user, userData);
     },
 
     /**
-     * 更新在线状态
+     * Update online state
      */
     updateOnline(onlineData) {
         Object.assign(snsState.online, onlineData);
     },
 
     /**
-     * 设置移动模式
+     * Set move mode
      */
     setMoveMode(mode) {
         snsState.moveMode = mode;
     },
 
     /**
-     * 更新面板状态
+     * Update panel state
      */
     updatePanel(panelName, panelData) {
         if (snsState.panels[panelName]) {
@@ -105,28 +105,28 @@ export default {
     },
 
     /**
-     * 添加标记
+     * Add marker
      */
     addMarker(marker) {
         snsState.map.markers.push(marker);
     },
 
     /**
-     * 移除标记
+     * Remove marker
      */
     removeMarker(markerId) {
         snsState.map.markers = snsState.map.markers.filter(m => m.id !== markerId);
     },
 
     /**
-     * 清空所有标记
+     * Clear all markers
      */
     clearMarkers() {
         snsState.map.markers = [];
     },
 
     /**
-     * 更新WebSocket状态
+     * Update WebSocket state
      */
     updateWebSocket(wsData) {
         Object.assign(snsState.websocket, wsData);

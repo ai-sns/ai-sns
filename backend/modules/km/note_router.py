@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-KM Note Router - 笔记API路由
+KM Note Router - Note API router
 """
 import logging
 from fastapi import APIRouter, HTTPException
@@ -38,7 +38,7 @@ def _html_to_text(html: str) -> str:
 
 @router.get("/notes", response_model=List[NoteResponse])
 async def get_all_notes():
-    """获取所有笔记列表"""
+    """Get the list of all notes."""
     try:
         notes = note_service.get_all_notes()
         return notes
@@ -49,7 +49,7 @@ async def get_all_notes():
 
 @router.get("/notes/search", response_model=List[NoteResponse])
 async def search_notes(query: str = "", km_id: str = None):
-    """搜索笔记 - 支持标题、内容、标签搜索"""
+    """Search notes (supports title, content, and tag search)."""
     try:
         notes = note_service.search_notes(query=query, km_id=km_id)
         return notes
@@ -60,7 +60,7 @@ async def search_notes(query: str = "", km_id: str = None):
 
 @router.get("/notes/{note_id}", response_model=NoteResponse)
 async def get_note(note_id: int):
-    """获取单个笔记"""
+    """Get a single note."""
     try:
         note = note_service.get_note(note_id)
         if not note:
@@ -75,7 +75,7 @@ async def get_note(note_id: int):
 
 @router.post("/notes", response_model=NoteResponse)
 async def create_note(note_data: NoteCreate):
-    """创建新笔记"""
+    """Create a new note."""
     try:
         note = note_service.create_note(
             title=note_data.title,
@@ -91,7 +91,7 @@ async def create_note(note_data: NoteCreate):
 
 @router.put("/notes/{note_id}", response_model=NoteResponse)
 async def update_note(note_id: int, note_data: NoteUpdate):
-    """更新笔记"""
+    """Update a note."""
     try:
         note = note_service.update_note(
             note_id=note_id,
@@ -112,7 +112,7 @@ async def update_note(note_id: int, note_data: NoteUpdate):
 
 @router.delete("/notes/{note_id}")
 async def delete_note(note_id: int):
-    """删除笔记"""
+    """Delete a note."""
     try:
         km_id_str = None
         session = SessionLocal()
@@ -222,7 +222,7 @@ async def vector_search_notes(request: dict):
 
 @router.post("/notes/{note_id}/toggle-pin", response_model=NoteResponse)
 async def toggle_pin_note(note_id: int):
-    """切换笔记置顶状态"""
+    """Toggle note pinned status."""
     try:
         note = note_service.toggle_pin(note_id)
         if not note:

@@ -129,7 +129,7 @@ async def create_agent(
         Created agent ID
     """
     try:
-        # 将 Pydantic 模型转换为字典，排除未设置的字段
+        # Convert Pydantic model to dict, excluding unset fields
         agent_data = config.dict(exclude_unset=True)
         agent_id = service.create_agent(**agent_data)
         return {"success": True, "data": {"id": agent_id}}
@@ -155,7 +155,7 @@ async def update_agent(
         Success status
     """
     try:
-        # 只传递非None的字段
+        # Only pass fields that are not None
         agent_data = config.dict(exclude_unset=True, exclude_none=True)
         service.update_agent(agent_id, **agent_data)
         return {"success": True}
@@ -242,7 +242,7 @@ async def update_agent_tools(
         tools = request_body.get("tools", [])
         service.update_agent_tools(agent_id, tools)
 
-        # 重新加载Agent实例以应用新的工具配置
+        # Reload agent instance to apply the new tool configuration
         agent_manager = AgentManager()
         agent_manager.reload_agent(agent_id)
         logger.info(f"Agent {agent_id} 工具配置已更新并重新加载")

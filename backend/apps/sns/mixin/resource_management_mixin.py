@@ -1,6 +1,6 @@
 """
-资源和状态管理相关的 Mixin
-包含生命值、体力、金钱、经验值等资源管理功能
+Resource and state management mixin.
+Includes resource management for life, energy, money, experience, etc.
 """
 import logging
 import json
@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class ResourceManagementMixin:
-    """资源和状态管理相关功能"""
+    """Resource and state management related utilities."""
 
     def load_all_user_data(self):
-        """从数据库加载所有用户数据"""
+        """Load all user data from the database."""
         try:
-            # 加载位置信息
+            # Load location info
             self.current_place = self.aichatcfg_record.current_place or ""
             self.current_position = self.aichatcfg_record.current_position or []
             self.last_position = self.aichatcfg_record.last_position or []
@@ -28,7 +28,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to load user data: {e}")
 
     def save_all_user_data(self):
-        """保存所有用户数据到数据库"""
+        """Save all user data to the database."""
         try:
             update_data = {
                 "current_place": self.current_place,
@@ -51,7 +51,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to save user data: {e}")
 
     def decline_life(self):
-        """降低生命值"""
+        """Decrease life points."""
         try:
             life_point = float(self.aichatcfg_record.life_point or 0)
             self.aichatcfg_record.life_point = max(0, life_point - 10)
@@ -59,16 +59,16 @@ class ResourceManagementMixin:
 
             logger.info(f"Life point decreased to {self.aichatcfg_record.life_point}")
 
-            # 检查是否需要触发生命值过低事件
+            # Check whether to trigger low-life event
             if float(self.aichatcfg_record.life_point or 0) <= 20:
                 logger.warning("Life point is critically low!")
-                # 可以在这里触发相关事件
+                # Related events can be triggered here
 
         except Exception as e:
             logger.error(f"Failed to decline life: {e}")
 
     def increase_life(self, amount=10):
-        """增加生命值"""
+        """Increase life points."""
         try:
             life_point = float(self.aichatcfg_record.life_point or 0)
             self.aichatcfg_record.life_point = min(100, life_point + amount)
@@ -80,7 +80,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to increase life: {e}")
 
     def decline_energy(self):
-        """降低体力值"""
+        """Decrease energy points."""
         try:
             energy_point = float(self.aichatcfg_record.energy_point or 0)
             self.aichatcfg_record.energy_point = max(0, energy_point - 10)
@@ -88,7 +88,7 @@ class ResourceManagementMixin:
 
             logger.info(f"Energy point decreased to {self.aichatcfg_record.energy_point}")
 
-            # 检查是否需要触发体力过低事件
+            # Check whether to trigger low-energy event
             if float(self.aichatcfg_record.energy_point or 0) <= 20:
                 logger.warning("Energy point is critically low!")
 
@@ -96,7 +96,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to decline energy: {e}")
 
     def increase_energy(self, amount=10):
-        """增加体力值"""
+        """Increase energy points."""
         try:
             energy_point = float(self.aichatcfg_record.energy_point or 0)
             self.aichatcfg_record.energy_point = min(100, energy_point + amount)
@@ -108,7 +108,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to increase energy: {e}")
 
     def decline_move_point(self, amount=5):
-        """降低行动力"""
+        """Decrease move points."""
         try:
             move_point = float(self.aichatcfg_record.move_point or 0)
             self.aichatcfg_record.move_point = max(0, move_point - amount)
@@ -120,7 +120,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to decline move point: {e}")
 
     def increase_move_point(self, amount=5):
-        """增加行动力"""
+        """Increase move points."""
         try:
             move_point = float(self.aichatcfg_record.move_point or 0)
             self.aichatcfg_record.move_point = min(100, move_point + amount)
@@ -132,7 +132,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to increase move point: {e}")
 
     def add_money(self, amount):
-        """增加金钱"""
+        """Add money."""
         try:
             money = float(self.aichatcfg_record.money or 0) + amount
             self.aichatcfg_record.money = money
@@ -145,7 +145,7 @@ class ResourceManagementMixin:
             return {"status": "error", "message": str(e)}
 
     def spend_money(self, amount):
-        """花费金钱"""
+        """Spend money."""
         try:
             money = float(self.aichatcfg_record.money or 0)
             if money < amount:
@@ -163,12 +163,12 @@ class ResourceManagementMixin:
             return {"status": "error", "message": str(e)}
 
     def add_exp(self, amount):
-        """增加经验值"""
+        """Add experience points."""
         try:
             exp_point = float(self.aichatcfg_record.exp_point or 0) + amount
             self.aichatcfg_record.exp_point = exp_point
 
-            # 检查是否升级
+            # Check whether to level up
             level = int(self.aichatcfg_record.level or 1)
             level_up_threshold = level * 100
             if exp_point >= level_up_threshold:
@@ -181,12 +181,12 @@ class ResourceManagementMixin:
             logger.error(f"Failed to add experience: {e}")
 
     def level_up(self):
-        """升级"""
+        """Level up."""
         try:
             level = int(self.aichatcfg_record.level or 1) + 1
             self.aichatcfg_record.level = level
 
-            # 升级奖励
+            # Level-up rewards
             self.aichatcfg_record.life_point = 100
             self.aichatcfg_record.energy_point = 100
             self.aichatcfg_record.move_point = 100
@@ -199,7 +199,7 @@ class ResourceManagementMixin:
             logger.error(f"Failed to level up: {e}")
 
     def get_resource_status(self):
-        """获取当前资源状态"""
+        """Get current resource status."""
         return {
             "life_point": self.aichatcfg_record.life_point,
             "energy_point": self.aichatcfg_record.energy_point,
@@ -212,7 +212,7 @@ class ResourceManagementMixin:
         }
 
     def format_resource_display(self):
-        """格式化资源显示"""
+        """Format resource display."""
         return f"""
 * 资金值: {float(self.aichatcfg_record.money or 0):.2f}元
 * 生命值: {self.aichatcfg_record.life_point}%

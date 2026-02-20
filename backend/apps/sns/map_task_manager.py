@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class MapTaskManager:
     def __init__(self, parent):
         # def __init__(self, parent:MessageBox):
-        # 初始化一个字典和几个列表
+        # Initialize a dict and several lists
         self.parent = parent
         self.js_task_manager = None
         self.message_dict = {}
@@ -66,14 +66,14 @@ class MapTaskManager:
         self.init_flag = True
 
     def re_init(self):
-        # 清空字典和列表，重置标志
+        # Clear dict/list and reset flags
         self.message_dict.clear()
         self.specified_context_message_list.clear()
         self.specify_context_message_flag = False
 
     def get_task_summary(self):
-        # 通过换行符将处理信息列表连接成一个字符串
-        # 为处理信息列表中的每个项添加序号
+        # Join process info list into a string with newlines
+        # Add sequence numbers for each item in the process info list
         process_info_list_str = "\n".join(f"{index + 1}. {info}" for index, info in enumerate(self.process_info_list))
         command_status = self.parent.command_status
         result = f"""### 任务说明
@@ -98,7 +98,7 @@ class MapTaskManager:
         return objective
 
     def add_process(self, **kwargs) -> str:
-        """添加一个新的进程到 process_list，并更新 current_process。"""
+        """Add a new process to process_list and update current_process."""
         new_process = {
             "id": generate_random_id(),
             "current_place": kwargs.get("current_place", ""),
@@ -114,28 +114,28 @@ class MapTaskManager:
         }
 
         self.process_list.append(new_process)
-        self.current_process = new_process  # 更新 current_process 到新添加的进程
+        self.current_process = new_process  # Update current_process to the newly added process
         self.parent.ability_list[2]["status"] = "enabled"
         self.parent.ability_list[0]["status"] = "enabled"
 
         return new_process
 
     def update_process(self, process_id: str, **kwargs) -> bool:
-        """更新指定ID的进程信息，并可能更新 current_process。"""
+        """Update process info by ID and (optionally) update current_process."""
         for process in self.process_list:
             if process["id"] == process_id:
-                process.update(kwargs)  # 使用 update 方法更新字典
-                self.current_process = process  # 更新 current_process 为最新的进程
+                process.update(kwargs)  # Update dict using update()
+                self.current_process = process  # Update current_process to the latest process
                 return True
-        return False  # 如果找不到进程ID，返回 False
+        return False  # Return False if process ID is not found
 
     def get_process(self, process_id: str) -> Optional[Dict[str, Any]]:
-        """根据ID获取进程信息。"""
+        """Get process info by ID."""
         for process in self.process_list:
             if process["id"] == process_id:
-                self.current_process = process  # 如果找到进程，更新 current_process
+                self.current_process = process  # If found, update current_process
                 return process
-        return None  # 如果找不到进程ID，返回 None
+        return None  # Return None if process ID is not found
 
     def get_current_process(self):
         process = self.current_process
@@ -213,7 +213,7 @@ class MapTaskManager:
                 'activity_find_tool_from_list_to_use': 'Find a tool to use'
             }
 
-            # 使用字典的get方法以安全地获取值，避免KeyError
+            # Use dict.get() safely to avoid KeyError
             function_str = activity_mapping.get(function, 'Unknown function:' + function)
 
             self.js_task_manager.show_information(lt(f"Agent return instruction:{function_str}.The target is:{objective_to_achieve}", f"Agent返回指令:{function_str}。目标是:{objective_to_achieve}"))
@@ -335,25 +335,25 @@ class MapTaskManager:
 
     async def pause_and_wait_for_resume(self):
         """
-        暂停并等待恢复（异步版本）
-        只有在 map_task_status == "started" 时才继续执行
+        Pause and wait for resume (async version).
+        Continue only when map_task_status == "started".
         """
         import asyncio
 
         while True:
             current_status = getattr(self.parent, 'map_task_status', None)
 
-            # 如果状态为 started，继续执行
+            # If status is started, continue
             if current_status == "started":
                 logger.info("Task processing resumed, continuing execution...")
                 break
 
-            # 如果状态为 paused，等待状态变化
+            # If status is paused, wait for changes
             elif current_status == "paused":
                 logger.debug("Task processing paused, waiting for resume...")
-                await asyncio.sleep(0.5)  # 异步等待，不阻塞事件循环
+                await asyncio.sleep(0.5)  # Async wait; does not block the event loop
 
-            # 如果状态为其他值（如 stopped），退出循环
+            # Otherwise (e.g. stopped), exit loop
             else:
                 logger.info(f"Task processing stopped due to status: {current_status}")
                 break

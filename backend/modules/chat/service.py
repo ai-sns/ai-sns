@@ -166,7 +166,7 @@ class ChatService:
     ) -> List[Dict[str, Any]]:
         """Get chat history"""
         messages = query_AIChatMessages(
-            limit=None,  # 获取所有消息
+            limit=None,  # Fetch all messages
             agent_id=agent_id,
             conversation_id=conversation_id
         )
@@ -197,7 +197,7 @@ class ChatService:
             query_params = {'is_first': True, 'is_delete': False}
             if agent_id is not None:
                 query_params['agent_id'] = agent_id
-            # 使用 _All 版本获取所有记录（已通过别名导入为query_AIChatMessages），传递limit参数
+            # Use the _All version to fetch all records (imported via alias as query_AIChatMessages), passing limit
             conversations = query_AIChatMessages(limit=limit, **query_params)
 
             # Group by conversation_id and get latest timestamp
@@ -207,7 +207,7 @@ class ChatService:
                 if conv_id not in conversation_dict:
                     conversation_dict[conv_id] = {
                         "conversation_id": conv_id,
-                        "agent_id": getattr(msg, 'agent_id', None),  # 添加agent_id字段
+                        "agent_id": getattr(msg, 'agent_id', None),  # Add agent_id field
                         "title": msg.title or msg.content[:50],
                         "last_message_time": msg.create_time,
                         "first_message": msg.content[:100]
@@ -240,7 +240,7 @@ class ChatService:
         """
         try:
             messages = query_AIChatMessages(
-                limit=None,  # 获取所有消息
+                limit=None,  # Fetch all messages
                 conversation_id=conversation_id,
                 is_delete=False
             )

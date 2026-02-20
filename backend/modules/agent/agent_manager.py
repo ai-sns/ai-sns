@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Agent Manager - Agent实例管理器
-负责创建、缓存和管理Agent实例
+Agent Manager - Agent instance manager
+Responsible for creating, caching, and managing agent instances
 """
 import logging
 from typing import Dict, Optional
@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 class AgentManager:
     """
-    Agent管理器 - 单例模式
+    Agent manager - singleton
 
-    负责:
-    1. 从数据库加载Agent配置
-    2. 实例化Agent对象
-    3. 缓存Agent实例
-    4. 提供按ID或名称获取Agent的方法
+    Responsibilities:
+    1. Load agent configuration from the database
+    2. Instantiate agent objects
+    3. Cache agent instances
+    4. Provide methods to get agents by ID or name
     """
 
     _instance = None
@@ -32,27 +32,27 @@ class AgentManager:
     _name_to_id: Dict[str, int] = {}
 
     def __new__(cls):
-        """单例模式"""
+        """Singleton."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
-        """初始化管理器"""
+        """Initialize the manager."""
         if not hasattr(self, '_initialized'):
             self._initialized = True
             logger.info("AgentManager 已初始化")
 
     def _load_llm_config(self, config_id: str, db: Session) -> Optional[Dict]:
         """
-        加载LLM配置
+        Load LLM configuration.
 
         Args:
-            config_id: LLM配置ID
-            db: 数据库session
+            config_id: LLM config ID
+            db: Database session
 
         Returns:
-            LLM配置字典
+            LLM config dict
         """
         try:
             llm_config = db.query(LlmConfig).filter(
@@ -84,14 +84,14 @@ class AgentManager:
 
     def _load_role_config(self, role_id: str, db: Session) -> Optional[Dict]:
         """
-        加载角色配置
+        Load role configuration.
 
         Args:
-            role_id: 角色ID
-            db: 数据库session
+            role_id: Role ID
+            db: Database session
 
         Returns:
-            角色配置字典
+            Role config dict
         """
         try:
             role_config = db.query(RoleConfig).filter(
@@ -119,27 +119,27 @@ class AgentManager:
 
     def _load_tools(self, agent_cfg: AgentCfg) -> list:
         """
-        加载Agent的工具列表
+        Load the agent's tool list.
 
         Args:
-            agent_cfg: Agent配置对象
+            agent_cfg: Agent config object
 
         Returns:
-            工具列表
+            Tool list
         """
         tools = []
         try:
-            # 从plugins字段解析工具ID
+            # Parse tool IDs from plugins field
             plugins_str = agent_cfg.plugins or ""
             if plugins_str:
                 plugin_ids = [p.strip() for p in plugins_str.split(',') if p.strip()]
 
-                # 查询工具配置
+                # Query tool configuration
                 from db.DBFactory import Session
                 session = Session()
                 try:
                     for plugin_id in plugin_ids:
-                        # 查询function_mng表获取工具定义
+                        # Query function_mng table to get tool definition
                         tool_func = query_function_mng(plugin_id)
                         if tool_func:
                             tools.append({
@@ -158,17 +158,17 @@ class AgentManager:
 
     def _parse_tool_parameters(self, tool_func) -> Dict:
         """
-        解析工具参数定义
+        Parse tool parameter definition.
 
         Args:
-            tool_func: 工具函数对象
+            tool_func: Tool function object
 
         Returns:
-            OpenAI function calling格式的parameters
+            Parameters in OpenAI function-calling format
         """
         try:
-            # TODO: 从tool_func解析参数定义
-            # 这里需要根据实际的工具存储格式来解析
+            # TODO: Parse parameter definitions from tool_func
+            # This should be parsed based on the actual tool storage format
             return {
                 "type": "object",
                 "properties": {},
@@ -180,22 +180,22 @@ class AgentManager:
 
     def _load_knowledge_bases(self, agent_cfg: AgentCfg) -> list:
         """
-        加载Agent的知识库列表
+        Load the agent's knowledge base list.
 
         Args:
             agent_cfg: Agent配置对象
 
         Returns:
-            知识库列表
+            Knowledge base list
         """
         kbs = []
         try:
-            # 从kms字段解析知识库ID
+            # Parse KB IDs from kms field
             kms_str = agent_cfg.kms or ""
             if kms_str:
                 kb_ids = [k.strip() for k in kms_str.split(',') if k.strip()]
 
-                # 查询知识库配置
+                # Query knowledge base configuration
                 for kb_id in kb_ids:
                     kb = query_KMCfg(km_id=kb_id)
                     if kb:
@@ -215,22 +215,22 @@ class AgentManager:
 
     def load_agent(self, agent_id: int, force_reload: bool = False) -> Optional[AgentInstance]:
         """
-        从数据库加载Agent并创建实例
+        Load an agent from the database and create an instance.
 
         Args:
             agent_id: Agent ID
-            force_reload: 是否强制重新加载（忽略缓存）
+            force_reload: Whether to force reload (ignore cache)
 
         Returns:
-            AgentInstance对象，失败返回None
+            AgentInstance; returns None on failure
         """
-        # 检查缓存
+        # Check cache
         if not force_reload and agent_id in self._agents_cache:
             logger.info(f"从缓存获取Agent: {agent_id}")
             return self._agents_cache[agent_id]
 
         try:
-            # 查询数据库
+            # Query database
             db = get_session()
             agent_cfg = db.query(AgentCfg).filter(
                 AgentCfg.id == agent_id,
@@ -241,7 +241,7 @@ class AgentManager:
                 logger.error(f"Agent {agent_id} 不存在")
                 return None
 
-            # 解析memo中的额外数据
+            # Parse extra data from memo
             extra_data = {}
             try:
                 if agent_cfg.memo:
@@ -250,13 +250,13 @@ class AgentManager:
             except:
                 pass
 
-            # 加载LLM配置
+            # Load LLM config
             model_config_id = extra_data.get('model_config_id') or agent_cfg.defaultmodel
             llm_config = None
             if model_config_id:
                 llm_config = self._load_llm_config(model_config_id, db)
 
-            # 如果没有找到配置，记录警告并使用默认值
+            # If no config is found, log a warning and use defaults
             if not llm_config:
                 logger.warning(f"Agent {agent_id} 没有配置LLM模型，将使用默认配置。"
                              f"请在前端为该Agent选择一个模型配置。")
@@ -268,34 +268,34 @@ class AgentManager:
                     'temperature': 0.7,
                     'max_tokens': 2048
                 }
-                # 设置一个标志，表示这是默认配置
+                # Flag indicating this is a default config
                 llm_config['_is_default'] = True
 
-            # 加载角色配置
+            # Load role config
             role_config_id = extra_data.get('role_id') or agent_cfg.defaultrole
             role_config = None
             if role_config_id:
                 role_config = self._load_role_config(role_config_id, db)
 
-            # 如果没有找到配置，使用默认值
+            # If no config is found, use defaults
             if not role_config:
                 role_config = {
                     'system_prompt': agent_cfg.prompt or 'You are a helpful AI assistant.',
                     'greeting_message': 'Hello! How can I help you today?'
                 }
 
-            # 加载工具
+            # Load tools
             tools = self._load_tools(agent_cfg)
 
-            # 加载知识库
+            # Load knowledge bases
             knowledge_bases = self._load_knowledge_bases(agent_cfg)
 
-            # 解析plugins
+            # Parse plugins
             plugins = []
             if agent_cfg.plugins:
                 plugins = [p.strip() for p in agent_cfg.plugins.split(',') if p.strip()]
 
-            # 创建Agent实例
+            # Create agent instance
             agent_instance = AgentInstance(
                 agent_id=agent_cfg.id,
                 name=agent_cfg.name,
@@ -308,7 +308,7 @@ class AgentManager:
                 enable_code_execution=agent_cfg.execfile or False
             )
 
-            # 缓存
+            # Cache
             self._agents_cache[agent_id] = agent_instance
             self._name_to_id[agent_cfg.name] = agent_id
 
@@ -321,32 +321,32 @@ class AgentManager:
 
     def get_agent_by_id(self, agent_id: int) -> Optional[AgentInstance]:
         """
-        按ID获取Agent实例
+        Get an agent instance by ID.
 
         Args:
             agent_id: Agent ID
 
         Returns:
-            AgentInstance对象，失败返回None
+            AgentInstance; returns None on failure
         """
         return self.load_agent(agent_id)
 
     def get_agent_by_name(self, name: str) -> Optional[AgentInstance]:
         """
-        按名称获取Agent实例
+        Get an agent instance by name.
 
         Args:
-            name: Agent名称
+            name: Agent name
 
         Returns:
-            AgentInstance对象，失败返回None
+            AgentInstance; returns None on failure
         """
-        # 先查缓存
+        # Check cache first
         if name in self._name_to_id:
             agent_id = self._name_to_id[name]
             return self.get_agent_by_id(agent_id)
 
-        # 查数据库
+        # Query database
         try:
             db = get_session()
             agent_cfg = db.query(AgentCfg).filter(
@@ -366,7 +366,7 @@ class AgentManager:
 
     def reload_agent(self, agent_id: int) -> Optional[AgentInstance]:
         """
-        重新加载Agent（刷新配置）
+        Reload an agent (refresh config).
 
         Args:
             agent_id: Agent ID
@@ -374,25 +374,25 @@ class AgentManager:
         Returns:
             AgentInstance对象
         """
-        # 清除缓存
+        # Clear cache
         if agent_id in self._agents_cache:
             agent_name = self._agents_cache[agent_id].name
             del self._agents_cache[agent_id]
             self._name_to_id.pop(agent_name, None)
 
-        # 重新加载
+        # Reload
         return self.load_agent(agent_id, force_reload=True)
 
     def clear_cache(self):
-        """清除所有缓存"""
+        """Clear all caches."""
         self._agents_cache.clear()
         self._name_to_id.clear()
         logger.info("Agent缓存已清除")
 
     def get_all_cached_agents(self) -> list:
-        """获取所有已缓存的Agent"""
+        """Get all cached agents."""
         return list(self._agents_cache.values())
 
 
-# 创建全局单例
+# Create global singleton
 agent_manager = AgentManager()

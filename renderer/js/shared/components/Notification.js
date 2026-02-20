@@ -1,5 +1,5 @@
 /**
- * Notification Component - 通知组件
+ * Notification Component - notification component
  */
 
 class Notification {
@@ -26,12 +26,12 @@ class Notification {
 
         this.container.appendChild(notification);
 
-        // 绑定关闭按钮
+        // Bind close button
         notification.querySelector('.notification-close').addEventListener('click', () => {
             this.remove(notification);
         });
 
-        // 自动移除
+        // Auto remove
         if (duration > 0) {
             setTimeout(() => {
                 this.remove(notification);
@@ -67,5 +67,5 @@ class Notification {
     }
 }
 
-// 导出到全局
+// Export to global
 window.Notification = Notification;

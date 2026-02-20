@@ -1,6 +1,6 @@
 /**
  * SNS Module - Index
- * SNS模块入口
+ * SNS module entry
  */
 
 import SNSPage from './SNSPage.js';
@@ -12,21 +12,21 @@ export default {
     version: '1.0.0',
 
     /**
-     * 渲染主内容区
+     * Render main content area
      */
     renderPage() {
         return SNSPage.render();
     },
 
     /**
-     * 渲染侧边栏
+     * Render sidebar
      */
     renderSidebar() {
         return SNSSidebar.render();
     },
 
     /**
-     * 初始化模块
+     * Initialize module
      */
     async init() {
         snsHandlers.init();
@@ -37,7 +37,7 @@ export default {
     },
 
     /**
-     * 销毁模块
+     * Destroy module
      */
     destroy() {
         snsHandlers.destroy();

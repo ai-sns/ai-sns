@@ -1,5 +1,5 @@
 /**
- * Web Page - 主内容渲染
+ * Web Page - main content rendering
  */
 
 const WebPage = {

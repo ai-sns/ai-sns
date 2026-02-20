@@ -1,6 +1,6 @@
 /**
  * AI-SNS API Client
- * 处理与Python后端API的通信
+ * Handles communication with the Python backend API
  */
 
 class APIClient {
@@ -13,7 +13,7 @@ class APIClient {
     }
 
     async init() {
-        // 从Electron获取API URL
+        // Get API URL from Electron
         if (window.electronAPI) {
             try {
                 this.baseUrl = await window.electronAPI.getApiUrl();
@@ -155,7 +155,7 @@ class APIClient {
         }
     }
 
-    // ==================== HTTP 请求方法 ====================
+    // ==================== HTTP request methods ====================
 
     async request(endpoint, options = {}) {
         const url = `${this.baseUrl}${endpoint}`;
@@ -167,7 +167,7 @@ class APIClient {
 
         const config = { ...defaultOptions, ...options };
 
-        // 记录请求详情
+        // Log request details
         console.log(`[API] ${config.method || 'GET'} ${endpoint}`);
         if (config.body && typeof config.body === 'object') {
             console.log('[API] Request body:', config.body);
@@ -215,7 +215,7 @@ class APIClient {
         return this.request(endpoint, { method: 'DELETE' });
     }
 
-    // ==================== WebSocket 连接 ====================
+    // ==================== WebSocket connection ====================
 
     connectWebSocket(clientId) {
         return new Promise((resolve, reject) => {
@@ -257,13 +257,13 @@ class APIClient {
     handleWebSocketMessage(message) {
         const { type } = message;
 
-        // 调用注册的回调
+        // Invoke registered callbacks
         if (this.wsCallbacks.has(type)) {
             const callbacks = this.wsCallbacks.get(type);
             callbacks.forEach(callback => callback(message));
         }
 
-        // 触发通用事件
+        // Trigger generic event
         if (this.wsCallbacks.has('*')) {
             const callbacks = this.wsCallbacks.get('*');
             callbacks.forEach(callback => callback(message));
@@ -395,13 +395,13 @@ class APIClient {
     }
 }
 
-// 创建全局API客户端实例
+// Create global API client instance
 const api = new APIClient();
 
-// 暴露到window对象供其他模块使用
+// Expose to window for other modules
 window.api = api;
 
-// 初始化API客户端
+// Initialize API client
 document.addEventListener('DOMContentLoaded', async () => {
     await api.init();
 });

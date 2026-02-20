@@ -1,5 +1,5 @@
 /**
- * KM Page - 主内容渲染
+ * KM Page - main content rendering
  */
 
 const KMPage = {

@@ -1,5 +1,5 @@
 /**
- * Home Sidebar - 侧边栏渲染
+ * Home Sidebar - sidebar rendering
  */
 
 const HomeSidebar = {

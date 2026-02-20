@@ -19,13 +19,21 @@ export class SNSMapConfigDialog {
     }
 
     async show() {
+        const existing = document.getElementById('snsMapConfigDialog');
+        if (existing) {
+            try {
+                existing.remove();
+            } catch (e) {
+            }
+        }
+
         // Create dialog HTML
         const dialogHTML = `
             <div class="modal-overlay" id="snsMapConfigDialog">
                 <div class="modal-dialog" style="max-width: 700px;">
                     <div class="modal-header">
-                        <h3>地图配置</h3>
-                        <button class="modal-close" onclick="document.getElementById('snsMapConfigDialog').remove()">&times;</button>
+                        <h3>Map Configuration</h3>
+                        <button class="modal-close" id="snsMapConfigDialogCloseBtn">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="map-config-container">
@@ -33,12 +41,12 @@ export class SNSMapConfigDialog {
                             <div class="map-section">
                                 <h4>Google Map</h4>
                                 <div class="form-group">
-                                    <label for="googleMapApiKey">地图API Key:</label>
-                                    <input type="text" id="googleMapApiKey" class="form-control" placeholder="请输入Google地图API Key">
+                                    <label for="googleMapApiKey">API Key:</label>
+                                    <input type="text" id="googleMapApiKey" class="form-control" placeholder="Enter Google Maps API key">
                                 </div>
                                 <div class="form-group">
-                                    <label for="googleMapId">地图ID:</label>
-                                    <input type="text" id="googleMapId" class="form-control" placeholder="请输入Google地图ID">
+                                    <label for="googleMapId">Map ID:</label>
+                                    <input type="text" id="googleMapId" class="form-control" placeholder="Enter Google map ID">
                                 </div>
                             </div>
 
@@ -46,12 +54,12 @@ export class SNSMapConfigDialog {
                             <div class="map-section">
                                 <h4>Baidu Map</h4>
                                 <div class="form-group">
-                                    <label for="baiduMapApiKey">地图API Key:</label>
-                                    <input type="text" id="baiduMapApiKey" class="form-control" placeholder="请输入百度地图API Key">
+                                    <label for="baiduMapApiKey">API Key:</label>
+                                    <input type="text" id="baiduMapApiKey" class="form-control" placeholder="Enter Baidu Maps API key">
                                 </div>
                                 <div class="form-group">
-                                    <label for="baiduMapId">地图ID:</label>
-                                    <input type="text" id="baiduMapId" class="form-control" placeholder="请输入百度地图ID">
+                                    <label for="baiduMapId">Map ID:</label>
+                                    <input type="text" id="baiduMapId" class="form-control" placeholder="Enter Baidu map ID (optional)">
                                 </div>
                             </div>
 
@@ -60,7 +68,7 @@ export class SNSMapConfigDialog {
                                 <h4>Select a map to use</h4>
                                 <div class="map-selection">
                                     <label class="radio-label">
-                                        <input type="radio" name="mapType" value="0" id="googleMapRadio">
+                                        <input type="radio" name="mapType" value="0" id="googleMapRadio" checked>
                                         <span>Google Map</span>
                                     </label>
                                     <label class="radio-label">
@@ -72,8 +80,8 @@ export class SNSMapConfigDialog {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="document.getElementById('snsMapConfigDialog').remove()">取消</button>
-                        <button class="btn btn-primary" id="saveMapConfigBtn">保存</button>
+                        <button class="btn btn-secondary" id="snsMapConfigDialogCancelBtn">Cancel</button>
+                        <button class="btn btn-primary" id="saveMapConfigBtn">Save</button>
                     </div>
                 </div>
             </div>
@@ -98,34 +106,61 @@ export class SNSMapConfigDialog {
             if (result.success && result.data) {
                 const data = result.data;
 
+                const normalize = (v) => {
+                    const s = (v === null || v === undefined) ? '' : String(v);
+                    const t = s.trim();
+                    return (t && t !== 'N/A') ? t : '';
+                };
+
                 // Store original map type for comparison
-                this.originalMapType = data.map_type;
+                this.originalMapType = normalize(data.map_type);
 
                 // Parse API keys and Map IDs
-                const apiKeys = data.map_api_key ? data.map_api_key.split(',') : ['', ''];
-                const mapIds = data.map_id ? data.map_id.split(',') : ['', ''];
+                const apiKeys = data.map_api_key ? String(data.map_api_key).split(',') : ['', ''];
+                const mapIds = data.map_id ? String(data.map_id).split(',') : ['', ''];
 
                 // Set Google Map values
-                document.getElementById('googleMapApiKey').value = apiKeys[0] || '';
-                document.getElementById('googleMapId').value = mapIds[0] || '';
+                document.getElementById('googleMapApiKey').value = normalize(apiKeys[0]);
+                document.getElementById('googleMapId').value = normalize(mapIds[0]);
 
                 // Set Baidu Map values
-                document.getElementById('baiduMapApiKey').value = apiKeys[1] || '';
-                document.getElementById('baiduMapId').value = mapIds[1] || '';
+                document.getElementById('baiduMapApiKey').value = normalize(apiKeys[1]);
+                document.getElementById('baiduMapId').value = normalize(mapIds[1]);
 
                 // Set map type selection
-                if (data.map_type === '1') {
+                const mapType = normalize(data.map_type);
+                if (mapType === '1') {
                     document.getElementById('baiduMapRadio').checked = true;
                 } else {
                     document.getElementById('googleMapRadio').checked = true;
                 }
             }
         } catch (error) {
-            console.error('Error loading map config:', error);
+            console.error('Failed to load map config:', error);
         }
     }
 
     setupEventListeners() {
+        const closeBtn = document.getElementById('snsMapConfigDialogCloseBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                try {
+                    if (this.dialog) this.dialog.remove();
+                } catch (e) {
+                }
+            });
+        }
+
+        const cancelBtn = document.getElementById('snsMapConfigDialogCancelBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                try {
+                    if (this.dialog) this.dialog.remove();
+                } catch (e) {
+                }
+            });
+        }
+
         // Save button
         document.getElementById('saveMapConfigBtn').addEventListener('click', () => {
             this.saveConfiguration();
@@ -135,27 +170,27 @@ export class SNSMapConfigDialog {
     async saveConfiguration() {
         try {
             // Get form values
-            const googleApiKey = document.getElementById('googleMapApiKey').value.trim() || 'N/A';
-            const googleMapId = document.getElementById('googleMapId').value.trim() || 'N/A';
-            const baiduApiKey = document.getElementById('baiduMapApiKey').value.trim() || 'N/A';
-            const baiduMapId = document.getElementById('baiduMapId').value.trim() || 'N/A';
+            const googleApiKey = document.getElementById('googleMapApiKey').value.trim();
+            const googleMapId = document.getElementById('googleMapId').value.trim();
+            const baiduApiKey = document.getElementById('baiduMapApiKey').value.trim();
+            const baiduMapId = document.getElementById('baiduMapId').value.trim();
             const mapType = document.querySelector('input[name="mapType"]:checked')?.value || '0';
 
             // Validate required fields based on selected map
             if (mapType === '0') {
                 // Google Map selected
-                if (googleApiKey === 'N/A' || !googleApiKey) {
-                    alert('Google地图的API Key为必填项，不能为空');
+                if (!googleApiKey) {
+                    alert('Google Maps API key is required.');
                     return;
                 }
-                if (googleMapId === 'N/A' || !googleMapId) {
-                    alert('Google地图的地图ID为必填项，不能为空');
+                if (!googleMapId) {
+                    alert('Google map ID is required.');
                     return;
                 }
             } else {
                 // Baidu Map selected
-                if (baiduApiKey === 'N/A' || !baiduApiKey) {
-                    alert('百度地图的API Key为必填项，不能为空');
+                if (!baiduApiKey) {
+                    alert('Baidu Maps API key is required.');
                     return;
                 }
             }
@@ -180,21 +215,21 @@ export class SNSMapConfigDialog {
 
             const result = await response.json();
             if (result.success) {
-                alert('地图配置保存成功！');
+                alert('Map configuration saved successfully.');
 
                 // Check if map type changed
-                if (this.originalMapType !== mapType) {
-                    console.log('Map type changed from', this.originalMapType, 'to', mapType, '- reloading map');
+                if (String(this.originalMapType) !== String(mapType)) {
+                    console.log('Map type changed from', this.originalMapType, 'to', mapType, '- reloading map iframe');
                     this.reloadMap();
                 }
 
                 this.dialog.remove();
             } else {
-                alert('保存失败：' + (result.message || '未知错误'));
+                alert('Save failed: ' + (result.message || 'Unknown error'));
             }
         } catch (error) {
-            console.error('Error saving map configuration:', error);
-            alert('保存失败：' + error.message);
+            console.error('Failed to save map configuration:', error);
+            alert('Save failed: ' + error.message);
         }
     }
 
@@ -204,6 +239,12 @@ export class SNSMapConfigDialog {
         if (mapContainer) {
             const existingIframe = mapContainer.querySelector('iframe');
             if (existingIframe) {
+                try {
+                    if (existingIframe._messageListener) {
+                        window.removeEventListener('message', existingIframe._messageListener);
+                    }
+                } catch (e) {
+                }
                 existingIframe.remove();
                 console.log('Removed existing map iframe');
             }

@@ -1,5 +1,5 @@
 /**
- * KM Page - Key-Value Editor (kmtype=2) - 优化版
+ * KM Page - Key-Value Editor (kmtype=2) - optimized version
  */
 
 const KMKeyValuePage = {
@@ -75,7 +75,7 @@ const KMKeyValuePage = {
     },
 
     bindFormEvents() {
-        // 保存按钮
+        // Save button
         document.querySelectorAll('[id^="kvSaveBtn-"]').forEach(btn => {
             const kbId = btn.id.replace('kvSaveBtn-', '');
             btn.addEventListener('click', () => {
@@ -85,13 +85,13 @@ const KMKeyValuePage = {
             });
         });
 
-        // 清空按钮
+        // Clear button
         const clearBtn = document.getElementById('kvClearBtn');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
                 if (window.kmHandlers) {
                     window.kmHandlers.clearKVForm();
-                    // 更新标题
+                    // Update title
                     const titleEl = document.getElementById('kvEditorTitle');
                     if (titleEl) {
                         titleEl.innerHTML = `
@@ -101,14 +101,14 @@ const KMKeyValuePage = {
                             新建键值对
                         `;
                     }
-                    // 隐藏删除按钮
+                    // Hide delete button
                     const deleteBtn = document.getElementById('kvDeleteBtn');
                     if (deleteBtn) deleteBtn.style.display = 'none';
                 }
             });
         }
 
-        // 删除按钮
+        // Delete button
         const deleteBtn = document.getElementById('kvDeleteBtn');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => {
@@ -118,7 +118,7 @@ const KMKeyValuePage = {
             });
         }
 
-        // Ctrl+S 保存
+        // Ctrl+S to save
         const kvValueInput = document.getElementById('kvValueInput');
         if (kvValueInput) {
             kvValueInput.addEventListener('keydown', (e) => {
@@ -133,7 +133,7 @@ const KMKeyValuePage = {
             });
         }
 
-        // Key输入框也支持Ctrl+S
+        // Ctrl+S also supported in Key input
         const kvKeyInput = document.getElementById('kvKeyInput');
         if (kvKeyInput) {
             kvKeyInput.addEventListener('keydown', (e) => {

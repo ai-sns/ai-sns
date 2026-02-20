@@ -8,7 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
 
-# 导入全局WebSocket管理器
+# Import global WebSocket manager
 from backend.shared.websocket_manager import ConnectionManager as GlobalConnectionManager
 from backend.shared.websocket_manager import manager as global_ws_manager
 

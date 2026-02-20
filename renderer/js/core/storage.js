@@ -1,6 +1,6 @@
 /**
- * Storage - 本地存储封装
- * 统一管理localStorage
+ * Storage - local storage wrapper
+ * Unified localStorage management
  */
 
 class Storage {
@@ -9,9 +9,9 @@ class Storage {
     }
 
     /**
-     * 获取存储的值
-     * @param {string} key - 键名
-     * @param {*} defaultValue - 默认值
+     * Get stored value
+     * @param {string} key - key name
+     * @param {*} defaultValue - default value
      * @returns {*}
      */
     get(key, defaultValue = null) {
@@ -26,9 +26,9 @@ class Storage {
     }
 
     /**
-     * 设置存储的值
-     * @param {string} key - 键名
-     * @param {*} value - 值
+     * Set stored value
+     * @param {string} key - key name
+     * @param {*} value - value
      */
     set(key, value) {
         try {
@@ -39,8 +39,8 @@ class Storage {
     }
 
     /**
-     * 删除存储的值
-     * @param {string} key - 键名
+     * Remove stored value
+     * @param {string} key - key name
      */
     remove(key) {
         try {
@@ -51,7 +51,7 @@ class Storage {
     }
 
     /**
-     * 清除所有存储
+     * Clear all stored data
      */
     clear() {
         try {
@@ -67,7 +67,7 @@ class Storage {
     }
 
     /**
-     * 获取所有键
+     * Get all keys
      * @returns {Array<string>}
      */
     keys() {
@@ -83,6 +83,6 @@ class Storage {
     }
 }
 
-// 导出单例
+// Export singleton
 const storage = new Storage();
 window.storage = storage;

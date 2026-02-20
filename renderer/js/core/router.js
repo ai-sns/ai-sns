@@ -1,7 +1,8 @@
 /**
- * Router - 路由管理
- * 负责页面导航和模块加载
+ * Router - Routing Management
+ * Responsible for page navigation and module loading
  */
+
 
 class Router {
     constructor() {
@@ -11,11 +12,12 @@ class Router {
     }
 
     /**
-     * 注册模块
-     * @param {string} name - 模块名称
-     * @param {Object} module - 模块对象
+     * Register a module
+     * @param {string} name - Module name
+     * @param {Object} module - Module object
      */
     register(name, module) {
+
         if (!module.renderPage || !module.renderSidebar || !module.init) {
             console.error(`Module '${name}' missing required methods`);
             return false;
@@ -25,10 +27,11 @@ class Router {
     }
 
     /**
-     * 导航到指定页面
-     * @param {string} page - 页面名称
+     * Navigate to a specific page
+     * @param {string} page - Page name
      */
     async navigateTo(page) {
+
         if (this.currentPage === page) {
             console.log(`Already on page '${page}'`);
             return;
@@ -41,12 +44,13 @@ class Router {
 
         console.log(`Navigating to: ${page}`);
 
-        // 保存旧页面用于事件触发
+        // Save old page for event emitting
         const oldPage = this.currentPage;
 
-        // 隐藏Agent管理页面（如果打开的话）
+        // Hide Agent management pages (if open)
         const modelMgmtPage = document.querySelector('.model-management-page-container');
         const roleMgmtPage = document.querySelector('.role-management-page-container');
+
         if (modelMgmtPage) {
             modelMgmtPage.style.display = 'none';
         }
@@ -54,41 +58,42 @@ class Router {
             roleMgmtPage.style.display = 'none';
         }
 
-        // 隐藏当前页面（保持状态，不调用destroy）
+        // Hide current page (preserve state; do not call destroy)
         if (this.currentPage) {
             const currentPageElement = document.getElementById(`page-${this.currentPage}`);
             if (currentPageElement) {
                 currentPageElement.classList.add('hidden');
             }
 
-            // 注意：不再调用 destroy() 方法，以保持模块状态
-            // 如果需要清理，应该监听应用退出事件，而不是页面切换
+            // Note: do not call destroy() anymore to preserve module state
+            // If cleanup is needed, it should be tied to app-exit events rather than page switching
         }
 
         this.currentPage = page;
 
-        // 更新导航栏状态
+        // Update navbar state
         document.querySelectorAll('.nav-icon-item').forEach(item => {
             item.classList.toggle('active', item.dataset.page === page);
         });
 
-        // 渲染侧边栏（等待异步完成）
+        // Render sidebar (await async completion)
         await this.renderSidebar(page);
 
-        // 渲染或显示主内容区
+        // Render or show main content
         this.renderOrShowMainContent(page);
 
-        // 触发导航事件
+        // Emit navigation event
         if (window.eventBus) {
             window.eventBus.emit('page:changed', { from: oldPage, to: page });
         }
     }
 
     /**
-     * 渲染侧边栏（保持状态版本）
-     * @param {string} page - 页面名称
+     * Render sidebar (state-preserving version)
+     * @param {string} page - Page name
      */
     async renderSidebar(page) {
+
         const sidebarContainer = document.getElementById('secondarySidebar');
         if (!sidebarContainer) return;
 
@@ -96,15 +101,15 @@ class Router {
         if (!module) return;
 
         try {
-            // 隐藏所有侧边栏容器
+            // Hide all sidebar containers
             const allSidebars = sidebarContainer.querySelectorAll('.sidebar-page-container');
             allSidebars.forEach(sb => sb.classList.add('hidden'));
 
-            // 检查该页面的侧边栏容器是否已存在
+            // Check if sidebar container for this page already exists
             let pageSidebar = sidebarContainer.querySelector(`#sidebar-${page}`);
 
             if (!pageSidebar) {
-                // 首次渲染：创建新的侧边栏容器
+                // First render: create a new sidebar container
                 pageSidebar = document.createElement('div');
                 pageSidebar.id = `sidebar-${page}`;
                 pageSidebar.className = 'sidebar-page-container';
@@ -113,36 +118,36 @@ class Router {
                 pageSidebar.innerHTML = sidebarContent;
                 sidebarContainer.appendChild(pageSidebar);
 
-                // 特殊处理：Agent页面需要异步初始化
+                // Special case: Agent page requires async initialization
                 if (page === 'agent' && window.AgentSidebar && typeof window.AgentSidebar.init === 'function') {
-                    console.log('[Router] 初始化Agent侧边栏...');
+                    console.log('[Router] Initializing Agent sidebar...');
                     await window.AgentSidebar.init();
                 }
 
                 pageSidebar.dataset.initialized = 'true';
-                console.log(`[Router] 侧边栏首次渲染: ${page}`);
+                console.log(`[Router] Sidebar rendered for the first time: ${page}`);
             } else {
-                // 已存在：直接显示
+                // Already exists: show directly
                 pageSidebar.classList.remove('hidden');
-                console.log(`[Router] 侧边栏恢复显示（保持状态）: ${page}`);
+                console.log(`[Router] Sidebar restored (preserving state): ${page}`);
 
-                // 特殊处理：Agent页面恢复时，确保UI状态与agentState同步
+                // Special case: when restoring Agent page, ensure UI state is synced with agentState
                 if (page === 'agent' && window.agentState && window.AgentSidebar) {
                     const currentAgentId = window.agentState.currentAgentId;
                     if (currentAgentId) {
-                        console.log(`[Router] 恢复Agent选中状态: ${currentAgentId}`);
-                        // 确保UI上的选中状态正确
+                        console.log(`[Router] Restoring Agent selection state: ${currentAgentId}`);
+                        // Ensure UI selection state is correct
                         setTimeout(() => {
-                            // 移除所有active class
+                            // Remove all active classes
                             document.querySelectorAll('.agent-item').forEach(item => {
                                 item.classList.remove('active');
                             });
-                            // 添加当前agent的active class
+                            // Add active class for current agent
                             const currentAgentItem = document.querySelector(`.agent-item[data-agent-id="${currentAgentId}"]`);
                             if (currentAgentItem) {
                                 currentAgentItem.classList.add('active');
                             }
-                            // 确保当前agent的section是展开的
+                            // Ensure current agent section is expanded
                             const currentAgentSection = document.querySelector(`.agent-section-container[data-agent-id="${currentAgentId}"]`);
                             if (currentAgentSection) {
                                 currentAgentSection.style.display = 'block';
@@ -153,31 +158,32 @@ class Router {
             }
         } catch (error) {
             console.error(`Error rendering sidebar for '${page}':`, error);
-            // 创建错误提示容器
+            // Create error placeholder container
             const errorSidebar = document.createElement('div');
             errorSidebar.id = `sidebar-${page}`;
             errorSidebar.className = 'sidebar-page-container';
-            errorSidebar.innerHTML = '<p style="padding: 20px; color: #999;">侧边栏加载失败</p>';
+            errorSidebar.innerHTML = '<p style="padding: 20px; color: #999;">Sidebar loading failed</p>';
             sidebarContainer.appendChild(errorSidebar);
         }
     }
 
     /**
-     * 渲染或显示主内容区
-     * @param {string} page - 页面名称
+     * Render or show main content
+     * @param {string} page - Page name
      */
     renderOrShowMainContent(page) {
+
         const mainContent = document.getElementById('mainContent');
         if (!mainContent) return;
 
         const module = this.modules[page];
         if (!module) return;
 
-        // 检查页面是否已渲染
+        // Check if the page has been rendered
         let pageElement = document.getElementById(`page-${page}`);
 
         if (!pageElement) {
-            // 页面未渲染，创建新的页面容器
+            // Page not rendered yet; create a new page container
             pageElement = document.createElement('div');
             pageElement.id = `page-${page}`;
             pageElement.className = 'page-container';
@@ -187,26 +193,26 @@ class Router {
                 pageElement.innerHTML = pageContent;
                 mainContent.appendChild(pageElement);
 
-                // 初始化模块
+                // Initialize module
                 if (module.init) {
                     module.init();
                 }
                 pageElement.dataset.initialized = 'true';
             } catch (error) {
                 console.error(`Error rendering page '${page}':`, error);
-                pageElement.innerHTML = '<p style="padding: 20px; color: #999;">页面加载失败</p>';
+                pageElement.innerHTML = '<p style="padding: 20px; color: #999;">Page loading failed</p>';
             }
         } else {
-            // 页面已渲染，直接显示（保持所有状态）
+            // Page already rendered; show directly (preserve all state)
             pageElement.classList.remove('hidden');
-            // 清除可能被管理页面设置的 display: none 样式
+            // Clear any display:none set by management pages
             pageElement.style.display = '';
-            console.log(`[Router] 页面恢复显示（保持状态）: ${page}`);
+            console.log(`[Router] Page restored (preserving state): ${page}`);
         }
     }
 
     /**
-     * 获取当前页面
+     * Get current page
      * @returns {string|null}
      */
     getCurrentPage() {
@@ -214,9 +220,10 @@ class Router {
     }
 
     /**
-     * 重新加载当前页面
+     * Reload current page
      */
     reload() {
+
         if (!this.currentPage) return;
 
         const pageElement = document.getElementById(`page-${this.currentPage}`);
@@ -230,6 +237,6 @@ class Router {
     }
 }
 
-// 导出单例
+// Export singleton
 const router = new Router();
 window.router = router;

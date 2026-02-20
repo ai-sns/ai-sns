@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-KM Note schemas - 笔记相关的数据模型
+KM Note schemas - Data models for notes
 """
 from typing import Optional, List
 from pydantic import BaseModel
@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 class NoteCreate(BaseModel):
-    """创建笔记的请求模型"""
+    """Request model for creating a note."""
     title: str
     content: str
     tags: Optional[List[str]] = []
@@ -16,7 +16,7 @@ class NoteCreate(BaseModel):
 
 
 class NoteUpdate(BaseModel):
-    """更新笔记的请求模型"""
+    """Request model for updating a note."""
     title: Optional[str] = None
     content: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -24,7 +24,7 @@ class NoteUpdate(BaseModel):
 
 
 class NoteResponse(BaseModel):
-    """笔记响应模型"""
+    """Note response model."""
     id: int
     title: str
     content: str

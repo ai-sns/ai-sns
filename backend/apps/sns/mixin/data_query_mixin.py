@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil
@@ -96,24 +96,24 @@ class DataQueryMixin:
 
     def get_dict_by_id(self, dict_list, target_id):
         """
-        根据目标 id 从字典列表中查找并返回对应的字典
+        Find and return the dict by target id from a list of dicts.
 
-        :param dict_list: 包含若干字典的列表
-        :param target_id: 目标 id 字符串
-        :return: 对应 id 的字典，如果没有找到，则返回 None
+        :param dict_list: List containing dicts
+        :param target_id: Target id string
+        :return: Dict for the given id, or None if not found
         """
-        # 使用字典推导式将列表转换为以 id 为键的字典，以实现 O(1) 的查找效率
+        # Convert list to map keyed by id for O(1) lookup
         dict_map = {d['id']: d for d in dict_list}
 
-        # 使用 get 方法返回目标字典，若目标 id 不存在，则返回 None
+        # Use get() to return target dict; return None if id does not exist
         return dict_map.get(target_id)
 
     def http_request(self, url, params=None, method="POST"):
         """
-        # GET 请求
+        # GET request
         res = http_request("http://example.com/api", {"key": "value"}, method="GET")
 
-        # POST 请求
+        # POST request
         res = http_request("http://example.com/api", {"username": "tom", "password": "123"}, method="POST")
 
         """
@@ -126,7 +126,7 @@ class DataQueryMixin:
             else:
                 raise ValueError(f"不支持的请求方法: {method}")
 
-            response.raise_for_status()  # 检查 HTTP 状态码
+            response.raise_for_status()  # Check HTTP status code
             return response.json()
 
         except requests.exceptions.HTTPError as http_err:
@@ -158,7 +158,7 @@ class DataQueryMixin:
         record = query_AiChatCfg_map()
         self.current_place = record.current_place
 
-        # 处理 current_position，支持多种格式
+        # Handle current_position, supports multiple formats
         self.aichatcfg_record.current_position = self._parse_position_data(record.current_position)
         self.aichatcfg_record.last_position = self._parse_position_data(record.last_position)
 
@@ -189,51 +189,51 @@ class DataQueryMixin:
         print("self.aichatcfg_record", self.aichatcfg_record.current_position)
         print("self.aichatcfg_recordprofile", self.aichatcfg_record.sign)
 
-        # 在加载完所有数据后更新资源显示和图表
+        # Update resource display and charts after all data is loaded
         self.update_resource_display()
         self.update_map_charts()
 
     def _parse_position_data(self, position_data):
         """
-        解析位置数据，支持以下格式：
-        1. JSON字符串格式：{"lat": 39.51783322503789, "lng": -76.20197639555775}
-        2. JSON数组格式：[116.31633245364759, 39.83663838626669]
-        3. 已经是数组格式：[lng, lat]
-        返回统一的 [lng, lat] 数字数组格式
+        Parse position data. Supports the following formats:
+        1. JSON string: {"lat": 39.51783322503789, "lng": -76.20197639555775}
+        2. JSON array: [116.31633245364759, 39.83663838626669]
+        3. Already an array: [lng, lat]
+        Returns a normalized numeric array: [lng, lat]
         """
         if not position_data:
             return []
 
-        # 如果已经是列表格式，直接返回
+        # If already a list, return directly
         if isinstance(position_data, list):
-            # 确保是 [lng, lat] 格式
+            # Ensure [lng, lat] format
             if len(position_data) >= 2:
                 return [float(position_data[0]), float(position_data[1])]
             else:
                 return []
 
-        # 如果是字符串，尝试解析
+        # If it's a string, try to parse
         if isinstance(position_data, str):
             try:
-                # 尝试解析为JSON
+                # Try parsing as JSON
                 parsed_data = json.loads(position_data)
 
-                # 如果解析后是字典格式 {"lat": ..., "lng": ...}
+                # Dict format {"lat": ..., "lng": ...}
                 if isinstance(parsed_data, dict):
                     lat = float(parsed_data.get("lat", 0))
                     lng = float(parsed_data.get("lng", 0))
                     return [lng, lat]
 
-                # 如果解析后是列表格式 [lng, lat] 或 [lat, lng]
+                # List format [lng, lat] or [lat, lng]
                 elif isinstance(parsed_data, list) and len(parsed_data) >= 2:
-                    # 假设列表中第一个是lng，第二个是lat
+                    # Assume [lng, lat]
                     return [float(parsed_data[0]), float(parsed_data[1])]
 
             except json.JSONDecodeError:
-                # 如果不是有效的JSON，返回空数组
+                # If not valid JSON, return empty list
                 return []
 
-        # 其他情况返回空数组
+        # Otherwise return empty list
         return []
 
     def decline_energy(self):

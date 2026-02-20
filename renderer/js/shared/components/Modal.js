@@ -1,5 +1,5 @@
 /**
- * Modal Component - 模态对话框
+ * Modal Component - modal dialog
  */
 
 class Modal {
@@ -13,7 +13,7 @@ class Modal {
         this.confirmText = options.confirmText || '确认';
         this.cancelText = options.cancelText || '取消';
         this.showCancel = options.showCancel !== false;
-        this.closeOnClickOutside = options.closeOnClickOutside !== false; // 默认允许点击外部关闭
+        this.closeOnClickOutside = options.closeOnClickOutside !== false; // Allow clicking outside to close by default
         this.width = options.width || '500px';
         this.element = null;
         this.handleKeydown = null;
@@ -49,9 +49,9 @@ class Modal {
 
         this.bindEvents();
 
-        // 调用 onOpen 回调(在 DOM 元素已经渲染后)
+        // Call onOpen callback (after DOM element has been rendered)
         if (this.onOpen) {
-            // 使用 setTimeout 确保 DOM 完全渲染
+            // Use setTimeout to ensure DOM is fully rendered
             setTimeout(() => {
                 this.onOpen(this);
             }, 0);
@@ -102,7 +102,7 @@ class Modal {
             }
         });
 
-        // 点击遮罩层关闭（如果允许）
+        // Click overlay to close (if allowed)
         if (this.closeOnClickOutside) {
             this.element.addEventListener('click', async (e) => {
                 if (e.target === this.element) {
@@ -123,7 +123,7 @@ class Modal {
             });
         }
 
-        // ESC键关闭
+        // Close on ESC key
         this.handleKeydown = async (e) => {
             if (e.key === 'Escape') {
                 console.log('[Modal] ESC pressed, closing...');
@@ -151,7 +151,7 @@ class Modal {
             if (this.handleKeydown) {
                 document.removeEventListener('keydown', this.handleKeydown);
             }
-            // 调用 onClose 回调
+            // Call onClose callback
             if (this.onClose) {
                 console.log('[Modal] Calling onClose callback');
                 this.onClose();
@@ -194,5 +194,5 @@ class Modal {
     }
 }
 
-// 导出到全局
+// Export to global
 window.Modal = Modal;

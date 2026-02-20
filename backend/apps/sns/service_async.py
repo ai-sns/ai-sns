@@ -1,4 +1,4 @@
-"""SNS Module - Business Logic Service - 异步版本"""
+"""SNS Module - Business Logic Service - Async version."""
 import asyncio
 import logging
 import os
@@ -28,7 +28,7 @@ _social_engine_running = False
 
 
 class SNSService:
-    """SNS service for handling social network operations - 异步版本"""
+    """SNS service for handling social network operations - async version."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -52,7 +52,7 @@ class SNSService:
         return content.decode('utf-8', errors='replace').encode('utf-8-sig')
 
     async def get_user_stats(self) -> dict:
-        """异步获取用户统计"""
+        """Get user stats asynchronously."""
         try:
             def _to_int(value, default: int) -> int:
                 if value is None:
@@ -105,7 +105,7 @@ class SNSService:
             }
 
     async def get_contacts(self) -> List[AIFriend]:
-        """异步获取联系人列表"""
+        """Get contact list asynchronously."""
         try:
             stmt_config = select(AiChatCfg).where(AiChatCfg.is_delete == False)
             result_config = await self.db.execute(stmt_config)
@@ -129,7 +129,7 @@ class SNSService:
             return []
 
     async def get_chat_history(self, friend_account: str, limit: int = 50) -> List[AIChatMessages]:
-        """异步获取聊天历史"""
+        """Get chat history asynchronously."""
         try:
             stmt_config = select(AiChatCfg).where(AiChatCfg.is_delete == False)
             result_config = await self.db.execute(stmt_config)
@@ -280,7 +280,7 @@ class SNSService:
             from backend.apps.sns.ai_social_engine_adapter import AISocialEngine
 
             if _social_engine_instance is None:
-                # 为 AISocialEngine 创建同步的 Session
+                # Create a sync Session for AISocialEngine
                 db_sync = get_db_sync()
                 _social_engine_instance = AISocialEngine(db_sync)
                 await _social_engine_instance.async_init()

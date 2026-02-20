@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# 包含笔记路由
+# Include note routes
 router.include_router(note_router, tags=["notes"])
 
 

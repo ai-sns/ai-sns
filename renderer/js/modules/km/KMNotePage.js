@@ -216,7 +216,7 @@ const KMNotePage = {
             }, 3000);
         });
 
-        // 保存选区状态（用于工具栏操作）
+        // Save selection state (for toolbar operations)
         noteContent.addEventListener('mousedown', () => {
             this.clearSavedSelection();
         });
@@ -232,16 +232,16 @@ const KMNotePage = {
         });
     },
 
-    // 保存当前选区（使用节点路径保存，更健壮）
+    // Save current selection (store by node references/offsets for better robustness)
     saveSelection() {
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
 
-            // 保存 Range 副本（用于快速恢复）
+            // Save a Range clone (for quick restore)
             this._savedRange = range.cloneRange();
 
-            // 保存光标位置信息（用于 Range 失效后的恢复）
+            // Save cursor position info (for restoring when Range becomes invalid)
             this._savedRangeInfo = {
                 startContainer: range.startContainer,
                 startOffset: range.startOffset,
@@ -252,13 +252,13 @@ const KMNotePage = {
         }
     },
 
-    // 清除保存的选区
+    // Clear saved selection
     clearSavedSelection() {
         this._savedRange = null;
         this._savedRangeInfo = null;
     },
 
-    // 恢复保存的选区
+    // Restore saved selection
     restoreSavedSelection() {
         if (this._savedRange) {
             try {
@@ -269,12 +269,12 @@ const KMNotePage = {
                 this._savedRangeInfo = null;
                 return;
             } catch (e) {
-                // Range 可能已失效，尝试使用保存的节点路径恢复
+                // Range might be invalid; try restoring using saved node/offset info
                 console.warn('[KMNotePage] Range restore failed, trying fallback:', e);
             }
         }
 
-        // 回退方案：使用保存的节点路径和偏移量恢复
+        // Fallback: restore using saved node references and offsets
         if (this._savedRangeInfo) {
             try {
                 const selection = window.getSelection();
@@ -465,13 +465,13 @@ const KMNotePage = {
             });
         }
 
-        // Color picker - 修复版
+        // Color picker - fixed version
         const colorPicker = document.getElementById('colorPicker');
         const colorBtn = document.getElementById('colorBtn');
         if (colorPicker && colorBtn) {
             let savedSelection = null;
 
-            // 保存选区
+            // Save selection
             const saveSelection = () => {
                 const selection = window.getSelection();
                 if (selection.rangeCount > 0) {
@@ -479,7 +479,7 @@ const KMNotePage = {
                 }
             };
 
-            // 恢复选区
+            // Restore selection
             const restoreSelection = () => {
                 if (savedSelection) {
                     const selection = window.getSelection();
@@ -489,36 +489,36 @@ const KMNotePage = {
                 }
             };
 
-            // 颜色改变时应用（input事件更实时）
+            // Apply on color change (input event is more realtime)
             colorPicker.addEventListener('input', (e) => {
                 const color = e.target.value;
                 const indicator = document.getElementById('colorIndicator');
                 if (indicator) indicator.setAttribute('fill', color);
 
-                // 恢复选区并应用颜色
+                // Restore selection and apply color
                 restoreSelection();
                 document.execCommand('foreColor', false, color);
 
-                // 重新保存选区，以便连续调整
+                // Re-save selection to allow continuous adjustments
                 saveSelection();
             });
 
-            // 颜色选择完成（change事件）
+            // Color selection complete (change event)
             colorPicker.addEventListener('change', (e) => {
                 const color = e.target.value;
                 const indicator = document.getElementById('colorIndicator');
                 if (indicator) indicator.setAttribute('fill', color);
 
-                // 恢复选区并应用颜色
+                // Restore selection and apply color
                 restoreSelection();
                 document.execCommand('foreColor', false, color);
                 this.restoreFocus();
             });
 
-            // 点击颜色按钮时保存选区并打开颜色选择器
+            // On color button click, save selection and open color picker
             colorBtn.addEventListener('click', () => {
                 saveSelection();
-                // 使用 setTimeout 确保选区已保存
+                // Use setTimeout to ensure selection has been saved
                 setTimeout(() => {
                     colorPicker.click();
                 }, 10);
@@ -656,9 +656,9 @@ const KMNotePage = {
         });
     },
 
-    // 新增方法：搜索功能
+    // New method: search
     showSearchDialog() {
-        // 保存搜索状态
+        // Save search state
         this._searchState = {
             query: '',
             matches: [],
@@ -686,15 +686,15 @@ const KMNotePage = {
                     const noteContent = document.getElementById('noteContent');
                     if (!noteContent) return;
 
-                    // 聚焦到编辑器
+                    // Focus editor
                     noteContent.focus();
 
-                    // 如果是新的搜索，重新查找所有匹配项
+                    // If this is a new query, re-collect all matches
                     if (this._searchState.query !== searchQuery) {
                         this._searchState.query = searchQuery;
                         this._searchState.currentIndex = -1;
 
-                        // 使用 TreeWalker 在编辑器内查找所有文本
+                        // Use TreeWalker to scan all text nodes in the editor
                         const walker = document.createTreeWalker(
                             noteContent,
                             NodeFilter.SHOW_TEXT,
@@ -706,11 +706,11 @@ const KMNotePage = {
                         this._searchState.matches = [];
                         let node;
 
-                        // 收集所有文本节点和匹配项
+                        // Collect all text nodes and matches
                         while (node = walker.nextNode()) {
                             this._searchState.textNodes.push(node);
 
-                            // 在每个文本节点中查找所有匹配项
+                            // Find all matches in each text node
                             let searchIndex = 0;
                             let matchIndex;
                             const text = node.textContent.toLowerCase();
@@ -727,12 +727,12 @@ const KMNotePage = {
                         }
                     }
 
-                    // 如果有匹配项，显示下一个
+                    // If there are matches, show the next one
                     if (this._searchState.matches.length > 0) {
-                        // 移动到下一个匹配项
+                        // Move to next match
                         this._searchState.currentIndex = (this._searchState.currentIndex + 1) % this._searchState.matches.length;
 
-                        // 选中当前匹配项
+                        // Select current match
                         const match = this._searchState.matches[this._searchState.currentIndex];
                         const range = document.createRange();
                         range.setStart(match.node, match.startOffset);
@@ -742,13 +742,13 @@ const KMNotePage = {
                         selection.removeAllRanges();
                         selection.addRange(range);
 
-                        // 滚动到可见区域
+                        // Scroll into view
                         const rect = range.getBoundingClientRect();
                         if (rect.top < 0 || rect.bottom > window.innerHeight) {
                             match.node.parentNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
 
-                        // 更新搜索结果信息
+                        // Update search result info
                         if (resultInfo) {
                             resultInfo.style.display = 'block';
                             resultInfo.textContent = `${this._searchState.currentIndex + 1}/${this._searchState.matches.length}`;
@@ -761,7 +761,7 @@ const KMNotePage = {
                         window.Modal.alert(`未找到 "${searchQuery}"`);
                     }
                 }
-                return false; // 不关闭对话框，允许继续搜索下一个
+                return false; // Keep dialog open to allow searching next match
             },
             onOpen: (modal) => {
                 const input = modal.element.querySelector('#searchQueryInput');
@@ -778,7 +778,7 @@ const KMNotePage = {
         });
     },
 
-    // 新增方法：插入日期
+    // New method: insert date
     insertDate() {
         const now = new Date();
         const dateStr = now.toLocaleDateString('zh-CN');
@@ -789,7 +789,7 @@ const KMNotePage = {
         this.saveSelection();
     },
 
-    // 新增方法：插入表格
+    // New method: insert table
     insertTable() {
         window.Modal.show({
             title: '插入表格',
@@ -855,9 +855,9 @@ const KMNotePage = {
         });
     },
 
-    // 新增方法：插入图片
+    // New method: insert image
     insertImage() {
-        // 获取当前知识库ID
+        // Get current knowledge base ID
         const kbId = window.kmHandlers?.currentKbId || 1;
 
         window.Modal.show({
@@ -944,22 +944,22 @@ const KMNotePage = {
 
                 let imageUrl = '';
 
-                // 如果有预览图片，使用预览的src
+                // If there is a preview image, use its src
                 if (imagePreview && imagePreview.src && imagePreview.src !== '') {
                     imageUrl = imagePreview.src;
                 } else if (imageUrlInput && imageUrlInput.value && imageUrlInput.value.trim()) {
-                    // 否则使用输入的URL
+                    // Otherwise, use the input URL
                     imageUrl = imageUrlInput.value.trim();
                 }
 
                 if (imageUrl) {
                     this.restoreSavedSelection();
 
-                    // 获取样式
+                    // Get styles
                     const align = imageAlign ? imageAlign.value : 'left';
                     const width = imageWidth ? imageWidth.value : 'auto';
 
-                    // 构建样式
+                    // Build style string
                     let style = '';
                     if (width !== 'auto') {
                         style += `width: ${width};`;
@@ -995,7 +995,7 @@ const KMNotePage = {
 
                 let uploadedImageUrl = '';
 
-                // 切换标签页
+                // Switch tabs
                 const switchToUpload = () => {
                     uploadTabBtn.classList.remove('btn-secondary');
                     uploadTabBtn.classList.add('btn-primary');
@@ -1017,17 +1017,17 @@ const KMNotePage = {
                 uploadTabBtn.addEventListener('click', switchToUpload);
                 urlTabBtn.addEventListener('click', switchToUrl);
 
-                // 点击上传区域触发文件选择
+                // Click upload area to trigger file chooser
                 dropZone.addEventListener('click', () => imageFileInput.click());
 
-                // 文件选择
+                // File selection
                 imageFileInput.addEventListener('change', async (e) => {
                     if (e.target.files && e.target.files[0]) {
                         await handleImageUpload(e.target.files[0]);
                     }
                 });
 
-                // 拖拽上传
+                // Drag-and-drop upload
                 dropZone.addEventListener('dragover', (e) => {
                     e.preventDefault();
                     dropZone.style.borderColor = '#2196F3';
@@ -1050,14 +1050,14 @@ const KMNotePage = {
                     }
                 });
 
-                // 上传处理
+                // Upload handler
                 const handleImageUpload = async (file) => {
                     if (!file.type.startsWith('image/')) {
                         window.Modal.alert('请选择图片文件');
                         return;
                     }
 
-                    // 显示进度
+                    // Show progress
                     dropZone.style.display = 'none';
                     uploadProgress.style.display = 'block';
 
@@ -1078,13 +1078,13 @@ const KMNotePage = {
                         if (result.success && result.data) {
                             uploadedImageUrl = result.data.url;
 
-                            // 显示预览
+                            // Show preview
                             dropZone.style.display = 'none';
                             uploadProgress.style.display = 'none';
                             imagePreviewContainer.style.display = 'block';
                             imagePreview.src = uploadedImageUrl;
 
-                            // 清空文件输入
+                            // Clear file input
                             imageFileInput.value = '';
                         } else {
                             throw new Error('上传失败');
@@ -1097,7 +1097,7 @@ const KMNotePage = {
                     }
                 };
 
-                // 移除图片
+                // Remove image
                 removeImageBtn.addEventListener('click', () => {
                     uploadedImageUrl = '';
                     imagePreview.src = '';
@@ -1105,7 +1105,7 @@ const KMNotePage = {
                     dropZone.style.display = 'block';
                 });
 
-                // URL 输入框聚焦
+                // URL input focus
                 const urlInput = modal.element.querySelector('#imageUrlInput');
                 if (urlInput) {
                     urlInput.addEventListener('keydown', (e) => {
@@ -1119,7 +1119,7 @@ const KMNotePage = {
         });
     },
 
-    // 新增方法：插入链接
+    // New method: insert link
     insertLink() {
         window.Modal.show({
             title: '插入链接',
@@ -1174,7 +1174,7 @@ const KMNotePage = {
         });
     },
 
-    // 新增方法：显示表情选择器
+    // New method: show emoji picker
     showEmojiPicker() {
         const emojis = ['😀', '😁', '😂', '😊', '😍', '🤔', '😎', '👍', '👎', '❤️', '🔥', '✨'];
         
@@ -1195,7 +1195,7 @@ const KMNotePage = {
         container.innerHTML = emojiHTML;
         document.body.appendChild(container);
 
-        // 绑定点击事件
+        // Bind click events
         container.querySelectorAll('.emoji-option').forEach(btn => {
             btn.addEventListener('click', () => {
                 const emoji = btn.dataset.emoji;
@@ -1211,7 +1211,7 @@ const KMNotePage = {
         });
     },
 
-    // 新增方法：显示符号选择器
+    // New method: show symbol picker
     showSymbolPicker() {
         const symbols = ['©', '®', '™', '€', '£', '¥', '°', '±', '×', '÷', '√', '∞', '≈', '≠', '≤', '≥', '∫', '∑', '∂', '∆'];
         
@@ -1232,7 +1232,7 @@ const KMNotePage = {
         container.innerHTML = symbolHTML;
         document.body.appendChild(container);
 
-        // 绑定点击事件
+        // Bind click events
         container.querySelectorAll('.symbol-option').forEach(btn => {
             btn.addEventListener('click', () => {
                 const symbol = btn.dataset.symbol;
@@ -1257,22 +1257,22 @@ const KMNotePage = {
     },
 
     restoreFocus() {
-        // 保存当前选区
+        // Save current selection
         const selection = window.getSelection();
         const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
-        // 焦点回到编辑器
+        // Focus back to editor
         const noteContent = document.getElementById('noteContent');
         if (noteContent) {
             noteContent.focus();
 
-            // 恢复选区
+            // Restore selection
             if (range) {
                 try {
                     selection.removeAllRanges();
                     selection.addRange(range);
                 } catch (e) {
-                    // 如果恢复失败（选区失效），至少确保焦点在编辑器
+                    // If restore fails (selection invalid), at least ensure focus is in the editor
                     console.warn('[KMNotePage] Failed to restore selection:', e);
                 }
             }

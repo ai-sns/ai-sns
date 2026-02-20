@@ -9,7 +9,7 @@ from backend.shared.websocket_manager import manager as websocket_manager
 # *********
 import os
 import math
-# 主要用于发送附件
+# Mainly used for sending attachments
 import asyncio
 import zipfile
 import shutil
@@ -43,16 +43,16 @@ class UIDisplayMixin:
 
 
     def write_on_going_process_to_pane(self, new_ongoing_content: str):
-        # 定义标记
+        # Define markers
         self.current_ongoing_content = new_ongoing_content
-        # 获取ongoing process和task process history的内容
+        # Get ongoing process and task process history content
         ongoing_process = self.get_on_going_process()
         task_process_history = self.get_task_process_history()
 
-        # 合并内容并更新plan_edit
+        # Merge content and update plan_edit
         combined_content = f"{ongoing_process}\n{task_process_history}"
 
-        # 发送到前端 Process 页签的 On Going 部分
+        # Send to the frontend Process tab (On Going section)
         asyncio.create_task(self._send_to_frontend('process', ongoing_process, section='ongoing'))
 
         # self.plan_edit.setPlainText(combined_content)
@@ -60,14 +60,14 @@ class UIDisplayMixin:
 
     def get_on_going_process(self):
         """
-        返回美化后的 ongoing process 文本（纯文本版）
+        Return formatted ongoing process text (plain text).
         """
-        # 获取基础信息
+        # Get base info
         profession = self.aichatcfg_record.profession
         lng = f"{self.aichatcfg_record.current_position[0]}" if self.aichatcfg_record.current_position and len(self.aichatcfg_record.current_position) >= 2 else "0"
         lat = f"{self.aichatcfg_record.current_position[1]}" if self.aichatcfg_record.current_position and len(self.aichatcfg_record.current_position) >= 2 else "0"
 
-        # 构建美化文本
+        # Build formatted text
         result = "📊 Current Status\n"
         result += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         result += f"💰 Money      : {self.aichatcfg_record.money:,.2f}\n"
@@ -90,12 +90,12 @@ class UIDisplayMixin:
 
     async def _send_to_frontend(self, tab_type, content, section=None):
         """
-        发送内容到前端指定的页签
+        Send content to the specified frontend tab.
 
         Args:
-            tab_type: 页签类型 ('think' 或 'process')
-            content: 要发送的内容
-            section: 可选的部分标识 ('ongoing' 或 'history')
+            tab_type: Tab type ('think' or 'process')
+            content: Content to send
+            section: Optional section identifier ('ongoing' or 'history')
         """
         try:
             message = {
@@ -105,35 +105,35 @@ class UIDisplayMixin:
             }
             if section:
                 message["section"] = section
-            # 广播到所有连接的客户端
+            # Broadcast to all connected clients
             await websocket_manager.broadcast(message)
             logger.info(f"Sent {tab_type} update to frontend (section: {section})")
         except Exception as e:
             logger.error(f"Failed to send to frontend: {e}")
 
     def write_thinking_process_to_pane(self, title, content):
-        # 假设 self.thinking_edit 是 QTextEdit 的实例
+        # Assume self.thinking_edit is an instance of QTextEdit
         self.thinking_step_index += 1
 
-        # 组合新内容
+        # Compose new content
         new_content = f"\n🔶【{self.thinking_step_index}】{title}\n"
         new_content += f"━━━━━━━━━━━━━━━━━━\n"
         new_content += f"{content}\n"
 
-        # 发送到前端 Think 页签
+        # Send to the frontend Think tab
         asyncio.create_task(self._send_to_frontend('think', new_content))
 
         # self.thinking_edit.append(new_content)
 
     def write_task_process_to_pane(self, content):
-        # 获取ongoing process和task process history的内容
+        # Get ongoing process and task process history content
         ongoing_process = self.get_on_going_process()
         task_process_history = self.get_task_process_history()
 
-        # 合并内容并更新plan_edit
+        # Merge content and update plan_edit
         combined_content = f"{ongoing_process}\n{task_process_history}"
 
-        # 发送到前端 Process 页签
+        # Send to the frontend Process tab
         asyncio.create_task(self._send_to_frontend('process', combined_content))
 
         # self.plan_edit.setPlainText(combined_content)
@@ -142,81 +142,81 @@ class UIDisplayMixin:
 
     def get_ai_model_display_name(self):
         """
-        获取AI模型显示名称，格式为"🧠 {provider} {model_name}"
+        Get the AI model display name, formatted as "🧠 {provider} {model_name}".
         """
         try:
             from db.DBFactory import query_AgentCfg
 
-            # 获取账户信息
+            # Get account info
             snsaccount = self.aichatcfg_record.account
             agent_cfg = query_AgentCfg(snsaccount=snsaccount)
 
-            # 获取默认模型
+            # Get default model
             if agent_cfg and agent_cfg.defaultmodel:
                 defaultmodel = agent_cfg.defaultmodel
                 return f"🧠 {defaultmodel}"
             else:
-                return "🧠 OpenAI gpt-4o-mini"  # 默认值
+                return "🧠 OpenAI gpt-4o-mini"  # Default
         except Exception as e:
             print(f"获取AI模型名称时出错: {e}")
-            return "🧠 OpenAI gpt-4o-mini"  # 出错时的默认值
+            return "🧠 OpenAI gpt-4o-mini"  # Default on error
 
     def update_resource_display(self):
         """
-        更新资源显示内容，包括工具列表、人员名单和地址列表
+        Update resource display content, including tool list, people list, and place list.
         """
-        # 获取各类资源数据
+        # Get resource data
         tool_list = self.get_service_list()
         people_list = self.get_people_list()
         place_list = self.get_place_list()
 
-        # 格式化内容
+        # Format content
         formatted_content = self._format_resource_content(tool_list, people_list, place_list)+"\n"
 
-        # 发送到前端 Resource 页签
+        # Send to the frontend Resource tab
         import asyncio
         asyncio.create_task(self._send_to_frontend('resource', formatted_content))
 
     def _format_resource_content(self, tool_list, people_list, place_list):
         """
-        格式化资源内容显示
+        Format resource content for display.
         """
         content = ""
 
-        # 格式化工具列表
+        # Format tool list
         if tool_list:
             content += f"🌐 服务列表（共 {len(tool_list)} 项）\n"
             content += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
             for i, tool in enumerate(tool_list):
-                # 工具ID和名称
+                # Tool ID and name
                 content += f"#{tool.get('id', '')} {tool.get('name', '')}\n"
 
 
-                # 地理坐标信息（如果lng,lat有值且不为0）
+                # Geo coordinates (if lng/lat are present and non-zero)
                 lng = tool.get('lng', 0)
                 lat = tool.get('lat', 0)
                 if lng and lat and lng != 0 and lat != 0:
-                    # 格式化坐标，最多8位小数，去除尾随零
+                    # Format coordinates (up to 8 digits), trim trailing zeros
                     formatted_lng = f"{lng:.8g}"
                     formatted_lat = f"{lat:.8g}"
                     content += f"📍 坐标：{formatted_lng}, {formatted_lat}\n"
                 elif 'place' in tool and tool['place']:
                     content += f"🌍 位置：{tool['place']}\n"
 
-                # 描述信息
+                # Description
                 if 'description' in tool and tool['description']:
                     content += f"💬 描述：{tool['description']}\n"
 
-                # 地址信息
+                # Address
                 if 'address' in tool and tool['address'] and tool['address'] != "Not needed":
                     content += f"🔗 地址：{tool['address']}\n"
 
-                # 类型和方法信息
+                # Type and method
                 type_info = tool.get('type', '')
                 method_info = tool.get('method', '')
 
-                # 参数信息
+                # Params
                 param_info = ""
                 if 'parameter' in tool and tool['parameter']:
                     if isinstance(tool['parameter'], dict):
@@ -227,85 +227,85 @@ class UIDisplayMixin:
 
                 content += f"⚙️ 类型：{type_info} ｜ 方法：{method_info}{param_info}\n"
 
-                # 分隔线（除了最后一个工具）
+                # Separator line (except for the last tool)
                 if i < len(tool_list) - 1:
                     content += "\n──────────────────────────\n\n"
 
             content += "\n\n"
 
-        # 格式化人员名单
+        # Format people list
         if people_list:
             content += f"🧑‍🤝‍🧑 人员名单（共 {len(people_list)} 位）\n"
             content += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
             for i, person in enumerate(people_list):
-                # 姓名和职业
+                # Name and profession
                 nick_name = person.get('nick_name', '')
                 profession = person.get('profession', '')
                 content += f"🧑‍ {nick_name} ｜ 👩‍💻 {profession}\n"
 
-                # 位置信息
+                # Location
                 location = person.get('location', [])
                 if location and len(location) >= 2:
                     lng, lat = location[0], location[1]
-                    # 简化城市信息
+                    # City simplification (if any)
 
-                    # 格式化经纬度，最多显示8位小数，不补零
+                    # Format lng/lat (up to 8 decimals), no padding zeros
                     formatted_lng = f"{lng:.8f}".rstrip('0').rstrip('.')
                     formatted_lat = f"{lat:.8f}".rstrip('0').rstrip('.')
                     content += f"📍 位置：{formatted_lng}, {formatted_lat}\n"
 
-                # 账户信息
+                # Account
                 account = person.get('account', '')
                 if account:
                     content += f"💬 account: {account}\n"
 
-                # SNS信息
+                # SNS
                 sns_url = person.get('sns_url', '')
                 if sns_url:
                     content += f"🔗 sns: {sns_url}\n"
 
-                # ID信息
+                # ID
                 nation_id = person.get('nation_id', '')
                 if nation_id:
                     content += f"🆔 nation_id: {nation_id}\n"
 
-                # 简介信息
+                # Profile
                 profile = person.get('profile', '')
                 if profile:
                     content += f"📝 profile: {profile}\n"
 
-                # 分隔线（除了最后一个人）
+                # Separator line (except for the last person)
                 if i < len(people_list) - 1:
                     content += "\n──────────────────────────\n\n"
 
             content += "\n\n"
 
-        # 格式化地址列表
+        # Format place list
         if place_list:
             content += f"🗺️ 地址列表（共 {len(place_list)} 处）\n"
             content += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
             for i, place in enumerate(place_list):
-                # 地点名称
+                # Place name
                 place_name = place.get('place_name', '')
                 content += f"🏞️ {place_name}\n"
 
-                # 位置坐标
+                # Coordinates
                 position = place.get('place_position', [])
                 if position and len(position) >= 2:
                     lng, lat = position[0], position[1]
-                    # 格式化经纬度，最多显示8位小数，不补零
+                    # Format lng/lat (up to 8 decimals), no padding zeros
                     formatted_lng = f"{lng:.8f}".rstrip('0').rstrip('.')
                     formatted_lat = f"{lat:.8f}".rstrip('0').rstrip('.')
                     content += f"📍 {formatted_lng}, {formatted_lat}\n"
 
-                # 描述信息
+                # Description
                 description = place.get('description', '')
                 if description:
                     content += f"📖 {description}\n"
 
-                # 分隔线（除了最后一个地点）
+                # Separator line (except for the last place)
                 if i < len(place_list) - 1:
                     content += "\n──────────────────────────\n\n"
 
@@ -315,12 +315,12 @@ class UIDisplayMixin:
 
     def send_command_to_map(self, command, param_1, param_2):
         """
-        发送命令到地图系统
+        Send a command to the map system.
 
         Args:
-            command: 命令类型
-            param_1: 参数1
-            param_2: 参数2
+            command: Command type
+            param_1: Param 1
+            param_2: Param 2
         """
         import asyncio
         from backend.shared.websocket_manager import manager as websocket_manager
@@ -328,7 +328,7 @@ class UIDisplayMixin:
 
         logger = logging.getLogger(__name__)
 
-        # 构建消息
+        # Build message
         message = {
             "type": "command",
             "command": command,
@@ -336,7 +336,7 @@ class UIDisplayMixin:
             "param_2": param_2
         }
 
-        # 异步发送到前端
+        # Send to frontend asynchronously
         async def send_message():
             try:
                 await websocket_manager.broadcast(message)
@@ -348,12 +348,12 @@ class UIDisplayMixin:
 
     def send_talk_message(self, fromuser, touser, message):
         """
-        发送聊天消息到前端地图
+        Send chat messages to the frontend map.
 
         Args:
-            fromuser: 发送者账户
-            touser: 接收者账户
-            message: 消息内容
+            fromuser: Sender account
+            touser: Receiver account
+            message: Message content
         """
         import asyncio
         from backend.shared.websocket_manager import manager as websocket_manager
@@ -362,7 +362,7 @@ class UIDisplayMixin:
 
         logger = logging.getLogger(__name__)
 
-        # 构建chatWindow消息（原有格式）
+        # Build chatWindow message (legacy format)
         chat_msg = {
             "type": "chat_message",
             "from": fromuser,
@@ -370,7 +370,7 @@ class UIDisplayMixin:
             "content": message
         }
 
-        # 构建地图消息（新格式）
+        # Build map message (new format)
         map_msg = {
             "type": "map_chat_message",
             "from_user": fromuser,
@@ -379,12 +379,12 @@ class UIDisplayMixin:
             "timestamp": datetime.now().isoformat()
         }
 
-        # 异步发送两种格式到前端
+        # Send both formats to frontend asynchronously
         async def send_messages():
             try:
-                # 发送到 chatWindow
+                # Send to chatWindow
                 await websocket_manager.broadcast(chat_msg)
-                # 发送到地图
+                # Send to map
                 await websocket_manager.broadcast(map_msg)
                 logger.info(f"Chat messages sent from {fromuser} to {touser}: {message}")
             except Exception as e:
@@ -394,10 +394,10 @@ class UIDisplayMixin:
 
     def show_status_on_map(self, status):
         """
-        在地图上显示状态信息
+        Show status information on the map.
 
         Args:
-            status: 状态信息字符串
+            status: Status string
         """
         import asyncio
         from backend.shared.websocket_manager import manager as websocket_manager
@@ -405,13 +405,13 @@ class UIDisplayMixin:
 
         logger = logging.getLogger(__name__)
 
-        # 构建消息
+        # Build message
         msg = {
             "type": "status_update",
             "status": status
         }
 
-        # 异步发送到前端
+        # Send to frontend asynchronously
         async def send_message():
             try:
                 await websocket_manager.broadcast(msg)
@@ -423,11 +423,11 @@ class UIDisplayMixin:
 
     def show_alert_on_map(self, message, is_error=False):
         """
-        在地图上显示警告/提示信息
+        Show warning/info messages on the map.
 
         Args:
-            message: 警告/提示信息
-            is_error: 是否为错误信息，默认False
+            message: Warning/info message
+            is_error: Whether this is an error message (default: False)
         """
         import asyncio
         from backend.shared.websocket_manager import manager as websocket_manager
@@ -435,14 +435,14 @@ class UIDisplayMixin:
 
         logger = logging.getLogger(__name__)
 
-        # 构建消息
+        # Build message
         msg = {
             "type": "alert",
             "message": message,
             "is_error": is_error
         }
 
-        # 异步发送到前端
+        # Send to frontend asynchronously
         async def send_message():
             try:
                 await websocket_manager.broadcast(msg)
@@ -470,12 +470,12 @@ class UIDisplayMixin:
 
     def update_map_charts(self):
         """
-        更新地图图表数据并发送到前端
-        当用户属性（如智力、体力、生命值等）发生变化时调用此函数
+        Update map chart data and send to frontend.
+        Called when user attributes (e.g., IQ, energy, life, etc.) change.
         """
         import asyncio
 
-        # 准备雷达图数据
+        # Prepare radar chart data
         radar_data = [
             self.aichatcfg_record.iq_point,
             self.aichatcfg_record.energy_point,
@@ -491,7 +491,7 @@ class UIDisplayMixin:
             f'{lt("Exp", "经验")}:{self.aichatcfg_record.exp_point}'
         ]
 
-        # 准备柱状图数据
+        # Prepare bar chart data
         formatted_number = f"{self.aichatcfg_record.money:,.2f}"
         bar_indicators = [
             f'{lt("Money", "资金")}:{formatted_number}',
@@ -501,7 +501,7 @@ class UIDisplayMixin:
         bar_values = [100, self.aichatcfg_record.credit, self.aichatcfg_record.level * 10]
         bar_colors = ['#ffb676', '#c3f1d7', '#99d4ff']
 
-        # 构建用户统计数据对象
+        # Build user stats object
         user_stats = {
             "level": self.aichatcfg_record.level or 1,
             "credit": self.aichatcfg_record.credit or 100,
@@ -513,7 +513,7 @@ class UIDisplayMixin:
             "exp": self.aichatcfg_record.exp_point or 0
         }
 
-        # 通过WebSocket发送更新到前端
+        # Send updates to frontend via WebSocket
         asyncio.create_task(self._send_chart_update(user_stats))
 
         logger.info(f"Chart data updated and sent to frontend: {user_stats}")

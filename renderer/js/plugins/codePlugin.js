@@ -1,11 +1,11 @@
 /**
- * Code Plugin - 代码执行插件
- * 从聊天中提取代码并在浏览器中运行
+ * Code Plugin - code execution plugin
+ * Extract code from chat and run it in the browser
  */
 
 const CodePlugin = {
     /**
-     * 插件信息
+     * Plugin metadata
      */
     info: {
         id: 'code',
@@ -15,7 +15,7 @@ const CodePlugin = {
     },
 
     /**
-     * 插件状态
+     * Plugin state
      */
     state: {
         codeBlocks: [],
@@ -23,15 +23,15 @@ const CodePlugin = {
     },
 
     /**
-     * 当前渲染的容器（用于多实例支持）
+     * Currently rendered container (for multi-instance support)
      */
     _currentContainer: null,
 
     /**
-     * 渲染插件UI
+     * Render plugin UI
      */
     render(container) {
-        // 保存当前容器引用
+        // Save current container reference
         this._currentContainer = container;
         container.innerHTML = `
             <div style="padding: 12px; display: flex; flex-direction: column; gap: 12px; height: 100%;">
@@ -103,19 +103,19 @@ const CodePlugin = {
     },
 
     /**
-     * 从聊天中提取所有代码块
+     * Extract all code blocks from chat
      */
     extractCodes() {
-        // 尝试找到聊天消息容器 - 支持单agent和多agent场景
+        // Try to find the chat messages container - supports single-agent and multi-agent scenarios
         let chatMessages = null;
 
-        // 方法1：查找单agent场景的容器
+        // Method 1: find the single-agent container
         chatMessages = document.getElementById('chatMessages');
 
-        // 方法2：如果找不到，尝试查找多agent场景下当前显示的容器
+        // Method 2: if not found, try the currently visible container in multi-agent mode
         if (!chatMessages) {
             const agentChatMessages = document.querySelectorAll('.agent-chat-messages');
-            // 找到可见的聊天消息容器
+            // Find a visible chat messages container
             for (const container of agentChatMessages) {
                 const style = window.getComputedStyle(container);
                 if (style.display !== 'none' && container.offsetParent !== null) {
@@ -130,7 +130,7 @@ const CodePlugin = {
             return;
         }
 
-        // 查找所有代码块
+        // Find all code blocks
         const codeBlocks = chatMessages.querySelectorAll('.code-block code');
         const extractedCodes = [];
 
@@ -139,7 +139,7 @@ const CodePlugin = {
             const language = langSpan ? langSpan.textContent.trim().toLowerCase() : 'plaintext';
             const code = codeElement.dataset.rawCode || codeElement.textContent;
 
-            // 跳过 mindmap 代码块
+            // Skip mindmap code blocks
             if (language !== 'mindmap' && code.trim()) {
                 extractedCodes.push({
                     language: language,
@@ -157,11 +157,11 @@ const CodePlugin = {
             return;
         }
 
-        // 保存到状态
+        // Save to state
         this.state.codeBlocks = extractedCodes;
         this.state.currentIndex = 0;
 
-        // 显示第一个代码
+        // Display first code
         this.displayCurrent();
 
         if (typeof Notification !== 'undefined') {
@@ -172,7 +172,7 @@ const CodePlugin = {
     },
 
     /**
-     * 显示当前代码
+     * Display current code
      */
     displayCurrent() {
         const { codeBlocks, currentIndex } = this.state;
@@ -200,7 +200,7 @@ const CodePlugin = {
             codePreview: currentCode.code ? currentCode.code.substring(0, 50) : 'null'
         });
 
-        // 在容器作用域内查找元素
+        // Query elements within the container scope
         const editor = this._currentContainer.querySelector('#code-plugin-editor');
         const info = this._currentContainer.querySelector('#code-plugin-info');
         const langSelect = this._currentContainer.querySelector('#code-plugin-language');
@@ -225,7 +225,7 @@ const CodePlugin = {
         }
 
         if (langSelect) {
-            // 尝试匹配语言
+            // Try to match language
             const validLanguages = ['javascript', 'python', 'html'];
             if (validLanguages.includes(currentCode.language)) {
                 langSelect.value = currentCode.language;
@@ -241,7 +241,7 @@ const CodePlugin = {
             console.error('[CodePlugin] 未找到语言选择器 #code-plugin-language');
         }
 
-        // 更新按钮状态
+        // Update button state
         const prevBtn = this._currentContainer.querySelector('#code-plugin-prev');
         const nextBtn = this._currentContainer.querySelector('#code-plugin-next');
 
@@ -257,7 +257,7 @@ const CodePlugin = {
     },
 
     /**
-     * 导航代码
+     * Navigate code
      */
     navigate(direction) {
         const { codeBlocks, currentIndex } = this.state;
@@ -277,7 +277,7 @@ const CodePlugin = {
     },
 
     /**
-     * 运行代码
+     * Run code
      */
     run() {
         if (!this._currentContainer) {
@@ -302,7 +302,7 @@ const CodePlugin = {
             return;
         }
 
-        // 清空之前的输出
+        // Clear previous output
         output.innerHTML = '';
         this.showOutput(`[运行 ${language.toUpperCase()} 代码...]\n`, 'info');
 
@@ -320,10 +320,10 @@ const CodePlugin = {
     },
 
     /**
-     * 运行 JavaScript 代码
+     * Run JavaScript code
      */
     runJavaScript(code) {
-        // 捕获 console 输出
+        // Capture console output
         const originalLog = console.log;
         const originalError = console.error;
         const originalWarn = console.warn;
@@ -355,20 +355,20 @@ const CodePlugin = {
         };
 
         try {
-            // 使用 Function 构造函数执行代码
+            // Execute code using Function constructor
             const result = new Function(code)();
 
-            // 恢复原始 console 方法
+            // Restore original console methods
             console.log = originalLog;
             console.error = originalError;
             console.warn = originalWarn;
 
-            // 显示输出
+            // Show output
             if (logs.length > 0) {
                 this.showOutput(logs.join('\n'), 'success');
             }
 
-            // 显示返回值
+            // Show return value
             if (result !== undefined) {
                 this.showOutput(`\n\n[返回值]: ${typeof result === 'object' ? JSON.stringify(result, null, 2) : result}`, 'success');
             }
@@ -378,7 +378,7 @@ const CodePlugin = {
             }
 
         } catch (error) {
-            // 恢复原始 console 方法
+            // Restore original console methods
             console.log = originalLog;
             console.error = originalError;
             console.warn = originalWarn;
@@ -389,7 +389,7 @@ const CodePlugin = {
     },
 
     /**
-     * 运行 HTML 代码（在 iframe 中）
+     * Run HTML code (in an iframe)
      */
     runHTML(code) {
         if (!this._currentContainer) return;
@@ -397,14 +397,14 @@ const CodePlugin = {
         const output = this._currentContainer.querySelector('#code-plugin-output');
         if (!output) return;
 
-        // 创建 iframe 用于预览
+        // Create iframe for preview
         const iframe = document.createElement('iframe');
         iframe.style.cssText = 'width: 100%; height: 300px; border: 1px solid var(--border-light, #ddd); border-radius: 4px; background: white;';
 
         output.innerHTML = '[HTML 预览]\n';
         output.appendChild(iframe);
 
-        // 写入 HTML 内容
+        // Write HTML content
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         iframeDoc.open();
         iframeDoc.write(code);
@@ -412,7 +412,7 @@ const CodePlugin = {
     },
 
     /**
-     * 显示输出
+     * Show output
      */
     showOutput(message, type = 'info') {
         if (!this._currentContainer) return;
@@ -433,12 +433,12 @@ const CodePlugin = {
         messageEl.textContent = message;
         output.appendChild(messageEl);
 
-        // 滚动到底部
+        // Scroll to bottom
         output.scrollTop = output.scrollHeight;
     },
 
     /**
-     * 清空编辑器
+     * Clear editor
      */
     clearEditor() {
         if (!this._currentContainer) return;
@@ -454,7 +454,7 @@ const CodePlugin = {
     },
 
     /**
-     * 清空输出
+     * Clear output
      */
     clearOutput() {
         if (!this._currentContainer) return;
@@ -466,7 +466,7 @@ const CodePlugin = {
     }
 };
 
-// 导出插件
+// Export plugin
 if (typeof window !== 'undefined') {
     window.CodePlugin = CodePlugin;
 }

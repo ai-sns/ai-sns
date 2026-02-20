@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tool Executor - 真实执行工具代码
+Tool Executor - Executes tools with real code execution
 Executes plugins, MCPs, functions, and skills with actual code execution
 """
 import os

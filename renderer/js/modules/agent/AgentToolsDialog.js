@@ -1,6 +1,6 @@
 /**
  * Agent Tools Configuration Dialog
- * 为Agent配置工具（Plugin, MCP, Function, Skill）
+ * Configure tools for an Agent (Plugin, MCP, Function, Skill)
  */
 
 const AgentToolsDialog = {
@@ -13,41 +13,41 @@ const AgentToolsDialog = {
         }
         return urlOrPath;
     },
-    // 存储当前所有选中的工具（跨标签页）
+    // Store all currently selected tools (across tabs)
     currentSelections: new Set(),
 
     // DocSkills selections (skill_key)
     docSkillSelections: new Set(),
 
     /**
-     * 打开对话框
+     * Open dialog
      */
     async open(agentId) {
         console.log('[AgentToolsDialog] Opening for agent:', agentId);
 
-        // 重置选择状态
+        // Reset selection state
         this.currentSelections.clear();
         this.docSkillSelections.clear();
 
-        // 移除已存在的对话框
+        // Remove existing dialog
         const existingDialog = document.getElementById('agentToolsDialog');
         if (existingDialog) {
             existingDialog.remove();
         }
 
-        // 创建并添加对话框
+        // Create and insert dialog
         const dialog = this.createDialog(agentId);
         document.body.insertAdjacentHTML('beforeend', dialog);
 
-        // 绑定事件（在加载数据前绑定，避免错误时无法关闭对话框）
+        // Bind events (bind before data load so the dialog can still be closed on error)
         this.bindEventHandlers(agentId);
 
-        // 加载数据
+        // Load data
         await this.loadData(agentId);
     },
 
     /**
-     * 创建对话框HTML
+     * Create dialog HTML
      */
     createDialog(agentId) {
         return `
@@ -131,33 +131,33 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 加载数据
+     * Load data
      */
     async loadData(agentId) {
         try {
-            // 并行加载当前配置和可用工具
+            // Load current config and available tools in parallel
             const [agentToolsResponse, allTools, agentDocSkillsResponse] = await Promise.all([
                 agentApi.getAgentTools(agentId),
                 this.loadAllTools(),
                 fetch(this.resolve(`/api/skills/agent/${agentId}/skills`)).then(r => r.json())
             ]);
 
-            // 提取实际的工具数组
+            // Extract actual tools array
             const agentTools = agentToolsResponse?.data?.tools || [];
 
             console.log('[AgentToolsDialog] Loaded agent tools:', agentTools);
 
-            // 初始化currentSelections为已配置的工具
+            // Initialize currentSelections with configured tools
             this.currentSelections.clear();
             agentTools.forEach(tool => {
-                // 根据tool_type提取正确的ID字段
+                // Extract the correct ID field based on tool_type
                 const toolId = tool.plugin_id || tool.mcp_id || tool.function_id || tool.skill_id;
                 const key = `${tool.tool_type}:${toolId}`;
                 this.currentSelections.add(key);
                 console.log('[AgentToolsDialog] Added to selections:', key);
             });
 
-            // 初始化 doc skills selections
+            // Initialize doc skills selections
             this.docSkillSelections.clear();
             const enabledSkillKeys = agentDocSkillsResponse?.data;
             if (Array.isArray(enabledSkillKeys)) {
@@ -168,7 +168,7 @@ const AgentToolsDialog = {
 
             console.log('[AgentToolsDialog] Initialized selections:', Array.from(this.currentSelections));
 
-            // 保存数据到对话框
+            // Persist data to dialog
             const dialog = document.getElementById('agentToolsDialog');
             if (!dialog) {
                 console.error('[AgentToolsDialog] Dialog element not found');
@@ -181,7 +181,7 @@ const AgentToolsDialog = {
 
             dialog.dataset.agentDocSkills = JSON.stringify(Array.from(this.docSkillSelections));
 
-            // 显示当前选中的插件
+            // Show currently selected plugins
             this.renderTools('plugin', allTools.plugins || []);
         } catch (error) {
             console.error('[AgentToolsDialog] Failed to load data:', error);
@@ -190,7 +190,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 加载所有可用工具
+     * Load all available tools
      */
     async loadAllTools() {
         try {
@@ -224,7 +224,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 渲染工具列表
+     * Render tools list
      */
     renderTools(toolType, tools) {
         const listContainer = document.getElementById('toolsList');
@@ -237,7 +237,7 @@ const AgentToolsDialog = {
         console.log(`[AgentToolsDialog] Rendering ${toolType} tools:`, tools);
         console.log('[AgentToolsDialog] Current selections:', Array.from(this.currentSelections));
 
-        // 创建工具项
+        // Create tool items
         const toolsHTML = tools.map(tool => {
             const toolId = toolType === 'doc-skill'
                 ? (tool.skill_key || tool.skillKey || tool.name)
@@ -270,12 +270,12 @@ const AgentToolsDialog = {
 
         listContainer.innerHTML = toolsHTML;
 
-        // 更新统计
+        // Update counts
         this.updateSelectedCount();
     },
 
     /**
-     * 获取工具图标
+     * Get tool icon
      */
     getToolIcon(toolType) {
         const icons = {
@@ -289,7 +289,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 绑定事件处理器
+     * Bind event handlers
      */
     bindEventHandlers(agentId) {
         const dialog = document.getElementById('agentToolsDialog');
@@ -298,7 +298,7 @@ const AgentToolsDialog = {
             return;
         }
 
-        // 关闭对话框
+        // Close dialog
         const closeBtn = dialog.querySelector('#closeAgentToolsDialog');
         const cancelBtn = dialog.querySelector('#cancelAgentTools');
         const saveBtn = dialog.querySelector('#saveAgentTools');
@@ -311,14 +311,14 @@ const AgentToolsDialog = {
             cancelBtn.addEventListener('click', () => this.close());
         }
 
-        // 点击遮罩关闭（modal-overlay是dialog的父元素）
+        // Click overlay to close (modal-overlay is the dialog container)
         dialog.addEventListener('click', (e) => {
             if (e.target.id === 'agentToolsDialog') {
                 this.close();
             }
         });
 
-        // 标签页切换
+        // Tab switch
         dialog.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const tab = e.currentTarget.dataset.tab;
@@ -326,7 +326,7 @@ const AgentToolsDialog = {
             });
         });
 
-        // 搜索
+        // Search
         const searchInput = dialog.querySelector('#toolsSearchInput');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -334,14 +334,14 @@ const AgentToolsDialog = {
             });
         }
 
-        // 工具选择
+        // Tool selection
         dialog.addEventListener('change', (e) => {
             if (e.target.type === 'checkbox' && e.target.dataset.toolId) {
                 this.toggleToolSelection(e.target);
             }
         });
 
-        // 保存配置
+        // Save config
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 this.saveConfiguration(agentId);
@@ -350,18 +350,18 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 切换标签页
+     * Switch tab
      */
     switchTab(tab) {
         const dialog = document.getElementById('agentToolsDialog');
         const allTools = JSON.parse(dialog.dataset.allTools || '{}');
 
-        // 更新激活状态
+        // Update active state
         dialog.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === tab);
         });
 
-        // 渲染对应工具列表
+        // Render tools for current tab
         const toolsMap = {
             plugin: allTools.plugins || [],
             mcp: allTools.mcps || [],
@@ -372,7 +372,7 @@ const AgentToolsDialog = {
 
         this.renderTools(tab, toolsMap[tab]);
 
-        // 清空搜索
+        // Clear search
         const searchInput = document.getElementById('toolsSearchInput');
         if (searchInput) {
             searchInput.value = '';
@@ -380,7 +380,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 过滤工具
+     * Filter tools
      */
     filterTools(searchText) {
         const listContainer = document.getElementById('toolsList');
@@ -401,7 +401,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 切换工具选择状态
+     * Toggle tool selection state
      */
     toggleToolSelection(checkbox) {
         const toolItem = checkbox.closest('.tool-item');
@@ -416,7 +416,7 @@ const AgentToolsDialog = {
                 this.docSkillSelections.delete(String(toolId));
             }
         } else {
-            // 更新currentSelections
+            // Update currentSelections
             if (checkbox.checked) {
                 this.currentSelections.add(selectionKey);
             } else {
@@ -432,7 +432,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 更新选中数量
+     * Update selected count
      */
     updateSelectedCount() {
         const countEl = document.getElementById('selectedCount');
@@ -442,11 +442,11 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 保存配置
+     * Save configuration
      */
     async saveConfiguration(agentId) {
         try {
-            // 从currentSelections构建工具配置列表
+            // Build tool config list from currentSelections
             const tools = Array.from(this.currentSelections).map((key, index) => {
                 const [tool_type, tool_id] = key.split(':');
                 return {
@@ -459,10 +459,10 @@ const AgentToolsDialog = {
 
             console.log('[AgentToolsDialog] Saving tools:', tools);
 
-            // 调用API保存
+            // Save via API
             const result = await agentApi.updateAgentTools(agentId, tools);
 
-            // 保存 Doc Skills
+            // Save Doc Skills
             await fetch(this.resolve(`/api/skills/agent/${agentId}/skills`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -471,10 +471,10 @@ const AgentToolsDialog = {
 
             console.log('[AgentToolsDialog] Save result:', result);
 
-            // 显示成功消息
+            // Show success message
             this.showSuccess('工具配置已保存');
 
-            // 关闭对话框
+            // Close dialog
             setTimeout(() => this.close(), 1000);
 
         } catch (error) {
@@ -484,7 +484,7 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 关闭对话框
+     * Close dialog
      */
     close() {
         const dialog = document.getElementById('agentToolsDialog');
@@ -494,21 +494,21 @@ const AgentToolsDialog = {
     },
 
     /**
-     * 显示成功消息
+     * Show success message
      */
     showSuccess(message) {
-        // 简单实现，可以后续优化
+        // Simple implementation, can be improved later
         alert('✓ ' + message);
     },
 
     /**
-     * 显示错误消息
+     * Show error message
      */
     showError(message) {
-        // 简单实现，可以后续优化
+        // Simple implementation, can be improved later
         alert('✗ ' + message);
     }
 };
 
-// 导出
+// Export
 window.AgentToolsDialog = AgentToolsDialog;

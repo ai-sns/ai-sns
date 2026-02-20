@@ -1,5 +1,5 @@
 /**
- * Tools Sidebar - 侧边栏渲染
+ * Tools Sidebar - sidebar rendering
  */
 
 const ToolsSidebar = {

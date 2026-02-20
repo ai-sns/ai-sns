@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-KM Note Service - 笔记服务（向后兼容版本）
-使用SQLite数据库存储笔记数据，兼容旧表结构
+KM Note Service - Note service (backward compatible version)
+Uses SQLite database to store note data, compatible with legacy table structure
 """
 import json
 from datetime import datetime
@@ -14,25 +14,25 @@ from backend.database.models.km import NoteMng
 
 
 class NoteService:
-    """笔记服务类 - 使用SQLite数据库（向后兼容）"""
+    """Note service class - uses SQLite database (backward compatible)."""
 
     def __init__(self):
-        """初始化笔记服务"""
-        # 确保数据库表已创建
+        """Initialize the note service."""
+        # Ensure database tables are created
         create_all_tables()
 
-        # 检查表结构并添加缺失的列
+        # Check table schema and add missing columns
         self._ensure_columns()
 
     def _ensure_columns(self):
-        """确保所有必要的列都存在"""
+        """Ensure all required columns exist."""
         try:
             with engine.connect() as conn:
-                # 检查列是否存在
+                # Check whether columns exist
                 result = conn.execute(text("PRAGMA table_info(note_mng)"))
                 columns = [row[1] for row in result]
 
-                # 添加缺失的列
+                # Add missing columns
                 if 'tags' not in columns:
                     try:
                         conn.execute(text("ALTER TABLE note_mng ADD COLUMN tags TEXT"))
@@ -62,12 +62,12 @@ class NoteService:
             print(f"⚠️  检查/添加列时出错: {e}")
 
     def _get_session(self) -> Session:
-        """获取数据库会话"""
+        """Get a database session."""
         return SessionLocal()
 
     def _note_to_dict(self, note: NoteMng) -> Dict:
-        """将数据库模型转换为字典"""
-        # 解析tags字段
+        """Convert a DB model instance into a dict."""
+        # Parse tags field
         tags = []
         if hasattr(note, 'tags') and note.tags:
             try:
@@ -75,7 +75,7 @@ class NoteService:
             except:
                 tags = []
 
-        # 安全获取字段
+        # Safely read fields
         is_pinned = getattr(note, 'is_pinned', False) or False
         updated_at = getattr(note, 'updated_at', None)
 
@@ -93,7 +93,7 @@ class NoteService:
         }
 
     def create_note(self, title: str, content: str, tags: List[str] = None, km_id: str = None) -> Dict:
-        """创建新笔记"""
+        """Create a new note."""
         session = self._get_session()
         try:
             now = datetime.now()
@@ -108,7 +108,7 @@ class NoteService:
             if km_id:
                 note_data['km_id'] = km_id
 
-            # 只在列存在时才设置
+            # Only set extended fields if columns exist
             try:
                 note_data['tags'] = json.dumps(tags or [], ensure_ascii=False)
                 note_data['is_pinned'] = False
@@ -130,7 +130,7 @@ class NoteService:
             session.close()
 
     def get_all_notes(self) -> List[Dict]:
-        """获取所有笔记（未删除的）"""
+        """Get all notes (not deleted)."""
         session = self._get_session()
         try:
             notes = session.query(NoteMng).filter(
@@ -142,7 +142,7 @@ class NoteService:
             session.close()
 
     def get_note(self, note_id: int) -> Optional[Dict]:
-        """获取单个笔记"""
+        """Get a single note."""
         session = self._get_session()
         try:
             note = session.query(NoteMng).filter(
@@ -160,7 +160,7 @@ class NoteService:
 
     def update_note(self, note_id: int, title: str = None, content: str = None,
                    tags: List[str] = None, is_pinned: bool = None) -> Optional[Dict]:
-        """更新笔记"""
+        """Update a note."""
         session = self._get_session()
         try:
             note = session.query(NoteMng).filter(
@@ -173,13 +173,13 @@ class NoteService:
             if not note:
                 return None
 
-            # 更新字段
+            # Update fields
             if title is not None:
                 note.title = title
             if content is not None:
                 note.content = content
 
-            # 只在列存在时才更新
+            # Only update extended fields if columns exist
             try:
                 if tags is not None and hasattr(note, 'tags'):
                     note.tags = json.dumps(tags, ensure_ascii=False)
@@ -205,7 +205,7 @@ class NoteService:
             session.close()
 
     def delete_note(self, note_id: int) -> bool:
-        """删除笔记（软删除）"""
+        """Delete a note (soft delete)."""
         session = self._get_session()
         try:
             note = session.query(NoteMng).filter(
@@ -235,7 +235,7 @@ class NoteService:
             session.close()
 
     def toggle_pin(self, note_id: int) -> Optional[Dict]:
-        """切换笔记置顶状态"""
+        """Toggle note pinned status."""
         session = self._get_session()
         try:
             note = session.query(NoteMng).filter(
@@ -248,7 +248,7 @@ class NoteService:
             if not note:
                 return None
 
-            # 只在列存在时才更新
+            # Only update extended fields if columns exist
             try:
                 if hasattr(note, 'is_pinned'):
                     note.is_pinned = not note.is_pinned
@@ -272,25 +272,25 @@ class NoteService:
 
     def search_notes(self, query: str = "", km_id: str = None) -> List[Dict]:
         """
-        搜索笔记
+        Search notes.
 
         Args:
-            query: 搜索关键词（搜索标题、内容、标签）
-            km_id: 知识库ID（字符串，如"note_store"，可选，用于过滤特定知识库的笔记）
+            query: Search keywords (search title/content/tags)
+            km_id: Knowledge base ID (string, e.g. "note_store"; optional; used to filter notes in a specific KB)
 
         Returns:
-            符合条件的笔记列表
+            List of notes that match
         """
         session = SessionLocal()
         try:
-            # 构建查询
+            # Build query
             filters = [NoteMng.is_delete == False]
 
-            # 添加知识库过滤
+            # Add knowledge base filter
             if km_id is not None:
                 filters.append(NoteMng.km_id == km_id)
 
-            # 添加搜索条件
+            # Add search conditions
             if query and query.strip():
                 search_term = f"%{query}%"
                 filters.append(
@@ -301,16 +301,16 @@ class NoteService:
                     )
                 )
 
-            # 执行查询
+            # Execute query
             notes = session.query(NoteMng).filter(and_(*filters)).all()
 
-            # 转换为字典列表
+            # Convert to list of dicts
             result = [self._note_to_dict(note) for note in notes]
 
-            # 按置顶和更新时间排序
+            # Sort by pinned status and update time
             result.sort(key=lambda x: (
-                not x.get('is_pinned', False),  # 置顶的在前
-                -(datetime.fromisoformat(x.get('updated_at') or x.get('create_time') or datetime.now().isoformat()).timestamp())  # 新的在前
+                not x.get('is_pinned', False),  # Pinned first
+                -(datetime.fromisoformat(x.get('updated_at') or x.get('create_time') or datetime.now().isoformat()).timestamp())  # Newest first
             ))
 
             return result

@@ -16,7 +16,7 @@ async def get_role_configs(
     """Get all role configurations."""
     try:
         service = RoleConfigService()
-        # 如果没有指定 active_only，默认返回所有活跃的配置
+        # If active_only is not specified, default to returning all active configs
         configs = service.get_all(
             active_only=active_only if active_only is not None else True,
             category=category

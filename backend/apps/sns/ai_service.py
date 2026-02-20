@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-SNS AI Service - 为SNS模块提供AI对话服务
+SNS AI Service - Provides AI chat service for the SNS module
 """
 import logging
 from typing import Optional
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class SNSAIService:
-    """SNS AI服务类"""
+    """SNS AI service class."""
 
     @staticmethod
     async def chat_with_agent(
@@ -19,15 +19,15 @@ class SNSAIService:
         mode: str = "ai"
     ) -> str:
         """
-        与Agent对话
+        Chat with an agent.
 
         Args:
-            agent_identifier: Agent ID或名称
-            message: 用户消息
-            mode: 对话模式 ("ai" 或 "friends")
+            agent_identifier: Agent ID or name
+            message: User message
+            mode: Chat mode ("ai" or "friends")
 
         Returns:
-            Agent回复
+            Agent reply
         """
         try:
             agent_adapter = AgentAdapter()
@@ -36,20 +36,20 @@ class SNSAIService:
             if not agent:
                 return f"Error: Agent '{agent_identifier}' not found"
 
-            # 保存原始system prompt
+            # Save original system prompt
             original_prompt = agent.role_config.get('system_prompt', '')
 
-            # 根据mode修改system prompt
+            # Update system prompt based on mode
             if mode == "ai":
                 modified_prompt = "我是你的AI助手。" + original_prompt
             else:  # friends
                 modified_prompt = "我是你的朋友。" + original_prompt
 
-            # 临时修改system prompt
+            # Temporarily override system prompt
             agent.role_config['system_prompt'] = modified_prompt
 
             try:
-                # 调用Agent进行对话
+                # Call agent to chat
                 reply = await agent_adapter.chat(
                     agent=agent,
                     message=message,
@@ -59,7 +59,7 @@ class SNSAIService:
                 )
                 return reply
             finally:
-                # 恢复原始system prompt
+                # Restore original system prompt
                 agent.role_config['system_prompt'] = original_prompt
 
         except Exception as e:

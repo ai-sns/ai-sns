@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Agent Chat Router - Agent问答API接口
-支持流式和非流式问答，按ID或名称调用Agent
+Agent Chat Router - Agent Q&A API
+Supports streaming and non-streaming Q&A, calling agents by ID or name
 """
 import logging
 import json
@@ -567,7 +567,7 @@ async def _remote_agent_stream(*, rpc_url: str, text: str, context_id: str):
 # ==================== Request/Response Models ====================
 
 class AgentChatRequest(BaseModel):
-    """Agent问答请求"""
+    """Agent chat request."""
     message: str
     conversation_id: Optional[str] = None
     use_tools: bool = True
@@ -576,7 +576,7 @@ class AgentChatRequest(BaseModel):
 
 
 class AgentChatResponse(BaseModel):
-    """Agent问答响应"""
+    """Agent chat response."""
     success: bool
     reply: Optional[str] = None
     conversation_id: Optional[str] = None
@@ -591,14 +591,14 @@ async def agent_chat_by_id(
     request: AgentChatRequest
 ):
     """
-    Agent非流式问答（按ID）
+    Agent non-streaming chat (by ID).
 
     Args:
         agent_id: Agent ID
-        request: 问答请求
+        request: Chat request
 
     Returns:
-        问答响应
+        Chat response
     """
     try:
         try:
@@ -627,12 +627,12 @@ async def agent_chat_by_id(
                 }
             }
 
-        # 获取Agent实例
+        # Get agent instance
         agent = agent_manager.get_agent_by_id(agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
-        # 调用agent问答
+        # Call agent chat
         reply = await agent.chat(
             message=request.message,
             conversation_id=request.conversation_id,
@@ -654,7 +654,7 @@ async def agent_chat_by_id(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Agent问答失败: {e}", exc_info=True)
+        logger.error(f"Agent chat failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -840,14 +840,14 @@ async def agent_chat_stream_by_id(
     request: AgentChatRequest
 ):
     """
-    Agent流式问答（按ID）- 使用SSE
+    Agent streaming chat (by ID) - uses SSE.
 
     Args:
         agent_id: Agent ID
-        request: 问答请求
+        request: Chat request
 
     Returns:
-        SSE流式响应
+        SSE streaming response
     """
     try:
         try:
@@ -880,13 +880,13 @@ async def agent_chat_stream_by_id(
                 }
             )
 
-        # 获取Agent实例
+        # Get agent instance
         agent = agent_manager.get_agent_by_id(agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
         async def generate():
-            """SSE生成器"""
+            """SSE generator."""
             try:
                 async for chunk in agent.chat_stream(
                     message=request.message,
@@ -895,10 +895,10 @@ async def agent_chat_stream_by_id(
                     use_memory=request.use_memory,
                     use_knowledge_base=request.use_knowledge_base
                 ):
-                    # SSE格式
+                    # SSE format
                     yield f"data: {json.dumps({'content': chunk})}\n\n"
 
-                # 发送完成信号
+                # Send completion signal
                 yield f"data: {json.dumps({'done': True})}\n\n"
 
             except Exception as e:
@@ -928,14 +928,14 @@ async def agent_chat_by_name(
     request: AgentChatRequest
 ):
     """
-    Agent非流式问答（按名称）
+    Agent non-streaming chat (by name).
 
     Args:
-        agent_name: Agent名称
-        request: 问答请求
+        agent_name: Agent name
+        request: Chat request
 
     Returns:
-        问答响应
+        Chat response
     """
     try:
         cfg = _load_agent_cfg_by_name(agent_name)
@@ -959,12 +959,12 @@ async def agent_chat_by_name(
                 }
             }
 
-        # 获取Agent实例
+        # Get agent instance
         agent = agent_manager.get_agent_by_name(agent_name)
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
 
-        # 调用agent问答
+        # Call agent chat
         reply = await agent.chat(
             message=request.message,
             conversation_id=request.conversation_id,
@@ -996,14 +996,14 @@ async def agent_chat_stream_by_name(
     request: AgentChatRequest
 ):
     """
-    Agent流式问答（按名称）- 使用SSE
+    Agent streaming chat (by name) - uses SSE.
 
     Args:
-        agent_name: Agent名称
-        request: 问答请求
+        agent_name: Agent name
+        request: Chat request
 
     Returns:
-        SSE流式响应
+        SSE streaming response
     """
     try:
         cfg = _load_agent_cfg_by_name(agent_name)
@@ -1031,13 +1031,13 @@ async def agent_chat_stream_by_name(
                 }
             )
 
-        # 获取Agent实例
+        # Get agent instance
         agent = agent_manager.get_agent_by_name(agent_name)
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent '{agent_name}' not found")
 
         async def generate():
-            """SSE生成器"""
+            """SSE generator."""
             try:
                 async for chunk in agent.chat_stream(
                     message=request.message,
@@ -1046,10 +1046,10 @@ async def agent_chat_stream_by_name(
                     use_memory=request.use_memory,
                     use_knowledge_base=request.use_knowledge_base
                 ):
-                    # SSE格式
+                    # SSE format
                     yield f"data: {json.dumps({'content': chunk})}\n\n"
 
-                # 发送完成信号
+                # Send completion signal
                 yield f"data: {json.dumps({'done': True})}\n\n"
 
             except Exception as e:
@@ -1081,14 +1081,14 @@ async def clear_agent_memory(
     conversation_id: Optional[str] = None
 ):
     """
-    清除Agent的对话记忆
+    Clear agent conversation memory.
 
     Args:
         agent_id: Agent ID
-        conversation_id: 对话ID，如果为None则清除所有
+        conversation_id: Conversation ID; if None, clears all
 
     Returns:
-        成功状态
+        Success status
     """
     try:
         agent = agent_manager.get_agent_by_id(agent_id)
@@ -1115,14 +1115,14 @@ async def get_agent_memory(
     conversation_id: Optional[str] = None
 ):
     """
-    获取Agent的对话记忆
+    Get agent conversation memory.
 
     Args:
         agent_id: Agent ID
-        conversation_id: 对话ID
+        conversation_id: Conversation ID
 
     Returns:
-        对话历史
+        Conversation history
     """
     try:
         agent = agent_manager.get_agent_by_id(agent_id)
@@ -1151,13 +1151,13 @@ async def get_agent_memory(
 @router.get("/{agent_id}/info")
 async def get_agent_info(agent_id: int):
     """
-    获取Agent实例信息
+    Get agent instance info.
 
     Args:
         agent_id: Agent ID
 
     Returns:
-        Agent信息
+        Agent info
     """
     try:
         agent = agent_manager.get_agent_by_id(agent_id)
@@ -1179,13 +1179,13 @@ async def get_agent_info(agent_id: int):
 @router.post("/{agent_id}/reload")
 async def reload_agent(agent_id: int):
     """
-    重新加载Agent（刷新配置）
+    Reload agent (refresh config).
 
     Args:
         agent_id: Agent ID
 
     Returns:
-        成功状态
+        Success status
     """
     try:
         agent = agent_manager.reload_agent(agent_id)
@@ -1208,10 +1208,10 @@ async def reload_agent(agent_id: int):
 @router.get("/cached")
 async def get_cached_agents():
     """
-    获取所有已缓存的Agent
+    Get all cached agents.
 
     Returns:
-        缓存的Agent列表
+        Cached agent list
     """
     try:
         agents = agent_manager.get_all_cached_agents()

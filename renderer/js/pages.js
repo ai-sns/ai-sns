@@ -1,17 +1,17 @@
 /**
  * AI-SNS Page Controllers
- * 页面渲染和业务逻辑
+ * Page rendering and business logic
  */
 
 // ==================== Page Renderers ====================
 
 const PageRenderers = {
-    // Home 页面 - 参照 home.png
+    // Home page - see home.png
     renderHomePage() {
         return `
             <div class="home-page">
                 <div class="home-content-wrapper">
-                    <!-- Logo 和标题 -->
+                    <!-- Logo and title -->
                     <div class="home-brand">
                         <svg viewBox="0 0 48 48" width="56" height="56" class="home-logo-icon">
                             <rect x="4" y="4" width="40" height="40" rx="8" fill="#1a73e8"/>
@@ -21,17 +21,17 @@ const PageRenderers = {
                         <span class="home-brand-text">AI-SNS</span>
                     </div>
 
-                    <!-- 主标语 -->
+                    <!-- Main tagline -->
                     <h1 class="home-tagline">
                         We Are: AI Agent Social Network, Empowering the Future Metaverse!
                     </h1>
 
-                    <!-- 描述文字 -->
+                    <!-- Description -->
                     <p class="home-description">
                         AI-SNS is built on a distributed and decentralized network architecture, and here are some key features of AI-SNS:
                     </p>
 
-                    <!-- 功能列表 -->
+                    <!-- Feature list -->
                     <ul class="home-feature-list">
                         <li>This is a social network for AI Agents, enabling communication and collaboration between AI and AI, as well as between AI and humans.</li>
                         <li>It can freely and openly access various large models such as ChatGPT, ChatGLM, Baichuan, etc., to drive and empower AI Agents.</li>
@@ -39,11 +39,11 @@ const PageRenderers = {
                         <li>It can use blockchain to confirm the digital identity of AI Agents, empowering the future metaverse.</li>
                     </ul>
 
-                    <!-- 机器人图片区域 -->
+                    <!-- Robot illustration area -->
                     <div class="home-illustration">
                         <div class="illustration-placeholder">
                             <svg viewBox="0 0 400 200" class="robot-network-svg">
-                                <!-- 网格背景 -->
+                                <!-- Grid background -->
                                 <defs>
                                     <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                                         <stop offset="0%" style="stop-color:#1a237e;stop-opacity:0.8"/>
@@ -55,7 +55,7 @@ const PageRenderers = {
                                     </linearGradient>
                                 </defs>
                                 <rect width="400" height="200" rx="12" fill="url(#bgGradient)"/>
-                                <!-- 网络连线 -->
+                                <!-- Network links -->
                                 <g stroke="#4fc3f7" stroke-width="1" opacity="0.5">
                                     <line x1="50" y1="100" x2="150" y2="60"/>
                                     <line x1="150" y1="60" x2="250" y2="80"/>
@@ -66,7 +66,7 @@ const PageRenderers = {
                                     <line x1="150" y1="60" x2="150" y2="140"/>
                                     <line x1="250" y1="80" x2="250" y2="120"/>
                                 </g>
-                                <!-- 机器人节点 -->
+                                <!-- Robot nodes -->
                                 <g fill="url(#glowGradient)">
                                     <circle cx="50" cy="100" r="20"/>
                                     <circle cx="150" cy="60" r="16"/>
@@ -75,7 +75,7 @@ const PageRenderers = {
                                     <circle cx="250" cy="120" r="14"/>
                                     <circle cx="350" cy="100" r="22"/>
                                 </g>
-                                <!-- 机器人图标 -->
+                                <!-- Robot icons -->
                                 <g fill="white">
                                     <text x="50" y="105" text-anchor="middle" font-size="20">🤖</text>
                                     <text x="150" y="65" text-anchor="middle" font-size="14">🤖</text>
@@ -84,7 +84,7 @@ const PageRenderers = {
                                     <text x="250" y="125" text-anchor="middle" font-size="12">🤖</text>
                                     <text x="350" y="105" text-anchor="middle" font-size="22">🤖</text>
                                 </g>
-                                <!-- 发光效果 -->
+                                <!-- Glow effect -->
                                 <circle cx="200" cy="100" r="60" fill="none" stroke="#4fc3f7" stroke-width="2" opacity="0.3">
                                     <animate attributeName="r" values="60;80;60" dur="3s" repeatCount="indefinite"/>
                                     <animate attributeName="opacity" values="0.3;0.1;0.3" dur="3s" repeatCount="indefinite"/>
@@ -93,7 +93,7 @@ const PageRenderers = {
                         </div>
                     </div>
 
-                    <!-- 联系我们 -->
+                    <!-- Contact us -->
                     <div class="home-contact">
                         <h3 class="contact-title">Contact Us</h3>
                         <p class="contact-text">Welcome to visit our website for more information:</p>
@@ -104,7 +104,7 @@ const PageRenderers = {
         `;
     },
 
-    // Home 页面侧边栏 - 参照 home.png 的 Setting 布局
+    // Home page sidebar - see the Setting layout in home.png
     renderHomeSidebar() {
         return `
             <div class="sidebar-section">
@@ -142,13 +142,13 @@ const PageRenderers = {
         `;
     },
 
-    // SNS 页面 - 参照 aisns.png
+    // SNS page - see aisns.png
     renderSNSPage() {
         return `
             <div class="sns-page-layout">
-                <!-- 地图主区域 -->
+                <!-- Main map area -->
                 <div class="sns-map-area">
-                    <!-- 现代化顶部工具栏 -->
+                    <!-- Modern top toolbar -->
                     <div class="sns-toolbar" id="snsToolbar">
                         <div class="toolbar-left">
                             <div class="toolbar-status">
@@ -197,14 +197,14 @@ const PageRenderers = {
                             </button>
                         </div>
                     </div>
-                    <!-- 工具栏收起后的展开按钮 -->
+                    <!-- Expand button shown after the toolbar is collapsed -->
                     <button class="toolbar-expand-btn" id="toolbarExpandBtn" title="展开工具栏">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
                     </button>
 
-                    <!-- 地图容器 -->
+                    <!-- Map container -->
                     <div class="map-container" id="mapContainer">
                         <div class="map-placeholder">
                             <div class="map-placeholder-icon">
@@ -221,7 +221,7 @@ const PageRenderers = {
                         </div>
                     </div>
 
-                    <!-- 地图右侧设置面板 -->
+                    <!-- Map right-side settings panel -->
                     <div class="map-settings-panel" id="mapSettingsPanel">
                         <div class="settings-panel-header">
                             <span class="settings-panel-title">Settings</span>
@@ -310,14 +310,14 @@ const PageRenderers = {
                             </div>
                         </div>
                     </div>
-                    <!-- 设置面板收起后的展开按钮 -->
+                    <!-- Expand button shown after the settings panel is collapsed -->
                     <button class="settings-expand-btn" id="settingsExpandBtn" title="展开设置">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                             <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/>
                         </svg>
                     </button>
 
-                    <!-- 现代化底部功能栏 -->
+                    <!-- Modern bottom action bar -->
                     <div class="map-action-bar">
                         <div class="action-bar-left">
                             <button class="action-btn" data-action="plaza">
@@ -376,7 +376,7 @@ const PageRenderers = {
                         </div>
                     </div>
 
-                    <!-- 地图控制按钮组 -->
+                    <!-- Map control button group -->
                     <div class="map-controls">
                         <button class="map-control-btn" title="放大">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -405,7 +405,7 @@ const PageRenderers = {
                     </div>
                 </div>
 
-                <!-- 右侧状态面板收缩条 -->
+                <!-- Right-side status panel resizer -->
                 <div class="sns-panel-resizer" id="snsPanelResizer">
                     <div class="panel-resizer-handle">
                         <div class="panel-resizer-line"></div>
@@ -417,11 +417,11 @@ const PageRenderers = {
                     </button>
                 </div>
 
-                <!-- 右侧状态面板 -->
+                <!-- Right-side status panel -->
                 <div class="sns-status-panel" id="snsStatusPanel">
-                    <!-- 页签内容区域 - 整个面板内容随页签切换 -->
+                    <!-- Tab content area - the whole panel content changes with the selected tab -->
                     <div class="status-tab-content" id="statusTabContent">
-                        <!-- Process 页签内容 -->
+                        <!-- Process tab content -->
                         <div class="tab-pane active" data-tab="process">
                             <div class="status-section">
                                 <div class="status-section-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> Current Status</div>
@@ -444,7 +444,7 @@ const PageRenderers = {
                                 <div class="status-rows"><span class="na">N/A</span></div>
                             </div>
                         </div>
-                        <!-- Resource 页签内容 -->
+                        <!-- Resource tab content -->
                         <div class="tab-pane" data-tab="resource">
                             <div class="status-section">
                                 <div class="status-section-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 14h-2v-4H7v-2h6V7h2v4h4v2h-4v4z"/></svg> Resource Overview</div>
@@ -472,7 +472,7 @@ const PageRenderers = {
                                 </div>
                             </div>
                         </div>
-                        <!-- Think 页签内容 -->
+                        <!-- Think tab content -->
                         <div class="tab-pane" data-tab="think">
                             <div class="status-section">
                                 <div class="status-section-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg> AI Model</div>
@@ -495,7 +495,7 @@ const PageRenderers = {
                             </div>
                         </div>
                     </div>
-                    <!-- 底部页签按钮 -->
+                    <!-- Bottom tab buttons -->
                     <div class="status-tabs" id="statusTabs">
                         <button class="status-tab active" data-tab="process">Process</button>
                         <button class="status-tab" data-tab="resource">Resource</button>
@@ -506,7 +506,7 @@ const PageRenderers = {
         `;
     },
 
-    // SNS 页面侧边栏 - 参照 aisns.png
+    // SNS page sidebar - see aisns.png
     renderSNSSidebar() {
         return `
             <div class="sidebar-section">
@@ -514,7 +514,7 @@ const PageRenderers = {
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="#1a73e8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93z"/></svg>
                     <span class="sidebar-section-title">Explore the Earth-Y宝</span>
                 </div>
-                <!-- 用户属性面板 -->
+                <!-- User attributes panel -->
                 <div class="user-stats-panel">
                     <div class="user-stat-badges">
                         <span class="stat-badge level">Level3</span>
@@ -558,13 +558,13 @@ const PageRenderers = {
         `;
     },
 
-    // Agent 页面 - 参照 agent.png
+    // Agent page - see agent.png
     renderAgentPage() {
         return `
             <div class="agent-page-layout">
-                <!-- 聊天主区域 -->
+                <!-- Main chat area -->
                 <div class="agent-chat-area">
-                    <!-- 顶部工具栏 -->
+                    <!-- Top toolbar -->
                     <div class="agent-chat-toolbar">
                         <div class="toolbar-left">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="#1a73e8">
@@ -593,9 +593,9 @@ const PageRenderers = {
                         </div>
                     </div>
 
-                    <!-- 消息区域 -->
+                    <!-- Messages area -->
                     <div class="agent-chat-messages" id="chatMessages">
-                        <!-- 欢迎消息 -->
+                        <!-- Welcome message -->
                         <div class="welcome-message">
                             <div class="welcome-icon">
                                 <svg viewBox="0 0 48 48" width="64" height="64">
@@ -628,7 +628,7 @@ const PageRenderers = {
                         </div>
                     </div>
 
-                    <!-- 输入区域 -->
+                    <!-- Input area -->
                     <div class="agent-chat-input-area">
                         <div class="input-hint">Input @@ to load tools selector; Ctrl+i To load preset question; Ctrl+/ To insert chat template.</div>
                         <div class="input-wrapper">
@@ -657,7 +657,7 @@ const PageRenderers = {
         `;
     },
 
-    // Agent 页面侧边栏 - 参照 agent.png
+    // Agent page sidebar - see agent.png
     renderAgentSidebar() {
         return `
             <div class="sidebar-section agent-user-section">
@@ -665,7 +665,7 @@ const PageRenderers = {
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="#5f6368"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 9h-2V9h2v2zm0 4h-2v-2h2v2zM13 9V3.5L18.5 9H13z"/></svg>
                     <span class="agent-username">Altman (it is me)</span>
                 </div>
-                <!-- 大图标按钮 -->
+                <!-- Large icon buttons -->
                 <div class="agent-action-buttons">
                     <button class="agent-action-btn" id="newChatBtn">
                         <div class="action-btn-icon">
@@ -693,17 +693,17 @@ const PageRenderers = {
                 </div>
             </div>
             <div class="sidebar-section">
-                <!-- 搜索框 -->
+                <!-- Search box -->
                 <div class="agent-search">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="#9e9e9e"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                     <input type="text" class="search-input" placeholder="Keyword+Enter,Blank+Enter to reset">
                 </div>
-                <!-- Chat List / Tag List 切换 -->
+                <!-- Chat List / Tag List switch -->
                 <div class="chat-list-tabs">
                     <button class="chat-tab active" data-tab="chatList">Chat List</button>
                     <button class="chat-tab" data-tab="tagList">Tag List</button>
                 </div>
-                <!-- 聊天列表 -->
+                <!-- Chat list -->
                 <div class="chat-list-container" id="chatListContainer">
                     <div class="chat-tree" id="chatList">
                         <div class="tree-children">
@@ -712,7 +712,7 @@ const PageRenderers = {
                 </div>
             </div>
             <div class="sidebar-section agent-list-section">
-                <!-- Agent 列表 -->
+                <!-- Agent list -->
                 <div class="agent-list" id="agentList">
                     <div class="agent-item">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="#5f6368"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
@@ -743,12 +743,12 @@ const PageRenderers = {
         `;
     },
 
-    // KM 页面 - 参照 km.png
+    // KM page - see km.png
     renderKMPage() {
         return `
             <div class="km-page-layout">
                 <div class="km-editor-area">
-                    <!-- 第一行工具栏 -->
+                    <!-- First row toolbar -->
                     <div class="km-toolbar-row">
                         <div class="toolbar-group">
                             <button class="km-tool-btn" title="保存"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg></button>
@@ -775,7 +775,7 @@ const PageRenderers = {
                             <button class="km-tool-btn" title="有序列表"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg></button>
                         </div>
                     </div>
-                    <!-- 第二行工具栏：字体和格式 -->
+                    <!-- Second row toolbar: font and formatting -->
                     <div class="km-toolbar-row km-format-row">
                         <select class="km-font-select" id="fontSelect">
                             <option value="Microsoft YaHei UI">Microsoft YaHei UI</option>
@@ -812,7 +812,7 @@ const PageRenderers = {
                         <button class="km-tool-btn" title="减少缩进"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 17h10v-2H11v2zm-8-5l4 4V8l-4 4zm0 9h18v-2H3v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg></button>
                         <button class="km-tool-btn" title="增加缩进"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 21h18v-2H3v2zM3 8v8l4-4-4-4zm8 9h10v-2H11v2zM3 3v2h18V3H3zm8 6h10V7H11v2zm0 4h10v-2H11v2z"/></svg></button>
                     </div>
-                    <!-- 编辑区域 -->
+                    <!-- Editor area -->
                     <div class="km-editor-content" id="noteContent" contenteditable="true">
                         <p></p>
                     </div>
@@ -821,10 +821,10 @@ const PageRenderers = {
         `;
     },
 
-    // KM 页面侧边栏 - 参照 km.png
+    // KM page sidebar - see km.png
     renderKMSidebar() {
         return `
-            <!-- 顶部标题区 -->
+            <!-- Top header area -->
             <div class="km-sidebar-header">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="#1a73e8">
                     <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
@@ -832,7 +832,7 @@ const PageRenderers = {
                 <span class="km-sidebar-title">My Note</span>
             </div>
 
-            <!-- 操作按钮 -->
+            <!-- Action buttons -->
             <div class="km-action-buttons">
                 <button class="km-action-btn" id="newNoteBtn">
                     <div class="km-action-icon">
@@ -856,7 +856,7 @@ const PageRenderers = {
                 </button>
             </div>
 
-            <!-- 搜索框 -->
+            <!-- Search box -->
             <div class="km-search-box">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="#999">
                     <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
@@ -864,13 +864,13 @@ const PageRenderers = {
                 <input type="text" placeholder="Keyword+Enter,Blank+Enter to reset" class="km-search-input" id="kmSearchInput">
             </div>
 
-            <!-- 标签页切换 -->
+            <!-- Tab switch -->
             <div class="km-tabs">
                 <button class="km-tab active" data-tab="all">All</button>
                 <button class="km-tab" data-tab="tag">Tag</button>
             </div>
 
-            <!-- 笔记列表树 -->
+            <!-- Note tree -->
             <div class="km-note-tree" id="noteTree">
                 <div class="km-tree-node">
                     <div class="km-tree-item">
@@ -928,7 +928,7 @@ const PageRenderers = {
                 </div>
             </div>
 
-            <!-- 底部知识库列表 -->
+            <!-- Bottom knowledge base list -->
             <div class="km-kb-section">
                 <div class="km-kb-item" data-kb="pinecone">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
@@ -954,11 +954,11 @@ const PageRenderers = {
         `;
     },
 
-    // Tools 页面 - 完整的工具管理页面
+    // Tools page - full tool management page
     renderToolsPage() {
         return `
             <div class="tools-management-page">
-                <!-- 顶部标题栏 -->
+                <!-- Top header bar -->
                 <div class="tools-header">
                     <div class="tools-header-left">
                         <h1 class="tools-title">Tools Management</h1>
@@ -975,7 +975,7 @@ const PageRenderers = {
                     </div>
                 </div>
 
-                <!-- 标签页导航 -->
+                <!-- Tab navigation -->
                 <div class="tools-tabs">
                     <button class="tools-tab-item active" data-tab="plugins" onclick="PageControllers.switchToolTab('plugins')">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -1008,7 +1008,7 @@ const PageRenderers = {
                     </button>
                 </div>
 
-                <!-- 工具内容区域 -->
+                <!-- Tools content area -->
                 <div class="tools-content" id="toolsContentArea">
                     <div class="tools-loading">Loading tools...</div>
                 </div>
@@ -1016,7 +1016,7 @@ const PageRenderers = {
         `;
     },
 
-    // 渲染插件卡片 - 参照 tools.png
+    // Render plugin cards - see tools.png
     renderPluginCards() {
         const plugins = [
             { name: 'OpenAI', icon: 'openai', desc: 'OpenAI is an AI research organization known for GPT-4 and GPT-4o, which excel in natural language understanding and generation.', badge: 'LLM Connector' },
@@ -1048,7 +1048,7 @@ const PageRenderers = {
         `).join('');
     },
 
-    // 获取插件图标
+    // Get plugin icon
     getPluginIcon(icon) {
         const icons = {
             'openai': '<svg viewBox="0 0 24 24" width="32" height="32"><path fill="#10a37f" d="M22.2 8.3c-.5-1.4-1.5-2.5-2.7-3.3-.9-.6-1.9-.9-3-1-.3 0-.5 0-.8.1-.5-1.3-1.4-2.4-2.6-3.2C11.9.2 10.5-.1 9.2.1c-1.1.1-2.1.5-2.9 1.1-.8.6-1.5 1.4-1.9 2.3-.8-.2-1.6-.2-2.4 0-1.1.3-2.1.9-2.8 1.8-.6.8-1 1.8-1.1 2.8-.1 1 .1 2 .5 2.9-.8.8-1.3 1.8-1.5 2.9-.2 1.3.1 2.6.7 3.8.5.9 1.2 1.7 2.1 2.2.9.6 1.9.9 3 1 .3 0 .5 0 .8-.1.5 1.3 1.4 2.4 2.6 3.2 1.2.7 2.6 1 4 .8 1.1-.1 2.1-.5 2.9-1.1.8-.6 1.5-1.4 1.9-2.3.8.2 1.6.2 2.4 0 1.1-.3 2.1-.9 2.8-1.8.6-.8 1-1.8 1.1-2.8.1-1-.1-2-.5-2.9.8-.8 1.3-1.8 1.5-2.9.2-1.3-.1-2.7-.7-3.8zM12 18.9c-3.8 0-6.9-3.1-6.9-6.9s3.1-6.9 6.9-6.9 6.9 3.1 6.9 6.9-3.1 6.9-6.9 6.9z"/></svg>',
@@ -1064,10 +1064,10 @@ const PageRenderers = {
         return icons[icon] || icons['aisns'];
     },
 
-    // Tools 页面侧边栏 - 参照 tools.png
+    // Tools page sidebar - see tools.png
     renderToolsSidebar() {
         return `
-            <!-- 顶部标题 -->
+            <!-- Top title -->
             <div class="tools-sidebar-header">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="#1a73e8">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -1075,7 +1075,7 @@ const PageRenderers = {
                 <span>Tools Management</span>
             </div>
 
-            <!-- 底部分类列表 -->
+            <!-- Bottom category list -->
             <div class="tools-category-section">
                 <div class="tools-category-item active" data-tab="plugins">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="#666">
@@ -1110,7 +1110,7 @@ const PageRenderers = {
         `;
     },
 
-    // 渲染LLM图标网格 - 参照 tools.png
+    // Render LLM icon grid - see tools.png
     renderLLMIcons() {
         const llms = [
             { name: 'OpenAI', icon: 'openai' },
@@ -1133,11 +1133,11 @@ const PageRenderers = {
         `).join('');
     },
 
-    // Web 页面 - 参照 web.png
+    // Web page - see web.png
     renderWebPage() {
         return `
             <div class="web-page">
-                <!-- 顶部导航栏 -->
+                <!-- Top navigation bar -->
                 <div class="web-top-nav">
                     <div class="web-nav-brand">
                         <svg viewBox="0 0 24 24" width="24" height="24" fill="#fff">
@@ -1155,7 +1155,7 @@ const PageRenderers = {
                     </div>
                 </div>
 
-                <!-- 主内容区 - AI-SNS 介绍 -->
+                <!-- Main content area - AI-SNS introduction -->
                 <div class="web-hero-section">
                     <div class="web-hero-content">
                         <h1 class="web-hero-title">Ai-SNS</h1>
@@ -1188,7 +1188,7 @@ const PageRenderers = {
         `;
     },
 
-    // Web 页面侧边栏
+    // Web page sidebar
     renderWebSidebar() {
         return `
             <div class="web-sidebar-header">
@@ -1323,14 +1323,14 @@ const PageControllers = {
         }
         return '*';
     },
-    // Home 页面控制器
+    // Home page controller
     initHomePage() {
         this.loadHomeStats();
         this.bindHomeEvents();
     },
 
     loadHomeStats() {
-        // 加载统计数据
+        // Load statistics
         api.getAgents().then(response => {
             const count = document.getElementById('agentCount');
             if (count) count.textContent = (response.data || []).length;
@@ -1562,7 +1562,7 @@ const PageControllers = {
         });
     },
 
-    // SNS 页面控制器
+    // SNS page controller
     initSNSPage() {
         console.log('SNS 页面控制器初始化');
         this.loadBaiduMap();
@@ -1574,7 +1574,7 @@ const PageControllers = {
         this.initSNSActionBar();
     },
 
-    // 初始化 SNS 顶部工具栏收缩功能
+    // Initialize the SNS top toolbar collapse behavior
     initSNSToolbar() {
         const toolbar = document.getElementById('snsToolbar');
         const collapseBtn = document.getElementById('toolbarCollapseBtn');
@@ -1583,21 +1583,21 @@ const PageControllers = {
 
         if (!toolbar || !collapseBtn || !expandBtn || !mapArea) return;
 
-        // 从 localStorage 恢复状态
+        // Restore state from localStorage
         const savedCollapsed = localStorage.getItem('snsToolbarCollapsed') === 'true';
         if (savedCollapsed) {
             toolbar.classList.add('collapsed');
             mapArea.classList.add('toolbar-hidden');
         }
 
-        // 收起工具栏
+        // Collapse toolbar
         collapseBtn.addEventListener('click', () => {
             toolbar.classList.add('collapsed');
             mapArea.classList.add('toolbar-hidden');
             localStorage.setItem('snsToolbarCollapsed', 'true');
         });
 
-        // 展开工具栏
+        // Expand toolbar
         expandBtn.addEventListener('click', () => {
             toolbar.classList.remove('collapsed');
             mapArea.classList.remove('toolbar-hidden');
@@ -1605,7 +1605,7 @@ const PageControllers = {
         });
     },
 
-    // 初始化 SNS 右侧设置面板收缩功能
+    // Initialize the SNS right-side settings panel collapse behavior
     initSNSSettingsPanel() {
         const panel = document.getElementById('mapSettingsPanel');
         const collapseBtn = document.getElementById('settingsCollapseBtn');
@@ -1614,21 +1614,21 @@ const PageControllers = {
 
         if (!panel || !collapseBtn || !expandBtn || !mapArea) return;
 
-        // 从 localStorage 恢复状态
+        // Restore state from localStorage
         const savedCollapsed = localStorage.getItem('snsSettingsPanelCollapsed') === 'true';
         if (savedCollapsed) {
             panel.classList.add('collapsed');
             mapArea.classList.add('settings-hidden');
         }
 
-        // 收起设置面板
+        // Collapse settings panel
         collapseBtn.addEventListener('click', () => {
             panel.classList.add('collapsed');
             mapArea.classList.add('settings-hidden');
             localStorage.setItem('snsSettingsPanelCollapsed', 'true');
         });
 
-        // 展开设置面板
+        // Expand settings panel
         expandBtn.addEventListener('click', () => {
             panel.classList.remove('collapsed');
             mapArea.classList.remove('settings-hidden');
@@ -1636,12 +1636,12 @@ const PageControllers = {
         });
     },
 
-    // 初始化 SNS 底部动作栏
+    // Initialize the SNS bottom action bar
     initSNSActionBar() {
         const actionBar = document.querySelector('.map-action-bar');
         if (!actionBar) return;
 
-        // 动作按钮点击事件
+        // Action button click handler
         actionBar.addEventListener('click', (e) => {
             const btn = e.target.closest('.action-btn');
             if (!btn) return;
@@ -1649,16 +1649,16 @@ const PageControllers = {
             const action = btn.dataset.action;
             if (!action) return;
 
-            // 更新激活状态
+            // Update active state
             const allBtns = actionBar.querySelectorAll('.action-btn');
             allBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
-            // 处理不同的动作
+            // Handle different actions
             console.log('SNS Action:', action);
         });
 
-        // Start 按钮
+        // Start button
         const startBtn = document.getElementById('snsStartBtn');
         if (startBtn) {
             startBtn.addEventListener('click', () => {
@@ -1671,7 +1671,7 @@ const PageControllers = {
         }
     },
 
-    // 初始化 SNS 右侧面板收缩功能
+    // Initialize the SNS right-side panel collapse behavior
     initSNSPanelResizer() {
         const resizer = document.getElementById('snsPanelResizer');
         const collapseBtn = document.getElementById('snsPanelCollapseBtn');
@@ -1679,14 +1679,14 @@ const PageControllers = {
 
         if (!resizer || !collapseBtn || !statusPanel) return;
 
-        // 从 localStorage 恢复面板状态
+        // Restore panel state from localStorage
         const savedCollapsed = localStorage.getItem('snsPanelCollapsed') === 'true';
         if (savedCollapsed) {
             resizer.classList.add('collapsed');
             statusPanel.classList.add('collapsed');
         }
 
-        // 折叠/展开按钮点击事件
+        // Collapse/expand button click handler
         collapseBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isCollapsed = statusPanel.classList.toggle('collapsed');
@@ -1694,7 +1694,7 @@ const PageControllers = {
             localStorage.setItem('snsPanelCollapsed', isCollapsed);
         });
 
-        // 拖拽调整面板宽度
+        // Drag to resize panel width
         let isResizing = false;
         let startX = 0;
         let startWidth = 0;
@@ -1715,7 +1715,7 @@ const PageControllers = {
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
 
-            // 向左拖拽增加宽度，向右拖拽减少宽度
+            // Drag left to increase width, drag right to decrease width
             const deltaX = startX - e.clientX;
             const minPanelWidth = 200;
             const minMapWidth = 0;
@@ -1738,7 +1738,7 @@ const PageControllers = {
         });
     },
 
-    // 初始化 SNS 状态页签切换
+    // Initialize SNS status tab switching
     initSNSStatusTabs() {
         const tabsContainer = document.getElementById('statusTabs');
         const tabContent = document.getElementById('statusTabContent');
@@ -1752,12 +1752,12 @@ const PageControllers = {
             const targetTab = tabBtn.dataset.tab;
             if (!targetTab) return;
 
-            // 更新按钮激活状态
+            // Update active button state
             tabsContainer.querySelectorAll('.status-tab').forEach(btn => {
                 btn.classList.toggle('active', btn === tabBtn);
             });
 
-            // 切换内容面板
+            // Switch content panels
             tabContent.querySelectorAll('.tab-pane').forEach(pane => {
                 pane.classList.toggle('active', pane.dataset.tab === targetTab);
             });
@@ -1773,21 +1773,21 @@ const PageControllers = {
 
         console.log('加载地图');
 
-        // 立即显示地图内容，不显示加载动画
+        // Show map content immediately; do not show loading animation
         const placeholder = mapContainer.querySelector('.map-placeholder');
         if (placeholder) {
             placeholder.remove();
         }
 
-        // 检查地图是否已经加载过
+        // Check whether the map has already been loaded
         const existingIframe = mapContainer.querySelector('iframe');
         if (existingIframe) {
             console.log('地图已加载，直接显示');
             return;
         }
 
-        // 获取地图配置
-        let mapUrl = this.resolve('/scripts/map.html'); // 默认百度地图
+        // Get map configuration
+        let mapUrl = this.resolve('/scripts/map.html'); // Default: Baidu Map
         try {
             const response = await fetch(this.resolve('/api/sns/map-config'));
             const result = await response.json();
@@ -1811,7 +1811,7 @@ const PageControllers = {
 
         console.log('Final map URL:', mapUrl);
 
-        // 创建 iframe 加载地图页面
+        // Create an iframe to load the map page
         const iframe = document.createElement('iframe');
         iframe.src = mapUrl;
         iframe.style.width = '100%';
@@ -1824,11 +1824,11 @@ const PageControllers = {
 
         mapContainer.appendChild(iframe);
 
-        // 等待 iframe 加载完成后建立通信
+        // Establish communication after the iframe finishes loading
         iframe.onload = () => {
             console.log('地图页面加载完成');
 
-            // 向 iframe 发送初始数据
+            // Send initial data to the iframe
             const initialData = {
                 type: 'init',
                 data: {
@@ -1845,10 +1845,10 @@ const PageControllers = {
             }
         };
 
-        // 监听 iframe 加载失败
+        // Listen for iframe load failures
         iframe.onerror = () => {
             console.error('地图页面加载失败');
-            // 创建错误显示
+            // Create error display
             const errorDiv = document.createElement('div');
             errorDiv.className = 'map-placeholder';
             errorDiv.style.zIndex = '10';
@@ -1865,7 +1865,7 @@ const PageControllers = {
             mapContainer.appendChild(errorDiv);
         };
 
-        // 监听来自 iframe 的消息
+        // Listen for messages from the iframe
         const handleMessage = (event) => {
             if (event.origin === this.getMapIframeTargetOrigin(iframe)) {
                 const data = event.data;
@@ -1897,23 +1897,23 @@ const PageControllers = {
 
         console.log('尝试重新加载地图');
 
-        // 移除现有的iframe（如果存在）
+        // Remove the existing iframe (if any)
         const existingIframe = mapContainer.querySelector('iframe');
         if (existingIframe) {
-            // 移除事件监听器
+            // Remove event listener
             if (existingIframe._messageListener) {
                 window.removeEventListener('message', existingIframe._messageListener);
             }
             existingIframe.remove();
         }
 
-        // 移除现有的错误提示
+        // Remove existing error message
         const existingErrorDiv = mapContainer.querySelector('.map-placeholder');
         if (existingErrorDiv) {
             existingErrorDiv.remove();
         }
 
-        // 创建新的加载动画
+        // Create a new loading animation
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'map-placeholder';
         loadingDiv.innerHTML = `
@@ -1931,15 +1931,15 @@ const PageControllers = {
         `;
         mapContainer.appendChild(loadingDiv);
 
-        // 延迟调用initMap以显示加载动画
+        // Delay calling initMap to show the loading animation
         setTimeout(() => {
             this.initMap();
         }, 500);
     },
     handleLocationUpdate(data) {
         console.log('位置更新:', data);
-        // 可以更新 UI 显示当前位置
-        // 例如：更新状态面板中的位置信息
+        // You can update the UI to display the current location
+        // For example: update location info in the status panel
         const lngElement = document.querySelector('.status-row.sub span[class="value"]');
         const latElement = document.querySelectorAll('.status-row.sub span[class="value"]')[1];
         if (lngElement && data.lng) {
@@ -1950,19 +1950,19 @@ const PageControllers = {
         }
     },
 
-    // 处理地图点击事件
+    // Handle map click events
     handleMapClick(data) {
         console.log('地图点击:', data);
-        // 可以在地图上添加标记或执行其他操作
+        // You can add markers on the map or perform other actions
     },
 
-    // 处理添加标记事件
+    // Handle marker add events
     handleMarkerAdd(data) {
         console.log('添加标记:', data);
-        // 可以在地图上添加自定义标记
+        // You can add custom markers on the map
     },
 
-    // 向地图页面发送消息的方法
+    // Send a message to the map page
     sendMessageToMap(type, data) {
         const iframe = document.querySelector('#mapContainer iframe');
         if (iframe && iframe.contentWindow) {
@@ -1975,7 +1975,7 @@ const PageControllers = {
     },
 
     loadSNSData() {
-        // 模拟加载SNS数据
+        // Simulate loading SNS data
         const updateValue = (id, value) => {
             const el = document.getElementById(id);
             if (el) el.textContent = value;
@@ -1986,28 +1986,28 @@ const PageControllers = {
         updateValue('messageCount', Math.floor(Math.random() * 10000) + 1000);
     },
 
-    // Agent 页面控制器
+    // Agent page controller
     initAgentPage() {
         this.loadAgentList();
         this.loadChatList();
         this.bindAgentEvents();
         this.initChatStreamListeners();
-        // 初始化聊天历史记录
+        // Initialize chat history
         this.chatHistory = [];
-        // 当前请求ID
+        // Current request ID
         this.currentRequestId = null;
-        // 当前流式内容
+        // Current streaming content
         this.streamingContent = '';
     },
 
-    // 初始化流式聊天监听器
+    // Initialize streaming chat listeners
     initChatStreamListeners() {
         if (!window.electronAPI) return;
 
-        // 清除旧的监听器
+        // Clear existing listeners
         window.electronAPI.removeChatStreamListeners();
 
-        // 监听流式数据
+        // Listen for streaming data
         window.electronAPI.onChatStreamData((data) => {
             if (data.requestId === this.currentRequestId) {
                 this.streamingContent += data.content;
@@ -2015,7 +2015,7 @@ const PageControllers = {
             }
         });
 
-        // 监听流结束
+        // Listen for stream end
         window.electronAPI.onChatStreamEnd((data) => {
             if (data.requestId === this.currentRequestId) {
                 this.finalizeStreamingMessage();
@@ -2023,7 +2023,7 @@ const PageControllers = {
             }
         });
 
-        // 监听错误
+        // Listen for errors
         window.electronAPI.onChatStreamError((data) => {
             if (data.requestId === this.currentRequestId) {
                 this.showStreamError(data.error);
@@ -2032,7 +2032,7 @@ const PageControllers = {
         });
     },
 
-    // 更新流式消息显示
+    // Update streaming message display
     updateStreamingMessage(content) {
         const streamingBody = document.querySelector('.message-item.streaming .message-body');
         if (streamingBody) {
@@ -2044,7 +2044,7 @@ const PageControllers = {
         }
     },
 
-    // 完成流式消息
+    // Finalize streaming message
     finalizeStreamingMessage() {
         const streamingMsg = document.querySelector('.message-item.streaming');
         if (streamingMsg) {
@@ -2052,11 +2052,11 @@ const PageControllers = {
             const streamingBody = streamingMsg.querySelector('.message-body');
             if (streamingBody) {
                 streamingBody.innerHTML = this.renderMarkdown(this.streamingContent);
-                // 高亮代码块
+                // Highlight code blocks
                 this.highlightCodeBlocks(streamingBody);
             }
         }
-        // 保存到历史
+        // Save to history
         this.chatHistory.push({
             role: 'assistant',
             content: this.streamingContent
@@ -2064,7 +2064,7 @@ const PageControllers = {
         this.streamingContent = '';
     },
 
-    // 显示流错误
+    // Show stream error
     showStreamError(error) {
         const streamingMsg = document.querySelector('.message-item.streaming');
         if (streamingMsg) {
@@ -2077,14 +2077,14 @@ const PageControllers = {
         }
     },
 
-    // Markdown 渲染
+    // Markdown rendering
     renderMarkdown(text, isStreaming = false) {
         if (!text) return '';
 
-        // 保存代码块，避免被其他规则处理
+        // Preserve code blocks to avoid being processed by other rules
         const codeBlocks = [];
 
-        // 完整的代码块处理 (```language\ncode```)
+        // Full code block handling (```language\ncode```)
         text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
             const language = lang || 'plaintext';
             const escapedCode = this.escapeHtml(code.trim());
@@ -2093,10 +2093,10 @@ const PageControllers = {
             return placeholder;
         });
 
-        // 处理不完整的代码块（流式输出中）
+        // Handle incomplete code blocks (during streaming output)
         if (isStreaming) {
             text = text.replace(/```(\w*)\n?([\s\S]*)$/g, (match, lang, code) => {
-                // 检查是否已经被完整代码块处理过（以占位符结尾）
+                // Check whether it has already been handled as a full code block (ends with a placeholder)
                 if (match.includes('__CODEBLOCK_')) return match;
                 const language = lang || 'plaintext';
                 const escapedCode = this.escapeHtml(code);
@@ -2106,46 +2106,46 @@ const PageControllers = {
             });
         }
 
-        // 行内代码（避免处理代码块占位符）
+        // Inline code (avoid processing code block placeholders)
         text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
 
-        // 粗体
+        // Bold
         text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
-        // 斜体
+        // Italic
         text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-        // 标题
+        // Headings
         text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
         text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
         text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
-        // 无序列表
+        // Unordered lists
         text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
         text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
-        // 有序列表
+        // Ordered lists
         text = text.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
 
-        // 链接
+        // Links
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
-        // 引用块
+        // Blockquotes
         text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
 
-        // 分割线
+        // Horizontal rules
         text = text.replace(/^---$/gm, '<hr>');
 
-        // 换行处理
+        // Line break handling
         text = text.replace(/\n\n/g, '</p><p>');
         text = text.replace(/\n/g, '<br>');
 
-        // 包裹在段落中
+        // Wrap in a paragraph
         if (!text.startsWith('<') && !text.startsWith('__CODEBLOCK_')) {
             text = '<p>' + text + '</p>';
         }
 
-        // 还原代码块
+        // Restore code blocks
         codeBlocks.forEach((block, index) => {
             text = text.replace(`__CODEBLOCK_${index}__`, block);
         });
@@ -2153,24 +2153,24 @@ const PageControllers = {
         return text;
     },
 
-    // 代码高亮（简单实现）
+    // Code highlighting (simple implementation)
     highlightCodeBlocks(container) {
         container.querySelectorAll('pre code').forEach(block => {
-            // 如果已经高亮过，跳过
+            // Skip if already highlighted
             if (block.dataset.highlighted) return;
             block.dataset.highlighted = 'true';
 
-            // 获取纯文本内容
+            // Get plain text content
             let code = block.textContent;
 
-            // 保存原始代码用于复制
+            // Save raw code for copying
             block.dataset.rawCode = code;
 
-            // 简单高亮：只处理关键字，不做复杂转换
-            // 先转义 HTML
+            // Simple highlighting: only keywords; no complex transformations
+            // Escape HTML first
             let highlighted = this.escapeHtml(code);
 
-            // 关键字高亮（使用单词边界确保精确匹配）
+            // Keyword highlighting (use word boundaries for exact matches)
             const keywords = [
                 'function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return',
                 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch',
@@ -2180,28 +2180,28 @@ const PageControllers = {
                 'except', 'finally', 'lambda', 'yield', 'elif', 'range', 'len'
             ];
 
-            // 使用单个正则一次性替换所有关键字
+            // Use a single regex to replace all keywords in one pass
             const keywordPattern = new RegExp(`\\b(${keywords.join('|')})\\b`, 'g');
             highlighted = highlighted.replace(keywordPattern, '<span class="hljs-keyword">$1</span>');
 
-            // 数字高亮
+            // Number highlighting
             highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="hljs-number">$1</span>');
 
-            // 字符串高亮（简单版：匹配引号内容）
+            // String highlighting (simple: match quoted content)
             highlighted = highlighted.replace(/(&quot;[^&]*&quot;|&#39;[^&]*&#39;)/g, '<span class="hljs-string">$1</span>');
 
-            // 注释高亮
+            // Comment highlighting
             highlighted = highlighted.replace(/(\/\/.*$|#.*$)/gm, '<span class="hljs-comment">$1</span>');
 
             block.innerHTML = highlighted;
         });
     },
 
-    // 复制代码
+    // Copy code
     copyCode(btn) {
         const codeBlock = btn.closest('.code-block');
         const codeElement = codeBlock.querySelector('code');
-        // 优先使用保存的原始代码，否则使用 textContent
+        // Prefer the stored raw code; fallback to textContent
         const code = codeElement.dataset.rawCode || codeElement.textContent;
 
         navigator.clipboard.writeText(code).then(() => {
@@ -2278,19 +2278,19 @@ const PageControllers = {
     },
 
     bindAgentEvents() {
-        // 新建对话按钮
+        // New chat button
         const newChatBtn = document.getElementById('newChatBtn');
         if (newChatBtn) {
             newChatBtn.addEventListener('click', () => this.showNewChatModal());
         }
 
-        // 新建Agent按钮
+        // New agent button
         const newAgentBtn = document.getElementById('newAgentBtn');
         if (newAgentBtn) {
             newAgentBtn.addEventListener('click', () => this.showNewAgentModal());
         }
 
-        // 发送消息
+        // Send message
         const sendBtn = document.getElementById('sendMessageBtn');
         const chatInput = document.getElementById('chatInput');
 
@@ -2325,7 +2325,7 @@ const PageControllers = {
             }
         });
 
-        // 加载Agent选项
+        // Load agent options
         api.getAgents().then(response => {
             const select = document.getElementById('selectAgent');
             if (select) {
@@ -2394,24 +2394,24 @@ const PageControllers = {
         const message = input.value.trim();
         if (!message) return;
 
-        // 如果正在进行流式输出，不允许发送新消息
+        // If streaming is in progress, do not allow sending a new message
         if (this.currentRequestId) {
             return;
         }
 
-        // 禁用发送按钮
+        // Disable send button
         if (sendBtn) {
             sendBtn.disabled = true;
             sendBtn.classList.add('sending');
         }
 
-        // 隐藏欢迎消息
+        // Hide welcome message
         const welcomeMsg = messagesContainer.querySelector('.welcome-message');
         if (welcomeMsg) {
             welcomeMsg.style.display = 'none';
         }
 
-        // 获取当前时间
+        // Get current timestamp
         const now = new Date();
         const timeStr = now.toLocaleString('zh-CN', {
             year: 'numeric',
@@ -2422,7 +2422,7 @@ const PageControllers = {
             second: '2-digit'
         });
 
-        // 添加用户消息
+        // Add user message
         const userMessageHtml = `
             <div class="message-item user-message">
                 <div class="message-header">
@@ -2440,13 +2440,13 @@ const PageControllers = {
         input.value = '';
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // 保存用户消息到历史
+        // Save user message to history
         this.chatHistory.push({
             role: 'user',
             content: message
         });
 
-        // 添加AI回复容器（带思考动画）
+        // Add AI response container (with thinking animation)
         const assistantMessageHtml = `
             <div class="message-item assistant-message streaming">
                 <div class="message-header">
@@ -2469,11 +2469,11 @@ const PageControllers = {
         messagesContainer.insertAdjacentHTML('beforeend', assistantMessageHtml);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        // 生成请求ID
+        // Generate request ID
         this.currentRequestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         this.streamingContent = '';
 
-        // 获取系统提示词
+        // Get system prompt
         const roleSelector = document.getElementById('roleSelector');
         let systemPrompt = '你是一个有帮助的AI助手。';
         if (roleSelector) {
@@ -2494,13 +2494,13 @@ const PageControllers = {
             }
         }
 
-        // 构建消息数组
+        // Build messages array
         const messages = [
             { role: 'system', content: systemPrompt },
             ...this.chatHistory
         ];
 
-        // 启用发送按钮的函数
+        // Helper to re-enable send button
         const enableSendBtn = () => {
             if (sendBtn) {
                 sendBtn.disabled = false;
@@ -2508,20 +2508,20 @@ const PageControllers = {
             }
         };
 
-        // 发起流式请求
+        // Start streaming request
         if (window.electronAPI && window.electronAPI.chatStreamStart) {
             window.electronAPI.chatStreamStart(messages, this.currentRequestId);
 
-            // 设置超时处理
+            // Timeout handling
             setTimeout(() => {
                 if (this.currentRequestId) {
                     this.showStreamError('请求超时，请重试');
                     this.currentRequestId = null;
                     enableSendBtn();
                 }
-            }, 120000); // 2分钟超时
+            }, 120000); // 2-minute timeout
 
-            // 监听完成事件以启用按钮
+            // Poll completion to re-enable button
             const checkComplete = setInterval(() => {
                 if (!this.currentRequestId) {
                     enableSendBtn();
@@ -2529,12 +2529,12 @@ const PageControllers = {
                 }
             }, 100);
         } else {
-            // 如果没有 electronAPI，使用模拟响应
+            // If electronAPI is not available, use a mock response
             this.simulateStreamResponse(enableSendBtn);
         }
     },
 
-    // 模拟流式响应（用于开发测试）
+    // Simulate streaming response (for development/testing)
     simulateStreamResponse(enableSendBtn) {
         const mockResponse = `好的，我来回答你的问题。
 
@@ -2585,7 +2585,7 @@ if __name__ == "__main__":
         return div.innerHTML;
     },
 
-    // KM 页面控制器
+    // KM page controller
     initKMPage() {
         this.loadNoteList();
         this.bindKMEvents();
@@ -2623,31 +2623,31 @@ if __name__ == "__main__":
     },
 
     bindKMEvents() {
-        // 新建笔记按钮
+        // New note button
         const newNoteBtn = document.getElementById('newNoteBtn');
         if (newNoteBtn) {
             newNoteBtn.addEventListener('click', () => this.showNewNoteModal());
         }
 
-        // 新建知识库按钮
+        // New knowledge base button
         const newKMBtn = document.getElementById('newKMBtn');
         if (newKMBtn) {
             newKMBtn.addEventListener('click', () => this.showNewKMModal());
         }
 
-        // 工具栏按钮 - 修复按钮类名绑定
+        // Toolbar buttons - fix button class binding
         document.querySelectorAll('.km-tool-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                // 确定按钮操作类型
+                // Determine action type
                 let action = btn.dataset.action;
                 if (!action) {
-                    // 如果没有data-action属性，根据按钮的功能推测action
+                    // If there is no data-action, infer from button attributes
                     if (btn.classList.contains('format-btn')) {
                         action = btn.dataset.format;
                     } else if (btn.dataset.align) {
                         action = btn.dataset.align;
                     } else {
-                        // 对于没有明确data-action的按钮，根据title属性判断
+                        // For buttons without explicit data-action, infer from title
                         const title = btn.getAttribute('title');
                         switch(title) {
                             case '粗体':
@@ -2804,27 +2804,27 @@ if __name__ == "__main__":
         });
     },
 
-    // 保存笔记
+    // Save note
     saveNote() {
         const noteContent = document.getElementById('noteContent');
-        const noteTitle = document.getElementById('noteTitle'); // 假设标题输入框的ID是noteTitle
+        const noteTitle = document.getElementById('noteTitle'); // Assume the title input ID is noteTitle
         if (!noteContent) return;
 
         const content = noteContent.innerHTML;
         const title = noteTitle ? noteTitle.value : 'Untitled';
 
-        // 这里可以添加保存逻辑，比如发送到后端API
+        // Add persistence logic here, e.g. send to backend API
         console.log('保存笔记:', title, content);
-        // Notification.success('笔记已保存');
+        // Notification.success('Note saved');
     },
 
-    // 显示搜索对话框
+    // Show search dialog
     showSearchDialog() {
         const searchTerm = prompt('请输入搜索内容:');
         if (searchTerm) {
             const noteContent = document.getElementById('noteContent');
             if (noteContent) {
-                // 简单的搜索实现
+                // Simple search implementation
                 const text = noteContent.innerText;
                 const index = text.indexOf(searchTerm);
                 if (index !== -1) {
@@ -2836,7 +2836,7 @@ if __name__ == "__main__":
         }
     },
 
-    // 插入表格
+    // Insert table
     insertTable() {
         const rows = prompt('请输入行数:');
         const cols = prompt('请输入列数:');
@@ -2856,7 +2856,7 @@ if __name__ == "__main__":
         }
     },
 
-    // 插入表情
+    // Insert emoticon
     insertEmoticon() {
         const emoticon = prompt('请输入表情符号:');
         if (emoticon) {
@@ -2864,7 +2864,7 @@ if __name__ == "__main__":
         }
     },
 
-    // 插入特殊字符
+    // Insert special character
     insertSpecialChar() {
         const specialChar = prompt('请输入特殊字符:');
         if (specialChar) {
@@ -2872,7 +2872,7 @@ if __name__ == "__main__":
         }
     },
 
-    // 执行编辑器操作
+    // Execute editor action
     executeEditorAction(action) {
         const noteContent = document.getElementById('noteContent');
         if (!noteContent) return;
@@ -2983,7 +2983,7 @@ if __name__ == "__main__":
         }
     },
 
-    // Tools 页面控制器
+    // Tools page controller
     initToolsPage() {
         this.toolsManager = new window.ToolsManager();
         this.currentToolTab = 'plugins';
@@ -3015,7 +3015,7 @@ if __name__ == "__main__":
         const contentArea = document.getElementById('toolsContentArea');
         if (!contentArea) return;
 
-        // 如果没有数据，显示空状态
+        // If there is no data, show empty state
         if (!items || items.length === 0) {
             contentArea.innerHTML = `
                 <div class="tools-empty">
@@ -3088,16 +3088,16 @@ if __name__ == "__main__":
         this.currentToolTab = tabName;
         this.toolsManager.switchTab(tabName);
 
-        // 显示加载状态
+        // Show loading state
         const contentArea = document.getElementById('toolsContentArea');
         if (contentArea) {
             contentArea.innerHTML = '<div class="tools-loading">Loading tools...</div>';
         }
 
-        // 加载数据
+        // Load data
         await this.loadToolsData();
 
-        // 更新标签页UI
+        // Update tab UI
         document.querySelectorAll('.tools-tab-item').forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
@@ -3142,7 +3142,7 @@ if __name__ == "__main__":
     },
 
     bindToolsEvents() {
-        // 侧边栏分类点击 - 切换标签页
+        // Sidebar category click - switch tabs
         const categoryItems = document.querySelectorAll('.tools-category-item');
         categoryItems.forEach((item) => {
             item.addEventListener('click', () => {
@@ -3150,29 +3150,29 @@ if __name__ == "__main__":
                 if (tabName) {
                     console.log('Switching to tab:', tabName); // Debug log
                     this.switchToolTab(tabName);
-                    // 更新侧边栏选中状态
+                    // Update sidebar selected state
                     categoryItems.forEach(ci => ci.classList.remove('active'));
                     item.classList.add('active');
                 }
             });
         });
 
-        // 市场标签切换
+        // Marketplace tab switch
         document.querySelectorAll('.market-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.market-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                // 可以根据tab过滤插件
+                // Optionally filter plugins by tab
             });
         });
 
-        // 导入插件按钮
+        // Import plugin button
         const importBtn = document.getElementById('importPluginBtn');
         if (importBtn) {
             importBtn.addEventListener('click', () => this.showImportPluginModal());
         }
 
-        // LLM图标点击
+        // LLM icon click
         document.querySelectorAll('.llm-icon-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.llm-icon-item').forEach(i => i.classList.remove('active'));
@@ -3180,7 +3180,7 @@ if __name__ == "__main__":
             });
         });
 
-        // 下载按钮
+        // Download button
         document.querySelectorAll('.plugin-download-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 Notification.info('插件下载功能开发中...');
@@ -3210,7 +3210,7 @@ if __name__ == "__main__":
         });
     },
 
-    // Web 页面控制器
+    // Web page controller
     initWebPage() {
         this.bindWebEvents();
     },
@@ -3257,7 +3257,7 @@ if __name__ == "__main__":
             });
         }
 
-        // 服务列表点击
+        // Service list click
         document.querySelectorAll('.web-service-item').forEach(item => {
             item.addEventListener('click', () => {
                 const url = item.dataset.url;
@@ -3272,7 +3272,7 @@ if __name__ == "__main__":
     }
 };
 
-// ==================== 导出 ====================
+// ==================== Exports ====================
 
 window.PageRenderers = PageRenderers;
 window.PageControllers = PageControllers;

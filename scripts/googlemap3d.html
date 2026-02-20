@@ -217,9 +217,7 @@
             <i class="fas fa-minimize" onclick="Minimize()"></i>
         </div>
 
-        <div class="top-btn" title="help">
-            <i class="fas fa-question-circle" onclick="open_url((window.__AI_SNS_SERVER__ || ''))"></i>
-        </div>
+
     </div>
     <div class="top-bar-toggle">
         <i class="fas fa-angle-double-up"></i>
@@ -352,67 +350,54 @@
     <div class="menu-section" id="menu-ai-top" style="display: block">
         <div class="menu-title">
             <i class="fas fa-globe-asia"></i>
-            <span>地图设置</span>
-        </div>
-        <div class="menu-item">
-            <i id="track_icon" class="fas fa-map"></i>
-            <span onclick="mapcfgSetting()" id="route_opr">地图设置</span>
+            <span>Map</span>
         </div>
         <div class="menu-item">
             <i class="fas fa-image"></i>
-            <span onclick="toggleNavigate()">俯览景点</span>
+            <span onclick="toggleNavigate()">Landmark</span>
+        </div>
+        <div class="menu-item">
+            <i id="track_icon" class="fas fa-map"></i>
+            <span onclick="mapcfgSetting()" id="route_opr">Configuration</span>
         </div>
     </div>
 
     <div class="menu-section" id="menu-ai-middle" style="display: block">
         <div class="menu-title">
             <i class="fas fa-gears"></i>
-            <span>系统设置</span>
-        </div>
-        <div class="menu-item">
-            <i class="fas fa-circle-user"></i>
-            <span onclick="userInfo()">用户配置</span>
-        </div>
-        <div class="menu-item">
-            <i class="fas fa-house"></i>
-            <span onclick="setHomePosition()">住址设置</span>
-        </div>
-        <div class="menu-item">
-            <i class="fas fa-address-card"></i>
-            <span onclick="jobSetting()">角色职业</span>
+            <span>Setting</span>
         </div>
         <div class="menu-item">
             <i class="fas fa-person-chalkboard"></i>
-            <span onclick="userSetting()">角色调教</span>
+            <span onclick="userSetting()">Prompt</span>
         </div>
         <div class="menu-item">
-            <i class="fas fa-laptop-code"></i>
-            <span onclick="advSetting()">高级控制</span>
+            <i class="fas fa-address-card"></i>
+            <span onclick="jobSetting()">Possession</span>
         </div>
         <div class="menu-item">
-            <i class="fas fa-info-circle"></i>
-            <span onclick="showGameTarget()">任务目标</span>
-        </div>
+            <i class="fas fa-circle-user"></i>
+            <span onclick="userInfo()">User Config</span>
+        </div>        
     </div>
 
 
     <div class="menu-section" id="menu-ai" style="display: block">
         <div class="menu-title">
             <i class="fas fa-map-marked-alt"></i>
-            <span>移动模式</span>
+            <span>Movement</span>
         </div>
-
-
-        <div class="menu-item">
-            <i class="fas fa-route"></i>
-            <span onclick="setRoute()" id="specified_route">指定路线</span>
-        </div>
-
 
         <div class="menu-item">
             <i class="fas fa-compass"></i>
-            <span onclick="setRouteRandom()" id="random_route">自由移动</span>
+            <span onclick="setRouteRandom()" id="random_route">Free Mode</span>
         </div>
+
+        <div class="menu-item">
+            <i class="fas fa-route"></i>
+            <span onclick="setRoute()" id="specified_route">Route Mode</span>
+        </div>
+
 
     </div>
 

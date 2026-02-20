@@ -1,6 +1,6 @@
 /**
- * Agent Sidebar - 侧边栏渲染（多Agent动态加载版本 - 重构架构）
- * 每个Agent有自己的展开/折叠section，直接显示在对应agent列表项下方
+ * Agent Sidebar - sidebar rendering (multi-agent dynamic loading version - refactored architecture)
+ * Each Agent has its own expand/collapse section, shown directly under the corresponding agent list item
  */
 
 const AgentSidebar = {
@@ -14,7 +14,7 @@ const AgentSidebar = {
         return urlOrPath;
     },
     /**
-     * 渲染侧边栏 - 返回基础结构，由init()动态填充
+     * Render sidebar - returns base structure, filled dynamically by init()
      */
     render() {
         return `
@@ -25,12 +25,12 @@ const AgentSidebar = {
     },
 
     /**
-     * 初始化 - 从API加载Agent并创建UI
+     * Init - load agents from API and create UI
      */
     async init() {
         console.log('[AgentSidebar] 开始初始化...');
 
-        // 1. 从API加载Agent列表
+        // 1. Load agent list from API
         const agents = await this.loadAgentsFromAPI();
         console.log('[AgentSidebar] 加载到的agents:', agents);
 
@@ -40,15 +40,15 @@ const AgentSidebar = {
             return;
         }
 
-        // 2. 渲染Agent列表（每个agent包含item + section）
+        // 2. Render agent list (each agent includes item + section)
         this.renderAgentList(agents);
 
-        // 3. 绑定事件
+        // 3. Bind events
         this.bindEvents();
 
-        // 4. 恢复之前选择的agent，或默认展开第一个agent
+        // 4. Restore previously selected agent, or expand the first agent by default
         if (agents.length > 0) {
-            // 检查是否有保存的currentAgentId
+            // Check for saved currentAgentId
             const savedAgentId = window.agentState?.currentAgentId;
             const agentToSelect = savedAgentId && agents.find(a => a.id === savedAgentId)
                 ? savedAgentId
@@ -56,7 +56,7 @@ const AgentSidebar = {
 
             console.log('[AgentSidebar] 选择Agent:', agentToSelect, savedAgentId ? '(恢复之前的选择)' : '(默认第一个)');
 
-            // 确保agentState设置了currentAgentId
+            // Ensure agentState has currentAgentId set
             if (window.agentState) {
                 window.agentState.setCurrentAgent(agentToSelect);
             }
@@ -68,7 +68,7 @@ const AgentSidebar = {
     },
 
     /**
-     * 从API加载Agent列表
+     * Load agent list from API
      */
     async loadAgentsFromAPI() {
         try {
@@ -101,13 +101,13 @@ const AgentSidebar = {
     },
 
     /**
-     * 渲染Agent列表（新架构：每个agent item后面跟着它的section）
+     * Render agent list (new architecture: each agent item is followed by its section)
      */
     renderAgentList(agents) {
         const agentList = document.getElementById('agentList');
         if (!agentList) return;
 
-        // 为每个agent创建：item + section
+        // For each agent create: item + section
         const agentItemsHTML = agents.map(agent => `
             <!-- Agent列表项 -->
             <div class="agent-item" data-agent-id="${agent.id}">
@@ -133,7 +133,7 @@ const AgentSidebar = {
             </div>
         `).join('');
 
-        // 添加管理按钮
+        // Add management buttons
         const managementButtons = `
             <div class="agent-item agent-management" data-page="model-management">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
@@ -160,7 +160,7 @@ const AgentSidebar = {
     },
 
     /**
-     * 创建单个Agent的section HTML内容
+     * Create a single Agent section HTML
      */
     createAgentSectionHTML(agent) {
         return `
@@ -242,7 +242,7 @@ const AgentSidebar = {
     },
 
     /**
-     * 渲染空状态
+     * Render empty state
      */
     renderEmptyState() {
         const agentList = document.getElementById('agentList');
@@ -257,12 +257,12 @@ const AgentSidebar = {
     },
 
     /**
-     * 绑定事件
+     * Bind events
      */
     bindEvents() {
         console.log('[AgentSidebar] 开始绑定事件...');
 
-        // 1. Agent列表项点击 - 切换Agent（展开/折叠）
+        // 1. Agent list item click - switch agent (expand/collapse)
         document.querySelectorAll('#agentList .agent-item[data-agent-id]').forEach(item => {
             item.addEventListener('click', () => {
                 const agentId = parseInt(item.dataset.agentId);
@@ -271,7 +271,7 @@ const AgentSidebar = {
             });
         });
 
-        // 2. New Chat按钮
+        // 2. New Chat button
         document.querySelectorAll('[data-action="new-chat"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -281,7 +281,7 @@ const AgentSidebar = {
             });
         });
 
-        // 3. Settings按钮
+        // 3. Settings button
         document.querySelectorAll('[data-action="settings"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -291,7 +291,7 @@ const AgentSidebar = {
             });
         });
 
-        // 4. 聊天标签切换
+        // 4. Chat tab switching
         document.querySelectorAll('.sidebar-tab[data-agent-id]').forEach(tab => {
             tab.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -331,7 +331,7 @@ const AgentSidebar = {
             }
         });
 
-        // 5. 管理按钮（模型管理、角色管理、Agent Management）
+        // 5. Management buttons (model management, role management, agent management)
         document.querySelectorAll('.agent-management[data-page]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const page = btn.dataset.page;
@@ -344,42 +344,42 @@ const AgentSidebar = {
     },
 
     /**
-     * 切换Agent（新架构：展开/折叠对应的section-container）
+     * Switch agent (new architecture: expand/collapse the corresponding section-container)
      */
     switchAgent(agentId) {
         console.log('[AgentSidebar] 切换到Agent:', agentId);
 
-        // 0. 更新agentState
+        // 0. Update agentState
         if (window.agentState) {
             window.agentState.setCurrentAgent(agentId);
             console.log('[AgentSidebar] 已更新agentState.currentAgentId为:', agentId);
         }
 
-        // 1. 折叠所有agent-section-container
+        // 1. Collapse all agent-section-containers
         document.querySelectorAll('.agent-section-container').forEach(container => {
             container.style.display = 'none';
         });
 
-        // 2. 展开选中agent的section-container
+        // 2. Expand selected agent's section-container
         const targetContainer = document.querySelector(`.agent-section-container[data-agent-id="${agentId}"]`);
         if (targetContainer) {
             targetContainer.style.display = 'block';
             console.log('[AgentSidebar] 已展开Agent section container:', agentId);
         }
 
-        // 3. 隐藏所有agent-page
+        // 3. Hide all agent pages
         document.querySelectorAll('.agent-page-layout').forEach(page => {
             page.style.display = 'none';
         });
 
-        // 4. 显示选中的agent-page
+        // 4. Show selected agent page
         const targetPage = document.getElementById(`page-agent-${agentId}`);
         if (targetPage) {
             targetPage.style.display = 'flex'; // 使用flex而不是block以保持布局
             console.log('[AgentSidebar] 已显示Agent page:', agentId);
         }
 
-        // 5. 更新agent列表的active状态
+        // 5. Update agent list active state
         document.querySelectorAll('#agentList .agent-item[data-agent-id]').forEach(item => {
             item.classList.remove('active');
         });
@@ -388,8 +388,8 @@ const AgentSidebar = {
             activeItem.classList.add('active');
         }
 
-        // 6. 直接加载chat list（避免依赖事件系统）
-        // 添加小延迟确保DOM已经渲染完成
+        // 6. Load chat list directly (avoid relying on the event system)
+        // Add a small delay to ensure DOM has finished rendering
         setTimeout(() => {
             if (window.multiAgentHandlers && typeof window.multiAgentHandlers.loadChatListForAgent === 'function') {
                 console.log('[AgentSidebar] 直接加载chat list for agent:', agentId);
@@ -397,9 +397,9 @@ const AgentSidebar = {
             } else {
                 console.error('[AgentSidebar] multiAgentHandlers.loadChatListForAgent 不可用');
             }
-        }, 100);  // 100ms延迟确保DOM准备好
+        }, 100);  // 100ms delay to ensure DOM is ready
 
-        // 7. 触发全局事件（供其他模块监听）
+        // 7. Dispatch global event (for other modules)
         window.dispatchEvent(new CustomEvent('agent-switched', {
             detail: { agentId }
         }));
@@ -408,30 +408,30 @@ const AgentSidebar = {
     },
 
     /**
-     * 处理New Chat
+     * Handle New Chat
      */
     handleNewChat(agentId) {
         console.log('[AgentSidebar] 处理New Chat for agent:', agentId);
 
-        // 触发全局事件
+        // Dispatch global event
         window.dispatchEvent(new CustomEvent('agent-new-chat', {
             detail: { agentId }
         }));
     },
 
     /**
-     * 处理Settings
+     * Handle Settings
      */
     async handleSettings(agentId) {
         console.log('[AgentSidebar] 处理Settings for agent:', agentId);
 
         try {
-            // 加载agent详情
+            // Load agent details
             const response = await fetch(this.resolve(`/api/agent/${agentId}`));
             const result = await response.json();
 
             if (result.success && result.data) {
-                // 打开Settings对话框
+                // Open settings dialog
                 if (typeof AgentSettingsDialog !== 'undefined') {
                     AgentSettingsDialog.show(result.data);
                 } else {
@@ -446,7 +446,7 @@ const AgentSidebar = {
     },
 
     /**
-     * 导航到管理页面
+     * Navigate to management page
      */
     async navigateToManagementPage(page) {
         try {
@@ -784,13 +784,13 @@ const AgentSidebar = {
     },
 
     /**
-     * 重新加载 Agent 列表（保留新架构）
-     * 用于在更新 Agent 后刷新侧边栏
+     * Reload agent list (keep new architecture)
+     * Used to refresh the sidebar after agent updates
      */
     async reload() {
         console.log('[AgentSidebar] 开始重新加载...');
 
-        // 1. 从API重新加载Agent列表
+        // 1. Reload agent list from API
         const agents = await this.loadAgentsFromAPI();
         console.log('[AgentSidebar] 重新加载的agents:', agents);
 
@@ -800,20 +800,20 @@ const AgentSidebar = {
             return;
         }
 
-        // 2. 保存当前选中的 agent ID (优先使用 agentState 中保存的)
+        // 2. Save currently selected agent ID (prefer the one stored in agentState)
         const currentAgentId = window.agentState?.currentAgentId ||
             (() => {
                 const currentExpandedContainer = document.querySelector('.agent-section-container[style*="display: block"]');
                 return currentExpandedContainer ? parseInt(currentExpandedContainer.dataset.agentId) : null;
             })();
 
-        // 3. 重新渲染Agent列表
+        // 3. Re-render agent list
         this.renderAgentList(agents);
 
-        // 4. 重新绑定事件
+        // 4. Re-bind events
         this.bindEvents();
 
-        // 5. 恢复之前展开的 agent，如果不存在则展开第一个
+        // 5. Restore previously expanded agent; if missing, expand the first
         if (currentAgentId && agents.find(a => a.id === currentAgentId)) {
             console.log('[AgentSidebar] 恢复之前选中的agent:', currentAgentId);
             this.switchAgent(currentAgentId);
@@ -826,7 +826,7 @@ const AgentSidebar = {
     }
 };
 
-// 导出到全局（供其他模块使用）
+// Export to global (for other modules)
 if (typeof window !== 'undefined') {
     window.AgentSidebar = AgentSidebar;
 }

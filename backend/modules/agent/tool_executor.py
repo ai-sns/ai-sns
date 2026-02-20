@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Tool Executor - 工具执行器
-负责加载和执行Agent的工具函数
+Tool Executor - Tool executor
+Responsible for loading and executing agent tool functions
 """
 import logging
 import importlib
@@ -14,26 +14,26 @@ logger = logging.getLogger(__name__)
 
 class ToolExecutor:
     """
-    工具执行器
+    Tool executor
 
-    负责:
-    1. 从agent/tools.py加载工具函数
-    2. 从插件加载工具
-    3. 执行工具函数
+    Responsibilities:
+    1. Load tool functions from agent/tools.py
+    2. Load tools from plugins
+    3. Execute tool functions
     """
 
     def __init__(self):
-        """初始化工具执行器"""
+        """Initialize tool executor."""
         self._tool_functions: Dict[str, callable] = {}
         self._load_builtin_tools()
 
     def _load_builtin_tools(self):
-        """加载内置工具（从agent/tools.py）"""
+        """Load built-in tools (from agent/tools.py)."""
         try:
             module_name = f"{__package__}.tools" if __package__ else "backend.modules.agent.tools"
             tools_module = importlib.import_module(module_name)
 
-            # 获取所有函数
+            # Get all functions
             for name, obj in inspect.getmembers(tools_module):
                 if inspect.isfunction(obj) and not name.startswith('_'):
                     self._tool_functions[name] = obj
@@ -42,7 +42,7 @@ class ToolExecutor:
         except ModuleNotFoundError as e:
             module_name = f"{__package__}.tools" if __package__ else "backend.modules.agent.tools"
             if e.name == module_name or e.name == "agent":
-                logger.warning(f"内置工具模块未找到: {module_name}")
+                logger.warning(f"Built-in tools module not found: {module_name}")
                 return
             logger.error(f"加载内置工具失败: {e}", exc_info=True)
 
@@ -51,11 +51,11 @@ class ToolExecutor:
 
     def load_plugin_tool(self, plugin_id: str, tool_function: callable):
         """
-        加载插件工具
+        Load a plugin tool.
 
         Args:
-            plugin_id: 插件ID
-            tool_function: 工具函数
+            plugin_id: Plugin ID
+            tool_function: Tool function
         """
         tool_name = f"plugin_{plugin_id}_{tool_function.__name__}"
         self._tool_functions[tool_name] = tool_function
@@ -63,44 +63,44 @@ class ToolExecutor:
 
     def load_custom_tool(self, tool_name: str, tool_function: callable):
         """
-        加载自定义工具
+        Load a custom tool.
 
         Args:
-            tool_name: 工具名称
-            tool_function: 工具函数
+            tool_name: Tool name
+            tool_function: Tool function
         """
         self._tool_functions[tool_name] = tool_function
         logger.info(f"加载自定义工具: {tool_name}")
 
     def get_tool_function(self, tool_name: str) -> Optional[callable]:
         """
-        获取工具函数
+        Get tool function.
 
         Args:
-            tool_name: 工具名称
+            tool_name: Tool name
 
         Returns:
-            工具函数，不存在返回None
+            Tool function; returns None if not found
         """
         return self._tool_functions.get(tool_name)
 
     def execute_tool(self, tool_name: str, **kwargs) -> Any:
         """
-        执行工具
+        Execute tool.
 
         Args:
-            tool_name: 工具名称
-            **kwargs: 工具参数
+            tool_name: Tool name
+            **kwargs: Tool args
 
         Returns:
-            工具执行结果
+            Tool execution result
         """
         try:
             tool_func = self.get_tool_function(tool_name)
             if not tool_func:
                 return f"Error: Tool '{tool_name}' not found"
 
-            # 执行工具
+            # Execute tool
             result = tool_func(**kwargs)
             logger.info(f"工具 {tool_name} 执行成功")
             return result
@@ -111,13 +111,13 @@ class ToolExecutor:
 
     def get_tool_signature(self, tool_name: str) -> Optional[Dict[str, Any]]:
         """
-        获取工具的签名信息（用于生成OpenAI function calling schema）
+        Get tool signature info (for building OpenAI function-calling schema).
 
         Args:
-            tool_name: 工具名称
+            tool_name: Tool name
 
         Returns:
-            工具签名字典
+            Tool signature dict
         """
         try:
             tool_func = self.get_tool_function(tool_name)
@@ -129,8 +129,8 @@ class ToolExecutor:
             required = []
 
             for param_name, param in sig.parameters.items():
-                # 获取类型注解
-                param_type = "string"  # 默认类型
+                # Read type annotation
+                param_type = "string"  # Default type
                 if param.annotation != inspect.Parameter.empty:
                     if param.annotation == int:
                         param_type = "integer"
@@ -141,14 +141,14 @@ class ToolExecutor:
 
                 params[param_name] = {
                     "type": param_type,
-                    "description": ""  # 可以从docstring解析
+                    "description": ""  # Can be parsed from docstring
                 }
 
-                # 如果没有默认值，则为必需参数
+                # If no default value, this is a required param
                 if param.default == inspect.Parameter.empty:
                     required.append(param_name)
 
-            # 获取函数文档字符串作为描述
+            # Use function docstring as description
             description = tool_func.__doc__ or f"Execute {tool_name}"
 
             return {
@@ -167,13 +167,13 @@ class ToolExecutor:
 
     def list_tools(self) -> List[str]:
         """
-        列出所有可用工具
+        List all available tools.
 
         Returns:
-            工具名称列表
+            Tool name list
         """
         return list(self._tool_functions.keys())
 
 
-# 创建全局单例
+# Create global singleton
 tool_executor = ToolExecutor()
