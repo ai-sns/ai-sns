@@ -6,6 +6,8 @@ export class SNSProfessionDialog {
     constructor() {
         this.dialog = null;
         this.selectedProfession = null;
+        this.otherProfession = '';
+        this.restrictedOtherValues = new Set(['doctor', 'restaurateur']);
         this.currentMoney = 0;
         this.selectedTradeOption = null;
         this.messageContent = '';
@@ -14,6 +16,62 @@ export class SNSProfessionDialog {
         this.mcpToolsCache = new Map();
         this._pendingMcpToolName = '';
         this.availableTools = [];
+        this.autoCloseTimer = null;
+    }
+
+    updateOtherProfessionUI() {
+        const container = this._q('#otherProfessionContainer');
+        const input = this._q('#otherProfessionInput');
+        if (!container) return;
+
+        const show = this.selectedProfession === 'Other';
+        container.style.display = show ? 'block' : 'none';
+        if (!show) {
+            this.setOtherProfessionHelper();
+            return;
+        }
+
+        if (input) {
+            input.value = this.otherProfession || '';
+        }
+    }
+
+    setOtherProfessionHelper(message = '') {
+        const helper = this._q('#otherProfessionHelper');
+        if (!helper) {
+            return;
+        }
+        helper.textContent = message;
+        helper.style.display = message ? 'block' : 'none';
+    }
+
+    clearInlineMessage() {
+        const alertBox = this._q('#snsProfessionAlert');
+        if (alertBox) {
+            alertBox.style.display = 'none';
+            alertBox.textContent = '';
+            alertBox.classList.remove('inline-alert-error', 'inline-alert-success');
+        }
+        if (this.autoCloseTimer) {
+            clearTimeout(this.autoCloseTimer);
+            this.autoCloseTimer = null;
+        }
+    }
+
+    showInlineMessage(message, type = 'error') {
+        const alertBox = this._q('#snsProfessionAlert');
+        if (!alertBox) {
+            return;
+        }
+        if (this.autoCloseTimer) {
+            clearTimeout(this.autoCloseTimer);
+            this.autoCloseTimer = null;
+        }
+
+        alertBox.textContent = message;
+        alertBox.classList.remove('inline-alert-error', 'inline-alert-success');
+        alertBox.classList.add(type === 'success' ? 'inline-alert-success' : 'inline-alert-error');
+        alertBox.style.display = 'block';
     }
 
     _isDialogAlive() {
@@ -52,75 +110,83 @@ export class SNSProfessionDialog {
 
         // Create dialog HTML
         const dialogHTML = `
-            <div class="modal-overlay" id="snsProfessionDialog">
-                <div class="modal-dialog" style="max-width: 600px;">
+            <div class="modal-overlay sns-profession-dialog-overlay" id="snsProfessionDialog">
+                <div class="modal-dialog sns-profession-dialog" style="max-width: 600px;">
                     <div class="modal-header">
-                        <h3>职业选择</h3>
+                        <h3>Profession</h3>
                         <button class="modal-close" onclick="document.getElementById('snsProfessionDialog').remove()">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="profession-config-container">
                             <!-- Current Balance -->
                             <div class="balance-display">
-                                <h4>当前资金: <span id="currentBalance">${this.currentMoney.toFixed(2)}</span>元</h4>
+                                <h4>Current balance: <span id="currentBalance">${this.currentMoney.toFixed(2)}</span></h4>
                             </div>
 
                             <!-- Professions with Cost -->
                             <div class="profession-section">
-                                <h4>需要开办费的职业</h4>
+                                <h4>Professions requiring setup fee</h4>
                                 <div class="profession-list" id="professionListCost">
-                                    <div class="loading">加载中...</div>
+                                    <div class="loading">Loading...</div>
                                 </div>
                             </div>
 
                             <!-- Professions without Cost -->
                             <div class="profession-section">
-                                <h4>其他职业选项</h4>
+                                <h4>Professions without setup fee</h4>
                                 <div class="profession-list" id="professionListFree">
-                                    <div class="loading">加载中...</div>
+                                    <div class="loading">Loading...</div>
                                 </div>
+                            </div>
+
+                            <div class="other-profession-container" id="otherProfessionContainer" style="display: none;">
+                                <label for="otherProfessionInput">Other profession (required):</label>
+                                <input type="text" id="otherProfessionInput" class="form-control" placeholder="Enter your profession" />
+                                <div class="other-profession-helper" id="otherProfessionHelper" aria-live="polite"></div>
                             </div>
 
                             <!-- Trade Handling Section -->
                             <div class="trade-section">
-                                <h4>交易时的发货方</h4>
+                                <h4>Sender in trade</h4>
                                 <div class="trade-options">
                                     <label class="trade-option">
                                         <input type="radio" name="tradeOption" value="message">
-                                        <span>发送消息</span>
+                                        <span>Send message</span>
                                     </label>
                                     <label class="trade-option">
                                         <input type="radio" name="tradeOption" value="tool">
-                                        <span>调用工具</span>
+                                        <span>Call tool</span>
                                     </label>
                                 </div>
                                 
                                 <!-- Message Input (shown when 'send message' is selected) -->
                                 <div class="message-input-container" id="messageInputContainer" style="display: none;">
-                                    <label for="messageContent">消息内容:</label>
-                                    <textarea id="messageContent" placeholder="请输入要发送的消息内容..." rows="3" style="width: 100%; margin-top: 5px;"></textarea>
+                                    <label for="messageContent">Message content:</label>
+                                    <textarea id="messageContent" placeholder="Enter the message to send..." rows="3" style="width: 100%; margin-top: 5px;"></textarea>
                                 </div>
                                 
                                 <!-- Tool Selection (shown when 'call tool' is selected) -->
                                 <div class="tool-selection-container" id="toolSelectionContainer" style="display: none;">
-                                    <label for="toolSelect">选择工具:</label>
+                                    <label for="toolSelect">Select tool:</label>
                                     <select id="toolSelect" style="width: 100%; margin-top: 5px; padding: 5px;">
-                                        <option value="">请选择工具...</option>
+                                        <option value="">Select a tool...</option>
                                     </select>
 
                                     <div class="mcp-tool-selection-container" id="mcpToolSelectionContainer" style="display: none; margin-top: 10px;">
-                                        <label for="mcpToolSelect">选择 MCP 内部工具:</label>
+                                        <label for="mcpToolSelect">Select MCP internal tool:</label>
                                         <select id="mcpToolSelect" style="width: 100%; margin-top: 5px; padding: 5px;">
-                                            <option value="">请选择 MCP 工具...</option>
+                                            <option value="">Select an MCP tool...</option>
                                         </select>
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="dialog-inline-alert" id="snsProfessionAlert" style="display: none;"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="document.getElementById('snsProfessionDialog').remove()">取消</button>
-                        <button class="btn btn-primary" id="saveProfessionBtn">确定</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('snsProfessionDialog').remove()">Cancel</button>
+                        <button class="btn btn-primary" id="saveProfessionBtn">Save</button>
                     </div>
                 </div>
             </div>
@@ -132,11 +198,14 @@ export class SNSProfessionDialog {
 
         if (!this._isDialogAlive()) return;
 
+        this.setOtherProfessionHelper();
+        this.clearInlineMessage();
+
         // Load professions
         await this.loadProfessions();
 
         if (!this._isDialogAlive()) return;
-        
+
         // Load available tools
         await this.loadTools();
 
@@ -186,11 +255,30 @@ export class SNSProfessionDialog {
             }
 
             if (data.profession) {
-                this.selectedProfession = data.profession;
-                const radio = this._q(`input[name="profession"][value="${CSS.escape(data.profession)}"]`);
-                if (radio && !radio.disabled) {
+                const storedProfession = String(data.profession);
+                const radio = this._q(`input[name="profession"][value="${CSS.escape(storedProfession)}"]`);
+                if (radio) {
+                    this.selectedProfession = storedProfession;
                     radio.checked = true;
+                    this.otherProfession = '';
+                    this.updateOtherProfessionUI();
+                } else {
+                    const otherRadio = this._q('input[name="profession"][value="Other"]');
+                    if (otherRadio && !otherRadio.disabled) {
+                        otherRadio.checked = true;
+                    }
+                    this.selectedProfession = 'Other';
+                    this.otherProfession = storedProfession;
+                    const otherInput = this._q('#otherProfessionInput');
+                    if (otherInput) {
+                        otherInput.value = this.otherProfession;
+                    }
+                    this.updateOtherProfessionUI();
                 }
+            } else {
+                this.selectedProfession = null;
+                this.otherProfession = '';
+                this.updateOtherProfessionUI();
             }
 
             if (data.handle_after_trade) {
@@ -274,7 +362,7 @@ export class SNSProfessionDialog {
                 item.dataset.name = profession.name;
                 item.dataset.cost = profession.cost || 0;
 
-                const costText = profession.cost ? `(*需要${profession.cost}元开办费)` : '';
+                const costText = profession.cost ? `(setup fee: ${profession.cost})` : '';
                 const disabled = profession.cost && profession.cost > this.currentMoney ? 'disabled' : '';
 
                 item.innerHTML = `
@@ -294,8 +382,8 @@ export class SNSProfessionDialog {
             console.error('Error loading professions:', error);
             const costList = this._q('#professionListCost');
             const freeList = this._q('#professionListFree');
-            if (costList) costList.innerHTML = '<div class="error">加载失败</div>';
-            if (freeList) freeList.innerHTML = '<div class="error">加载失败</div>';
+            if (costList) costList.innerHTML = '<div class="error">Load failed</div>';
+            if (freeList) freeList.innerHTML = '<div class="error">Load failed</div>';
         }
     }
 
@@ -312,29 +400,46 @@ export class SNSProfessionDialog {
         this._qa('input[name="profession"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 this.selectedProfession = e.target.value;
+                if (this.selectedProfession !== 'Other') {
+                    this.setOtherProfessionHelper();
+                }
+                this.updateOtherProfessionUI();
+                this.clearInlineMessage();
             });
         });
-        
+
+        const otherProfessionInput = this._q('#otherProfessionInput');
+        if (otherProfessionInput) {
+            otherProfessionInput.addEventListener('input', (e) => {
+                this.otherProfession = e.target.value;
+                this.setOtherProfessionHelper();
+                this.clearInlineMessage();
+            });
+        }
+
         // Trade option change
         this._qa('input[name="tradeOption"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 this.onTradeOptionChange(e.target.value);
+                this.clearInlineMessage();
             });
         });
-        
+
         // Message content change
         const messageContent = this._q('#messageContent');
         if (messageContent) {
             messageContent.addEventListener('input', (e) => {
                 this.messageContent = e.target.value;
+                this.clearInlineMessage();
             });
         }
-        
+
         // Tool selection change
         const toolSelect = this._q('#toolSelect');
         if (toolSelect) {
             toolSelect.addEventListener('change', (e) => {
                 this.onToolSelectionChange(e.target.value);
+                this.clearInlineMessage();
             });
         }
 
@@ -343,6 +448,7 @@ export class SNSProfessionDialog {
             mcpToolSelect.addEventListener('change', (e) => {
                 this.selectedMcpToolName = e.target.value;
                 this.updateSelectedToolValue();
+                this.clearInlineMessage();
             });
         }
     }
@@ -358,7 +464,7 @@ export class SNSProfessionDialog {
         }
 
         if (mcpSelect) {
-            mcpSelect.innerHTML = '<option value="">请选择 MCP 工具...</option>';
+            mcpSelect.innerHTML = '<option value="">Select an MCP tool...</option>';
         }
 
         if (value && value.startsWith('mcp:')) {
@@ -441,7 +547,7 @@ export class SNSProfessionDialog {
     populateMcpToolSelect(tools) {
         const mcpSelect = this._q('#mcpToolSelect');
         if (!mcpSelect) return;
-        mcpSelect.innerHTML = '<option value="">请选择 MCP 工具...</option>';
+        mcpSelect.innerHTML = '<option value="">Select an MCP tool...</option>';
         (tools || []).forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.name;
@@ -451,24 +557,43 @@ export class SNSProfessionDialog {
     }
 
     async saveConfiguration() {
+        this.clearInlineMessage();
+
         if (!this.selectedProfession) {
-            alert('请选择一个职业');
+            this.showInlineMessage('Please select a profession.');
             return;
+        }
+
+        if (this.selectedProfession === 'Other') {
+            const otherText = (this.otherProfession || '').trim();
+            if (!otherText) {
+                this.showInlineMessage('Please enter your profession.');
+                return;
+            }
+
+            if (this.restrictedOtherValues.has(otherText.toLowerCase())) {
+                this.setOtherProfessionHelper('Please select this profession from the list instead of typing it.');
+                const otherInput = this._q('#otherProfessionInput');
+                if (otherInput) {
+                    otherInput.focus();
+                }
+                return;
+            }
         }
 
         // Validate trade option if selected
         if (this.selectedTradeOption === 'message' && !this.messageContent.trim()) {
-            alert('请输入消息内容');
+            this.showInlineMessage('Please enter message content.');
             return;
         }
-        
+
         if (this.selectedTradeOption === 'tool' && !this.selectedTool) {
-            alert('请选择一个工具');
+            this.showInlineMessage('Please select a tool.');
             return;
         }
 
         if (this.selectedTradeOption === 'tool' && this.selectedTool && !this.selectedTool.includes(':')) {
-            alert('工具配置格式错误，请重新选择工具');
+            this.showInlineMessage('Invalid tool configuration. Please re-select a tool.');
             return;
         }
 
@@ -479,14 +604,18 @@ export class SNSProfessionDialog {
         ) {
             const parts = this.selectedTool.split(':');
             if (parts.length < 3) {
-                alert('请选择 MCP 内部工具');
+                this.showInlineMessage('Please select an MCP internal tool.');
                 return;
             }
         }
 
         try {
+            const professionToSave = this.selectedProfession === 'Other'
+                ? (this.otherProfession || '').trim()
+                : this.selectedProfession;
+
             const configData = {
-                profession: this.selectedProfession,
+                profession: professionToSave,
                 handle_after_trade: this.selectedTradeOption || '',
                 handle_content: this.selectedTradeOption === 'message' ? this.messageContent : this.selectedTool || ''
             };
@@ -507,35 +636,38 @@ export class SNSProfessionDialog {
                     this.currentMoney = newMoney;
                 }
 
-                alert('职业设置成功！' + (deducted > 0 ? `已扣除${deducted}元开办费。` : ''));
-                this.dialog.remove();
+                this.showInlineMessage('Profession saved successfully.' + (deducted > 0 ? ` Setup fee deducted: ${deducted}.` : ''), 'success');
+                this.autoCloseTimer = setTimeout(() => {
+                    if (this._isDialogAlive()) {
+                        this.dialog.remove();
+                    }
+                }, 1200);
             } else {
-                alert('保存失败：' + (result.message || '未知错误'));
+                this.showInlineMessage('Save failed: ' + (result.message || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error saving profession:', error);
-            alert('保存失败：' + error.message);
+            this.showInlineMessage('Save failed: ' + error.message);
         }
     }
-    
+
     getProfessionCost(professionName) {
         const professionCosts = {
-            '医生': 800,
-            '出租车司机': 1000,
-            '食品商贩': 800
+            'Doctor': 800,
+            'Restaurateur': 800
         };
         return professionCosts[professionName] || 0;
     }
-    
+
     onTradeOptionChange(option) {
         this.selectedTradeOption = option;
-        
+
         // Hide both containers first
         const messageContainer = this._q('#messageInputContainer');
         const toolContainer = this._q('#toolSelectionContainer');
         if (messageContainer) messageContainer.style.display = 'none';
         if (toolContainer) toolContainer.style.display = 'none';
-        
+
         // Show relevant container
         if (option === 'message') {
             if (messageContainer) messageContainer.style.display = 'block';
@@ -543,7 +675,7 @@ export class SNSProfessionDialog {
             if (toolContainer) toolContainer.style.display = 'block';
         }
     }
-    
+
     async loadTools() {
         try {
             // Fetch all tool types from the tools API
@@ -553,53 +685,53 @@ export class SNSProfessionDialog {
                 fetch(this.resolve('/api/tools/functions')),
                 fetch(this.resolve('/api/tools/skills'))
             ]);
-            
+
             const plugins = await pluginsResponse.json();
             const mcps = await mcpsResponse.json();
             const functions = await functionsResponse.json();
             const skills = await skillsResponse.json();
-            
+
             this.availableTools = [
                 ...plugins.map(tool => ({ ...tool, type: 'plugin', id: tool.plugin_id })),
                 ...mcps.map(tool => ({ ...tool, type: 'mcp', id: tool.mcp_id })),
                 ...functions.map(tool => ({ ...tool, type: 'function', id: tool.function_id })),
                 ...skills.map(tool => ({ ...tool, type: 'skill', id: tool.skill_id }))
             ];
-            
+
             this.populateToolSelect();
         } catch (error) {
             console.error('Error loading tools:', error);
         }
     }
-    
+
     populateToolSelect() {
         const toolSelect = this._q('#toolSelect');
         if (!toolSelect) return;
-        
+
         // Clear existing options except the first one
-        toolSelect.innerHTML = '<option value="">请选择工具...</option>';
-        
+        toolSelect.innerHTML = '<option value="">Select a tool...</option>';
+
         // Group tools by type
         const toolsByType = {
-            '插件工具': this.availableTools.filter(tool => tool.type === 'plugin'),
-            'MCP工具': this.availableTools.filter(tool => tool.type === 'mcp'),
-            '函数工具': this.availableTools.filter(tool => tool.type === 'function'),
-            '技能工具': this.availableTools.filter(tool => tool.type === 'skill')
+            'Plugin tools': this.availableTools.filter(tool => tool.type === 'plugin'),
+            'MCP tools': this.availableTools.filter(tool => tool.type === 'mcp'),
+            'Function tools': this.availableTools.filter(tool => tool.type === 'function'),
+            'Skill tools': this.availableTools.filter(tool => tool.type === 'skill')
         };
-        
+
         // Create option groups
         Object.entries(toolsByType).forEach(([typeName, tools]) => {
             if (tools.length > 0) {
                 const optgroup = document.createElement('optgroup');
                 optgroup.label = typeName;
-                
+
                 tools.forEach(tool => {
                     const option = document.createElement('option');
                     option.value = `${tool.type}:${tool.id}`;
-                    option.textContent = `${tool.name} - ${tool.description || '无描述'}`;
+                    option.textContent = `${tool.name} - ${tool.description || 'No description'}`;
                     optgroup.appendChild(option);
                 });
-                
+
                 toolSelect.appendChild(optgroup);
             }
         });

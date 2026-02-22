@@ -125,6 +125,7 @@
     border-radius: 8px;
     padding: 20px;
     background: var(--bg-secondary);
+    user-select: text;
 }
 
 .profession-section h4 {
@@ -155,6 +156,7 @@
     transition: all 0.3s;
     background: var(--bg-primary);
     color: var(--text-primary);
+    user-select: text;
 }
 
 .profession-label:hover {
@@ -179,6 +181,50 @@
 
 .profession-label.disabled input[type="radio"] {
     cursor: not-allowed;
+}
+
+.other-profession-container {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    user-select: text;
+}
+
+.other-profession-container label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.other-profession-helper {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--color-warning, #c77d00);
+    line-height: 1.4;
+    user-select: text;
+}
+
+.dialog-inline-alert {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.inline-alert-error {
+    background: rgba(220, 53, 69, 0.12);
+    color: #c82333;
+    border: 1px solid rgba(220, 53, 69, 0.4);
+}
+
+.inline-alert-success {
+    background: rgba(40, 167, 69, 0.12);
+    color: #1e7e34;
+    border: 1px solid rgba(40, 167, 69, 0.4);
 }
 
 /* Social Role Configuration Dialog */

@@ -40,6 +40,9 @@ class SystemService:
             "minirunontray": getattr(config, 'minirunontray', True),
             "agent_server": getattr(config, 'agent_server', None),
             "ai_sns_server": getattr(config, 'ai_sns_server', None),
+            "conversation_timeout_seconds": getattr(config, 'conversation_timeout_seconds', 60),
+            "contact_cooldown_seconds": getattr(config, 'contact_cooldown_seconds', 300),
+            "contact_recent_limit": getattr(config, 'contact_recent_limit', 3),
             "tools": {
                 "page_size": settings.tools.page_size
             }
@@ -60,21 +63,41 @@ class SystemService:
             "infosound",
             "agent_server",
             "ai_sns_server",
+            "conversation_timeout_seconds",
+            "contact_cooldown_seconds",
+            "contact_recent_limit",
         }
 
         payload = {k: v for k, v in kwargs.items() if k in allowed_keys}
         if not payload:
             return
 
+        for k in ("conversation_timeout_seconds", "contact_cooldown_seconds", "contact_recent_limit"):
+            if k in payload and payload[k] is not None:
+                try:
+                    payload[k] = int(payload[k])
+                except (TypeError, ValueError):
+                    payload.pop(k, None)
+
         record = query_SystemCfg(is_delete=False)
         if record:
             update_SystemCfg(record.id, **payload)
+            try:
+                from backend.apps.sns.service_async import apply_runtime_system_config
+                apply_runtime_system_config(payload)
+            except Exception:
+                pass
             return
 
         session = Session()
         try:
             session.add(DBSystemCfg(**payload, is_delete=False, create_time=datetime.now()))
             session.commit()
+            try:
+                from backend.apps.sns.service_async import apply_runtime_system_config
+                apply_runtime_system_config(payload)
+            except Exception:
+                pass
         finally:
             session.close()
 

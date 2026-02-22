@@ -4,16 +4,20 @@ import logging
 import os
 import uuid
 import base64
+import requests
+from datetime import datetime
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from fastapi import HTTPException
 from backend.database.models.chat import AIFriend, AIChatMessages, AiChatCfg
 from backend.database.models.system import Prompt
+from backend.database.models.system import SystemCfg
 from backend.apps.sns.xmpp_client import XMPPClientManager
 from backend.config.database import get_db_sync
+from backend.shared.websocket_manager import manager as websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,36 @@ AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 _social_engine_instance = None
 _social_engine_running = False
+
+
+def apply_runtime_system_config(payload: dict) -> bool:
+    global _social_engine_instance
+
+    if not isinstance(payload, dict) or _social_engine_instance is None:
+        return False
+
+    changed = False
+    for k in ("conversation_timeout_seconds", "contact_cooldown_seconds", "contact_recent_limit"):
+        if k in payload and payload[k] is not None:
+            try:
+                v = int(payload[k])
+            except (TypeError, ValueError):
+                continue
+            try:
+                setattr(_social_engine_instance, k, v)
+                changed = True
+            except Exception:
+                continue
+
+    try:
+        if changed and hasattr(_social_engine_instance, "_ensure_conversation_timeout_task"):
+            active = getattr(_social_engine_instance, "active_conversation", None) or {}
+            if (active.get("account") or "").strip():
+                _social_engine_instance._ensure_conversation_timeout_task()
+    except Exception:
+        pass
+
+    return changed
 
 
 class SNSService:
@@ -51,6 +85,63 @@ class SNSService:
         # Fallback to loss-tolerant decode/encode to keep file readable as much as possible.
         return content.decode('utf-8', errors='replace').encode('utf-8-sig')
 
+    async def _get_latest_user_config(self) -> Optional[AiChatCfg]:
+        stmt = (
+            select(AiChatCfg)
+            .where(AiChatCfg.is_delete == False)
+            .order_by(AiChatCfg.id.asc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    @staticmethod
+    def _parse_position(raw_value):
+        if not raw_value:
+            return None, None
+
+        if isinstance(raw_value, (list, tuple)) and len(raw_value) >= 2:
+            try:
+                return float(raw_value[0]), float(raw_value[1])
+            except (TypeError, ValueError):
+                return raw_value[0], raw_value[1]
+
+        if isinstance(raw_value, dict):
+            return raw_value.get('lng'), raw_value.get('lat')
+
+        if isinstance(raw_value, str):
+            v = raw_value.strip()
+            try:
+                import json
+
+                parsed = json.loads(v)
+                if isinstance(parsed, (list, tuple)) and len(parsed) >= 2:
+                    return float(parsed[0]), float(parsed[1])
+                if isinstance(parsed, dict):
+                    return parsed.get('lng'), parsed.get('lat')
+            except Exception:
+                pass
+
+            try:
+                import ast
+
+                parsed = ast.literal_eval(v)
+                if isinstance(parsed, (list, tuple)) and len(parsed) >= 2:
+                    return float(parsed[0]), float(parsed[1])
+            except Exception:
+                pass
+
+            import re
+
+            nums = re.findall(r"[-+]?\d*\.?\d+", v)
+            if len(nums) >= 2:
+                try:
+                    return float(nums[0]), float(nums[1])
+                except (TypeError, ValueError):
+                    return nums[0], nums[1]
+
+        return None, None
+
     async def get_user_stats(self) -> dict:
         """Get user stats asynchronously."""
         try:
@@ -65,9 +156,15 @@ class SNSService:
                     except (TypeError, ValueError):
                         return default
 
-            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
-            result = await self.db.execute(stmt)
-            config = result.scalar_one_or_none()
+            def _to_float(value, default: float, decimals: int = 1) -> float:
+                if value is None:
+                    return default
+                try:
+                    return round(float(value), decimals)
+                except (TypeError, ValueError):
+                    return default
+
+            config = await self._get_latest_user_config()
 
             if not config:
                 return {
@@ -88,7 +185,7 @@ class SNSService:
                 "life": _to_int(config.life_point, 125),
                 "iq": config.iq_point or 70,
                 "energy": _to_int(config.energy_point, 150),
-                "move": config.move_point or 187.5,
+                "move": _to_float(config.move_point, 187.5),
                 "exp": config.exp_point or 30
             }
         except Exception as e:
@@ -107,9 +204,7 @@ class SNSService:
     async def get_contacts(self) -> List[AIFriend]:
         """Get contact list asynchronously."""
         try:
-            stmt_config = select(AiChatCfg).where(AiChatCfg.is_delete == False)
-            result_config = await self.db.execute(stmt_config)
-            config = result_config.scalar_one_or_none()
+            config = await self._get_latest_user_config()
 
             if not config:
                 return []
@@ -178,6 +273,29 @@ class SNSService:
             config = result.scalar_one_or_none()
 
             if config:
+                stmt_friend = select(AIFriend).where(
+                    AIFriend.is_delete == False,
+                    AIFriend.owner_sns_account == config.account,
+                    AIFriend.account == to_account,
+                )
+                result_friend = await self.db.execute(stmt_friend)
+                friend = result_friend.scalar_one_or_none()
+
+                if friend:
+                    if not friend.nick_name:
+                        friend.nick_name = to_account
+                else:
+                    friend = AIFriend(
+                        account=to_account,
+                        nick_name=to_account,
+                        groups="",
+                        owner_sns_account=config.account,
+                        subscription="none",
+                        new_message_flag=False,
+                        last_message_time=datetime.now(),
+                    )
+                    self.db.add(friend)
+
                 message = AIChatMessages(
                     conversation_id=f"{config.account}_{to_account}",
                     flag=0,
@@ -188,7 +306,21 @@ class SNSService:
                     friend_name=to_account
                 )
                 self.db.add(message)
+
+                friend.last_message_time = datetime.now()
                 await self.db.commit()
+
+                contact_payload = {
+                    'account': friend.account,
+                    'nick_name': friend.nick_name or friend.account,
+                    'new_message_flag': bool(friend.new_message_flag),
+                    'last_message_time': friend.last_message_time.isoformat() if friend.last_message_time else None,
+                }
+
+                await websocket_manager.broadcast({
+                    'type': 'contact_upserted',
+                    'data': contact_payload
+                })
 
             return {
                 "success": True,
@@ -235,6 +367,29 @@ class SNSService:
                 config = result.scalar_one_or_none()
 
                 if config:
+                    stmt_friend = select(AIFriend).where(
+                        AIFriend.is_delete == False,
+                        AIFriend.owner_sns_account == config.account,
+                        AIFriend.account == to_account,
+                    )
+                    result_friend = await self.db.execute(stmt_friend)
+                    friend = result_friend.scalar_one_or_none()
+
+                    if friend:
+                        if not friend.nick_name:
+                            friend.nick_name = to_account
+                    else:
+                        friend = AIFriend(
+                            account=to_account,
+                            nick_name=to_account,
+                            groups="",
+                            owner_sns_account=config.account,
+                            subscription="none",
+                            new_message_flag=False,
+                            last_message_time=datetime.now(),
+                        )
+                        self.db.add(friend)
+
                     file_message = f"📎 File: {file.filename}\n{url}"
                     message = AIChatMessages(
                         conversation_id=f"{config.account}_{to_account}",
@@ -247,7 +402,21 @@ class SNSService:
                         friend_name=to_account
                     )
                     self.db.add(message)
+
+                    friend.last_message_time = datetime.now()
                     await self.db.commit()
+
+                    contact_payload = {
+                        'account': friend.account,
+                        'nick_name': friend.nick_name or friend.account,
+                        'new_message_flag': bool(friend.new_message_flag),
+                        'last_message_time': friend.last_message_time.isoformat() if friend.last_message_time else None,
+                    }
+
+                    await websocket_manager.broadcast({
+                        'type': 'contact_upserted',
+                        'data': contact_payload
+                    })
 
                 return {
                     "success": True,
@@ -513,8 +682,8 @@ class SNSService:
                 return {"success": False, "message": "Social role not found"}
 
             # Update fields
-            if "title" in data:
-                prompt.title = data["title"]
+            if "caption" in data:
+                prompt.caption = data["caption"]
             if "content" in data:
                 prompt.content = data["content"]
             if "question" in data:
@@ -525,7 +694,17 @@ class SNSService:
             await self.db.commit()
             await self.db.refresh(prompt)
 
-            return {"success": True, "message": "Social role updated successfully", "data": prompt}
+            return {
+                "success": True,
+                "message": "Social role updated successfully",
+                "data": {
+                    "id": prompt.id,
+                    "caption": getattr(prompt, "caption", None),
+                    "content": getattr(prompt, "content", None),
+                    "question": getattr(prompt, "question", None),
+                    "tags": getattr(prompt, "tags", None),
+                }
+            }
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error updating social role: {e}")
@@ -553,9 +732,7 @@ class SNSService:
     async def get_user_info(self):
         """Get user information from aichat_cfg"""
         try:
-            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
-            result = await self.db.execute(stmt)
-            config = result.scalar_one_or_none()
+            config = await self._get_latest_user_config()
 
             if not config:
                 return {"success": False, "message": "No user config found"}
@@ -570,19 +747,116 @@ class SNSService:
                     "profession": getattr(config, 'profession', None),
                     "handle_after_trade": getattr(config, 'handle_after_trade', None),
                     "handle_content": getattr(config, 'handle_content', None),
-                    "money": getattr(config, 'money', None)
+                    "money": getattr(config, 'money', None),
+                    "current_position": getattr(config, 'current_position', None),
+                    "current_place": getattr(config, 'current_place', None),
                 }
             }
         except Exception as e:
             logger.error(f"Error getting user info: {e}")
             return {"success": False, "message": str(e)}
 
+    async def get_resource_overview(self):
+        """Build Resource tab overview content without starting the social engine."""
+        try:
+            config = await self._get_latest_user_config()
+
+            if not config:
+                return {"success": False, "message": "No user config found", "content": ""}
+
+            base = ''
+            try:
+                stmt_cfg = (
+                    select(SystemCfg)
+                    .where(SystemCfg.is_delete == False)
+                    .order_by(SystemCfg.id.asc())
+                    .limit(1)
+                )
+                cfg_result = await self.db.execute(stmt_cfg)
+                cfg = cfg_result.scalars().first()
+                base = (getattr(cfg, 'ai_sns_server', None) or '').strip().rstrip('/') if cfg else ''
+            except Exception:
+                base = ''
+
+            if not base:
+                return {"success": False, "message": "ai_sns_server is not configured", "content": ""}
+
+            lng, lat = self._parse_position(getattr(config, 'current_position', None))
+            if lng is None or lat is None:
+                return {"success": False, "message": "current_position is not set", "content": ""}
+
+            try:
+                lng = float(lng)
+                lat = float(lat)
+            except (TypeError, ValueError):
+                return {"success": False, "message": "current_position is invalid", "content": ""}
+
+            def _post_json(path: str, params: dict):
+                url = f"{base}{path}"
+                try:
+                    resp = requests.post(url, data=params, timeout=12)
+                    resp.raise_for_status()
+                    return resp.json()
+                except Exception as e:
+                    logger.warning("Resource overview request failed: %s (%s)", url, e)
+                    return None
+
+            params = {"lng": lng, "lat": lat}
+            service_list = _post_json('/api/get_service_list/', params) or []
+            people_list = _post_json('/api/get_people_list/', params) or []
+            place_list = _post_json('/api/get_place_list/', params) or []
+
+            from backend.apps.sns.mixin.ui_display_mixin import UIDisplayMixin
+
+            class _Formatter(UIDisplayMixin):
+                pass
+
+            formatted = _Formatter()._format_resource_content(service_list, people_list, place_list)
+            return {"success": True, "content": (formatted or '').strip()}
+        except Exception as e:
+            logger.error(f"Error building resource overview: {e}")
+            return {"success": False, "message": str(e), "content": ""}
+
+    async def get_current_status_overview(self):
+        """Build Current Status content without starting the social engine."""
+        try:
+            config = await self._get_latest_user_config()
+            if not config:
+                return {"success": False, "message": "No user config found", "content": ""}
+
+            profession = getattr(config, 'profession', None) or 'N/A'
+            lng, lat = self._parse_position(getattr(config, 'current_position', None))
+            if lng is None or lat is None:
+                lng, lat = 'N/A', 'N/A'
+
+            money = getattr(config, 'money', None)
+            try:
+                money_value = float(money) if money is not None else None
+            except (TypeError, ValueError):
+                money_value = None
+
+            lines = []
+            if money_value is not None:
+                lines.append(f"💰 Money      : {money_value:,.2f}")
+            else:
+                lines.append("💰 Money      : N/A")
+
+            lines.append(f"❤️ Life           : {getattr(config, 'life_point', None) if getattr(config, 'life_point', None) is not None else 'N/A'}")
+            lines.append(f"⚡ Energy      : {getattr(config, 'energy_point', None) if getattr(config, 'energy_point', None) is not None else 'N/A'}")
+            lines.append(f"🧑‍️ Profession: {profession}")
+            lines.append("📍 Location")
+            lines.append(f"   ├─ lng : {lng}")
+            lines.append(f"   └─ lat : {lat}")
+
+            return {"success": True, "content": "\n".join(lines)}
+        except Exception as e:
+            logger.error(f"Error building current status overview: {e}")
+            return {"success": False, "message": str(e), "content": ""}
+
     async def update_user_info(self, data: dict):
         """Update user information in aichat_cfg"""
         try:
-            stmt = select(AiChatCfg).where(AiChatCfg.is_delete == False)
-            result = await self.db.execute(stmt)
-            config = result.scalar_one_or_none()
+            config = await self._get_latest_user_config()
 
             if not config:
                 return {"success": False, "message": "No user config found"}
@@ -598,9 +872,8 @@ class SNSService:
                     config.agent_id = data['agent_id']
 
             profession_costs = {
-                "医生": 800,
-                "出租车司机": 1000,
-                "食品商贩": 800
+                "Doctor": 800,
+                "Restaurateur": 800
             }
 
             deducted = 0.0
@@ -615,7 +888,7 @@ class SNSService:
                         if current_money < cost:
                             return {
                                 "success": False,
-                                "message": f"余额不足，无法选择该职业，需要{int(cost)}元"
+                                "message": f"Insufficient balance. Selecting this profession requires {int(cost)}."
                             }
 
                         config.money = current_money - cost

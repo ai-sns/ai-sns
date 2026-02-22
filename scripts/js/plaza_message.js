@@ -26,8 +26,11 @@ function truncateText(text, maxLength) {
 // Fetch data from the network
 async function fetchMessageData() {
     try {
-        const host = (typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '');
-        const response = await fetch(`${host}/news.json`);
+        const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+            ? API_BASE_URL
+            : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+        const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+        const response = await fetch(`${normalizedBaseUrl}/api/get_news_list/`);
         const data = await response.json();
 
         // Use the 'recommended' category and add emojis
@@ -44,7 +47,7 @@ async function fetchMessageData() {
         // Update message display
         updateMessages();
     } catch (error) {
-        console.error('获取消息数据失败:', error);
+        console.error('Failed to fetch message data:', error);
         // Keep the original messages on error
     }
 }

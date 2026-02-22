@@ -1,5 +1,7 @@
 import os
 
+import sqlite3
+
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -2605,8 +2607,37 @@ class SystemCfg(Base):
     infosound = Column(Boolean, default=True, doc="通知时播放声音")
     agent_server = Column(Text, doc="agent server url")
     ai_sns_server = Column(Text, doc="ai-sns server url")
+    conversation_timeout_seconds = Column(Integer, default=60, doc="conversation timeout seconds")
+    contact_cooldown_seconds = Column(Integer, default=300, doc="contact cooldown seconds")
+    contact_recent_limit = Column(Integer, default=3, doc="contact recent limit")
     is_delete = Column(Boolean, default=False, doc="软删除")
     create_time = Column(DateTime, default=datetime.now, doc="创建时间")
+
+
+def _ensure_system_cfg_columns():
+    try:
+        conn = sqlite3.connect(DBPath)
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(system_cfg)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        if 'conversation_timeout_seconds' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN conversation_timeout_seconds INTEGER DEFAULT 60")
+        if 'contact_cooldown_seconds' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN contact_cooldown_seconds INTEGER DEFAULT 300")
+        if 'contact_recent_limit' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN contact_recent_limit INTEGER DEFAULT 3")
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def add_SystemCfg(autorun, showtaskbar, updateinfo, minirunontray, closebuttontype, style, showinfo, showinfoicon, infosound):
@@ -4147,6 +4178,7 @@ def query_single_tool(**kwargs):
 
 
 Base.metadata.create_all(engine)
+_ensure_system_cfg_columns()
 if __name__ == "__main__":
     # Base.metadata.create_all(engine)
     # add_AgentTask('who are you', 'i am chen',1,1,1,1,1)

@@ -459,7 +459,8 @@ IMPORTANT Tool Usage Guidelines:
         use_knowledge_base: bool = True,
         stream: bool = False,
         attachments_text: str = "",
-        image_data_urls: Optional[List[str]] = None
+        image_data_urls: Optional[List[str]] = None,
+        tool_choice: Optional[dict] = None,
     ) -> str:
         """
         Non-streaming Q&A.
@@ -538,7 +539,7 @@ IMPORTANT Tool Usage Guidelines:
 
             if use_tools and tools:
                 kwargs['tools'] = tools
-                kwargs['tool_choice'] = 'auto'
+                kwargs['tool_choice'] = tool_choice if tool_choice is not None else 'auto'
 
             response = await self.client.chat.completions.create(**kwargs)
 
@@ -597,7 +598,7 @@ IMPORTANT Tool Usage Guidelines:
                     }
                     if use_tools and tools_schema:
                         kwargs2['tools'] = tools_schema
-                        kwargs2['tool_choice'] = 'auto'
+                        kwargs2['tool_choice'] = tool_choice if tool_choice is not None else 'auto'
 
                     response2 = await self.client.chat.completions.create(**kwargs2)
                     current_assistant_message = response2.choices[0].message
@@ -623,7 +624,8 @@ IMPORTANT Tool Usage Guidelines:
         use_knowledge_base: bool = True,
         attachments_text: str = "",
         image_data_urls: Optional[List[str]] = None,
-        attachments_meta: Optional[List[Dict[str, Any]]] = None
+        attachments_meta: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[dict] = None,
     ) -> AsyncIterator[str]:
         """
         Streaming chat.
@@ -706,7 +708,7 @@ IMPORTANT Tool Usage Guidelines:
 
             if use_tools and tools:
                 kwargs['tools'] = tools
-                kwargs['tool_choice'] = 'auto'
+                kwargs['tool_choice'] = tool_choice if tool_choice is not None else 'auto'
 
             stream = await self.client.chat.completions.create(**kwargs)
 
@@ -786,7 +788,7 @@ IMPORTANT Tool Usage Guidelines:
                     }
                     if use_tools and tools:
                         kwargs_final['tools'] = tools
-                        kwargs_final['tool_choice'] = 'auto'
+                        kwargs_final['tool_choice'] = tool_choice if tool_choice is not None else 'auto'
 
                     final_stream = await self.client.chat.completions.create(**kwargs_final)
 

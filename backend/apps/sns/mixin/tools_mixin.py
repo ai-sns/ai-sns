@@ -165,6 +165,7 @@ class ToolsMixin:
         what_to_do: str,
         *,
         conversation_suffix: str = "configured_tool",
+        force_tool_call: bool = False,
     ):
         try:
             return asyncio.create_task(
@@ -172,6 +173,7 @@ class ToolsMixin:
                     tool_name,
                     what_to_do,
                     conversation_suffix=conversation_suffix,
+                    force_tool_call=force_tool_call,
                 )
             )
         except RuntimeError:
@@ -182,6 +184,7 @@ class ToolsMixin:
                         tool_name,
                         what_to_do,
                         conversation_suffix=conversation_suffix,
+                        force_tool_call=force_tool_call,
                     )
                 )
             finally:
@@ -219,6 +222,7 @@ class ToolsMixin:
         what_to_do: str,
         *,
         conversation_suffix: str = "configured_tool",
+        force_tool_call: bool = False,
     ) -> str:
         if not tool_name:
             raise ValueError("tool_name is empty")
@@ -245,6 +249,15 @@ class ToolsMixin:
             if tool_type == "mcp":
                 raise ValueError(f"tool not found: {tool_type}:{tool_id}:{mcp_tool_name}")
             raise ValueError(f"tool not found: {tool_type}:{tool_id}")
+
+        tool_choice = None
+        if force_tool_call:
+            tool_fn = tool_def.get("function") if isinstance(tool_def, dict) else None
+            tool_fn_name = (tool_fn or {}).get("name") if isinstance(tool_fn, dict) else None
+            if isinstance(tool_fn_name, str) and tool_fn_name:
+                tool_choice = {"type": "function", "function": {"name": tool_fn_name}}
+            else:
+                logger.warning("force_tool_call is enabled but tool function name is missing")
 
         agent = None
         if hasattr(self, "get_agent_for_current_chat"):
@@ -274,6 +287,7 @@ class ToolsMixin:
                 use_tools=True,
                 use_memory=False,
                 use_knowledge_base=False,
+                tool_choice=tool_choice,
                 agent=agent,
             )
 

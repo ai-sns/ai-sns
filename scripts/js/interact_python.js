@@ -110,10 +110,6 @@ function handleWebSocketMessage(data) {
     console.log("received message");
     console.log(JSON.stringify(data));
     switch (data.type) {
-        case "chat_message":
-            console.log("Processing chat_message:", data);
-            show_talk_message(data.from, data.to, data.content);
-            break;
         case "status_update":
             console.log("Processing status_update:", data);
             show_status_on_map(data.status);
@@ -260,6 +256,12 @@ var handle_command = function (command, param_1, param_2) {
             hiddenPoints[param_1] = div;
         }
         start_talk_to_it(param_1, param_2)
+    } else if (command == "stop_talk_to_it") {
+        try {
+            stop_talk_to_it(param_1);
+        } catch (e) {
+            console.error("stop_talk_to_it failed:", e);
+        }
     } else if (command == "move_to_a_place") {
         if (map_type == "google") {
             setPersonModelPointByNationId(nation_id_me, new google.maps.LatLng(parseFloat(param_2), parseFloat(param_1)));
@@ -272,6 +274,62 @@ var handle_command = function (command, param_1, param_2) {
         findHim();
     } else if (command == "route_move_action") {
         route_move_action_from_python();
+    } else if (command == "route_mode_free") {
+        try {
+            if (typeof route_status !== 'undefined') {
+                route_status = "stopped";
+            }
+            if (typeof window !== 'undefined') {
+                window.route_status = "stopped";
+            }
+
+            if (typeof stopTrack === 'function') {
+                stopTrack();
+            }
+
+            if (typeof update_map_setting === 'function') {
+                update_map_setting("route_status", "stopped");
+                update_map_setting("route_start", "");
+                update_map_setting("route_end", "");
+                update_map_setting("route_current_position", "");
+                update_map_setting("route", "");
+            }
+
+            const msgdiv = document.getElementById("setroute");
+            if (msgdiv) {
+                msgdiv.style.display = "none";
+                const startInput = document.getElementById('start');
+                const endInput = document.getElementById('end');
+                if (startInput) startInput.removeAttribute('readonly');
+                if (endInput) endInput.removeAttribute('readonly');
+
+                const buttons = msgdiv.getElementsByTagName('button');
+                for (let i = 0; i < buttons.length; i++) {
+                    const button = buttons[i];
+                    const buttonText = button.textContent.trim();
+                    if (buttonText === '确定') {
+                        button.style.display = 'inline-block';
+                    } else if (buttonText === '查看' || buttonText === '重设') {
+                        button.style.display = 'none';
+                    }
+                }
+
+                const positionTypeSelect = document.getElementById("position_type");
+                if (positionTypeSelect) {
+                    positionTypeSelect.style.display = 'inline-block';
+                }
+            }
+
+            if (typeof resetCoordinateLinks === 'function') {
+                resetCoordinateLinks();
+            }
+
+            if (typeof initRouteDisplay === 'function') {
+                initRouteDisplay();
+            }
+        } catch (e) {
+            console.error("Failed to switch to Free mode:", e);
+        }
     } else if (command == "show_information") {
         addMessageToBoard(param_1);
     } else if (command == "show_information_chat") {

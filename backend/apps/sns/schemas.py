@@ -99,7 +99,7 @@ class ProfessionItem(BaseModel):
 
 class SocialRoleItem(BaseModel):
     id: int
-    title: str
+    caption: Optional[str] = None
     content: str
     question: Optional[str] = None
     tags: Optional[str] = None
@@ -109,7 +109,7 @@ class SocialRoleItem(BaseModel):
 
 
 class SocialRoleUpdateRequest(BaseModel):
-    title: Optional[str] = None
+    caption: Optional[str] = None
     content: Optional[str] = None
     question: Optional[str] = None
     tags: Optional[str] = None

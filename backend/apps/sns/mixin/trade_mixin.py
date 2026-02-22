@@ -58,35 +58,69 @@ class TradeMixin:
         return trade_id, trade_price
 
     def get_guidance(self):
-        user_list_stra = """
-        - J宝:是个律师,坐标[116.30375329461533,40.049108567364904],距离7公里\n
-        - W宝:是个医生,坐标[116.30690718139134,40.06259235539735],距离8公里\n
-                """
-        user_list_str = """
-暂时没有更多人员
-                """
-        place_list_str = """
-- 北京天安门:很多人在此看升旗。坐标[116.3975,39.9087],距离40公里。\n
-- 八达岭长城:著名旅游景点。坐标[116.0204,40.3606],距离60公里。\n
-                """
+        fee = 10
+        people_list_str = ""
+        place_list_str = ""
+
+        try:
+            base = (self._get_ai_sns_server_base() or "").rstrip("/")
+            if base:
+                url = f"{base}/api/get_guidance_lists/"
+
+
+                params = {
+                    "lng": self.aichatcfg_record.current_position[0],
+                    "lat": self.aichatcfg_record.current_position[1]
+                }
+
+                data = self.http_request(url, params)
+                if isinstance(data, dict):
+                    people_list_str = (data.get("people_list_str") or "").strip()
+                    place_list_str = (data.get("place_list_str") or "").strip()
+        except Exception as e:
+            logger.error(f"Failed to fetch guidance lists from remote server: {e}", exc_info=True)
+
+        if not people_list_str:
+            people_list_str = "- (no people found)\n"
+        else:
+            people_list_str = people_list_str + ("\n" if not people_list_str.endswith("\n") else "")
+
+        if not place_list_str:
+            place_list_str = "- (no places found)\n"
+        else:
+            place_list_str = place_list_str + ("\n" if not place_list_str.endswith("\n") else "")
 
         result = f"""
-        您支付了10元费用，获得了如下信息：
-        ### 人员列表：
-        {user_list_str}
-        ### 地址列表：
+        You paid {fee} and received the following information:
+        ### People List:
+        {people_list_str}
+        ### Place List:
         {place_list_str}
         """""
-        self.aichatcfg_record.money = float(self.aichatcfg_record.money or 0) - 10
 
+        self.aichatcfg_record.money = float(self.aichatcfg_record.money or 0) - fee
         return result
 
     def set_food_order(self):
-        result = ""
+        fee = 30
+        provider = None
+        try:
+            provider = self.get_nearest_people_by_profession("Restaurateur")
+        except Exception as e:
+            logger.error(f"Failed to get nearest Restaurateur: {e}", exc_info=True)
+
         self.aichatcfg_record.energy_point = self.aichatcfg_record.energy_point + 25
-        self.aichatcfg_record.move_point = 100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100)
-        self.aichatcfg_record.money = self.aichatcfg_record.money - 30
-        result = f"你支付了30元购买食物，你的体力值已经恢复为{self.aichatcfg_record.energy_point}%，当前行动力为{self.aichatcfg_record.move_point}%"
+        self.aichatcfg_record.move_point = round(
+            100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+            1,
+        )
+
+        if provider:
+            self.send_pay(fee, to_account=provider.get("account"), to_nation_id=provider.get("nation_id"), to_nick_name=provider.get("nick_name"))
+        else:
+            self.aichatcfg_record.money = self.aichatcfg_record.money - fee
+
+        result = f"You paid {fee} for food. Your energy is now {self.aichatcfg_record.energy_point}%, and your move power is {self.aichatcfg_record.move_point}%"
         return result
 
     def set_taxi_order(self, current_position, target_position, target_place):
@@ -97,6 +131,7 @@ class TradeMixin:
         dist = distance(point1, point2).kilometers
         fee = dist * 2.5
 
+
         self.aichatcfg_record.money = self.aichatcfg_record.money - fee
 
         self.aichatcfg_record.last_position = current_position
@@ -105,31 +140,48 @@ class TradeMixin:
         command = ("move_to_a_place", str(new_pos[0]), str(new_pos[1]))
         self.send_msg_to_map(command)
 
-        result = f"你支付了{fee:.2f}元车费，你已经到达{target_place}，坐标为{target_position}"
+        result = f"You paid {fee:.2f} for the taxi. You have arrived at {target_place}, coordinates: {target_position}"
         return result
 
     def call_a_doctor(self):
-        result = ""
+        fee = 210
+        provider = None
+        try:
+            provider = self.get_nearest_people_by_profession("Doctor")
+        except Exception as e:
+            logger.error(f"Failed to get nearest Doctor: {e}", exc_info=True)
 
         self.aichatcfg_record.life_point = self.aichatcfg_record.life_point + 25
-        self.aichatcfg_record.move_point = 100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100)
-        self.aichatcfg_record.money = self.aichatcfg_record.money - 210
-        result = f"你支付了210元远程治疗服务，你的生命值已经恢复为{self.aichatcfg_record.life_point}%，当前行动力为{self.aichatcfg_record.move_point}%"
+        self.aichatcfg_record.move_point = round(
+            100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+            1,
+        )
+
+        if provider:
+            self.send_pay(fee, to_account=provider.get("account"), to_nation_id=provider.get("nation_id"), to_nick_name=provider.get("nick_name"))
+        else:
+            self.aichatcfg_record.money = self.aichatcfg_record.money - fee
+
+        result = f"You paid {fee} for remote medical service. Your life is now {self.aichatcfg_record.life_point}%, and your move power is {self.aichatcfg_record.move_point}%"
         return result
 
     def sell_to_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "sell"
+        self._pending_talk_objective = f"{human_object}{action_str}".strip()
         self.ask_agent_start_to_sell_to_a_people_sync(action_str, human_object)
 
     def buy_from_a_people(self, action_str, instrunction):
         human_object = ""
         self.talk_type = "buy"
+        self._pending_talk_objective = f"{human_object}{action_str}".strip()
         self.ask_agent_start_to_buy_from_a_people_sync(action_str, human_object)
 
     def ask_agent_start_to_sell_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        people_list = self._get_filtered_people_list_for_talk_type("sell")
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+        self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_sell_to_a_people__")
 
@@ -141,8 +193,10 @@ class TradeMixin:
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
     def ask_agent_start_to_buy_from_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        people_list = self._get_filtered_people_list_for_talk_type("buy")
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+        self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_buy_from_a_people__")
 
@@ -154,8 +208,10 @@ class TradeMixin:
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
     async def ask_agent_start_to_sell_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        people_list = self._get_filtered_people_list_for_talk_type("sell")
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+        self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_sell_to_a_people__")
 
@@ -167,8 +223,10 @@ class TradeMixin:
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
     async def ask_agent_start_to_buy_from_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        people_list = self._get_filtered_people_list_for_talk_type("buy")
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+        self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_buy_from_a_people__")
 
@@ -189,7 +247,20 @@ class TradeMixin:
             account = result["account"]
             nick_name = result["nick_name"]
             message = result["message"]
+
+            if not self._is_contact_allowed("sell", account):
+                retry_count = int(getattr(self, "_pick_person_retry_count", {}).get("sell", 0) or 0)
+                if retry_count < 2:
+                    self._pick_person_retry_count["sell"] = retry_count + 1
+                    hint = " Please choose a different person than the recently contacted ones."
+                    self.ask_agent_start_to_sell_to_a_people_sync(self._pending_talk_objective + hint, "")
+                    return
+                self._pick_person_retry_count["sell"] = 0
+            else:
+                self._pick_person_retry_count["sell"] = 0
+
             self.current_talk_people = result
+            self.start_active_conversation(talk_type="sell", person=result, objective=self._pending_talk_objective)
 
             self.taskmng.current_process["people_communicated_list"].append(nation_id)
             self.taskmng.current_process["rounds_current_person"] = 1
@@ -211,7 +282,20 @@ class TradeMixin:
             account = result["account"]
             nick_name = result["nick_name"]
             message = result["message"]
+
+            if not self._is_contact_allowed("buy", account):
+                retry_count = int(getattr(self, "_pick_person_retry_count", {}).get("buy", 0) or 0)
+                if retry_count < 2:
+                    self._pick_person_retry_count["buy"] = retry_count + 1
+                    hint = " Please choose a different person than the recently contacted ones."
+                    self.ask_agent_start_to_buy_from_a_people_sync(self._pending_talk_objective + hint, "")
+                    return
+                self._pick_person_retry_count["buy"] = 0
+            else:
+                self._pick_person_retry_count["buy"] = 0
+
             self.current_talk_people = result
+            self.start_active_conversation(talk_type="buy", person=result, objective=self._pending_talk_objective)
 
             self.taskmng.current_process["people_communicated_list"].append(nation_id)
             self.taskmng.current_process["rounds_current_person"] = 1
@@ -264,7 +348,13 @@ class TradeMixin:
             self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
             self.write_task_process_to_pane(f"和朋友沟通后得到如下情况：{current_chat_summary}\n\n")
             self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-            asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+            resume_ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"
+            self.end_active_conversation(
+                reason="completed",
+                message="Sell conversation completed.",
+                resume_activity=True,
+                resume_ask_content=resume_ask_content,
+            )
 
         else:
             if self.taskmng.current_process["rounds_current_person"] < self.max_rounds_per_person:
@@ -273,7 +363,13 @@ class TradeMixin:
             else:
                 self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+                resume_ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"
+                self.end_active_conversation(
+                    reason="max_rounds",
+                    message="Sell conversation reached max rounds.",
+                    resume_activity=True,
+                    resume_ask_content=resume_ask_content,
+                )
 
     def handle_agent_review_conversation_buy_result(self, content):
 
@@ -304,13 +400,25 @@ class TradeMixin:
 
         if buy_score >= 80 and price >= 0:
             self.send_pay(price)
+            self.end_active_conversation(
+                reason="pay",
+                message="Payment initiated.",
+                resume_activity=True,
+                resume_ask_content="",
+            )
             return
 
         if not continue_chat:
             self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
             self.write_task_process_to_pane(f"和朋友沟通后得到如下情况：{current_chat_summary}\n\n")
             self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-            asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+            resume_ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"
+            self.end_active_conversation(
+                reason="completed",
+                message="Buy conversation completed.",
+                resume_activity=True,
+                resume_ask_content=resume_ask_content,
+            )
 
         else:
             if not self.taskmng.current_process:
@@ -336,7 +444,13 @@ class TradeMixin:
             else:
                 self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+                resume_ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"
+                self.end_active_conversation(
+                    reason="max_rounds",
+                    message="Buy conversation reached max rounds.",
+                    resume_activity=True,
+                    resume_ask_content=resume_ask_content,
+                )
 
     def check_pay_in_received(self, msg):
         """
@@ -381,18 +495,51 @@ class TradeMixin:
     def check_buy_in_received(self, msg):
         return "AISNS_INT_003_INQUIRY" in (msg or "")
 
-    def send_pay(self, price) -> None:
+    def send_pay(self, price, to_account: Optional[str] = None, to_nation_id: Optional[str] = None, to_nick_name: Optional[str] = None) -> None:
         trade_id = generate_random_id()
-        current_talk_people = self.current_talk_people
-        nation_id = current_talk_people["nation_id"]
-        account = current_talk_people["account"]
-        nick_name = current_talk_people["nick_name"]
+        current_talk_people = self.current_talk_people or {}
+
+        account = (to_account or current_talk_people.get("account") or "").strip()
+        nation_id = (to_nation_id or current_talk_people.get("nation_id") or "").strip()
+        nick_name = (to_nick_name or current_talk_people.get("nick_name") or "").strip()
+        if not account:
+            logger.warning("send_pay called without a valid recipient account")
+            return
+        if not nation_id:
+            nation_id = account
+        if not nick_name:
+            nick_name = account
+
+        recipient_profession = (
+            (current_talk_people.get("Profession") or current_talk_people.get("profession") or "").strip()
+        )
+        profession_key = recipient_profession.lower()
+        if profession_key == "doctor":
+            try:
+                self.aichatcfg_record.life_point = self.aichatcfg_record.life_point + 25
+                self.aichatcfg_record.move_point = round(
+                    100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+                    1,
+                )
+                logger.info("Applied Doctor service effect: life_point and move_point updated")
+            except Exception as e:
+                logger.error(f"Failed to apply Doctor service effect: {e}", exc_info=True)
+        elif profession_key == "restaurateur":
+            try:
+                self.aichatcfg_record.energy_point = self.aichatcfg_record.energy_point + 25
+                self.aichatcfg_record.move_point = round(
+                    100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+                    1,
+                )
+                logger.info("Applied Restaurateur service effect: energy_point and move_point updated")
+            except Exception as e:
+                logger.error(f"Failed to apply Restaurateur service effect: {e}", exc_info=True)
         try:
             message = f"AISNS_INT_001_PAY_SEND_START\n{trade_id}__AISNS_INT_SEPARATOR__{price}\nAISNS_INT_001_PAY_SEND_END"
 
             self.talk_to_a_people(message, nation_id, account, nick_name)
 
-            self.add_money(0 - price)
+            self.add_money(0 - float(price or 0))
             trade_type = "B"
             title = f"Trade with {nick_name}"
             detail = "Waiting for goods"
@@ -405,7 +552,7 @@ class TradeMixin:
             else:
                 add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=1)
         except Exception as e:
-            print(f"Tool trade sell error: {str(e)}")
+            logger.error(f"send_pay failed: {e}", exc_info=True)
 
     def handle_pay_received(self, price_str) -> None:
         talk_history_str = json.dumps(self.current_talk_history, ensure_ascii=False)
@@ -422,7 +569,16 @@ class TradeMixin:
             handle_after_trade = record.handle_after_trade
             handle_content = record.handle_content
 
-            if profession in {"doctor", "driver", "seller"}:
+            force_tool_call = str(handle_after_trade or "").strip().lower() == "tool"
+            logger.info(
+                "handle_pay_received: profession=%s, handle_after_trade=%s, force_tool_call=%s, handle_content=%s",
+                profession,
+                handle_after_trade,
+                force_tool_call,
+                handle_content,
+            )
+
+            if profession in {"Doctor", "Restaurateur"}:
                 self.handle_send_goods(handle_content, trade_id)
                 return
 
@@ -441,6 +597,7 @@ class TradeMixin:
                 tool_name,
                 what_to_do,
                 conversation_suffix="trade_delivery",
+                force_tool_call=force_tool_call,
             )
 
             if isinstance(tool_task, asyncio.Task):
@@ -449,7 +606,7 @@ class TradeMixin:
                         result_text = t.result()
                     except Exception as e:
                         logger.error(f"ask agent to run tool before send goods failed: {e}", exc_info=True)
-                        result_text = f"工具执行失败: {str(e)}"
+                        result_text = f"Tool execution failed: {str(e)}"
                     if isinstance(result_text, str):
                         normalized = result_text.strip()
                         if (
@@ -457,7 +614,7 @@ class TradeMixin:
                             or "无法从当前对话记录中找到" in normalized
                             or "请提供聊天记录" in normalized
                         ):
-                            result_text = "已收到付款，交付内容稍后补发。"
+                            result_text = "Payment received. Delivery details will be sent shortly."
                     try:
                         self.handle_send_goods(result_text, trade_id)
                     except Exception as e:

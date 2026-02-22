@@ -42,6 +42,34 @@ logger = logging.getLogger(__name__)
 
 class MapMovementMixin:
 
+    def _finish_route_and_switch_to_free_mode(self) -> None:
+        try:
+            self.move_by_route_flag = False
+            self.route_total_distance = 0
+            self.route_move_distance = 0
+            self.route_target_place = ""
+            self.route_target_position = None
+            self.route_position_list = []
+        except Exception:
+            self.move_by_route_flag = False
+
+        try:
+            update_AiChatCfg_map(
+                route_status="stopped",
+                route_start="",
+                route_end="",
+                route_current_position="",
+                route="",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to persist route reset to database: {e}")
+
+        try:
+            command = ("route_mode_free", "", "")
+            self.send_msg_to_map(command)
+        except Exception as e:
+            logger.warning(f"Failed to notify frontend to switch to Free mode: {e}")
+
     def _get_ai_sns_server_base(self):
         try:
             from db.DBFactory import query_SystemCfg
@@ -114,7 +142,7 @@ class MapMovementMixin:
         command = ("move_to_a_place", str(new_pos[0]), str(new_pos[1]))
         self.send_msg_to_map(command)
 
-        result = f"你移动了500米，附近没有任何人。"
+        result = f"你移动了500米。"
         self.update_after_moving()
         return result
 
@@ -147,7 +175,8 @@ class MapMovementMixin:
             if actual_distance == 0:
                 self.aichatcfg_record.last_position = self.aichatcfg_record.current_position
                 self.aichatcfg_record.current_position = [current_position.longitude, current_position.latitude]
-                return f"您已到达目标位置{target_place}。"
+                self.target_position = None
+                return f"您已在目的地{target_place}。"
 
             # Case 2: Remaining distance less than one step
             if actual_distance <= move_distance:
@@ -156,7 +185,8 @@ class MapMovementMixin:
                 new_pos = self.aichatcfg_record.current_position
                 command = ("move_to_a_place", str(new_pos[0]), str(new_pos[1]))
                 self.send_msg_to_map(command)
-                return f"您已到达目标位置{target_place}（剩余 0 公里）。"
+                self.target_position = None
+                return f"您已到达目的地{target_place}（剩余 0 公里）。"
 
                 # Case 3: Need to compute bearing
 
@@ -199,14 +229,21 @@ class MapMovementMixin:
             return f"计算移动坐标时出错：{str(e)}"
 
     def move_by_route(self):
+        target_place = getattr(self, "route_target_place", "")
+        total_distance = float(getattr(self, "route_total_distance", 0) or 0)
+        moved_distance = float(getattr(self, "route_move_distance", 0) or 0)
+
+        remaining_distance = total_distance - moved_distance
+        if remaining_distance < 0:
+            remaining_distance = 0
+
+        if remaining_distance <= 1e-9:
+            self._finish_route_and_switch_to_free_mode()
+            return f"Arrived at destination '{target_place}'. Switched to Free mode."
+
         command = ("route_move_action", "", "")
         self.send_msg_to_map(command)
-        target_place = self.route_target_place
-        route_position_list = self.route_position_list
-        total_distance = self.route_total_distance
-        move_distance = self.route_move_distance
-        remaining_distance = total_distance - move_distance
-        return f"你向目标地点{target_place}移动了{move_distance}米。距离目标还剩 {remaining_distance:.2f} 公里。"
+        return f"你向目标地点{target_place}移动了{moved_distance}米。距离目标还剩 {remaining_distance:.2f} 公里。"
 
     def update_after_moving(self):
         lng = self.aichatcfg_record.current_position[0]

@@ -83,6 +83,8 @@ export default {
         console.log('Initializing SNS controller');
         this.loadBaiduMap();
         this.loadSNSData();
+        this.initCurrentStatusOnLoad();
+        this.initResourceOnLoad();
         this.initSNSPanelResizer();
         this.initSNSStatusTabs();
         this.initSNSContextMenu();
@@ -94,6 +96,122 @@ export default {
         this.initSNSActionBar();
         this.initMapReloadListener();
         this.initSNSUpdateListener();
+    },
+
+    async initCurrentStatusOnLoad() {
+        const processPane = document.querySelector('.tab-pane[data-tab="process"]');
+        if (!processPane) return;
+
+        const statusSection = processPane.querySelector('.status-section:nth-child(1) .status-rows');
+        if (!statusSection) return;
+
+        if (!statusSection.querySelector('.na')) return;
+
+        try {
+            const overviewResp = await snsApi.getCurrentStatusOverview();
+            if (overviewResp && overviewResp.success && (overviewResp.content || '').trim()) {
+                this.updateCurrentStatusSection(processPane, overviewResp.content);
+                return;
+            }
+
+            const userInfoResp = await snsApi.getUserInfo();
+            const userStatsResp = await snsApi.getUserStats();
+
+            const userInfo = userInfoResp && userInfoResp.success ? (userInfoResp.data || {}) : {};
+            const userStats = userStatsResp && typeof userStatsResp === 'object' ? userStatsResp : {};
+
+            let lng = null;
+            let lat = null;
+            const rawPos = userInfo.current_position;
+            if (rawPos) {
+                if (Array.isArray(rawPos) && rawPos.length >= 2) {
+                    lng = rawPos[0];
+                    lat = rawPos[1];
+                } else if (typeof rawPos === 'string') {
+                    const trimmed = rawPos.trim();
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (Array.isArray(parsed) && parsed.length >= 2) {
+                            lng = parsed[0];
+                            lat = parsed[1];
+                        } else if (parsed && typeof parsed === 'object') {
+                            lng = parsed.lng;
+                            lat = parsed.lat;
+                        }
+                    } catch (e) {
+                        const parts = trimmed.split(',').map(v => v.trim()).filter(Boolean);
+                        if (parts.length >= 2) {
+                            lng = parts[0];
+                            lat = parts[1];
+                        } else {
+                            const matches = trimmed.match(/[-+]?\d*\.?\d+/g);
+                            if (matches && matches.length >= 2) {
+                                lng = matches[0];
+                                lat = matches[1];
+                            }
+                        }
+                    }
+                } else if (typeof rawPos === 'object') {
+                    lng = rawPos.lng;
+                    lat = rawPos.lat;
+                }
+            }
+
+            const money = (userStats.money !== undefined && userStats.money !== null)
+                ? Number(userStats.money)
+                : Number(userInfo.money);
+            const life = userStats.life;
+            const energy = userStats.energy;
+            const profession = userInfo.profession;
+
+            const lines = [];
+            if (Number.isFinite(money)) {
+                lines.push(`💰 Money      : ${money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            }
+            if (life !== undefined && life !== null) lines.push(`❤️ Life           : ${life}`);
+            if (energy !== undefined && energy !== null) lines.push(`⚡ Energy      : ${energy}`);
+            lines.push(`🧑‍️ Profession: ${profession || 'N/A'}`);
+
+            lines.push('📍 Location');
+            lines.push(`   ├─ lng : ${(lng !== null && lng !== undefined && String(lng).trim() !== '') ? lng : 'N/A'}`);
+            lines.push(`   └─ lat : ${(lat !== null && lat !== undefined && String(lat).trim() !== '') ? lat : 'N/A'}`);
+
+            const content = lines.join('\n');
+            if (content) this.updateCurrentStatusSection(processPane, content);
+        } catch (e) {
+            console.warn('[snsHandlers] initCurrentStatusOnLoad failed:', e);
+            if (!this._currentStatusInitRetried) {
+                this._currentStatusInitRetried = true;
+                setTimeout(() => this.initCurrentStatusOnLoad(), 800);
+            }
+        }
+    },
+
+    async initResourceOnLoad() {
+        const resourcePane = document.querySelector('.tab-pane[data-tab="resource"]');
+        if (!resourcePane) return;
+
+        const resourceSection = resourcePane.querySelector('.status-section:nth-child(1) .status-rows');
+        if (!resourceSection) return;
+
+        const text = (resourceSection.textContent || '').trim();
+        const hasNAPlaceholder = !!resourceSection.querySelector('.na') || text === 'N/A';
+        const hasContent = text.length > 0 && !hasNAPlaceholder;
+        if (hasContent) return;
+
+        try {
+            const resp = await snsApi.getResourceOverview();
+            if (!resp || !resp.success) return;
+            const content = (resp.content || '').trim();
+            if (!content) return;
+            this.updateResourceTab(content);
+        } catch (e) {
+            console.warn('[snsHandlers] initResourceOnLoad failed:', e);
+            if (!this._resourceInitRetried) {
+                this._resourceInitRetried = true;
+                setTimeout(() => this.initResourceOnLoad(), 1000);
+            }
+        }
     },
 
     initSNSStatusTabReloadMenu() {
@@ -966,6 +1084,49 @@ export default {
         const searchBar = document.getElementById('statusSearchBar');
         const searchInput = document.getElementById('statusSearchInput');
 
+        const copyTextToClipboard = async (text) => {
+            const v = (text === undefined || text === null) ? '' : String(text);
+            if (!v) return { success: false, error: 'Empty text' };
+
+            try {
+                if (window.electronAPI && typeof window.electronAPI.writeClipboardText === 'function') {
+                    const result = await window.electronAPI.writeClipboardText(v);
+                    if (result && result.success) {
+                        return { success: true };
+                    }
+                    const errMsg = result && result.error ? String(result.error) : 'Unknown error';
+                    throw new Error(errMsg);
+                }
+            } catch (e) {
+                console.warn('[snsHandlers] electron clipboard copy failed, falling back', e);
+            }
+
+            try {
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    await navigator.clipboard.writeText(v);
+                    return { success: true };
+                }
+            } catch (e) {
+                console.warn('[snsHandlers] navigator.clipboard copy failed, falling back', e);
+            }
+
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = v;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.top = '-9999px';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                return ok ? { success: true } : { success: false, error: 'execCommand(copy) returned false' };
+            } catch (e) {
+                return { success: false, error: e && e.message ? e.message : String(e) };
+            }
+        };
+
         if (!tabContent || !contextMenu) return;
 
         // Prevent default context menu
@@ -1016,10 +1177,15 @@ export default {
                     // Copy selected text
                     const selectedText = window.getSelection().toString();
                     if (selectedText) {
-                        navigator.clipboard.writeText(selectedText).then(() => {
-                            console.log('文本已复制到剪贴板');
+                        copyTextToClipboard(selectedText).then((r) => {
+                            if (r && r.success) {
+                                console.log('[snsHandlers] text copied to clipboard');
+                                return;
+                            }
+                            const errMsg = r && r.error ? String(r.error) : 'Unknown error';
+                            console.error('[snsHandlers] clipboard copy failed:', errMsg);
                         }).catch(err => {
-                            console.error('复制失败:', err);
+                            console.error('[snsHandlers] clipboard copy failed:', err);
                         });
                     }
                     break;
@@ -1558,10 +1724,10 @@ export default {
         const lngElement = document.querySelector('.status-row.sub span[class="value"]');
         const latElement = document.querySelectorAll('.status-row.sub span[class="value"]')[1];
         if (lngElement && data.lng) {
-            lngElement.textContent = `: ${data.lng}`;
+            lngElement.textContent = `${data.lng}`;
         }
         if (latElement && data.lat) {
-            latElement.textContent = `: ${data.lat}`;
+            latElement.textContent = `${data.lat}`;
         }
     },
 
@@ -1899,7 +2065,7 @@ export default {
                     label.textContent = parts[0].trim();
                     const value = document.createElement('span');
                     value.className = 'value';
-                    value.textContent = ': ' + parts[1].trim();
+                    value.textContent = parts[1].trim();
                     statusRow.appendChild(label);
                     statusRow.appendChild(value);
                 }
@@ -1911,7 +2077,7 @@ export default {
                     label.textContent = parts[0].trim();
                     const value = document.createElement('span');
                     value.className = 'value';
-                    value.textContent = ': ' + parts.slice(1).join(':').trim();
+                    value.textContent = parts.slice(1).join(':').trim();
                     statusRow.appendChild(label);
                     statusRow.appendChild(value);
                 } else {

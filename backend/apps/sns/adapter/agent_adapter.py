@@ -510,6 +510,7 @@ class AgentAdapter:
         use_tools: Optional[bool] = None,
         use_memory: bool = False,
         use_knowledge_base: bool = False,
+        tool_choice: Optional[dict] = None,
     ):
         agent_type, rpc_url = self._load_agent_type_and_url(str(getattr(agent, 'agent_id', '') or ''))
         if self._is_remote_agent_type(agent_type):
@@ -537,4 +538,6 @@ class AgentAdapter:
         }
         if use_tools is not None:
             kwargs["use_tools"] = use_tools
+        if tool_choice is not None:
+            kwargs["tool_choice"] = tool_choice
         return await agent.chat(**kwargs)

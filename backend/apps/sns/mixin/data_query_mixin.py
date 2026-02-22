@@ -74,6 +74,28 @@ class DataQueryMixin:
 
         return people_list
 
+    def get_nearest_people_by_profession(self, profession: str, max_distance: Optional[int] = None):
+        url = f"{self._get_ai_sns_server_base()}/api/get_nearest_people_by_profession/"
+        remove_id = (self.user_map_setting or {}).get("nationid", "")
+        params = {
+            "profession": profession,
+            "exclude_nation_id": remove_id,
+            "lng": self.aichatcfg_record.current_position[0],
+            "lat": self.aichatcfg_record.current_position[1],
+        }
+        if max_distance is not None:
+            params["max_distance"] = max_distance
+
+        data = self.http_request(url, params)
+        if not isinstance(data, dict):
+            return None
+        nation_id = (data.get("nation_id") or "").strip()
+        account = (data.get("account") or "").strip()
+        nick_name = (data.get("nick_name") or "").strip()
+        if not nation_id or not account:
+            return None
+        return data
+
     def are_lists_of_dicts_equal(self, list1, list2):
         """
         Checks if two lists of dictionaries are equal, regardless of order.
@@ -242,7 +264,10 @@ class DataQueryMixin:
         energy_point = float(self.aichatcfg_record.energy_point or 0) - decline_point
         self.aichatcfg_record.energy_point = energy_point
         life_point = float(self.aichatcfg_record.life_point or 0)
-        self.aichatcfg_record.move_point = 100 * (life_point / 100) * (energy_point / 100)
+        self.aichatcfg_record.move_point = round(
+            100 * (life_point / 100) * (energy_point / 100),
+            1,
+        )
 
     def decline_life(self):
         exp = float(self.aichatcfg_record.exp_point or 0)
@@ -250,4 +275,7 @@ class DataQueryMixin:
         life_point = float(self.aichatcfg_record.life_point or 0) - decline_point
         self.aichatcfg_record.life_point = life_point
         energy_point = float(self.aichatcfg_record.energy_point or 0)
-        self.aichatcfg_record.move_point = 100 * (life_point / 100) * (energy_point / 100)
+        self.aichatcfg_record.move_point = round(
+            100 * (life_point / 100) * (energy_point / 100),
+            1,
+        )

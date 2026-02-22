@@ -27,6 +27,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, RedirectResponse
 
 # 导入配置
 from backend.config.settings import get_settings
@@ -220,6 +221,160 @@ async def health_check():
         "version": "2.0.0",
         "architecture": "modular"
     }
+
+
+def _get_remote_ai_sns_server_base() -> str:
+    try:
+        from db.DBFactory import query_SystemCfg
+        cfg = query_SystemCfg(is_delete=False)
+        v = getattr(cfg, 'ai_sns_server', None)
+        v = (v or '').strip()
+        return v.rstrip('/') if v else ''
+    except Exception:
+        return ''
+
+
+def _get_current_position_from_db():
+    try:
+        from db.DBFactory import query_AiChatCfg_map_setting
+        import json
+
+        setting = query_AiChatCfg_map_setting() or {}
+        raw_pos = setting.get("current_position")
+        if not raw_pos:
+            return (None, None)
+
+        if isinstance(raw_pos, list) and len(raw_pos) >= 2:
+            return (float(raw_pos[0]), float(raw_pos[1]))
+
+        if isinstance(raw_pos, str):
+            parsed = json.loads(raw_pos)
+            if isinstance(parsed, dict):
+                lng = parsed.get("lng")
+                lat = parsed.get("lat")
+                return (float(lng), float(lat)) if lng is not None and lat is not None else (None, None)
+            if isinstance(parsed, list) and len(parsed) >= 2:
+                return (float(parsed[0]), float(parsed[1]))
+
+        return (None, None)
+    except Exception:
+        return (None, None)
+
+
+@app.get("/api/get_news_list/")
+async def get_news_list():
+    remote_base = _get_remote_ai_sns_server_base()
+    if remote_base:
+        try:
+            import httpx
+            url = f"{remote_base}/news.json"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return JSONResponse(content=resp.json())
+        except Exception as e:
+            logger.warning(f"Failed to fetch news list from remote server: {e}")
+
+    return JSONResponse(
+        content={
+            "top": [],
+            "hot": [],
+            "latest": [],
+            "recommended": []
+        }
+    )
+
+
+@app.get("/api/get_people_list/")
+async def get_people_list(lng: float = None, lat: float = None):
+    remote_base = _get_remote_ai_sns_server_base()
+    if remote_base:
+        try:
+            import httpx
+
+            if lng is None or lat is None:
+                db_lng, db_lat = _get_current_position_from_db()
+                lng = db_lng if lng is None else lng
+                lat = db_lat if lat is None else lat
+
+            params = {}
+            if lng is not None and lat is not None:
+                params = {"lng": lng, "lat": lat}
+
+            url = f"{remote_base}/api/get_people_list/"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(url, data=params)
+                resp.raise_for_status()
+                return JSONResponse(content=resp.json())
+        except Exception as e:
+            logger.warning(f"Failed to fetch people list from remote server: {e}")
+
+    try:
+        import json
+        local_path = Path("scripts") / "personsdata.json"
+        if not local_path.exists():
+            raise FileNotFoundError(str(local_path))
+        return JSONResponse(content=json.loads(local_path.read_text(encoding="utf-8")))
+    except Exception as e:
+        logger.error(f"Failed to load local personsdata.json: {e}")
+        raise HTTPException(status_code=500, detail="Failed to provide people list")
+
+
+@app.get("/personsdata.json")
+async def get_personsdata_json():
+    remote_base = _get_remote_ai_sns_server_base()
+    if remote_base:
+        try:
+            import httpx
+            url = f"{remote_base}/personsdata.json"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return JSONResponse(content=resp.json())
+        except Exception as e:
+            logger.warning(f"Failed to fetch personsdata.json from remote server: {e}")
+
+    try:
+        import json
+        local_path = Path("scripts") / "personsdata.json"
+        if not local_path.exists():
+            raise FileNotFoundError(str(local_path))
+        return JSONResponse(content=json.loads(local_path.read_text(encoding="utf-8")))
+    except Exception as e:
+        logger.error(f"Failed to load local personsdata.json: {e}")
+        raise HTTPException(status_code=500, detail="Failed to provide persons data")
+
+
+@app.get("/news.json")
+async def get_news_json():
+    remote_base = _get_remote_ai_sns_server_base()
+    if remote_base:
+        try:
+            import httpx
+            url = f"{remote_base}/news.json"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                return JSONResponse(content=resp.json())
+        except Exception as e:
+            logger.warning(f"Failed to fetch news.json from remote server: {e}")
+
+    return JSONResponse(
+        content={
+            "top": [],
+            "hot": [],
+            "latest": [],
+            "recommended": []
+        }
+    )
+
+
+@app.get("/aigccenter.html")
+async def aigc_center_redirect():
+    remote_base = _get_remote_ai_sns_server_base()
+    if not remote_base:
+        raise HTTPException(status_code=404, detail="AIGC center is not configured")
+    return RedirectResponse(url=f"{remote_base}/aigccenter.html")
 
 # WebSocket 端点 - 通用端点（自动生成client_id）
 @app.websocket("/ws")

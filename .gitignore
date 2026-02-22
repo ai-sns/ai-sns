@@ -166,4 +166,5 @@ scripts/3d/motivational_talk_4k (1).glb
 scripts/3d/model.glb
 scripts/js/baidu/BigBuckBunny.mp4
 node_modules
-cankao/
+cankao/**
+!cankao/main.py

@@ -197,7 +197,11 @@ async function loadPersonsData(url, retries = FETCH_RETRIES, retryDelay = INITIA
 
 // Wrap async operation loadPersonsData
 async function load_persons_data_and_show() {
-    const dataUrl = base_url+"/personsdata.json";
+    const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+        ? API_BASE_URL
+        : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+    const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+    const dataUrl = `${normalizedBaseUrl}/api/get_people_list/`;
     const nation_id = nation_id_me;
     try {
         const data = await loadPersonsData(dataUrl); // Load person data

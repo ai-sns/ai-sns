@@ -17,7 +17,7 @@ const snsState = {
         money: 10996.61,
         life: 125,
         energy: 150,
-        profession: '医生',
+        profession: 'Doctor',
         level: 3,
         credit: 100,
         exp: 30,

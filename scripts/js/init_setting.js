@@ -31,13 +31,16 @@ async function checkAndShowPoints() {
     // Check whether person data has been loaded
     if (!persons_loaded_flag) {
         // Define data URL
-        const host = (typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '');
-        const dataUrl = `${host}/personsdata.json`;
+        const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+            ? API_BASE_URL
+            : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+        const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+        const dataUrl = `${normalizedBaseUrl}/api/get_people_list/`;
 
         try {
             // Load person data
             const data = await loadPersonsData(dataUrl);
-            console.log("成功加载人员数据:", data);
+            console.log("Person data loaded:", data);
 
             // Show success toast
             showAlert(`Person data loaded.`);
@@ -48,7 +51,7 @@ async function checkAndShowPoints() {
             // Display points
             showpoints();
         } catch (error) {
-            console.error("加载人员数据时发生错误:", error);
+            console.error("Error loading person data:", error);
             showAlert(`Error loading person data: ${error.message}`);
         }
     }
@@ -89,7 +92,7 @@ setTimeout(() => {
   if (window.mapManager && typeof window.mapManager.init === 'function') {
     window.mapManager.init();
   } else {
-    console.warn('mapManager 或 init 方法不存在，跳过初始化');
+    console.warn('mapManager or its init method is not available. Skipping initialization.');
   }
 }, 1000);
 

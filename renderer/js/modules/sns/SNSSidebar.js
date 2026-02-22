@@ -47,6 +47,15 @@ export default {
             .replace(/'/g, '&#39;');
     },
 
+    formatRadarValue(label, value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return String(value ?? '');
+
+        const decimals = label === 'Move' ? 1 : 0;
+        const fixed = num.toFixed(decimals);
+        return decimals === 0 ? fixed : fixed.replace(/\.0+$/, '');
+    },
+
     renderMessageContent(content) {
         const escaped = this.escapeHtml(content);
         const withLinks = escaped.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
@@ -299,11 +308,44 @@ export default {
             const message = event.detail;
             if (message.type === 'new_message') {
                 this.handleNewMessage(message.data);
+            } else if (message.type === 'contact_upserted') {
+                this.handleContactUpserted(message.data);
             } else if (message.type === 'user_stats_update') {
                 // Handle user stats updates
                 this.handleUserStatsUpdate(message.data);
             }
         });
+    },
+
+    upsertContact(contactData) {
+        if (!contactData || !contactData.account) return null;
+
+        const existing = this.contacts.find(c => c.account === contactData.account);
+        if (existing) {
+            Object.assign(existing, contactData);
+            return existing;
+        }
+
+        const fallbackNick = contactData.nick_name || contactData.account;
+        const next = {
+            id: contactData.id,
+            account: contactData.account,
+            nick_name: fallbackNick,
+            groups: contactData.groups,
+            subscription: contactData.subscription,
+            new_message_flag: !!contactData.new_message_flag,
+            last_message_time: contactData.last_message_time || null,
+        };
+
+        this.contacts.unshift(next);
+        return next;
+    },
+
+    handleContactUpserted(contactData) {
+        const upserted = this.upsertContact(contactData);
+        if (!upserted) return;
+
+        this.renderContacts();
     },
 
     /**
@@ -315,14 +357,14 @@ export default {
         // Update local userStats
         if (data) {
             this.userStats = {
-                level: data.level || this.userStats.level,
-                credit: data.credit || this.userStats.credit,
-                money: data.money || this.userStats.money,
-                life: data.life || this.userStats.life,
-                iq: data.iq || this.userStats.iq,
-                energy: data.energy || this.userStats.energy,
-                move: data.move || this.userStats.move,
-                exp: data.exp || this.userStats.exp
+                level: data.level ?? this.userStats.level,
+                credit: data.credit ?? this.userStats.credit,
+                money: data.money ?? this.userStats.money,
+                life: data.life ?? this.userStats.life,
+                iq: data.iq ?? this.userStats.iq,
+                energy: data.energy ?? this.userStats.energy,
+                move: data.move ?? this.userStats.move,
+                exp: data.exp ?? this.userStats.exp
             };
 
             // Re-render charts and stats
@@ -336,7 +378,18 @@ export default {
      * Handle newly received message
      */
     handleNewMessage(messageData) {
-        const { from_account, content, flag, create_time } = messageData;
+        const { from_account, content, flag, create_time, contact } = messageData;
+
+        if (contact) {
+            this.upsertContact(contact);
+        } else if (from_account) {
+            this.upsertContact({
+                account: from_account,
+                nick_name: from_account,
+                new_message_flag: flag !== 0,
+                last_message_time: create_time || null,
+            });
+        }
 
         // Check if currently chatting with this contact
         if (this.selectedContact && this.selectedContact.account === from_account) {
@@ -356,6 +409,8 @@ export default {
             // Add red dot to contact in contact list
             this.markContactUnread(from_account);
         }
+
+        this.renderContacts();
     },
 
     /**
@@ -656,7 +711,7 @@ export default {
             ctx.font = '9px Inter, Arial';
             this.drawOutlinedText(ctx, `${labels[i]}`, labelX, labelY - 4, theme.textSecondary, theme.labelStroke);
             ctx.font = '8px Inter, Arial';
-            this.drawOutlinedText(ctx, `${values[i]}`, labelX, labelY + 6, theme.textPrimary, theme.labelStroke);
+            this.drawOutlinedText(ctx, this.formatRadarValue(labels[i], values[i]), labelX, labelY + 6, theme.textPrimary, theme.labelStroke);
         }
 
         // Draw data - use bar-chart palette

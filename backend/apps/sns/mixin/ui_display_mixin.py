@@ -362,13 +362,6 @@ class UIDisplayMixin:
 
         logger = logging.getLogger(__name__)
 
-        # Build chatWindow message (legacy format)
-        chat_msg = {
-            "type": "chat_message",
-            "from": fromuser,
-            "to": touser,
-            "content": message
-        }
 
         # Build map message (new format)
         map_msg = {
@@ -382,8 +375,6 @@ class UIDisplayMixin:
         # Send both formats to frontend asynchronously
         async def send_messages():
             try:
-                # Send to chatWindow
-                await websocket_manager.broadcast(chat_msg)
                 # Send to map
                 await websocket_manager.broadcast(map_msg)
                 logger.info(f"Chat messages sent from {fromuser} to {touser}: {message}")

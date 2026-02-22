@@ -24,6 +24,7 @@ from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_titl
                           add_function_mng, update_map_task, add_map_visit, get_key_value,
                           update_map_trade, add_map_trade, add_map_tool, query_single_map_trade, update_AiChatCfg_by_user_id, update_AiChatCfg_map, query_AiChatCfg_map, add_mcp_mng, query_mcp_mng,
                           delete_map_preset_msg, query_map_preset_msg_all, add_map_preset_msg, query_tool_list, query_single_tool, query_AiChatCfg_map_setting)
+from db.DBFactory import query_SystemCfg
 from util import (generate_random_id, add_memory_list)
 from i18n import lt
 from enum import Enum
@@ -193,7 +194,6 @@ class AISocialEngine(
         self.max_rounds_per_person = 6  # Max rounds per person
         self.max_place_arrived = 3  # Max places to arrive
         self.min_place_move_score = 80  # Min score to move to a place
-        self.search_radius = 10000  # cloud
         self.place_arrived_count = {}
         self.wait_for_trade_download_flag = False
         self.wait_for_trade_download_trade_id = ""
@@ -218,6 +218,42 @@ class AISocialEngine(
         self.load_all_user_data()
         # self.update_map_charts()
         # self.update_resource_display()
+
+        self.active_conversation = None
+        self.conversation_inbox = {}
+        self.conversation_timeout_seconds = 60
+        self._conversation_last_activity_ts = 0.0
+        self._conversation_timeout_task = None
+
+        self.contact_cooldown_seconds = 300
+        self.contact_recent_limit = 3
+        self._contact_last_time = {}
+        self._recent_contacts = {
+            "sell": [],
+            "buy": [],
+            "communication": [],
+        }
+        self._pending_talk_objective = ""
+        self._pick_person_retry_count = {
+            "sell": 0,
+            "buy": 0,
+            "communication": 0,
+        }
+
+        try:
+            cfg = query_SystemCfg(is_delete=False)
+            if cfg is not None:
+                v = getattr(cfg, "conversation_timeout_seconds", None)
+                if v is not None:
+                    self.conversation_timeout_seconds = int(v)
+                v = getattr(cfg, "contact_cooldown_seconds", None)
+                if v is not None:
+                    self.contact_cooldown_seconds = int(v)
+                v = getattr(cfg, "contact_recent_limit", None)
+                if v is not None:
+                    self.contact_recent_limit = int(v)
+        except Exception:
+            pass
 
     async def start_engine(self):
         """
@@ -427,41 +463,79 @@ class AISocialEngine(
         else:
             self.temp_index_2 = self.temp_index_2 + 1
 
-        self.write_on_going_process_to_pane(action_str)
+        if self.move_by_route_flag:
+            self.write_on_going_process_to_pane(f"{action_str}(Changed to 'move by route' due to the movement setting.")
+        else:
+            self.write_on_going_process_to_pane(action_str)
         # self.loading_tab.stop_loading()
 
         if "附近逛逛" in action_str:
-            # self.move_by_route_flag = True
-            if self.target_position:
-                action_result = self.move_ahead(self.aichatcfg_record.current_position, self.target_position, self.target_place)
-            elif self.move_by_route_flag:
+
+            if self.move_by_route_flag:
                 action_result = self.move_by_route()
-                return
+            elif self.target_position:
+                action_result = self.move_ahead(self.aichatcfg_record.current_position, self.target_position, self.target_place)
             else:
                 action_result = self.go_around()
 
         elif "走路前往" in action_str:
-            # Extract the JSON part using regex
-            json_match = re.search(r'\{.*\}', action_str)
-            if not json_match:
-                return None, None
 
-            # Parse JSON
-            data = json.loads(json_match.group(0))
+            if self.move_by_route_flag:
+                action_result = self.move_by_route()
+            else:
+                # Extract the JSON part using regex
+                json_match = re.search(r'\{.*\}', action_str)
+                if not json_match:
+                    return None, None
 
-            # Extract required fields
-            place = data.get('place')
-            position = data.get('position')
-            target_position = position
+                # Parse JSON
+                data = json.loads(json_match.group(0))
 
-            self.target_position = target_position
-            self.target_place = place
+                # Extract required fields
+                place = data.get('place')
+                position = data.get('position')
+                target_position = position
 
-            action_result = self.move_ahead(self.aichatcfg_record.current_position, target_position, place)
+                self.target_position = target_position
+                self.target_place = place
 
-        elif "沟通" in action_str:
-            self.communicate_with_a_people(action_str, instruction)
+                action_result = self.move_ahead(self.aichatcfg_record.current_position, target_position, place)
+
+        elif "叫车服务" in action_str:
+            if self.move_by_route_flag:
+                action_result = self.move_by_route()
+            else:
+                # Extract the JSON part using regex
+                json_match = re.search(r'\{.*\}', action_str)
+                if not json_match:
+                    return None, None
+
+                # Parse JSON
+                data = json.loads(json_match.group(0))
+
+                # Extract required fields
+                place = data.get('place')
+                position = data.get('position')
+
+                target_position = position
+                action_result = self.set_taxi_order(self.aichatcfg_record.current_position, target_position, place)
+
+        elif "导航服务" in action_str:
+            if self.move_by_route_flag:
+                # If moving by route, navigation is not needed
+                action_result = self.move_by_route()
+            else:
+                action_result = self.get_guidance()
+
+        elif "Web Service" in action_str:
+            self.use_service(action_str, instruction)
             return
+
+        elif "外卖服务" in action_str:
+            action_result = self.set_food_order()
+
+        elif "远程医疗" in action_str:
+            action_result = self.call_a_doctor()
 
         elif "推销" in action_str:
             self.sell_to_a_people(action_str, instruction)
@@ -471,39 +545,9 @@ class AISocialEngine(
             self.buy_from_a_people(action_str, instruction)
             return
 
-        elif "Web Service" in action_str:
-            self.use_service(action_str, instruction)
+        elif "沟通" in action_str:
+            self.communicate_with_a_people(action_str, instruction)
             return
-
-        elif "导航服务" in action_str:
-            if self.move_by_route_flag:
-                # If moving by route, navigation is not needed
-                action_result = self.move_by_route()
-                return
-            else:
-                action_result = self.get_guidance()
-
-        elif "外卖服务" in action_str:
-            action_result = self.set_food_order()
-
-        elif "叫车服务" in action_str:
-            # Extract the JSON part using regex
-            json_match = re.search(r'\{.*\}', action_str)
-            if not json_match:
-                return None, None
-
-            # Parse JSON
-            data = json.loads(json_match.group(0))
-
-            # Extract required fields
-            place = data.get('place')
-            position = data.get('position')
-
-            target_position = position
-            action_result = self.set_taxi_order(self.aichatcfg_record.current_position, target_position, place)
-
-        elif "远程医疗" in action_str:
-            action_result = self.call_a_doctor()
 
         else:
             action_result = f"'{action_str}'不在有效行动列表中。"

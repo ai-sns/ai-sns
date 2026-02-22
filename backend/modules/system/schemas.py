@@ -13,6 +13,9 @@ class SystemConfig(BaseModel):
     minirunontray: Optional[bool] = True
     agent_server: Optional[str] = None
     ai_sns_server: Optional[str] = None
+    conversation_timeout_seconds: Optional[int] = None
+    contact_cooldown_seconds: Optional[int] = None
+    contact_recent_limit: Optional[int] = None
 
 
 class WebMngReorderItem(BaseModel):

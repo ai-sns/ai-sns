@@ -40,20 +40,28 @@ export class SNSSocialRoleDialog {
             }
         }
 
+        const existingStyles = document.getElementById('snsSocialRoleDialogStyles');
+        if (existingStyles) {
+            try {
+                existingStyles.remove();
+            } catch (e) {
+            }
+        }
+
         // Create dialog HTML
         const dialogHTML = `
             <div class="modal-overlay" id="snsSocialRoleDialog">
                 <div class="modal-dialog" style="max-width: 1200px; width: 90vw;">
                     <div class="modal-header">
                         <h3>Prompt Setting</h3>
-                        <button class="modal-close" onclick="document.getElementById('snsSocialRoleDialog').remove()">&times;</button>
+                        <button class="modal-close" onclick="(() => { const d=document.getElementById('snsSocialRoleDialog'); if(d) d.remove(); const s=document.getElementById('snsSocialRoleDialogStyles'); if(s) s.remove(); })()">&times;</button>
                     </div>
                     <div class="modal-body">
                         <div class="social-role-container">
                             <div class="role-list-section">
                                 <h4>Prompt list</h4>
                                 <div class="role-list" id="socialRoleList">
-                                    <div class="loading">加载中...</div>
+                                    <div class="loading">Loading...</div>
                                 </div>
                             </div>
                             <div class="role-detail-section">
@@ -70,11 +78,11 @@ export class SNSSocialRoleDialog {
                     </div>
                     <div class="modal-footer">
                         <div class="role-actions" id="roleActions" style="display: none;">
-                            <button class="btn btn-secondary" id="editRoleBtn">编辑</button>
-                            <button class="btn btn-primary" id="saveRoleBtn" style="display: none;">保存</button>
-                            <button class="btn btn-secondary" id="cancelEditBtn" style="display: none;">取消</button>
+                            <button class="btn btn-secondary" id="editRoleBtn">Edit</button>
+                            <button class="btn btn-primary" id="saveRoleBtn" style="display: none;">Save</button>
+                            <button class="btn btn-secondary" id="cancelEditBtn" style="display: none;">Cancel</button>
                         </div>
-                        <button class="btn btn-secondary" onclick="document.getElementById('snsSocialRoleDialog').remove()">关闭</button>
+                        <button class="btn btn-secondary" onclick="(() => { const d=document.getElementById('snsSocialRoleDialog'); if(d) d.remove(); const s=document.getElementById('snsSocialRoleDialogStyles'); if(s) s.remove(); })()">Close</button>
                     </div>
                 </div>
             </div>
@@ -82,7 +90,7 @@ export class SNSSocialRoleDialog {
 
         // Add styles
         const styles = `
-            <style>
+            <style id="snsSocialRoleDialogStyles">
                 #snsSocialRoleDialog .modal-dialog {
                     max-width: 1200px !important;
                     width: 90vw !important;
@@ -364,7 +372,7 @@ export class SNSSocialRoleDialog {
             roleList.innerHTML = '';
 
             if (roles.length === 0) {
-                roleList.innerHTML = '<div class="empty-state">暂无社交角色</div>';
+                roleList.innerHTML = '<div class="empty-state">No prompts found.</div>';
                 return;
             }
 
@@ -374,7 +382,7 @@ export class SNSSocialRoleDialog {
                 item.dataset.roleId = role.id;
                 item.innerHTML = `
                     <div class="role-item-header">
-                        <h5>${this.escapeHtml(role.title)}</h5>
+                        <h5>${this.escapeHtml(role.caption)}</h5>
                         ${role.tags ? `<span class="role-tags">${this.escapeHtml(role.tags)}</span>` : ''}
                     </div>
                     <div class="role-item-preview">${this.escapeHtml(this.truncateText(role.content, 80))}</div>
@@ -385,7 +393,7 @@ export class SNSSocialRoleDialog {
         } catch (error) {
             console.error('Error loading social roles:', error);
             const roleList = this._q('#socialRoleList');
-            if (roleList) roleList.innerHTML = '<div class="error">加载失败</div>';
+            if (roleList) roleList.innerHTML = '<div class="error">Failed to load.</div>';
         }
     }
 
@@ -419,10 +427,10 @@ export class SNSSocialRoleDialog {
         if (!preview) return;
         preview.innerHTML = `
             <div class="role-detail" style="flex: 1; display: flex; flex-direction: column;">
-                <h3 class="role-detail-title">${this.escapeHtml(role.title)}</h3>
+                <h3 class="role-detail-title">${this.escapeHtml(role.caption)}</h3>
                 
                 <div class="role-field" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                    <div class="role-field-label">内容</div>
+                    <div class="role-field-label">Content</div>
                     <div class="role-field-value" data-field="content" style="flex: 1; overflow-y: auto;">${this.escapeHtml(role.content)}</div>
                 </div>
             </div>
@@ -439,10 +447,13 @@ export class SNSSocialRoleDialog {
 
         preview.innerHTML = `
             <div class="role-detail edit-mode">
-                <h3 class="role-detail-title">${this.escapeHtml(role.title)}</h3>
+                <div class="role-field">
+                    <label class="role-field-label" for="editCaption">Caption</label>
+                    <input id="editCaption" class="role-field-input" value="${this.escapeHtmlAttribute(role.caption)}" />
+                </div>
                 
                 <div class="role-field">
-                    <label class="role-field-label" for="editContent">内容</label>
+                    <label class="role-field-label" for="editContent">Content</label>
                     <textarea id="editContent" class="role-field-textarea">${this.escapeHtml(role.content)}</textarea>
                 </div>
             </div>
@@ -473,11 +484,18 @@ export class SNSSocialRoleDialog {
     async saveRole() {
         if (!this.selectedRole) return;
 
+        const captionEl = this._q('#editCaption');
+        const caption = captionEl ? captionEl.value.trim() : '';
         const editEl = this._q('#editContent');
         const content = editEl ? editEl.value.trim() : '';
 
+        if (!caption) {
+            alert('Caption cannot be empty.');
+            return;
+        }
+
         if (!content) {
-            alert('内容不能为空');
+            alert('Content cannot be empty.');
             return;
         }
 
@@ -488,6 +506,7 @@ export class SNSSocialRoleDialog {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    caption: caption,
                     content: content
                 })
             });
@@ -496,6 +515,7 @@ export class SNSSocialRoleDialog {
 
             if (result.success) {
                 // Update local data
+                this.selectedRole.caption = caption;
                 this.selectedRole.content = content;
 
                 // Refresh display
@@ -512,13 +532,13 @@ export class SNSSocialRoleDialog {
                     roleItem.click();
                 }
 
-                alert('保存成功');
+                alert('Saved successfully.');
             } else {
-                alert('保存失败：' + result.message);
+                alert('Save failed: ' + result.message);
             }
         } catch (error) {
             console.error('Error saving role:', error);
-            alert('保存失败：' + error.message);
+            alert('Save failed: ' + error.message);
         }
     }
 
@@ -533,6 +553,12 @@ export class SNSSocialRoleDialog {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    escapeHtmlAttribute(text) {
+        return this.escapeHtml(text)
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     setupEventListeners() {

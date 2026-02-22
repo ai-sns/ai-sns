@@ -97,7 +97,13 @@ function getServiceForUser() {
             lat: 39.96070173087282,
             category: 'shopping',
             type: 'web',
-            address: ((typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '')) + '/aigccenter.html'
+            address: (() => {
+              const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+                ? API_BASE_URL
+                : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+              const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+              return `${normalizedBaseUrl}/aigccenter.html`;
+            })()
         },
         {
             name: '商店',

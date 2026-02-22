@@ -185,14 +185,14 @@ async def get_avatars_3d():
 async def get_professions():
     """Get list of available professions"""
     professions = [
-        ProfessionItem(name="医生", cost=800, description="需要800元开办费"),
-        ProfessionItem(name="出租车司机", cost=1000, description="需要1000元开办费"),
-        ProfessionItem(name="食品商贩", cost=800, description="需要800元开办费"),
-        ProfessionItem(name="歌手", cost=None, description=""),
-        ProfessionItem(name="国家公务员", cost=None, description=""),
-        ProfessionItem(name="美工设计", cost=None, description=""),
-        ProfessionItem(name="程序员", cost=None, description=""),
-        ProfessionItem(name="教师", cost=None, description=""),
+        ProfessionItem(name="Doctor", cost=800, description="Setup fee: 800"),
+        ProfessionItem(name="Restaurateur", cost=800, description="Setup fee: 800"),
+        ProfessionItem(name="Singer", cost=None, description=""),
+        ProfessionItem(name="Painter", cost=None, description=""),
+        ProfessionItem(name="Designer", cost=None, description=""),
+        ProfessionItem(name="Programmer", cost=None, description=""),
+        ProfessionItem(name="Teacher", cost=None, description=""),
+        ProfessionItem(name="Other", cost=None, description=""),
     ]
     return professions
 
@@ -285,6 +285,20 @@ async def get_model_info(db: AsyncSession = Depends(get_db)):
     """
     service = SNSService(db)
     return await service.get_model_info()
+
+
+@router.get("/resource-overview")
+async def get_resource_overview(db: AsyncSession = Depends(get_db)):
+    """Get Resource tab overview content"""
+    service = SNSService(db)
+    return await service.get_resource_overview()
+
+
+@router.get("/current-status-overview")
+async def get_current_status_overview(db: AsyncSession = Depends(get_db)):
+    """Get Current Status overview content"""
+    service = SNSService(db)
+    return await service.get_current_status_overview()
 
 
 @router.post("/human-control-state")

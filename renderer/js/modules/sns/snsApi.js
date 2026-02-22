@@ -13,6 +13,66 @@ export default {
         }
         return urlOrPath;
     },
+
+    async getUserStats() {
+        try {
+            const response = await fetch(this.resolve('/api/sns/user-stats'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch user stats:', error);
+            return null;
+        }
+    },
+
+    async getUserInfo() {
+        try {
+            const response = await fetch(this.resolve('/api/sns/user-info'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch user info:', error);
+            return null;
+        }
+    },
+
+    async getResourceOverview() {
+        try {
+            const response = await fetch(this.resolve('/api/sns/resource-overview'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch resource overview:', error);
+            return null;
+        }
+    },
+
+    async getCurrentStatusOverview() {
+        try {
+            const response = await fetch(this.resolve('/api/sns/current-status-overview'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch current status overview:', error);
+            return null;
+        }
+    },
     /**
      * Get SNS node list
      */
@@ -35,7 +95,7 @@ export default {
     /**
      * Get user info
      */
-    async getUserInfo(userId) {
+    async getUserInfoMock(userId) {
         try {
             // TODO: Implement actual API call
             return {

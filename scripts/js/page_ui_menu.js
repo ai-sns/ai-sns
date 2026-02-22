@@ -168,8 +168,11 @@ const MAX_MENU_ITEM_LENGTH = 30;
 // Fetch news data from the network and update menu items
 async function fetchAndCreateMenuItems() {
     try {
-        const host = (typeof base_url !== 'undefined' && base_url) ? base_url : (window.__AI_SNS_SERVER__ || '');
-        const response = await fetch(`${host}/news.json`);
+        const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+            ? API_BASE_URL
+            : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+        const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+        const response = await fetch(`${normalizedBaseUrl}/api/get_news_list/`);
         const data = await response.json();
 
         // Update pinned menu items (menu-plaza-top)
@@ -229,7 +232,7 @@ async function fetchAndCreateMenuItems() {
             });
         }
     } catch (error) {
-        console.error('获取新闻数据失败:', error);
+        console.error('Failed to fetch news data:', error);
     }
 }
 

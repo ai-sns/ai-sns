@@ -62,6 +62,14 @@ class SNSService:
                     except (TypeError, ValueError):
                         return default
 
+            def _to_float(value, default: float, decimals: int = 1) -> float:
+                if value is None:
+                    return default
+                try:
+                    return round(float(value), decimals)
+                except (TypeError, ValueError):
+                    return default
+
             # Get first record from aichat_cfg
             config = self.db.query(AiChatCfg).filter(
                 AiChatCfg.is_delete == False
@@ -87,7 +95,7 @@ class SNSService:
                 "life": _to_int(config.life_point, 125),
                 "iq": config.iq_point or 70,
                 "energy": _to_int(config.energy_point, 150),
-                "move": config.move_point or 187.5,
+                "move": _to_float(config.move_point, 187.5),
                 "exp": config.exp_point or 30
             }
         except Exception as e:
@@ -430,7 +438,11 @@ class SNSService:
                     "nickname": config.nickname,
                     "sign": config.sign,
                     "sns_url": config.sns_url,
-                    "agent_id": getattr(config, 'agent_id', None)
+                    "agent_id": getattr(config, 'agent_id', None),
+                    "profession": getattr(config, 'profession', None),
+                    "money": getattr(config, 'money', None),
+                    "current_position": getattr(config, 'current_position', None),
+                    "current_place": getattr(config, 'current_place', None),
                 }
             }
         except Exception as e:

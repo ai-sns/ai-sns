@@ -43,6 +43,232 @@ logger = logging.getLogger(__name__)
 
 
 class CommunicationMixin:
+    def _now_ts(self) -> float:
+        return float(time.time())
+
+    def _get_active_account(self) -> str:
+        active = getattr(self, "active_conversation", None) or {}
+        return (active.get("account") or "").strip()
+
+    def _get_active_nation_id(self) -> str:
+        active = getattr(self, "active_conversation", None) or {}
+        return (active.get("nation_id") or "").strip()
+
+    def _touch_conversation_activity(self, account: str) -> None:
+        if not account:
+            return
+        active_account = self._get_active_account()
+        if active_account and active_account != account:
+            return
+        self._conversation_last_activity_ts = self._now_ts()
+        self._ensure_conversation_timeout_task()
+
+    def _ensure_conversation_timeout_task(self) -> None:
+        try:
+            task = getattr(self, "_conversation_timeout_task", None)
+            if isinstance(task, asyncio.Task) and not task.done():
+                return
+            self._conversation_timeout_task = asyncio.create_task(self._conversation_timeout_guard())
+        except Exception as e:
+            logger.error(f"Failed to start conversation timeout guard: {e}")
+
+    async def _conversation_timeout_guard(self) -> None:
+        while True:
+            try:
+                active_account = self._get_active_account()
+                if not active_account:
+                    return
+                last_ts = float(getattr(self, "_conversation_last_activity_ts", 0.0) or 0.0)
+                timeout_s = int(getattr(self, "conversation_timeout_seconds", 60) or 60)
+                if last_ts > 0 and (self._now_ts() - last_ts) >= timeout_s:
+                    self.end_active_conversation(
+                        reason="timeout",
+                        message=f"Conversation timed out after {timeout_s}s with {active_account}.",
+                        resume_activity=True,
+                    )
+                    return
+                await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"Conversation timeout guard error: {e}", exc_info=True)
+                return
+
+    def _format_inbox_message(self, account: str, content: str) -> str:
+        preview = (content or "").strip()
+        if len(preview) > 160:
+            preview = preview[:160] + "..."
+        return f"[Inbox] {account}: {preview}"
+
+    def enqueue_inbox_message(self, account: str, content: str) -> None:
+        if not account:
+            return
+        inbox = getattr(self, "conversation_inbox", None)
+        if inbox is None or not isinstance(inbox, dict):
+            self.conversation_inbox = {}
+            inbox = self.conversation_inbox
+        inbox.setdefault(account, []).append({"ts": self._now_ts(), "content": content})
+        try:
+            self.send_msg_to_map(("show_information_chat", self._format_inbox_message(account, content), ""))
+        except Exception as e:
+            logger.error(f"Failed to notify inbox message: {e}")
+
+    def _get_people_by_account(self, account: str) -> Optional[dict]:
+        if not account:
+            return None
+        try:
+            for p in (self.get_people_list() or []):
+                if (p.get("account") or "").strip() == account:
+                    return p
+        except Exception:
+            return None
+        return None
+
+    def _record_contact(self, talk_type: str, account: str) -> None:
+        if not account:
+            return
+        now_ts = self._now_ts()
+        last_time = getattr(self, "_contact_last_time", None)
+        if last_time is None or not isinstance(last_time, dict):
+            self._contact_last_time = {}
+            last_time = self._contact_last_time
+        last_time[account] = now_ts
+
+        recent = getattr(self, "_recent_contacts", None)
+        if recent is None or not isinstance(recent, dict):
+            self._recent_contacts = {"sell": [], "buy": [], "communication": []}
+            recent = self._recent_contacts
+        bucket = recent.setdefault(talk_type, [])
+        bucket[:] = [a for a in bucket if a != account]
+        bucket.append(account)
+        limit = int(getattr(self, "contact_recent_limit", 3) or 3)
+        if limit > 0 and len(bucket) > limit:
+            del bucket[:-limit]
+
+    def _is_contact_allowed(self, talk_type: str, account: str) -> bool:
+        if not account:
+            return False
+        cooldown_s = int(getattr(self, "contact_cooldown_seconds", 300) or 300)
+        now_ts = self._now_ts()
+        last_time = getattr(self, "_contact_last_time", None) or {}
+        last_ts = float(last_time.get(account, 0.0) or 0.0)
+        if cooldown_s > 0 and last_ts > 0 and (now_ts - last_ts) < cooldown_s:
+            return False
+
+        recent = getattr(self, "_recent_contacts", None) or {}
+        bucket = recent.get(talk_type, []) if isinstance(recent, dict) else []
+        if account in (bucket or []):
+            return False
+        return True
+
+    def _get_filtered_people_list_for_talk_type(self, talk_type: str) -> List[dict]:
+        people = list(self.get_people_list() or [])
+        cooldown_s = int(getattr(self, "contact_cooldown_seconds", 300) or 300)
+        now_ts = self._now_ts()
+        last_time = getattr(self, "_contact_last_time", None) or {}
+        recent = getattr(self, "_recent_contacts", None) or {}
+        bucket = set(recent.get(talk_type, []) if isinstance(recent, dict) else [])
+
+        filtered = []
+        for p in people:
+            account = (p.get("account") or "").strip()
+            if not account:
+                continue
+            last_ts = float(last_time.get(account, 0.0) or 0.0)
+            if cooldown_s > 0 and last_ts > 0 and (now_ts - last_ts) < cooldown_s:
+                continue
+            if account in bucket:
+                continue
+            filtered.append(p)
+        return filtered or people
+
+    def start_active_conversation(self, *, talk_type: str, person: dict, objective: str = "") -> None:
+        account = (person or {}).get("account")
+        account = (account or "").strip()
+        nation_id = (person or {}).get("nation_id")
+        nation_id = (nation_id or "").strip() or account
+        nick_name = (person or {}).get("nick_name")
+        nick_name = (nick_name or "").strip() or account
+
+        if not account:
+            return
+
+        active_account = self._get_active_account()
+        if active_account and active_account != account:
+            self.end_active_conversation(
+                reason="switched",
+                message=f"Conversation switched from {active_account} to {account}.",
+                resume_activity=False,
+            )
+
+        self.active_conversation = {
+            "talk_type": talk_type,
+            "account": account,
+            "nation_id": nation_id,
+            "nick_name": nick_name,
+            "objective": (objective or "").strip(),
+            "started_at": self._now_ts(),
+        }
+        self._conversation_last_activity_ts = self._now_ts()
+        self._record_contact(talk_type, account)
+        self._ensure_conversation_timeout_task()
+
+    def end_active_conversation(
+        self,
+        *,
+        reason: str,
+        message: str = "",
+        resume_activity: bool,
+        resume_ask_content: str = "",
+    ) -> None:
+        nation_id = ""
+        account = ""
+        try:
+            active = getattr(self, "active_conversation", None) or {}
+            account = (active.get("account") or "").strip()
+            nation_id = (active.get("nation_id") or "").strip()
+        except Exception:
+            pass
+
+        try:
+            if nation_id:
+                self.send_msg_to_map(("stop_talk_to_it", nation_id, ""))
+        except Exception as e:
+            logger.error(f"Failed to send stop_talk_to_it: {e}")
+
+        try:
+            self.show_status_on_map("standby")
+        except Exception:
+            pass
+
+        self.active_conversation = None
+        self._conversation_last_activity_ts = 0.0
+
+        try:
+            self.current_talk_people = None
+        except Exception:
+            pass
+
+        try:
+            self.current_talk_history = []
+        except Exception:
+            pass
+
+        try:
+            self.talk_type = ""
+        except Exception:
+            pass
+
+        if message:
+            try:
+                self.taskmng.add_process_info_to_list(f"system:{message}")
+            except Exception:
+                pass
+
+        if resume_activity:
+            try:
+                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=resume_ask_content or ""))
+            except Exception as e:
+                logger.error(f"Failed to resume activity after conversation end: {e}")
+
     def talk_to_a_people(self, content, nationid, account, user_name):
         title_str = "选择人员交谈"
         content_str = f"""🟪 *The function is*:
@@ -55,6 +281,13 @@ talk_to_a_people
             """
 
         self.write_thinking_process_to_pane(title_str, content_str)
+
+        self.start_active_conversation(
+            talk_type=(getattr(self, "talk_type", "") or "communication"),
+            person={"nation_id": nationid, "account": account, "nick_name": user_name},
+            objective=(getattr(self, "_pending_talk_objective", "") or ""),
+        )
+        self._touch_conversation_activity(account)
 
         current_talk_people = self.current_talk_people
         round = current_talk_people.get("talk_round", 0) + 1
@@ -76,8 +309,10 @@ talk_to_a_people
         # self.taskmng.process_task(action="process_activity", ask_content=ask_content)
 
     def ask_agent_start_to_talk_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        people_list = self._get_filtered_people_list_for_talk_type("communication")
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+        self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_talk_to_a_people__")
 
@@ -89,8 +324,10 @@ talk_to_a_people
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
     async def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
-        provided_profile_list = json.dumps(self.get_people_list(), indent=4, ensure_ascii=False)
+        people_list = self._get_filtered_people_list_for_talk_type("communication")
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+        self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_talk_to_a_people__")
 
@@ -111,7 +348,20 @@ talk_to_a_people
             account = result["account"]
             nick_name = result["nick_name"]
             message = result["message"]
+
+            if not self._is_contact_allowed("communication", account):
+                retry_count = int(getattr(self, "_pick_person_retry_count", {}).get("communication", 0) or 0)
+                if retry_count < 2:
+                    self._pick_person_retry_count["communication"] = retry_count + 1
+                    hint = " Please choose a different person than the recently contacted ones."
+                    self.ask_agent_start_to_talk_to_a_people_sync(self._pending_talk_objective + hint, "")
+                    return
+                self._pick_person_retry_count["communication"] = 0
+            else:
+                self._pick_person_retry_count["communication"] = 0
+
             self.current_talk_people = result
+            self.start_active_conversation(talk_type="communication", person=result, objective=self._pending_talk_objective)
 
             self.taskmng.current_process["people_communicated_list"].append(nation_id)
             self.taskmng.current_process["rounds_current_person"] = 1
@@ -158,13 +408,25 @@ talk_to_a_people
 
         if buy_score >= 80 and price >= 0:
             self.send_pay(price)
+            self.end_active_conversation(
+                reason="pay",
+                message="Payment initiated.",
+                resume_activity=True,
+                resume_ask_content="",
+            )
             return
 
         if not continue_chat:
             self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
             self.write_task_process_to_pane(f"和朋友沟通后得到如下情况：{current_chat_summary}\n\n")
             self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-            asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+            resume_ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"
+            self.end_active_conversation(
+                reason="completed",
+                message="Conversation completed.",
+                resume_activity=True,
+                resume_ask_content=resume_ask_content,
+            )
 
         else:
             if not self.taskmng.current_process:
@@ -190,4 +452,10 @@ talk_to_a_people
             else:
                 self.taskmng.add_process_info_to_list(f"和朋友沟通后得到如下情况：{current_chat_summary}")
                 self.taskmng.current_situation = f"和别人沟通后，得到如下情况:{current_chat_summary}"
-                asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"))
+                resume_ask_content = f"- 当前目标\n{self.taskmng.current_objective}\n- 当前进展\n和别人沟通后，得到如下情况:{current_chat_summary}"
+                self.end_active_conversation(
+                    reason="max_rounds",
+                    message="Conversation reached max rounds.",
+                    resume_activity=True,
+                    resume_ask_content=resume_ask_content,
+                )

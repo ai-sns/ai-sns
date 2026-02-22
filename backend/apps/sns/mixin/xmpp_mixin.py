@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from backend.database.models.chat import AiChatCfg
+from backend.database.models.chat import AiChatCfg, AIFriend, AIChatMessages
 from backend.apps.sns.map_task_manager import MapTaskManager
 from backend.apps.sns.js_task_manager import JsTaskManager
 from backend.apps.sns.xmpp_client import XMPPClientManager
@@ -36,6 +36,7 @@ from geopy.distance import distance
 from geopy.point import Point
 from geographiclib.geodesic import Geodesic
 import random
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,13 @@ class XmppMixin:
             account = from_str.split('/')[0]
             logger.debug(f"Extracted account: {account}")
 
+            active_account = ""
+            try:
+                active = getattr(self, "active_conversation", None) or {}
+                active_account = (active.get("account") or "").strip()
+            except Exception:
+                active_account = ""
+
             # Send chat message to UI
             try:
                 self.send_talk_message(account, self.ai_chat_cfg.account, content)
@@ -105,7 +113,22 @@ class XmppMixin:
                 logger.debug(f"Created new talk history for account: {account}")
 
             self.talk_history[account].append("Friend:" + content)
-            self.current_talk_history.append("Friend:" + content)
+
+            is_active_peer = bool(active_account) and active_account == account
+            if is_active_peer:
+                self.current_talk_history.append("Friend:" + content)
+                try:
+                    if hasattr(self, "_touch_conversation_activity"):
+                        self._touch_conversation_activity(account)
+                except Exception as e:
+                    logger.error(f"Failed to touch conversation activity: {e}")
+            else:
+                try:
+                    if hasattr(self, "enqueue_inbox_message"):
+                        self.enqueue_inbox_message(account, content)
+                except Exception as e:
+                    logger.error(f"Failed to enqueue inbox message: {e}")
+
             logger.debug(f"Updated talk history for {account}, total messages: {len(self.talk_history[account])}")
 
             # Message type routing - use walrus operator for conditional checks
@@ -129,11 +152,18 @@ class XmppMixin:
                 else:
                     logger.debug(f"Processing as general conversation message from {account}")
 
-                # Process general conversation message
-                asyncio.create_task(self.taskmng.process_task(
-                    event="conversation_message_received",
-                    talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
-                ))
+                if is_active_peer or not active_account:
+                    # Process general conversation message only for active peer (or when no active session).
+                    asyncio.create_task(self.taskmng.process_task(
+                        event="conversation_message_received",
+                        talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
+                    ))
+                else:
+                    logger.info(
+                        "Message from %s queued to inbox because active conversation is with %s",
+                        account,
+                        active_account,
+                    )
                 message_handled = True
 
             # Save current received message
@@ -216,10 +246,7 @@ class XmppMixin:
             to_name = recipient['name']
 
             logger.info(f"Sending message to {to_jid}: {content[:50]}...")
-
-            # Save to database (if triggered by click)
-            if by_click:
-                self._save_message_to_database(content, to_jid, to_name)
+            self._save_message_to_database(content, to_jid, to_name)
 
             # Send XMPP message
             if not self.send_xmpp_message(to_jid, content):
@@ -271,8 +298,9 @@ class XmppMixin:
             to_name: Receiver name
         """
         try:
+            conversation_id = self.conversation_id or f"{self.ai_chat_cfg.account}_{to_jid}"
             add_AIChatMessages(
-                self.conversation_id,
+                conversation_id,
                 0,
                 "",
                 content,
@@ -282,7 +310,68 @@ class XmppMixin:
                 to_jid,
                 False
             )
-            logger.debug(f"Message saved to database for conversation {self.conversation_id}")
+
+            try:
+                owner_account = self.ai_chat_cfg.account
+                friend = self.db.query(AIFriend).filter(
+                    AIFriend.is_delete == False,
+                    AIFriend.owner_sns_account == owner_account,
+                    AIFriend.account == to_jid,
+                ).first()
+
+                if friend:
+                    if not friend.nick_name:
+                        friend.nick_name = to_name or to_jid
+                else:
+                    friend = AIFriend(
+                        account=to_jid,
+                        nick_name=(to_name or to_jid),
+                        groups="",
+                        owner_sns_account=owner_account,
+                        subscription="none",
+                        new_message_flag=False,
+                        last_message_time=datetime.now(),
+                    )
+                    self.db.add(friend)
+
+                friend.last_message_time = datetime.now()
+                self.db.commit()
+
+                contact_payload = {
+                    'account': friend.account,
+                    'nick_name': friend.nick_name or friend.account,
+                    'new_message_flag': bool(friend.new_message_flag),
+                    'last_message_time': friend.last_message_time.isoformat() if friend.last_message_time else None,
+                }
+
+                asyncio.create_task(websocket_manager.broadcast({
+                    'type': 'contact_upserted',
+                    'data': contact_payload
+                }))
+
+                msg = self.db.query(AIChatMessages).filter(
+                    AIChatMessages.is_delete == False,
+                    AIChatMessages.owner_account == owner_account,
+                    AIChatMessages.friend_account == to_jid,
+                    AIChatMessages.flag == 0,
+                ).order_by(AIChatMessages.create_time.desc()).first()
+
+                if msg:
+                    asyncio.create_task(websocket_manager.broadcast({
+                        'type': 'new_message',
+                        'data': {
+                            'id': msg.id,
+                            'from_account': to_jid,
+                            'content': msg.content,
+                            'flag': 0,
+                            'create_time': msg.create_time.isoformat() if msg.create_time else None,
+                            'contact': contact_payload,
+                        }
+                    }))
+            except Exception as e:
+                logger.error(f"Failed to upsert contact while saving message: {e}")
+
+            logger.debug(f"Message saved to database for conversation {conversation_id}")
         except Exception as e:
             logger.error(f"Failed to save message to database: {e}")
 

@@ -249,6 +249,7 @@ class Prompt(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String, doc="Title")
+    caption = Column(String, doc="Caption")
     content = Column(String, doc="Content")
     question = Column(String, doc="Question")
     tags = Column(String, doc="Tags")

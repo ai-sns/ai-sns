@@ -70,6 +70,27 @@ class XMPPClient(slixmpp.ClientXMPP):
                 ).first()
 
                 if config:
+                    from datetime import datetime
+                    friend = self.db.query(AIFriend).filter(
+                        AIFriend.account == from_jid,
+                        AIFriend.owner_sns_account == config.account
+                    ).first()
+
+                    if friend:
+                        if not friend.nick_name:
+                            friend.nick_name = from_jid
+                    else:
+                        friend = AIFriend(
+                            account=from_jid,
+                            nick_name=from_jid,
+                            groups="",
+                            owner_sns_account=config.account,
+                            subscription="none",
+                            new_message_flag=True,
+                            last_message_time=datetime.now(),
+                        )
+                        self.db.add(friend)
+
                     message = AIChatMessages(
                         conversation_id=f"{config.account}_{from_jid}",
                         flag=1,  # 1=receive
@@ -81,20 +102,16 @@ class XMPPClient(slixmpp.ClientXMPP):
                     )
                     self.db.add(message)
                     self.db.commit()
+                    friend.new_message_flag = True
+                    friend.last_message_time = datetime.now()
+                    self.db.commit()
 
-                    # Update friend's new_message_flag and last_message_time
-                    from datetime import datetime
-                    friend = self.db.query(AIFriend).filter(
-                        AIFriend.account == from_jid,
-                        AIFriend.owner_sns_account == config.account
-                    ).first()
-
-                    if friend:
-                        friend.new_message_flag = True
-                        friend.last_message_time = datetime.now()
-                        self.db.commit()
-
-                    # Broadcast message to chatWindow (Electron)
+                    contact_payload = {
+                        'account': friend.account,
+                        'nick_name': friend.nick_name or friend.account,
+                        'new_message_flag': bool(friend.new_message_flag),
+                        'last_message_time': friend.last_message_time.isoformat() if friend.last_message_time else None,
+                    }
                     await self.broadcast_new_message({
                         'type': 'new_message',
                         'data': {
@@ -102,11 +119,15 @@ class XMPPClient(slixmpp.ClientXMPP):
                             'from_account': from_jid,
                             'content': body,
                             'flag': 1,
-                            'create_time': message.create_time.isoformat() if message.create_time else None
+                            'create_time': message.create_time.isoformat() if message.create_time else None,
+                            'contact': contact_payload,
                         }
                     })
 
-                    # Also broadcast to map (map_chat_message format)
+                    await self.broadcast_new_message({
+                        'type': 'contact_upserted',
+                        'data': contact_payload
+                    })
                     await self.broadcast_new_message({
                         'type': 'map_chat_message',
                         'from_user': from_jid,

@@ -45,6 +45,7 @@ class AgentInteractionMixin:
         use_memory: bool = False,
         use_knowledge_base: bool = False,
         command_status: Optional[str] = None,
+        tool_choice: Optional[dict] = None,
         agent=None,
     ) -> str:
         agent_adapter = self.get_agent_adapter()
@@ -60,6 +61,7 @@ class AgentInteractionMixin:
             use_tools=use_tools,
             use_memory=use_memory,
             use_knowledge_base=use_knowledge_base,
+            tool_choice=tool_choice,
         )
         return reply
 

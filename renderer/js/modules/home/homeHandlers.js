@@ -77,17 +77,39 @@ const homeHandlers = {
                     ? String(localCfg.ai_sns_server)
                     : (remoteCfg.ai_sns_server || '');
 
+                const timeoutValue = (remoteCfg && remoteCfg.conversation_timeout_seconds !== undefined && remoteCfg.conversation_timeout_seconds !== null)
+                    ? String(remoteCfg.conversation_timeout_seconds)
+                    : '60';
+                const cooldownValue = (remoteCfg && remoteCfg.contact_cooldown_seconds !== undefined && remoteCfg.contact_cooldown_seconds !== null)
+                    ? String(remoteCfg.contact_cooldown_seconds)
+                    : '300';
+                const recentLimitValue = (remoteCfg && remoteCfg.contact_recent_limit !== undefined && remoteCfg.contact_recent_limit !== null)
+                    ? String(remoteCfg.contact_recent_limit)
+                    : '3';
+
                 const agentInput = modal.element?.querySelector('#homeCfgAgentServer');
                 const snsInput = modal.element?.querySelector('#homeCfgAiSnsServer');
+                const timeoutInput = modal.element?.querySelector('#homeCfgConversationTimeoutSeconds');
+                const cooldownInput = modal.element?.querySelector('#homeCfgContactCooldownSeconds');
+                const recentLimitInput = modal.element?.querySelector('#homeCfgContactRecentLimit');
                 if (agentInput) {
                     agentInput.value = agentValue;
                 }
                 if (snsInput) {
                     snsInput.value = snsValue;
                 }
+                if (timeoutInput) {
+                    timeoutInput.value = timeoutValue;
+                }
+                if (cooldownInput) {
+                    cooldownInput.value = cooldownValue;
+                }
+                if (recentLimitInput) {
+                    recentLimitInput.value = recentLimitValue;
+                }
             } catch (e) {
                 if (typeof Notification !== 'undefined' && Notification.error) {
-                    Notification.error(e.message || '加载配置失败');
+                    Notification.error(e.message || 'Failed to load configuration');
                 }
             }
         };
@@ -103,6 +125,18 @@ const homeHandlers = {
                     <div class="setting-group">
                         <label>AI-SNS Server <a href="#" id="homeCfgAiSnsHelp" style="font-size:12px;">help</a></label>
                         <input type="text" class="setting-input" id="homeCfgAiSnsServer" value="" placeholder="http://..." />
+                    </div>
+                    <div class="setting-group">
+                        <label>Conversation Timeout (seconds)</label>
+                        <input type="number" min="5" max="3600" step="1" class="setting-input" id="homeCfgConversationTimeoutSeconds" value="" placeholder="60" />
+                    </div>
+                    <div class="setting-group">
+                        <label>Contact Cooldown (seconds)</label>
+                        <input type="number" min="0" max="86400" step="1" class="setting-input" id="homeCfgContactCooldownSeconds" value="" placeholder="300" />
+                    </div>
+                    <div class="setting-group">
+                        <label>Recent Contact Limit</label>
+                        <input type="number" min="0" max="50" step="1" class="setting-input" id="homeCfgContactRecentLimit" value="" placeholder="3" />
                     </div>
                 </div>
             `,
@@ -141,10 +175,28 @@ const homeHandlers = {
                     const agent_server = (modal.element?.querySelector('#homeCfgAgentServer')?.value || '').trim();
                     const ai_sns_server = (modal.element?.querySelector('#homeCfgAiSnsServer')?.value || '').trim();
 
+                    const timeoutRaw = (modal.element?.querySelector('#homeCfgConversationTimeoutSeconds')?.value || '').trim();
+                    const cooldownRaw = (modal.element?.querySelector('#homeCfgContactCooldownSeconds')?.value || '').trim();
+                    const recentLimitRaw = (modal.element?.querySelector('#homeCfgContactRecentLimit')?.value || '').trim();
+
+                    const conversation_timeout_seconds = timeoutRaw ? parseInt(timeoutRaw, 10) : 60;
+                    const contact_cooldown_seconds = cooldownRaw ? parseInt(cooldownRaw, 10) : 300;
+                    const contact_recent_limit = recentLimitRaw ? parseInt(recentLimitRaw, 10) : 3;
+
+                    if (!Number.isFinite(conversation_timeout_seconds) || conversation_timeout_seconds < 5 || conversation_timeout_seconds > 3600) {
+                        throw new Error('Conversation Timeout must be between 5 and 3600 seconds');
+                    }
+                    if (!Number.isFinite(contact_cooldown_seconds) || contact_cooldown_seconds < 0 || contact_cooldown_seconds > 86400) {
+                        throw new Error('Contact Cooldown must be between 0 and 86400 seconds');
+                    }
+                    if (!Number.isFinite(contact_recent_limit) || contact_recent_limit < 0 || contact_recent_limit > 50) {
+                        throw new Error('Recent Contact Limit must be between 0 and 50');
+                    }
+
                     const localRes = await window.electronAPI.writeConfigJson({ agent_server, ai_sns_server });
                     if (!localRes || !localRes.success) {
                         if (typeof Notification !== 'undefined' && Notification.error) {
-                            Notification.error(localRes?.error || '本地保存失败');
+                            Notification.error(localRes?.error || 'Local save failed');
                         }
                         return false;
                     }
@@ -152,7 +204,13 @@ const homeHandlers = {
                     let remoteOk = true;
                     if (window.api && typeof window.api.put === 'function') {
                         try {
-                            const remoteRes = await window.api.put('/api/system/config', { agent_server, ai_sns_server });
+                            const remoteRes = await window.api.put('/api/system/config', {
+                                agent_server,
+                                ai_sns_server,
+                                conversation_timeout_seconds,
+                                contact_cooldown_seconds,
+                                contact_recent_limit,
+                            });
                             remoteOk = !!(remoteRes && remoteRes.success);
                         } catch (e) {
                             remoteOk = false;
@@ -161,18 +219,18 @@ const homeHandlers = {
 
                     if (typeof Notification !== 'undefined') {
                         if (remoteOk && Notification.success) {
-                            Notification.success('配置已保存');
+                            Notification.success('Configuration saved');
                         } else if (!remoteOk && Notification.warning) {
-                            Notification.warning('已保存到本地 config.json，但写入数据库失败');
+                            Notification.warning('Saved to local config.json, but failed to write to database');
                         } else if (!remoteOk && Notification.success) {
-                            Notification.success('已保存到本地 config.json');
+                            Notification.success('Saved to local config.json');
                         }
                     }
 
                     return true;
                 } catch (e) {
                     if (typeof Notification !== 'undefined' && Notification.error) {
-                        Notification.error(e.message || '保存失败');
+                        Notification.error(e.message || 'Save failed');
                     }
                     return false;
                 }
