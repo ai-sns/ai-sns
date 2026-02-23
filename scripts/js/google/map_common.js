@@ -73,14 +73,18 @@ async function load_persons_data_and_show() {
     const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
     const dataUrl = `${normalizedBaseUrl}/api/get_people_list/`;
     const nation_id = nation_id_me;
-
+    alert("nation_id_me");
+    alert(nation_id_me);
     try {
         const data = await loadPersonsData(dataUrl); // Load person data
         console.log("成功加载人员数据:", data);
         showAlert(`用户数据已加载成功。`);
 
         // Filter out items whose nation_id equals the input value
-        personsdata = data.filter(person => person.nation_id !== nation_id);
+        personsdata = data.filter(person => {
+            const pid = (person && (person.nation_id || person.nationid)) ? String(person.nation_id || person.nationid).trim() : '';
+            return pid !== String(nation_id || '').trim();
+        });
 
         // Show updated data points
         showpoints();
@@ -183,8 +187,8 @@ function initMap() {
         // renderingType: google.maps.RenderingType.VECTOR,
         // styles: mapStyles,
         zoom: 17,
-        //      draggableCursor: 'crosshair',
-        draggingCursor: 'crosshair',
+        draggableCursor: 'grab',
+        draggingCursor: 'grabbing',
         tilt: 67.5,
         disableDefaultUI: true,
         backgroundColor: "transparent",
@@ -956,8 +960,8 @@ function set_move_status() {
     if (instruct_to_move_flag) {
         instruct_to_move_flag = false;
         map.setOptions({
-            draggableCursor: 'default', // default cursor
-            draggingCursor: 'grabbing', // cursor while dragging
+            draggableCursor: 'grab', // open hand
+            draggingCursor: 'grabbing', // closed hand
 
         });
     } else {
@@ -968,12 +972,12 @@ function set_move_status() {
         });
         showAlert("请点击地图来指定要移动的目标位置。");
     }
-
 }
 
 var infowindow;
 
 function start_talk_to_it(nation_id, content) {
+    // ... (rest of the code remains the same)
     // content=""
     // alert("start_talk_to_it");
     alert(nation_id);

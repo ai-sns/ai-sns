@@ -2,7 +2,10 @@ function getPersonDataByNationId(nation_id) {
     if (nation_id == nation_id_me) {
         return person_data_me;
     } else {
-        return personsdata.find(person => person.nation_id === nation_id) || null;
+        return personsdata.find(person => {
+            const pid = (person && (person.nation_id || person.nationid)) ? String(person.nation_id || person.nationid).trim() : '';
+            return pid === String(nation_id || '').trim();
+        }) || null;
     }
 }
 

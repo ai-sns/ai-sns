@@ -8,11 +8,18 @@ let buildingGroup = null;
 let screenContent = null;
 let lastTime = 0;
 let videoScreenMesh = null;
+let buildingBaseMesh = null;
+let videoElement = null;
 let videoScreenClickHandlerAttached = false;
 const SCREEN_OVERLAY_ID = 'ai-sns-video-overlay';
+const SCREEN_MENU_ID = 'ai-sns-video-overlay-menu';
 let screenOverlayElement = null;
+let screenMenuElement = null;
 let screenOverlayBaseWidth = null;
 let screenOverlayBaseHeight = null;
+
+const SOUND_STORAGE_KEY = 'aisns_video_sound_enabled';
+let videoSoundGateEnabled = false;
 
 const screenRaycaster = new THREE.Raycaster();
 const screenClickPointer = new THREE.Vector2();
@@ -53,6 +60,107 @@ const BUILDING_CONFIG = {
     }
 };
 
+function createVideoMenu() {
+    if (screenMenuElement || document.getElementById(SCREEN_MENU_ID)) return;
+
+    const menu = document.createElement('div');
+    menu.id = SCREEN_MENU_ID;
+    Object.assign(menu.style, {
+        position: 'absolute',
+        left: '0px',
+        top: '0px',
+        display: 'none',
+        minWidth: '180px',
+        padding: '6px',
+        background: 'rgba(0, 0, 0, 0.80)',
+        color: '#ffffff',
+        borderRadius: '8px',
+        zIndex: 10000,
+        boxShadow: '0 6px 18px rgba(0, 0, 0, 0.35)'
+    });
+
+    const mkItem = (label) => {
+        const item = document.createElement('div');
+        item.textContent = label;
+        Object.assign(item.style, {
+            padding: '8px 10px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            userSelect: 'none'
+        });
+        item.addEventListener('mouseenter', () => {
+            item.style.background = 'rgba(255,255,255,0.12)';
+        });
+        item.addEventListener('mouseleave', () => {
+            item.style.background = 'transparent';
+        });
+        return item;
+    };
+
+    const about = mkItem('About the video');
+    about.addEventListener('click', () => {
+        try {
+            if (typeof open_url === 'function') {
+                open_url('https://www.ai-sns.org');
+            } else if (window.electronAPI && typeof window.electronAPI.openUrl === 'function') {
+                window.electronAPI.openUrl('https://www.ai-sns.org');
+            } else {
+                window.open('https://www.ai-sns.org', '_blank');
+            }
+        } catch (e) {
+        }
+        hideVideoMenu();
+    });
+
+    const sound = mkItem('');
+    sound.id = `${SCREEN_MENU_ID}-sound`;
+    sound.addEventListener('click', () => {
+        const next = !getStoredSoundEnabled();
+        setStoredSoundEnabled(next);
+        applyVideoSoundPolicy();
+        updateVideoMenuLabels();
+    });
+
+    menu.appendChild(about);
+    menu.appendChild(sound);
+    document.body.appendChild(menu);
+    screenMenuElement = menu;
+
+    document.addEventListener('click', () => {
+        hideVideoMenu();
+    });
+
+    updateVideoMenuLabels();
+}
+
+function updateVideoMenuLabels() {
+    const soundItem = document.getElementById(`${SCREEN_MENU_ID}-sound`);
+    if (!soundItem) return;
+    soundItem.textContent = getStoredSoundEnabled() ? 'Turn sound off' : 'Turn sound on';
+}
+
+function toggleVideoMenu() {
+    if (!screenMenuElement) return;
+    const isVisible = screenMenuElement.style.display === 'block';
+    screenMenuElement.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) {
+        updateVideoMenuLabels();
+        updateVideoMenuPosition();
+    }
+}
+
+function hideVideoMenu() {
+    if (!screenMenuElement) return;
+    screenMenuElement.style.display = 'none';
+}
+
+function updateVideoMenuPosition() {
+    if (!screenMenuElement || !screenOverlayElement) return;
+    const overlayRect = screenOverlayElement.getBoundingClientRect();
+    screenMenuElement.style.left = `${overlayRect.left}px`;
+    screenMenuElement.style.top = `${overlayRect.bottom + 6}px`;
+}
+
 // Renderer initialization
 const renderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -65,7 +173,49 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
-createVideoOverlay();
+
+function getStoredSoundEnabled() {
+    try {
+        const raw = localStorage.getItem(SOUND_STORAGE_KEY);
+        if (raw === null || raw === undefined) return false;
+        return String(raw) === 'true';
+    } catch (e) {
+        return false;
+    }
+}
+
+function setStoredSoundEnabled(enabled) {
+    try {
+        localStorage.setItem(SOUND_STORAGE_KEY, enabled ? 'true' : 'false');
+    } catch (e) {
+    }
+}
+
+function applyVideoSoundPolicy() {
+    if (!videoElement) return;
+    const soundEnabled = getStoredSoundEnabled();
+    const shouldPlaySound = !!soundEnabled && !!videoSoundGateEnabled;
+
+    try {
+        videoElement.muted = !shouldPlaySound;
+        if (shouldPlaySound) {
+            videoElement.volume = 1;
+            const p = videoElement.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => {
+                    // Autoplay with sound may be blocked; ignore here.
+                });
+            }
+        }
+    } catch (e) {
+    }
+}
+
+// Called by map action handler (Square/plaza => true, others => false)
+window.setAisnsVideoSoundGate = function (enabled) {
+    videoSoundGateEnabled = !!enabled;
+    applyVideoSoundPolicy();
+};
 
 // ===== Utility class: VideoScreen =====
 class VideoScreen extends THREE.Group {
@@ -90,18 +240,21 @@ class VideoScreen extends THREE.Group {
         Object.assign(video, {
             src: videoSrc,
             loop: true,
-            muted: false,
+            muted: true,
             autoplay: true,
             playsInline: true,
             preload: 'auto',
             crossOrigin: 'anonymous'
         });
 
+        videoElement = video;
+        applyVideoSoundPolicy();
+
         video.addEventListener('canplay', () => {
             video.play().catch(error => {
                 console.warn('Video playback failed, waiting for user interaction:', error.message);
-                document.addEventListener('click', () => video.play().catch(e => console.error('用户交互后视频播放仍然失败:', e)), { once: true });
-                document.addEventListener('touchstart', () => video.play().catch(e => console.error('用户交互后视频播放仍然失败:', e)), { once: true });
+                document.addEventListener('click', () => video.play().catch(e => console.error('Video playback still failed after user interaction:', e)), { once: true });
+                document.addEventListener('touchstart', () => video.play().catch(e => console.error('Video playback still failed after user interaction:', e)), { once: true });
             });
         });
 
@@ -244,7 +397,7 @@ function createVideoOverlay() {
 
     const overlay = document.createElement('div');
     overlay.id = SCREEN_OVERLAY_ID;
-    overlay.textContent = '浏览视频详细介绍';
+    overlay.textContent = 'Watch video details';
     Object.assign(overlay.style, {
         position: 'absolute',
         left: '0px',
@@ -264,8 +417,9 @@ function createVideoOverlay() {
         boxShadow: '0 2px 6px rgba(0, 0, 0, 0.25)'
     });
 
-    overlay.addEventListener('click', () => {
-        alert('cjrok');
+    overlay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleVideoMenu();
     });
 
     document.body.appendChild(overlay);
@@ -290,8 +444,9 @@ function updateVideoOverlayPosition() {
         return;
     }
 
-    if (!videoScreenMesh) {
+    if (!buildingBaseMesh) {
         screenOverlayElement.style.display = 'none';
+        if (screenMenuElement) screenMenuElement.style.display = 'none';
         return;
     }
 
@@ -300,11 +455,6 @@ function updateVideoOverlayPosition() {
         screenOverlayElement.style.display = 'none';
         return;
     }
-
-    const planeHeight = videoScreenMesh.geometry && videoScreenMesh.geometry.parameters
-        ? videoScreenMesh.geometry.parameters.height || 0
-        : 0;
-    const offset = planeHeight / 2 + 0.05;
 
     if (!screenOverlayBaseWidth || !screenOverlayBaseHeight) {
         const rect = screenOverlayElement.getBoundingClientRect();
@@ -316,9 +466,14 @@ function updateVideoOverlayPosition() {
             : screenOverlayBaseHeight;
     }
 
-    overlayWorldTarget.set(0, offset, 0);
-    videoScreenMesh.localToWorld(overlayWorldTarget);
+    const box = new THREE.Box3().setFromObject(buildingBaseMesh);
+    if (!box || (typeof box.isEmpty === 'function' && box.isEmpty())) {
+        screenOverlayElement.style.display = 'none';
+        return;
+    }
 
+    const boxCenter = box.getCenter(overlayWorldTarget);
+    overlayWorldTarget.set(boxCenter.x, box.max.y, boxCenter.z);
     overlayProjectedPosition.copy(overlayWorldTarget).project(activeCamera);
     if (overlayProjectedPosition.z >= 1) {
         screenOverlayElement.style.display = 'none';
@@ -328,25 +483,35 @@ function updateVideoOverlayPosition() {
     const canvasWidth = renderer.domElement.clientWidth;
     const canvasHeight = renderer.domElement.clientHeight;
 
-    const planeWidth = videoScreenMesh.geometry && videoScreenMesh.geometry.parameters
-        ? videoScreenMesh.geometry.parameters.width || 0
-        : 0;
-    const halfPlaneWidth = planeWidth / 2;
+    const corners = [
+        [box.min.x, box.min.y, box.min.z],
+        [box.min.x, box.min.y, box.max.z],
+        [box.min.x, box.max.y, box.min.z],
+        [box.min.x, box.max.y, box.max.z],
+        [box.max.x, box.min.y, box.min.z],
+        [box.max.x, box.min.y, box.max.z],
+        [box.max.x, box.max.y, box.min.z],
+        [box.max.x, box.max.y, box.max.z]
+    ];
 
-    overlayWorldLeft.set(-halfPlaneWidth, offset, 0);
-    overlayWorldRight.set(halfPlaneWidth, offset, 0);
-    videoScreenMesh.localToWorld(overlayWorldLeft);
-    videoScreenMesh.localToWorld(overlayWorldRight);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let anyProjected = false;
+    for (const c of corners) {
+        overlayWorldLeft.set(c[0], c[1], c[2]);
+        overlayProjectedLeft.copy(overlayWorldLeft).project(activeCamera);
+        if (overlayProjectedLeft.z >= 1) continue;
+        anyProjected = true;
+        minX = Math.min(minX, overlayProjectedLeft.x);
+        maxX = Math.max(maxX, overlayProjectedLeft.x);
+    }
 
-    overlayProjectedLeft.copy(overlayWorldLeft).project(activeCamera);
-    overlayProjectedRight.copy(overlayWorldRight).project(activeCamera);
-
-    if (overlayProjectedLeft.z >= 1 || overlayProjectedRight.z >= 1) {
+    if (!anyProjected || !isFinite(minX) || !isFinite(maxX) || minX === maxX) {
         screenOverlayElement.style.display = 'none';
         return;
     }
 
-    const pixelWidth = Math.abs(overlayProjectedRight.x - overlayProjectedLeft.x) * 0.5 * canvasWidth;
+    const pixelWidth = Math.abs(maxX - minX) * 0.5 * canvasWidth;
     if (!pixelWidth || pixelWidth <= 0) {
         screenOverlayElement.style.display = 'none';
         return;
@@ -365,6 +530,10 @@ function updateVideoOverlayPosition() {
     screenOverlayElement.style.transform = `scale(${scale})`;
     screenOverlayElement.style.left = `${screenX - (scaledWidth / 2)}px`;
     screenOverlayElement.style.top = `${screenY - scaledHeight - OVERLAY_VERTICAL_MARGIN}px`;
+
+    if (screenMenuElement && screenMenuElement.style.display === 'block') {
+        updateVideoMenuPosition();
+    }
 }
 
 const fontLoader = new THREE.FontLoader();
@@ -421,6 +590,7 @@ function createBuildingStructure() {
     });
 
     const building = new THREE.Mesh(geometry, material);
+    buildingBaseMesh = building;
     building.position.y = height / 2;
     building.castShadow = true;
     building.receiveShadow = true;
@@ -589,6 +759,10 @@ function load_aisns_building() {
             setupVideoScreenInteraction();
         }
 
+        createVideoOverlay();
+        createVideoMenu();
+        applyVideoSoundPolicy();
+
     } catch (error) {
         console.error("Building model loading failed:", error);
     }
@@ -611,6 +785,9 @@ function disposeBuildingResources() {
     }
     if (screenOverlayElement) {
         screenOverlayElement.style.display = 'none';
+    }
+    if (screenMenuElement) {
+        screenMenuElement.style.display = 'none';
     }
 }
 

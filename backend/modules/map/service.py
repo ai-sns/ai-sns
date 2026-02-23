@@ -7,6 +7,11 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
+import math
+import random
+
+import requests
+
 from db.DBFactory import (
     query_AiChatCfg_map,
     query_AiChatCfg_map_setting,
@@ -40,10 +45,125 @@ class MapService:
     """Service for managing map functionality"""
 
     @staticmethod
+    def _normalize_position(value: Any) -> Dict[str, float]:
+        if not value:
+            return {}
+
+        parsed = value
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except Exception:
+                parsed = {}
+
+        if isinstance(parsed, list) and len(parsed) >= 2:
+            try:
+                return {"lng": float(parsed[0]), "lat": float(parsed[1])}
+            except Exception:
+                return {}
+
+        if isinstance(parsed, dict):
+            try:
+                lng = parsed.get("lng")
+                lat = parsed.get("lat")
+                if lng is None or lat is None:
+                    return {}
+                return {"lng": float(lng), "lat": float(lat)}
+            except Exception:
+                return {}
+
+        return {}
+
+    @staticmethod
+    def _has_valid_lng_lat(pos: Dict[str, Any]) -> bool:
+        try:
+            if not isinstance(pos, dict):
+                return False
+            lng = float(pos.get("lng"))
+            lat = float(pos.get("lat"))
+            return -180.0 <= lng <= 180.0 and -90.0 <= lat <= 90.0
+        except Exception:
+            return False
+
+    @staticmethod
+    def _random_point_within_radius_m(lng: float, lat: float, radius_m: float) -> Dict[str, float]:
+        earth_radius_m = 6371000.0
+        bearing = random.random() * 2.0 * math.pi
+        # sqrt for uniform area distribution
+        distance_m = radius_m * math.sqrt(random.random())
+        angular_distance = distance_m / earth_radius_m
+
+        lat1 = math.radians(lat)
+        lon1 = math.radians(lng)
+
+        sin_lat1 = math.sin(lat1)
+        cos_lat1 = math.cos(lat1)
+
+        sin_ad = math.sin(angular_distance)
+        cos_ad = math.cos(angular_distance)
+
+        lat2 = math.asin(sin_lat1 * cos_ad + cos_lat1 * sin_ad * math.cos(bearing))
+        lon2 = lon1 + math.atan2(
+            math.sin(bearing) * sin_ad * cos_lat1,
+            cos_ad - sin_lat1 * math.sin(lat2),
+        )
+
+        lng2 = (math.degrees(lon2) + 540.0) % 360.0 - 180.0
+        lat2d = math.degrees(lat2)
+        lat2d = max(-89.999999, min(89.999999, lat2d))
+
+        return {"lng": float(lng2), "lat": float(lat2d)}
+
+    @staticmethod
+    def _get_ai_sns_server_base() -> str:
+        try:
+            from db.DBFactory import query_SystemCfg
+            cfg = query_SystemCfg(is_delete=False)
+            v = getattr(cfg, "ai_sns_server", None)
+            v = (v or "").strip()
+            return v.rstrip("/") if v else ""
+        except Exception:
+            return ""
+
+    @classmethod
+    def _ensure_current_position(cls, cfg: Any) -> Dict[str, float]:
+        current_position = cls._normalize_position(getattr(cfg, "current_position", None))
+        if cls._has_valid_lng_lat(current_position):
+            return current_position
+
+        base_lng = 116.3974
+        base_lat = 39.9093
+        remote_base = cls._get_ai_sns_server_base()
+        if remote_base:
+            try:
+                resp = requests.get(f"{remote_base}/api/get_initial_position/", timeout=8)
+                resp.raise_for_status()
+                payload = resp.json() if resp.content else {}
+                if isinstance(payload, dict):
+                    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+                    lng_val = data.get("lng")
+                    lat_val = data.get("lat")
+                    if lng_val is not None and lat_val is not None:
+                        base_lng = float(lng_val)
+                        base_lat = float(lat_val)
+            except Exception as e:
+                logger.warning("Failed to fetch initial position from ai_sns_server: %s", e)
+
+        random_pos = cls._random_point_within_radius_m(base_lng, base_lat, 10000.0)
+        try:
+            from db.DBFactory import update_AiChatCfg_map
+            update_AiChatCfg_map(current_position=json.dumps(random_pos, ensure_ascii=False))
+        except Exception as e:
+            logger.warning("Failed to persist auto-initialized current_position: %s", e)
+
+        return random_pos
+
+    @staticmethod
     def get_map_settings() -> Dict[str, Any]:
         """Get map configuration"""
         cfg = query_AiChatCfg_map()
         if cfg:
+            normalized_current_position = MapService._ensure_current_position(cfg)
             return {
                 "success": True,
                 "data": {
@@ -51,7 +171,7 @@ class MapService:
                     "map_type": getattr(cfg, 'map_type', 'baidu'),
                     "map_api_key": getattr(cfg, 'map_api_key', ''),
                     "map_id": getattr(cfg, 'map_id', ''),
-                    "current_position": json.loads(getattr(cfg, 'current_position', '{}')) if getattr(cfg, 'current_position', None) else {"lng": 116.3974, "lat": 39.9093},
+                    "current_position": normalized_current_position,
                     "home_position": json.loads(getattr(cfg, 'home_position', '{}')) if getattr(cfg, 'home_position', None) else {},
                     "route_status": getattr(cfg, 'route_status', 'stopped'),
                     "route_start": getattr(cfg, 'route_start', ''),
@@ -95,25 +215,45 @@ class MapService:
         }
 
     @staticmethod
-    def update_map_settings(config: Dict[str, Any]) -> None:
+    def update_map_settings(config: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
         """Update map configuration"""
         cfg = query_AiChatCfg_map()
         if not cfg:
             raise ValueError("Map configuration not found")
 
-        update_AiChatCfg_map(
-            cfg.id,
-            map_type=config.get('map_type'),
-            map_api_key=config.get('map_api_key'),
-            map_id=config.get('map_id'),
-            current_position=json.dumps(config.get('current_position')) if config.get('current_position') else '{}',
-            home_position=json.dumps(config.get('home_position')) if config.get('home_position') else '{}',
-            route_status=config.get('route_status'),
-            route_start=config.get('route_start'),
-            route_end=config.get('route_end'),
-            route_current_position=json.dumps(config.get('route_current_position')) if config.get('route_current_position') else '{}',
-            route_distance=config.get('route_distance')
-        )
+        payload: Dict[str, Any] = {}
+        if isinstance(config, dict):
+            payload.update(config)
+        if kwargs:
+            payload.update(kwargs)
+
+        updates: Dict[str, Any] = {}
+        if "map_type" in payload:
+            updates["map_type"] = payload.get("map_type")
+        if "map_api_key" in payload:
+            updates["map_api_key"] = payload.get("map_api_key")
+        if "map_id" in payload:
+            updates["map_id"] = payload.get("map_id")
+
+        if "current_position" in payload:
+            updates["current_position"] = json.dumps(payload.get("current_position"), ensure_ascii=False) if payload.get("current_position") else "{}"
+        if "home_position" in payload:
+            updates["home_position"] = json.dumps(payload.get("home_position"), ensure_ascii=False) if payload.get("home_position") else "{}"
+
+        if "route_status" in payload:
+            updates["route_status"] = payload.get("route_status")
+        if "route_start" in payload:
+            updates["route_start"] = payload.get("route_start")
+        if "route_end" in payload:
+            updates["route_end"] = payload.get("route_end")
+        if "route_current_position" in payload:
+            updates["route_current_position"] = json.dumps(payload.get("route_current_position"), ensure_ascii=False) if payload.get("route_current_position") else "{}"
+        if "route_distance" in payload:
+            updates["route_distance"] = payload.get("route_distance")
+
+        if updates:
+            update_AiChatCfg_map(**updates)
+        return {"success": True}
 
     @staticmethod
     def get_home_position() -> Dict[str, Any]:
@@ -129,7 +269,7 @@ class MapService:
         cfg = query_AiChatCfg_map()
         if not cfg:
             raise ValueError("Map configuration not found")
-        update_AiChatCfg_map(cfg.id, home_position=json.dumps(home_position))
+        update_AiChatCfg_map(home_position=json.dumps(home_position, ensure_ascii=False))
 
     @staticmethod
     def plan_route(start: str, end: str, position_type: str = "address") -> Dict[str, Any]:

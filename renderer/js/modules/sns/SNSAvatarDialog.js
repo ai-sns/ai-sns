@@ -371,15 +371,23 @@ export class SNSAvatarDialog {
 
                 const result = await response.json();
                 if (result.success) {
-                    alert('用户信息保存成功！');
+                    try {
+                        window.dispatchEvent(new CustomEvent('sns-user-info-updated', {
+                            detail: {
+                                nickname
+                            }
+                        }));
+                    } catch (e) {
+                    }
+                    alert('用户信息已保存');
                     this.dialog.remove();
                 } else {
-                    alert('保存失败：' + result.message);
+                    alert('保存失败: ' + result.message);
                 }
             }
         } catch (error) {
             console.error('Error saving configuration:', error);
-            alert('保存失败：' + error.message);
+            alert('保存失败: ' + error.message);
         }
     }
 

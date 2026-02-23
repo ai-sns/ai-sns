@@ -209,7 +209,10 @@ async function load_persons_data_and_show() {
         showAlert(`用户数据已加载成功。`);
 
         // Filter out items whose nation_id equals the input value
-        personsdata = data.filter(person => person.nation_id !== nation_id);
+        personsdata = data.filter(person => {
+            const pid = (person && (person.nation_id || person.nationid)) ? String(person.nation_id || person.nationid).trim() : '';
+            return pid !== String(nation_id || '').trim();
+        });
 
         // Show updated data points
         showpoints();

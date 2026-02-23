@@ -184,7 +184,36 @@ window.addEventListener('message', function(event) {
     } else if (event.data.type === 'mapButtonAction') {
         // Handle button click requests from Electron frontend
         const action = event.data.action;
+        const meta = (event.data && typeof event.data === 'object') ? (event.data.meta || {}) : {};
         console.log('Received mapButtonAction from electron:', action);
+
+        const getInfoVisible = () => {
+            try {
+                const info = document.getElementById('info');
+                if (!info) return false;
+                return info.style.display !== 'none';
+            } catch (e) {
+                return false;
+            }
+        };
+
+        const postToParent = (payload) => {
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage(payload, '*');
+                }
+            } catch (e) {
+            }
+        };
+
+        if (meta && meta.captureInfoPanelState) {
+            // Capture BEFORE Square hides it.
+            postToParent({
+                type: 'infoPanelState',
+                visible: getInfoVisible(),
+                timestamp: Date.now()
+            });
+        }
 
         // Find the corresponding button and trigger click
         const buttonSelector = `.map-btn[data-title="${action}"]`;
@@ -193,6 +222,27 @@ window.addEventListener('message', function(event) {
         if (button) {
             console.log('Found button, triggering click:', buttonSelector);
             button.click();
+
+            try {
+                if (typeof window.setAisnsVideoSoundGate === 'function') {
+                    window.setAisnsVideoSoundGate(action === 'plaza');
+                }
+            } catch (e) {
+            }
+
+            // Restore info panel if requested (e.g., AI clicked after Square hid it)
+            if (meta && meta.restoreInfoPanel) {
+                try {
+                    if (typeof showHistory === 'function') {
+                        showHistory();
+                    } else {
+                        const info = document.getElementById('info');
+                        if (info) info.style.display = 'block';
+                    }
+                } catch (e) {
+                    console.warn('Failed to restore info panel:', e);
+                }
+            }
         } else {
             console.warn('Button not found:', buttonSelector);
         }

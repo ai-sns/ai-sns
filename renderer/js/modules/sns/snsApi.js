@@ -93,30 +93,6 @@ export default {
     },
 
     /**
-     * Get user info
-     */
-    async getUserInfoMock(userId) {
-        try {
-            // TODO: Implement actual API call
-            return {
-                success: true,
-                data: {
-                    id: userId,
-                    name: 'User',
-                    level: 3,
-                    credit: 100
-                }
-            };
-        } catch (error) {
-            console.error('获取用户信息失败:', error);
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    },
-
-    /**
      * Update user location
      */
     async updateLocation(location) {

@@ -134,23 +134,19 @@ function initPos() {
     set_map_center(home_position?.lng, home_position?.lat);
     // Hide plaza-related menu items
     menu_div = document.getElementById('menu-plaza-top');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
     menu_div = document.getElementById('menu-plaza-middle');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
     menu_div = document.getElementById('menu-plaza');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
 
     // Show AI-related menu items
     menu_div = document.getElementById('menu-ai-top');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
     menu_div = document.getElementById('menu-ai-middle');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
     menu_div = document.getElementById('menu-ai');
-    menu_div.style.display = 'block';
-
-    // Hide other menu items
-    menu_div = document.getElementById('menu-home');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'block';
 
     // Set right menu width to 180px
     const rightMenu = document.querySelector('.right-menu');
@@ -252,23 +248,19 @@ function goPlaza() {
 
     // Show plaza-related menu items
     menu_div = document.getElementById('menu-plaza-top');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
     menu_div = document.getElementById('menu-plaza-middle');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
     menu_div = document.getElementById('menu-plaza');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
 
     // Hide AI-related menu items
     menu_div = document.getElementById('menu-ai-top');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
     menu_div = document.getElementById('menu-ai-middle');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
     menu_div = document.getElementById('menu-ai');
-    menu_div.style.display = 'none';
-
-    // Hide other menu items
-    menu_div = document.getElementById('menu-home');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
 
     // Set right menu width to 240px
     const rightMenu = document.querySelector('.right-menu');
@@ -294,7 +286,7 @@ function findHim() {
     if (typeof nation_id_me !== 'undefined' && nation_id_me) {
         user_current_point = getPersonPointByNationId(nation_id_me);
     } else {
-        console.error("nation_id_me 未定义或无效");
+        console.error("nation_id_me is undefined or invalid");
         user_current_point = new BMapGL.Point(116.397428, 39.90923); // Fallback to default location
     }
 
@@ -311,23 +303,19 @@ function findHim() {
 
     // Hide plaza-related menu items
     menu_div = document.getElementById('menu-plaza-top');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
     menu_div = document.getElementById('menu-plaza-middle');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
     menu_div = document.getElementById('menu-plaza');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'none';
 
     // Show AI-related menu items
     menu_div = document.getElementById('menu-ai-top');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
     menu_div = document.getElementById('menu-ai-middle');
-    menu_div.style.display = 'block';
+    if (menu_div) menu_div.style.display = 'block';
     menu_div = document.getElementById('menu-ai');
-    menu_div.style.display = 'block';
-
-    // Hide other menu items
-    menu_div = document.getElementById('menu-home');
-    menu_div.style.display = 'none';
+    if (menu_div) menu_div.style.display = 'block';
 
     // Set right menu width to 180px
     const rightMenu = document.querySelector('.right-menu');

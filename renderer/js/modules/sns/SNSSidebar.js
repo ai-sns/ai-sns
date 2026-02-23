@@ -38,6 +38,8 @@ export default {
     tradeSearchQuery: '',
     _chatLinkListenerBound: false,
 
+    _exploreNickname: '',
+
     escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
@@ -72,6 +74,46 @@ export default {
                 <div class="message-time">${new Date(message.create_time).toLocaleTimeString()}</div>
             </div>
         `;
+    },
+
+    _truncateDisplayWidth(value, maxWidth) {
+        const s = String(value ?? '');
+        let width = 0;
+        let out = '';
+        for (const ch of s) {
+            const w = /[\u4e00-\u9fff]/.test(ch) ? 2 : 1;
+            if (width + w > maxWidth) break;
+            out += ch;
+            width += w;
+        }
+        return out;
+    },
+
+    _formatExploreNickname(rawNickname) {
+        const name = String(rawNickname ?? '').trim();
+        if (!name) return '';
+        return this._truncateDisplayWidth(name, 12);
+    },
+
+    updateExploreTitle(nickname) {
+        const formatted = this._formatExploreNickname(nickname);
+        this._exploreNickname = formatted;
+        const titleEl = document.getElementById('snsExploreTitle');
+        if (!titleEl) return;
+        titleEl.textContent = formatted ? `Explore the Earth-${formatted}` : 'Explore the Earth';
+    },
+
+    async loadExploreNickname() {
+        try {
+            const apiClient = getApiClient();
+            if (!apiClient || typeof apiClient.get !== 'function') return;
+            const resp = await apiClient.get('/api/sns/user-info');
+            if (resp && resp.success && resp.data) {
+                this.updateExploreTitle(resp.data.nickname);
+            }
+        } catch (e) {
+            console.warn('[SNSSidebar] Failed to load explore nickname:', e);
+        }
     },
 
     bindChatLinkOpenHandler() {
@@ -176,7 +218,7 @@ export default {
   <line x1="8" y1="2" x2="8" y2="18"></line>
   <line x1="16" y1="6" x2="16" y2="22"></line>
 </svg>
-                    <span class="sidebar-section-title">Explore the Earth-Y宝</span>
+                    <span class="sidebar-section-title" id="snsExploreTitle">Explore the Earth</span>
                 </div>
                 <!-- 用户属性面板 -->
                 <div class="user-stats-panel">
@@ -289,6 +331,7 @@ export default {
      * Initialize charts and event listeners
      */
     async init() {
+        await this.loadExploreNickname();
         await this.loadUserStats();
         await this.loadContacts();
         await this.loadTrades();
@@ -297,6 +340,14 @@ export default {
         this.attachEventListeners();
         this.setupTabSwitching();
         this.setupWebSocketListener();
+
+        if (!this._exploreTitleListenerBound) {
+            window.addEventListener('sns-user-info-updated', (event) => {
+                const detail = event && event.detail ? event.detail : {};
+                this.updateExploreTitle(detail.nickname);
+            });
+            this._exploreTitleListenerBound = true;
+        }
     },
 
     /**

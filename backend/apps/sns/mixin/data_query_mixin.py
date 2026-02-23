@@ -68,9 +68,21 @@ class DataQueryMixin:
         }
         data = self.http_request(url, params)
 
-        remove_id = self.user_map_setting.get("nationid", "")
+        remove_id = ((self.user_map_setting or {}).get("nationid") or "").strip()
+        if not remove_id:
+            remove_id = ((self.user_map_setting or {}).get("nation_id") or "").strip()
 
-        people_list = [item for item in data if item["nation_id"] != remove_id]
+        if not isinstance(data, list):
+            return []
+
+        people_list = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            nation_id = (item.get("nation_id") or item.get("nationid") or "").strip()
+            if remove_id and nation_id == remove_id:
+                continue
+            people_list.append(item)
 
         return people_list
 

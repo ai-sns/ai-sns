@@ -677,6 +677,23 @@ export default {
             });
         });
 
+        const getInfoPanelVisibleState = () => {
+            try {
+                return !!(actionBar.dataset && actionBar.dataset.infoPanelVisible === 'true');
+            } catch (e) {
+                return false;
+            }
+        };
+
+        const setInfoPanelVisibleState = (visible) => {
+            try {
+                if (actionBar.dataset) {
+                    actionBar.dataset.infoPanelVisible = visible ? 'true' : 'false';
+                }
+            } catch (e) {
+            }
+        };
+
         // Action button click events
         actionBar.addEventListener('click', (e) => {
             const btn = e.target.closest('.action-btn, .dropdown-item');
@@ -693,10 +710,23 @@ export default {
                 return;
             }
 
-            // Update active state
-            const allBtns = actionBar.querySelectorAll('.action-btn');
-            allBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            // Active style rules:
+            // - square/ai/help: never toggle active style
+            // - move/board: toggle active style independently, not affected by others
+            const isToggleSelf = action === 'move' || action === 'board';
+            if (isToggleSelf) {
+                if (btn.classList.contains('action-btn')) {
+                    btn.classList.toggle('active');
+                } else {
+                    const mainBtn = actionBar.querySelector(`.action-btn[data-action="${CSS.escape(action)}"]`);
+                    if (mainBtn) {
+                        mainBtn.classList.toggle('active');
+                    }
+                }
+            } else if (action === 'square' || action === 'ai') {
+                // Ensure these buttons never remain in active style
+                btn.classList.remove('active');
+            }
 
             // Close dropdowns after selection
             if (appsDropdown) appsDropdown.style.display = 'none';
@@ -719,9 +749,23 @@ export default {
             if (mapActions.includes(action)) {
                 const iframe = document.querySelector('#mapContainer iframe');
                 if (iframe && iframe.contentWindow) {
+                    let willRestoreInfoPanel = false;
+                    let captureInfoPanelState = false;
+                    if (action === 'square') {
+                        // Ask iframe to capture current info panel state before it gets hidden.
+                        captureInfoPanelState = true;
+                    }
+                    if (action === 'ai') {
+                        // If user had info panel open before switching to Square, restore it when AI is clicked
+                        willRestoreInfoPanel = getInfoPanelVisibleState();
+                    }
                     const message = {
                         type: 'mapButtonAction',
-                        action: actionToTitleMap[action]  // Convert to the corresponding data-title
+                        action: actionToTitleMap[action],  // Convert to the corresponding data-title
+                        meta: {
+                            restoreInfoPanel: willRestoreInfoPanel,
+                            captureInfoPanelState: captureInfoPanelState
+                        }
                     };
                     try {
                         iframe.contentWindow.postMessage(message, this.getMapIframeTargetOrigin());
@@ -1594,6 +1638,15 @@ export default {
                 switch (data.type) {
                     case 'received':
                         console.log('地图页面已确认收到消息:', data.data);
+                        break;
+                    case 'infoPanelState':
+                        try {
+                            const actionBar = document.querySelector('.map-action-bar');
+                            if (actionBar && actionBar.dataset) {
+                                actionBar.dataset.infoPanelVisible = data.visible ? 'true' : 'false';
+                            }
+                        } catch (e) {
+                        }
                         break;
                     case 'locationUpdate':
                         this.handleLocationUpdate(data.data);

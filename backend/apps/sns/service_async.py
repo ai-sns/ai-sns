@@ -806,6 +806,26 @@ class SNSService:
             people_list = _post_json('/api/get_people_list/', params) or []
             place_list = _post_json('/api/get_place_list/', params) or []
 
+            exclude_nation_id = (getattr(config, 'nationid', None) or '').strip()
+            if isinstance(people_list, list):
+                normalized_people = []
+                for person in people_list:
+                    if not isinstance(person, dict):
+                        continue
+
+                    nation_id = (person.get('nation_id') or person.get('nationid') or '').strip()
+                    if exclude_nation_id and nation_id == exclude_nation_id:
+                        continue
+
+                    if nation_id:
+                        if not (person.get('nation_id') or '').strip():
+                            person['nation_id'] = nation_id
+                        if not (person.get('nationid') or '').strip():
+                            person['nationid'] = nation_id
+
+                    normalized_people.append(person)
+                people_list = normalized_people
+
             from backend.apps.sns.mixin.ui_display_mixin import UIDisplayMixin
 
             class _Formatter(UIDisplayMixin):

@@ -68,6 +68,60 @@ def read_root():
     return {"Hello888": "World888"}
 
 
+@app.get("/api/get_initial_position/")
+async def get_initial_position(db: AsyncSession = Depends(get_db)):
+    """Return a base coordinate used by clients to bootstrap current_position."""
+    lng = 116.3974
+    lat = 39.9093
+
+    try:
+        place_row = None
+        try:
+            place_result = await db.execute(text("""
+                SELECT
+                    ST_X(place_position::geometry) AS lng,
+                    ST_Y(place_position::geometry) AS lat
+                FROM places
+                ORDER BY random()
+                LIMIT 1
+            """))
+            place_row = place_result.mappings().first()
+        except Exception:
+            place_row = None
+
+        if place_row and place_row.get("lng") is not None and place_row.get("lat") is not None:
+            lng = float(place_row.get("lng"))
+            lat = float(place_row.get("lat"))
+        else:
+            user_row = None
+            try:
+                user_result = await db.execute(text("""
+                    SELECT
+                        ST_X(location::geometry) AS lng,
+                        ST_Y(location::geometry) AS lat
+                    FROM users
+                    WHERE status = 1
+                    ORDER BY random()
+                    LIMIT 1
+                """))
+                user_row = user_result.mappings().first()
+            except Exception:
+                user_row = None
+
+            if user_row and user_row.get("lng") is not None and user_row.get("lat") is not None:
+                lng = float(user_row.get("lng"))
+                lat = float(user_row.get("lat"))
+    except Exception:
+        lng = 116.3974
+        lat = 39.9093
+
+    if not (-180.0 <= lng <= 180.0 and -90.0 <= lat <= 90.0):
+        lng = 116.3974
+        lat = 39.9093
+
+    return {"success": True, "data": {"lng": lng, "lat": lat}}
+
+
 @app.get("/api/distance", response_model=List[DistanceResult])
 async def calculate_distance(
         place1: str = 'Home',

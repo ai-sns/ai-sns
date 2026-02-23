@@ -46,7 +46,15 @@ async function checkAndShowPoints() {
             showAlert(`Person data loaded.`);
 
             // Store loaded data
-            personsdata = data;
+            const myNationId = (typeof nation_id_me !== 'undefined' && nation_id_me) ? String(nation_id_me).trim() : '';
+            if (Array.isArray(data) && myNationId) {
+                personsdata = data.filter(person => {
+                    const pid = (person && (person.nation_id || person.nationid)) ? String(person.nation_id || person.nationid).trim() : '';
+                    return pid !== myNationId;
+                });
+            } else {
+                personsdata = data;
+            }
 
             // Display points
             showpoints();

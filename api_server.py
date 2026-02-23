@@ -261,6 +261,41 @@ def _get_current_position_from_db():
         return (None, None)
 
 
+def _get_current_nation_id_from_db() -> str:
+    try:
+        from db.DBFactory import query_AiChatCfg_map_setting
+
+        setting = query_AiChatCfg_map_setting() or {}
+        nation_id = (setting.get("nationid") or setting.get("nation_id") or "").strip()
+        return nation_id
+    except Exception:
+        return ""
+
+
+def _normalize_and_filter_people_list(data, exclude_nation_id: str):
+    if not isinstance(data, list):
+        return data
+
+    exclude_nation_id = (exclude_nation_id or "").strip()
+    result = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+
+        nation_id = (item.get("nation_id") or item.get("nationid") or "").strip()
+        if exclude_nation_id and nation_id == exclude_nation_id:
+            continue
+
+        if nation_id:
+            if not (item.get("nation_id") or "").strip():
+                item["nation_id"] = nation_id
+            if not (item.get("nationid") or "").strip():
+                item["nationid"] = nation_id
+
+        result.append(item)
+    return result
+
+
 @app.get("/api/get_news_list/")
 async def get_news_list():
     remote_base = _get_remote_ai_sns_server_base()
@@ -288,6 +323,7 @@ async def get_news_list():
 @app.get("/api/get_people_list/")
 async def get_people_list(lng: float = None, lat: float = None):
     remote_base = _get_remote_ai_sns_server_base()
+    exclude_nation_id = _get_current_nation_id_from_db()
     if remote_base:
         try:
             import httpx
@@ -305,7 +341,7 @@ async def get_people_list(lng: float = None, lat: float = None):
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(url, data=params)
                 resp.raise_for_status()
-                return JSONResponse(content=resp.json())
+                return JSONResponse(content=_normalize_and_filter_people_list(resp.json(), exclude_nation_id))
         except Exception as e:
             logger.warning(f"Failed to fetch people list from remote server: {e}")
 
@@ -314,7 +350,8 @@ async def get_people_list(lng: float = None, lat: float = None):
         local_path = Path("scripts") / "personsdata.json"
         if not local_path.exists():
             raise FileNotFoundError(str(local_path))
-        return JSONResponse(content=json.loads(local_path.read_text(encoding="utf-8")))
+        data = json.loads(local_path.read_text(encoding="utf-8"))
+        return JSONResponse(content=_normalize_and_filter_people_list(data, exclude_nation_id))
     except Exception as e:
         logger.error(f"Failed to load local personsdata.json: {e}")
         raise HTTPException(status_code=500, detail="Failed to provide people list")
