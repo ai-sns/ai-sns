@@ -49,7 +49,9 @@ function toggleButtonActive(btn) {
 
 // Handle button click events
 function handleButtonClick(event) {
-    const btn = event.target.closest('.map-btn');
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target) return;
+    const btn = target.closest('.map-btn');
     if (btn) {
         const btnTitle = btn.dataset.title;
 
@@ -67,10 +69,43 @@ function handleButtonClick(event) {
 // Event delegation: attach click handler to .bottom-left-buttons
 document.querySelector('.bottom-left-buttons').addEventListener('click', handleButtonClick);
 
+const topButtons = document.querySelector('.top-buttons');
+if (topButtons) {
+    topButtons.addEventListener('click', function (e) {
+        const target = e.target instanceof Element ? e.target : e.target?.parentElement;
+        if (!target) return;
+        const btn = target.closest('.top-btn');
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        if (!icon) return;
+        if (target === icon) return;
+        if (typeof icon.onclick === 'function') {
+            icon.onclick.call(icon, e);
+        }
+    });
+}
+
+const rightMenuClickRoot = document.querySelector('.right-menu');
+if (rightMenuClickRoot) {
+    rightMenuClickRoot.addEventListener('click', function (e) {
+        const target = e.target instanceof Element ? e.target : e.target?.parentElement;
+        if (!target) return;
+        const menuItem = target.closest('.menu-item');
+        if (!menuItem) return;
+        if (target.closest('span[onclick], a[onclick]')) return;
+        const clickable = menuItem.querySelector('span[onclick], a[onclick]');
+        if (clickable && typeof clickable.onclick === 'function') {
+            clickable.onclick.call(clickable, e);
+        }
+    });
+}
+
 
 document.querySelectorAll('.menu-section').forEach(section => {
     section.addEventListener('click', function (e) {
-        const item = e.target.closest('.menu-item');
+        const target = e.target instanceof Element ? e.target : e.target?.parentElement;
+        if (!target) return;
+        const item = target.closest('.menu-item');
         if (item && !item.classList.contains('active')) {
             const activeItem = section.querySelector('.menu-item.active');
             activeItem && activeItem.classList.remove('active');
