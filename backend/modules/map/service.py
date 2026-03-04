@@ -118,6 +118,10 @@ class MapService:
         except Exception:
             return {"success": False, "message": "Invalid lng/lat", "data": {}}
 
+        eps = 1e-9
+        if abs(lng_val) < eps and abs(lat_val) < eps:
+            return {"success": False, "message": "Invalid current_position: (0,0) is not allowed", "data": {}}
+
         if not (-180.0 <= lng_val <= 180.0 and -90.0 <= lat_val <= 90.0):
             return {"success": False, "message": "lng/lat out of range", "data": {}}
 
@@ -220,6 +224,9 @@ class MapService:
                 return False
             lng = float(pos.get("lng"))
             lat = float(pos.get("lat"))
+            eps = 1e-9
+            if abs(lng) < eps and abs(lat) < eps:
+                return False
             return -180.0 <= lng <= 180.0 and -90.0 <= lat <= 90.0
         except Exception:
             return False
@@ -317,6 +324,7 @@ class MapService:
                     "route_end": getattr(cfg, 'route_end', ''),
                     "route_current_position": json.loads(getattr(cfg, 'route_current_position', '{}')) if getattr(cfg, 'route_current_position', None) else {},
                     "route_distance": getattr(cfg, 'route_distance', 0.0),
+                    "route_points": getattr(cfg, 'route_points', '') or "",
                     "avatar3d": getattr(cfg, 'avatar3d', 'default.glb'),
                     "nationid": getattr(cfg, 'nationid', '123456'),
                     "account": getattr(cfg, 'account', 'user@example.com'),
@@ -342,6 +350,7 @@ class MapService:
                     "route_end": "",
                     "route_current_position": {},
                     "route_distance": 0.0,
+                    "route_points": "",
                     "avatar3d": "default.glb",
                     "nationid": "123456",
                     "account": "user@example.com",
@@ -375,6 +384,18 @@ class MapService:
             updates["map_id"] = payload.get("map_id")
 
         if "current_position" in payload:
+            pos = MapService._normalize_position(payload.get("current_position"))
+            if pos:
+                try:
+                    eps = 1e-9
+                    lng_val = float(pos.get("lng"))
+                    lat_val = float(pos.get("lat"))
+                    if abs(lng_val) < eps and abs(lat_val) < eps:
+                        return {"success": False, "message": "Invalid current_position: (0,0) is not allowed", "data": {}}
+                    if not (-180.0 <= lng_val <= 180.0 and -90.0 <= lat_val <= 90.0):
+                        return {"success": False, "message": "Invalid current_position: lng/lat out of range", "data": {}}
+                except Exception:
+                    return {"success": False, "message": "Invalid current_position", "data": {}}
             updates["current_position"] = json.dumps(payload.get("current_position"), ensure_ascii=False) if payload.get("current_position") else "{}"
         if "home_position" in payload:
             updates["home_position"] = json.dumps(payload.get("home_position"), ensure_ascii=False) if payload.get("home_position") else "{}"
@@ -389,6 +410,9 @@ class MapService:
             updates["route_current_position"] = json.dumps(payload.get("route_current_position"), ensure_ascii=False) if payload.get("route_current_position") else "{}"
         if "route_distance" in payload:
             updates["route_distance"] = payload.get("route_distance")
+
+        if "route_points" in payload:
+            updates["route_points"] = payload.get("route_points") or ""
 
         if updates:
             update_AiChatCfg_map(**updates)

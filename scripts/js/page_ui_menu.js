@@ -851,6 +851,7 @@ function setRouteRandom() {
             update_map_setting("route_start", "");
             update_map_setting("route_end", "");
             update_map_setting("route_current_position", "");
+            update_map_setting("route_points", "");
             update_map_setting("route", "");
 
             // Reset route settings panel UI state

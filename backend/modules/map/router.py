@@ -57,8 +57,10 @@ async def update_map_settings(
         Success status
     """
     try:
-        service.update_map_settings(config.dict(exclude_unset=True))
-        return {"success": True}
+        res = service.update_map_settings(config.dict(exclude_unset=True))
+        if isinstance(res, dict) and res.get("success") is False:
+            raise HTTPException(status_code=400, detail=str(res.get("message") or "Invalid map settings"))
+        return res if isinstance(res, dict) else {"success": True}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

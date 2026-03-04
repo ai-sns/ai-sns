@@ -400,6 +400,55 @@ function initMap() {
     }
 
 // Use async/await for async loading to ensure models are fully loaded before continuing
+    const loadBuilding = async () => {
+        try {
+            const buildingLatLng = { lat: 1.2847964346121146, lng: 103.8627787698048, altitude: 0 };
+
+            // Load model with retry
+            const gltf = await loadModelWithRetry(loader2, 'aisnsbuilding.glb');
+            const modelBuilding = gltf.scene;
+
+            // Compute bounding box for scaling / ground alignment
+            const box = new THREE.Box3().setFromObject(modelBuilding);
+            const size = box.getSize(new THREE.Vector3());
+            const height = size.y;
+            console.log("Building model height:", height);
+
+            // Scale model to a target height (ThreeJSOverlayView uses meters as world units)
+            const desiredHeight = 300;
+            const scale = (height && height > 0) ? (desiredHeight / height) : 1;
+            console.log("buildign scale",scale);
+            modelBuilding.scale.set(scale, scale, scale);
+
+            // Align base of model to ground
+            const box2 = new THREE.Box3().setFromObject(modelBuilding);
+            if (box2 && box2.min && Number.isFinite(box2.min.y)) {
+                modelBuilding.position.y -= box2.min.y;
+            }
+
+            // Position model
+            const position3 = overlay.latLngAltitudeToVector3(buildingLatLng, modelBuilding.position);
+            modelBuilding.position.copy(position3);
+
+            overlay.scene.add(modelBuilding);
+            console.log("Building model loaded successfully");
+
+            try {
+                modelLoadStatus.building = true;
+            } catch (e) {
+            }
+
+            try {
+                overlay.requestRedraw();
+            } catch (e) {
+            }
+
+            checkAnimationStart();
+        } catch (error) {
+            console.error('Failed to load building model:', error);
+        }
+    };
+
     const loadHouse = async () => {
         try {
             // Load model with retry
@@ -418,6 +467,11 @@ function initMap() {
             const height = size.y; // Model height
             console.log("House model height:", height);
             // Set model scale/rotation/position
+            // Adjust scale based on height
+            const desiredHeight = 150; // Desired height
+            const scale = desiredHeight / height;
+            // Set model scale/rotation/position
+            // modelhouse.scale.set(scale, scale, scale);
             modelhouse.scale.set(1, 1, 1);
             modelhouse.rotation.x = (Math.PI / 15) * 0;
             modelhouse.rotation.y = (Math.PI / 15) * 1.6;
@@ -431,6 +485,7 @@ function initMap() {
             console.error('Failed to load house model:', error);
         }
     };
+    loadBuilding();
     loadHouse();
     const loadModel = async () => {
         try {
@@ -557,10 +612,14 @@ function initMap() {
         // south: 40.712216,
         // east: -74.12544,
         // west: -74.22655,
-        north: 39.76812,
-        south: 39.74441,
-        east: 116.25646,
-        west: 116.22971,
+        // north: 40.03867303424458,
+        // south: 40.00624462450565,
+        // east: 116.24508640812037,
+        // west: 116.22749734234506,
+        north: 37.57643015650198,
+        south: 37.55816843366316,
+        east: -122.40210571869962,
+        west: -122.43508166111967,
     };
 
     playGroundOverlay = new google.maps.GroundOverlay(
@@ -572,7 +631,9 @@ function initMap() {
 
     //loadcube
     const webglOverlay = new google.maps.WebGLOverlayView();
-    const cubePosition = { lat: 39.931188733629675, lng: 116.36270578593066 };
+    // const cubePosition = { lat: 39.97619992566233, lng: 116.19042703542924 };
+    const cubePosition = { lat: 37.530317234458025, lng: -122.47283866789105 };
+
 
     let scene, camera, renderer, cube;
 
@@ -1193,6 +1254,36 @@ function set_move_status() {
 
 var infowindow;
 
+function __snsPostJson(path, payload) {
+    try {
+        const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+            ? API_BASE_URL
+            : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+        const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+        const url = `${normalizedBaseUrl}${path}`;
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload || {})
+        });
+    } catch (e) {
+        return null;
+    }
+}
+
+function __snsHumanMessage(message) {
+    return __snsPostJson('/api/sns/human-message', { message: String(message || '') });
+}
+
+function __snsSendMessage(to_account, content) {
+    return __snsPostJson('/api/sns/send-message', {
+        to_account: String(to_account || ''),
+        content: String(content || '')
+    });
+}
+
 function start_talk_to_it(nation_id, content) {
     // ... (rest of the code remains the same)
     // content=""
@@ -1344,6 +1435,16 @@ function talk_to_it(nation_id, content) {
     person_target_point = getPersonPointByNationId(nation_id);
     person_data_me = getPersonDataByNationId(nation_id_me);
     person_target = getPersonDataByNationId(nation_id);
+
+    try {
+        const account = (person_target && person_target["account"]) ? String(person_target["account"]).trim() : '';
+        if (account) {
+            __snsPostJson('/api/sns/agent-instruction', {
+                instruction: `【3_COMMUNICATE】${account}`
+            });
+        }
+    } catch (e) {
+    }
     loadModel(person_target);
 
 
@@ -1368,7 +1469,12 @@ function talk_to_it(nation_id, content) {
     console.log("my_new_point.lng", person_target_point.lat() - 0.01)
 
     //close the window of profile
-    infowindow.close();
+    try {
+        if (typeof infowindow !== 'undefined' && infowindow && typeof infowindow.close === 'function') {
+            infowindow.close();
+        }
+    } catch (e) {
+    }
 
 
     setPersonModelPointByNationId(nation_id_me, my_new_point);
@@ -1390,87 +1496,89 @@ function talk_to_it(nation_id, content) {
     let person_point = my_new_point;
 
 
-    let hello_msg = "Hello";
+    if (false) {
+        let hello_msg = "Hello";
 
-    var contentString = `
+        var contentString = `
     <p style='margin:0;line-height:1.5;font-size:13px;'>
     ${hello_msg}
     </p></div>`;
-    // Create a <h4> element
-    var h4Element = document.createElement('h4');
+        // Create a <h4> element
+        var h4Element = document.createElement('h4');
 
-    // Set styles
-    h4Element.style.margin = '0 0 5px 0';
+        // Set styles
+        h4Element.style.margin = '0 0 5px 0';
 
-    // Set text content
-    h4Element.textContent = person_data_me['nick_name'];
-
-
-    const offsetpoint = new google.maps.Size(20, -50);
-    infowindow = new google.maps.InfoWindow({
-        content: contentString,
-        ariaLabel: "Profile",
-        headerContent: h4Element,
-        // headerDisabled: true,
-        position: person_point,
-        pixelOffset: offsetpoint,
-    });
+        // Set text content
+        h4Element.textContent = person_data_me['nick_name'];
 
 
-    infowindow.open({
-        anchor: null,
-        map,
-    });
+        const offsetpoint = new google.maps.Size(20, -50);
+        infowindow = new google.maps.InfoWindow({
+            content: contentString,
+            ariaLabel: "Profile",
+            headerContent: h4Element,
+            // headerDisabled: true,
+            position: person_point,
+            pixelOffset: offsetpoint,
+        });
 
 
-    send_im(person_data_me["account"], person_target["account"], hello_msg);
-
-
-    let point2 = person_target_point;
-
-    let hello_msg2 = "Nice to meet you.";
-
-    var contentString2 = `
-    <p style='margin:0;line-height:1.5;font-size:13px;'>
-    ${hello_msg2}
-    </p></div>`;
-    // Create a <h4> element
-    var h4Element2 = document.createElement('h4');
-
-    // Set styles
-    h4Element2.style.margin = '0 0 5px 0';
-
-    // Set text content
-    h4Element2.textContent = person_target['nick_name'];
-
-
-    const offsetpoint2 = new google.maps.Size(20, -50);
-    infowindow2 = new google.maps.InfoWindow({
-        content: contentString2,
-        ariaLabel: "Profile",
-        headerContent: h4Element2,
-        // headerDisabled: true,
-        position: point2,
-        pixelOffset: offsetpoint2,
-    });
-
-
-    setTimeout(function () {
-        infowindow.close();
-    }, 1500);
-
-
-    setTimeout(function () {
-        infowindow2.open({
+        infowindow.open({
             anchor: null,
             map,
         });
-    }, 1500);
 
 
-    setTimeout(function () {
-        infowindow2.close();
-    }, 3000);
+        send_im(person_data_me["account"], person_target["account"], hello_msg);
+
+
+        let point2 = person_target_point;
+
+        let hello_msg2 = "Nice to meet you.";
+
+        var contentString2 = `
+    <p style='margin:0;line-height:1.5;font-size:13px;'>
+    ${hello_msg2}
+    </p></div>`;
+        // Create a <h4> element
+        var h4Element2 = document.createElement('h4');
+
+        // Set styles
+        h4Element2.style.margin = '0 0 5px 0';
+
+        // Set text content
+        h4Element2.textContent = person_target['nick_name'];
+
+
+        const offsetpoint2 = new google.maps.Size(20, -50);
+        infowindow2 = new google.maps.InfoWindow({
+            content: contentString2,
+            ariaLabel: "Profile",
+            headerContent: h4Element2,
+            // headerDisabled: true,
+            position: point2,
+            pixelOffset: offsetpoint2,
+        });
+
+
+        setTimeout(function () {
+            infowindow.close();
+        }, 1500);
+
+
+        setTimeout(function () {
+            infowindow2.open({
+                anchor: null,
+                map,
+            });
+        }, 1500);
+
+
+        setTimeout(function () {
+            infowindow2.close();
+        }, 3000);
+    }
 }
 
 function stop_talk_to_it(nation_id) {
@@ -1499,6 +1607,29 @@ function stop_talk_to_it(nation_id) {
         marker.setVisible(true);
     } catch (e) {
         console.warn('stop_talk_to_it marker restore failed:', e);
+    }
+
+    try {
+        let targetAccount = '';
+        try {
+            if (typeof person_target !== 'undefined' && person_target && person_target["account"]) {
+                targetAccount = String(person_target["account"]).trim();
+            }
+        } catch (e) {
+        }
+        if (!targetAccount) {
+            try {
+                const p = getPersonDataByNationId(nation_id);
+                if (p && p["account"]) {
+                    targetAccount = String(p["account"]).trim();
+                }
+            } catch (e) {
+            }
+        }
+        if (targetAccount) {
+            __snsSendMessage(targetAccount, 'TERMINATE');
+        }
+    } catch (e) {
     }
 
     try {

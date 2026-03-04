@@ -250,6 +250,15 @@ class MapMovementMixin:
         lat = self.aichatcfg_record.current_position[1]
 
         try:
+            eps = 1e-9
+            if abs(float(lng)) < eps and abs(float(lat)) < eps:
+                logger.warning("Skip persisting current_position: (0,0) is not allowed")
+                return
+        except Exception:
+            logger.warning("Skip persisting current_position: invalid lng/lat")
+            return
+
+        try:
             update_AiChatCfg_map(current_position=json.dumps({"lng": float(lng), "lat": float(lat)}, ensure_ascii=False))
         except Exception as e:
             logger.warning("Failed to persist current_position after moving: %s", e)

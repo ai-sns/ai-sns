@@ -125,3 +125,7 @@ class HumanControlStateRequest(BaseModel):
 
 class HumanMessageRequest(BaseModel):
     message: str
+
+
+class AgentInstructionRequest(BaseModel):
+    instruction: str

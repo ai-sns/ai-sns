@@ -668,6 +668,71 @@ class SNSService:
             "message": "Human message received"
         }
 
+    async def submit_agent_instruction(self, instruction: str) -> dict:
+        global _social_engine_instance, _social_engine_running
+
+        raw_instruction = str(instruction or '').strip()
+        if not raw_instruction:
+            return {
+                "success": False,
+                "message": "Instruction is empty"
+            }
+
+        try:
+            started_flag = bool(getattr(_social_engine_instance, "started_flag", False)) if _social_engine_instance is not None else False
+        except Exception:
+            started_flag = False
+
+        if (not _social_engine_running) or (_social_engine_instance is None) or (not started_flag):
+            await self.start_social_engine()
+
+        if _social_engine_instance is None:
+            return {
+                "success": False,
+                "message": "AI Social Engine is not initialized"
+            }
+
+        formatted_instruction = raw_instruction
+        try:
+            if raw_instruction.startswith("【3_COMMUNICATE】") and "###" not in raw_instruction:
+                formatted_instruction = f"### Current Task List\n\n### Next Action\n{raw_instruction}\n"
+        except Exception:
+            formatted_instruction = raw_instruction
+
+        try:
+            _social_engine_instance.handle_parse_agent_instruction_for_process_activity(formatted_instruction)
+        except Exception as e:
+            logger.error(f"Error submitting agent instruction: {e}")
+            return {
+                "success": False,
+                "message": f"Failed to submit agent instruction: {str(e)}"
+            }
+
+        try:
+            status_payload = await self.get_social_engine_status()
+        except Exception:
+            status_payload = {
+                "success": True,
+                "running": bool(_social_engine_running),
+                "started": bool(getattr(_social_engine_instance, "started_flag", False)),
+                "task_status": getattr(_social_engine_instance, "map_task_status", None),
+            }
+
+        try:
+            if isinstance(status_payload, dict):
+                await websocket_manager.broadcast({
+                    "type": "sns_engine_status",
+                    **status_payload
+                })
+        except Exception as e:
+            logger.warning(f"Failed to broadcast engine status: {e}")
+
+        return {
+            "success": True,
+            "message": "Agent instruction submitted",
+            "engine_status": status_payload
+        }
+
     async def get_ai_chat_config(self, user_id: str = None):
         """Get AI chat configuration"""
         try:

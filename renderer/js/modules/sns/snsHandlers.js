@@ -2595,10 +2595,56 @@ export default {
                 console.log('SNS update received:', message);
                 this.handleSNSUpdate(message);
             }
+            if (message.type === 'sns_engine_status') {
+                try {
+                    this.handleSNSEngineStatusUpdate(message);
+                } catch (e) {
+                }
+            }
         };
 
         window.addEventListener('websocket-message', this.snsUpdateListener);
         console.log('SNS update listener initialized');
+    },
+
+    handleSNSEngineStatusUpdate(payload) {
+        const startBtn = document.getElementById('snsStartBtn');
+        if (!startBtn) return;
+
+        const taskStatus = String(payload?.task_status || '').toLowerCase();
+        const running = !!(payload && payload.running);
+        const started = !!(payload && payload.started);
+        const active = running || started || taskStatus === 'started' || taskStatus === 'paused';
+
+        const setStartButtonState = (state) => {
+            if (state === 'start') {
+                startBtn.classList.remove('running');
+                startBtn.title = '';
+                startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Start</span>`;
+                return;
+            }
+            if (state === 'pause') {
+                startBtn.classList.add('running');
+                startBtn.title = 'Right click to get more control';
+                startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span>Pause</span>`;
+                return;
+            }
+            if (state === 'resume') {
+                startBtn.classList.remove('running');
+                startBtn.title = '';
+                startBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Resume</span>`;
+            }
+        };
+
+        if (!active) {
+            setStartButtonState('start');
+            return;
+        }
+        if (taskStatus === 'paused') {
+            setStartButtonState('resume');
+            return;
+        }
+        setStartButtonState('pause');
     },
 
     /**

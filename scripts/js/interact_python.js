@@ -12,6 +12,12 @@ async function _syncCurrentPositionOnce(lng, lat) {
     const latNum = _coerceNumber(lat);
     if (lngNum === null || latNum === null) return;
 
+    const eps = 1e-9;
+    if (Math.abs(lngNum) < eps && Math.abs(latNum) < eps) {
+        showAlert('Invalid current_position: (0,0) is not allowed', true);
+        return;
+    }
+
     __lastPositionSyncAt = Date.now();
     postLocationUpdateToParent(lngNum, latNum);
 
@@ -22,7 +28,10 @@ async function _syncCurrentPositionOnce(lng, lat) {
     } catch (e) {
     }
 
-    await jsonrpcRequest('update_map_settings', { current_position: { lng: lngNum, lat: latNum } });
+    const resp = await jsonrpcRequest('update_map_settings', { current_position: { lng: lngNum, lat: latNum } });
+    if (resp && resp.success === false) {
+        showAlert(String(resp.message || 'Failed to update current_position'), true);
+    }
 }
 
 function sync_current_position(lng, lat, options = {}) {
@@ -80,6 +89,12 @@ async function _syncLocationOnce(lng, lat, maxDistanceM) {
     const latNum = _coerceNumber(lat);
     if (lngNum === null || latNum === null) return;
 
+    const eps = 1e-9;
+    if (Math.abs(lngNum) < eps && Math.abs(latNum) < eps) {
+        showAlert('Invalid current_position: (0,0) is not allowed', true);
+        return;
+    }
+
     __lastLocationSyncAt = Date.now();
     postLocationUpdateToParent(lngNum, latNum);
 
@@ -88,6 +103,11 @@ async function _syncLocationOnce(lng, lat, maxDistanceM) {
         lat: latNum,
         max_distance_m: _coerceNumber(maxDistanceM) || 1000
     });
+
+    if (resp && resp.success === false) {
+        showAlert(String(resp.message || 'Failed to update location'), true);
+        return;
+    }
 
     const url = resp && resp.success && resp.data ? String(resp.data.url || '').trim() : '';
     if (url) {
@@ -530,6 +550,7 @@ var handle_command = function (command, param_1, param_2) {
                 update_map_setting("route_start", "");
                 update_map_setting("route_end", "");
                 update_map_setting("route_current_position", "");
+                update_map_setting("route_points", "");
                 update_map_setting("route", "");
             }
 
@@ -634,7 +655,8 @@ async function loadMapSetting() {
             route: data.route_distance,
             route_start: data.route_start,
             route_end: data.route_end,
-            route_status: data.route_status
+            route_status: data.route_status,
+            route_points: data.route_points
         });
         handle_map_setting_loaded(setting_json);
     }
@@ -678,8 +700,47 @@ function handle_map_setting_loaded(setting_json) {
         route,
         route_start,
         route_end,
-        route_status
+        route_status,
+        route_points
     } = settings;
+
+    // Cache route points for route replay.
+    // It is stored as a JSON string.
+    // Preferred format: { provider: "baidu"|"google", points: [{lng,lat}, ...] }
+    // Backward compatible: [{lng,lat}, ...]
+    let cachedRoutePoints = [];
+    let cachedRouteProvider = '';
+    try {
+        if (typeof route_points === 'string' && route_points.trim()) {
+            const parsed = JSON.parse(route_points);
+            if (Array.isArray(parsed)) {
+                cachedRoutePoints = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+                cachedRouteProvider = String(parsed.provider || '').trim();
+                cachedRoutePoints = Array.isArray(parsed.points) ? parsed.points : [];
+            }
+        }
+    } catch (e) {
+        cachedRoutePoints = [];
+        cachedRouteProvider = '';
+    }
+
+    cachedRoutePoints = (Array.isArray(cachedRoutePoints) ? cachedRoutePoints : [])
+        .map(p => {
+            const lng = Number(p && p.lng);
+            const lat = Number(p && p.lat);
+            if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+            return { lng, lat };
+        })
+        .filter(Boolean);
+
+    try {
+        if (typeof window !== 'undefined') {
+            window.__cachedRoutePoints = cachedRoutePoints;
+            window.__cachedRouteProvider = cachedRouteProvider;
+        }
+    } catch (e) {
+    }
 
     // Check required fields; alert user if any is missing
     if (!nationid || nationid === "") {
@@ -829,6 +890,37 @@ function handle_map_setting_loaded(setting_json) {
                     endInput.value = route_end;
                 }
 
+                const points = (typeof window !== 'undefined' && Array.isArray(window.__cachedRoutePoints))
+                    ? window.__cachedRoutePoints
+                    : [];
+
+                const runtimeProvider = (typeof window !== 'undefined' && window.map_type) ? String(window.map_type) : '';
+                const cachedProvider = (typeof window !== 'undefined' && window.__cachedRouteProvider) ? String(window.__cachedRouteProvider) : '';
+                const canReplayFromCache = points && points.length >= 2 && !!cachedProvider && cachedProvider === runtimeProvider;
+
+                if (canReplayFromCache && typeof window.loadRouteFromPoints === 'function' && !window.planRouteRunning) {
+                    window.planRouteRunning = true;
+                    try {
+                        window.loadRouteFromPoints(points);
+                        if (map_type == 1) {
+                            setTimeout(function () {
+                                continueTrack();
+                            }, 1500);
+                        }
+
+                        setTimeout(function () {
+                            pauseTrack();
+                        }, 2000);
+                    } catch (e) {
+                        console.error("Error executing loadRouteFromPoints:", e);
+                    } finally {
+                        setTimeout(function () {
+                            window.planRouteRunning = false;
+                        }, 1000);
+                    }
+                    return;
+                }
+
                 if (typeof planRoute === 'function' && !window.planRouteRunning) {
                     window.planRouteRunning = true;
                     try {
@@ -846,7 +938,7 @@ function handle_map_setting_loaded(setting_json) {
                         console.error("Error executing planRoute:", e);
                     } finally {
                         setTimeout(function () {
-                            window.planRouteRunning = true;
+                            window.planRouteRunning = false;
                         }, 1000);
                     }
                 }

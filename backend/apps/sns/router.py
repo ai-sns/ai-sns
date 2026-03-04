@@ -19,7 +19,8 @@ from backend.apps.sns.schemas import (
     SocialRoleItem,
     SocialRoleUpdateRequest,
     HumanControlStateRequest,
-    HumanMessageRequest
+    HumanMessageRequest,
+    AgentInstructionRequest
 )
 
 router = APIRouter()
@@ -404,4 +405,13 @@ async def send_human_message(
 ):
     service = SNSService(db)
     return await service.send_human_message(request.message)
+
+
+@router.post("/agent-instruction")
+async def submit_agent_instruction(
+    request: AgentInstructionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    service = SNSService(db)
+    return await service.submit_agent_instruction(request.instruction)
 

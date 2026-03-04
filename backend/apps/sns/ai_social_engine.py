@@ -705,7 +705,7 @@ class AISocialEngine(
 
     def human_message_received(self, instruction):
         if self.human_take_over:
-            if self.get_command_status() == "ask_human_instruction":
+            if self.human_talk_type == 0:
                 if self.agent_replying_flag:
                     # TODO: Send a prompt to frontend: "Hint", "Agent is completing the previous task, please wait..."
                     return

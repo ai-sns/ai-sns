@@ -16,6 +16,129 @@ var coordinateCaptureMode = false;
 var targetInputField = null;
 var lastClickPoint = null;
 
+// Rebuild the route directly from cached points.
+// points: [{lng:number, lat:number}, ...]
+function loadRouteFromPoints(points) {
+    try {
+        if (!Array.isArray(points) || points.length < 2) {
+            throw new Error('Invalid route points');
+        }
+
+        // Clear existing route/animation before rebuilding.
+        stopTrack();
+
+        const pointArray = points
+            .map(p => {
+                const lng = Number(p && p.lng);
+                const lat = Number(p && p.lat);
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+                return new BMapGL.Point(lng, lat);
+            })
+            .filter(Boolean);
+
+        if (pointArray.length < 2) {
+            throw new Error('Route points are empty after normalization');
+        }
+
+        // Draw route polyline.
+        try {
+            currentRoute = new BMapGL.Polyline(pointArray, {
+                strokeColor: "blue",
+                strokeWeight: 2,
+                strokeOpacity: 0.5
+            });
+            map.addOverlay(currentRoute);
+        } catch (e) {
+        }
+
+        // Build Track data.
+        track = new Track.View(map, {
+            lineLayerOptions: {
+                style: {
+                    strokeWeight: 8,
+                    strokeLineJoin: 'round',
+                    strokeLineCap: 'round'
+                }
+            }
+        });
+
+        trackData = [];
+        colorOffset = [];
+
+        for (var item of pointArray) {
+            var trackPoint = new Track.TrackPoint(item);
+            trackData.push(trackPoint);
+            var choose = [0.9, 0.5, 0.1];
+            var color = choose[Math.floor(Math.random() * choose.length)];
+            colorOffset.push(color);
+        }
+
+        trackLine = new Track.LocalTrack({
+            trackPath: trackData,
+            duration: move_duration,
+            style: {
+                sequence: true,
+                marginLength: 32,
+                arrowColor: '#fff',
+                strokeTextureUrl: 'https://mapopen-pub-jsapi.bj.bcebos.com/jsapiGlgeo/img/down.png',
+                strokeTextureWidth: 64,
+                strokeTextureHeight: 32,
+                traceColor: [27, 142, 236]
+            },
+            linearTexture: [[0, '#f45e0c'], [0.5, '#f6cd0e'], [1, '#2ad61d']],
+            gradientColor: colorOffset
+        });
+
+        track.addTrackLine(trackLine);
+
+        // Create move point model.
+        movePoint = new Track.ModelPoint({ point: trackData[0].getPoint(), style:{
+            url: 'https://mapopen-pub-jsapi.bj.bcebos.com/jsapiGlgeo/img/bus.glb',
+            scale: 9,
+            level: 18,
+            rotationX: 90,
+            rotationY: 90,
+            rotationZ: 0
+        } });
+
+        trackLine.setMovePoint(movePoint);
+
+        // Fit map to route.
+        try {
+            const box = trackLine.getBBox();
+            if (box) {
+                var bounds = [new BMapGL.Point(box[0], box[1]), new BMapGL.Point(box[2], box[3])];
+                map.setViewport(bounds);
+            }
+        } catch (e) {
+        }
+
+        try {
+            route_status = 'playing';
+            update_map_setting('route_status', route_status);
+        } catch (e) {
+        }
+
+        try {
+            update_map_setting('route_points', JSON.stringify({ provider: 'baidu', points: points }));
+        } catch (e) {
+        }
+    } catch (e) {
+        console.error('loadRouteFromPoints failed:', e);
+        try {
+            showAlert('Failed to replay cached route. Re-planning is required.', true);
+        } catch (e2) {
+        }
+    }
+}
+
+try {
+    if (typeof window !== 'undefined') {
+        window.loadRouteFromPoints = loadRouteFromPoints;
+    }
+} catch (e) {
+}
+
 // Geocode address to coordinate (Promise wrapper)
 function geocodeAddress(address, city) {
     return new Promise((resolve, reject) => {

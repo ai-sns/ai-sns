@@ -10,8 +10,10 @@ const layerManager = {
 
 /* 1. Ground overlay initialization */
 function initGroundOverlay() {
-    const pStart = new BMapGL.Point(116.22971, 39.74441);
-    const pEnd = new BMapGL.Point(116.25646, 39.76812);
+    // const pStart = new BMapGL.Point(116.22749734234506, 40.00624462450565);
+    // const pEnd = new BMapGL.Point(116.24508640812037, 40.03867303424458);
+    const pStart = new BMapGL.Point(-122.40210571869962, 37.55816843366316);
+    const pEnd = new BMapGL.Point(-122.43508166111967, 37.57643015650198);
     const bounds = new BMapGL.Bounds(
         new BMapGL.Point(Math.min(pStart.lng, pEnd.lng), Math.min(pStart.lat, pEnd.lat)),
         new BMapGL.Point(Math.max(pStart.lng, pEnd.lng), Math.max(pStart.lat, pEnd.lat))
@@ -33,9 +35,9 @@ function initModelConfigs() {
         {
             id: 'mainModel',
             layerId: 'mainLayer',
-            position: [116.36200604013413, 39.94527332861826],
-            modelUrl: 'https://cdn.jsdelivr.net/gh/photonchen/photonchen.github.io/aisnsbuilding.glb',
-            scale: 0.4,
+            position: [103.86335829551814, 1.2847964346121146],
+            modelUrl: 'aisnsbuilding.glb',
+            scale: 0.02,
             rotation: {x: Math.PI / 2}
         },
         {
@@ -118,7 +120,7 @@ function loadFacilityModel(threeLayer, config) {
  */
 function loadCubeModel(threeLayer) {
     const texture = new THREE.TextureLoader().load(
-        'https://i.ibb.co/PtWsXLY/three-Layer.png',
+        'aisnslayer3d.png',
         () => console.log('Cube texture loaded successfully'),
         undefined,
         error => console.error('Failed to load cube texture:', error)
@@ -132,11 +134,13 @@ function loadCubeModel(threeLayer) {
         opacity: 1
     });
 
-    const geometry = new THREE.BoxGeometry(500, 500, 500);
+    const geometry = new THREE.BoxGeometry(100, 100, 100);
     const cube = new THREE.Mesh(geometry, material);
 
-    const mcpoint = convertCoords([116.36270578593066, 39.931188733629675]);
-    cube.position.set(mcpoint.lng, mcpoint.lat, 250);
+    // const mcpoint = convertCoords([116.19042703542924, 39.97619992566233]);
+
+    const mcpoint = convertCoords([-122.47283866789105, 37.530317234458025]);
+    cube.position.set(mcpoint.lng, mcpoint.lat, 50);
 
     const group = new THREE.Group();
     group.add(cube);

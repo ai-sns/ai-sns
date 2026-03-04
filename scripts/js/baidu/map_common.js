@@ -59,6 +59,16 @@ driving = new BMapGL.DrivingRouteLine(map, {
             gpsPositions = getAllGpsPositions(result);
             console.log("Planning successful, number of coordinates:", gpsPositions.length);
 
+            try {
+                if (gpsPositions && Array.isArray(gpsPositions) && gpsPositions.length >= 2) {
+                    const points = gpsPositions.map(p => ({ lng: Number(p.lng), lat: Number(p.lat) }))
+                        .filter(p => Number.isFinite(p.lng) && Number.isFinite(p.lat));
+                    update_map_setting("route_points", JSON.stringify({ provider: "baidu", points: points }));
+                }
+            } catch (e) {
+                console.warn("Failed to persist route_points:", e);
+            }
+
             const start = document.getElementById("start").value.trim();
             const end = document.getElementById("end").value.trim();
 
@@ -958,6 +968,36 @@ var infoWindow = new BMapGL.InfoWindow("Hi, I'm YBot", opts);  // Create info wi
 
 var infoWindow2 = new BMapGL.InfoWindow("Hello!", opts);  // Create info window object
 
+function __snsPostJson(path, payload) {
+    try {
+        const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+            ? API_BASE_URL
+            : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
+        const normalizedBaseUrl = (resolvedBaseUrl || '').replace(/\/+$/, '');
+        const url = `${normalizedBaseUrl}${path}`;
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload || {})
+        });
+    } catch (e) {
+        return null;
+    }
+}
+
+function __snsHumanMessage(message) {
+    return __snsPostJson('/api/sns/human-message', { message: String(message || '') });
+}
+
+function __snsSendMessage(to_account, content) {
+    return __snsPostJson('/api/sns/send-message', {
+        to_account: String(to_account || ''),
+        content: String(content || '')
+    });
+}
+
 function start_talk_to_it(nation_id, content) {
     // div = hiddenPoints[nation_id];
     // div.style.display = 'none';
@@ -1035,6 +1075,16 @@ function talk_to_it(nation_id, content) {
     person_data_me = getPersonDataByNationId(nation_id_me);
     person_target = getPersonDataByNationId(nation_id);
 
+    try {
+        const account = (person_target && person_target["account"]) ? String(person_target["account"]).trim() : '';
+        if (account) {
+            __snsPostJson('/api/sns/agent-instruction', {
+                instruction: `【3_COMMUNICATE】${account}`
+            });
+        }
+    } catch (e) {
+    }
+
     loadModel(person_target);
 
 
@@ -1067,36 +1117,37 @@ function talk_to_it(nation_id, content) {
     }
 
     rotateMyModel180AfterTalkMove(nation_id);
-    // var point = new BMapGL.Point(116.28882, 39.72164);
-    let point = my_new_point;
+    if (false) {
+        // var point = new BMapGL.Point(116.28882, 39.72164);
+        let point = my_new_point;
 
-    let opts = {
-        width: 200,     // Info window width 200
-        height: 100,     // Info window height 100
-        title: person_data_me["nick_name"], // Info window title
-        offset: new BMapGL.Size(30, -70),
-    }
-    let hello_msg = "Hello";
-    let infoWindow_me = new BMapGL.InfoWindow(hello_msg, opts);  // Create info window object
+        let opts = {
+            width: 200,     // Info window width 200
+            height: 100,     // Info window height 100
+            title: person_data_me["nick_name"], // Info window title
+            offset: new BMapGL.Size(30, -70),
+        }
+        let hello_msg = "Hello";
+        let infoWindow_me = new BMapGL.InfoWindow(hello_msg, opts);  // Create info window object
 
-    map.openInfoWindow(infoWindow_me, point); // Open info window
-    if (content != "__no_info_window__") {
+        map.openInfoWindow(infoWindow_me, point); // Open info window
+        if (content != "__no_info_window__") {
 
-        send_im(person_data_me["account"], person_target["account"], hello_msg);
-    }
-    // var point2 = new BMapGL.Point(116.28882, 39.71564);
-    point2 = person_target_point;
+            send_im(person_data_me["account"], person_target["account"], hello_msg);
+        }
+        // var point2 = new BMapGL.Point(116.28882, 39.71564);
+        point2 = person_target_point;
 
-    let opts2 = {
-        width: 200,     // Info window width 200
-        height: 100,     // Info window height 100
-        title: person_target["nick_name"], // Info window title
-        offset: new BMapGL.Size(30, -70),
-    }
+        let opts2 = {
+            width: 200,     // Info window width 200
+            height: 100,     // Info window height 100
+            title: person_target["nick_name"], // Info window title
+            offset: new BMapGL.Size(30, -70),
+        }
 
 
-    // Use setTimeout to delay opening the second info window by 1.5s
-    let infoWindow_person_target = new BMapGL.InfoWindow("Nice to meet you.", opts2);  // Create info window object
+        // Use setTimeout to delay opening the second info window by 1.5s
+        let infoWindow_person_target = new BMapGL.InfoWindow("Nice to meet you.", opts2);  // Create info window object
 
 
         setTimeout(function () {
@@ -1107,6 +1158,7 @@ function talk_to_it(nation_id, content) {
         setTimeout(function () {
             map.closeInfoWindow();
         }, 3000);
+    }
 
 }
 
@@ -1140,6 +1192,29 @@ function stop_talk_to_it(nation_id) {
         }
     } catch (e) {
         console.warn('stop_talk_to_it restore failed:', e);
+    }
+
+    try {
+        let targetAccount = '';
+        try {
+            if (typeof person_target !== 'undefined' && person_target && person_target["account"]) {
+                targetAccount = String(person_target["account"]).trim();
+            }
+        } catch (e) {
+        }
+        if (!targetAccount) {
+            try {
+                const p = getPersonDataByNationId(nation_id);
+                if (p && p["account"]) {
+                    targetAccount = String(p["account"]).trim();
+                }
+            } catch (e) {
+            }
+        }
+        if (targetAccount) {
+            __snsSendMessage(targetAccount, 'TERMINATE');
+        }
+    } catch (e) {
     }
 
     try {

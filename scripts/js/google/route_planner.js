@@ -77,6 +77,97 @@ function initialize_route() {
     }
 }
 
+// Rebuild the route polyline directly from cached points.
+// points: [{lng:number, lat:number}, ...]
+function loadRouteFromPoints(points) {
+    try {
+        if (!Array.isArray(points) || points.length < 2) {
+            throw new Error('Invalid route points');
+        }
+
+        // Stop any existing simulation and clear overlays.
+        stopTrack();
+
+        const latLngs = points
+            .map(p => {
+                const lng = Number(p && p.lng);
+                const lat = Number(p && p.lat);
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+                return new google.maps.LatLng(lat, lng);
+            })
+            .filter(Boolean);
+
+        if (latLngs.length < 2) {
+            throw new Error('Route points are empty after normalization');
+        }
+
+        polyline = new google.maps.Polyline({
+            path: latLngs,
+            strokeColor: '#FF0000',
+            strokeWeight: 3
+        });
+
+        poly2 = new google.maps.Polyline({
+            path: [latLngs[0]],
+            strokeColor: '#FF0000',
+            strokeWeight: 3
+        });
+
+        startLocation = { latlng: latLngs[0], address: '' };
+        endLocation = { latlng: latLngs[latLngs.length - 1], address: '' };
+
+        if (user_marker) {
+            try {
+                user_marker.setMap(null);
+            } catch (e) {
+            }
+            user_marker = null;
+        }
+
+        // Recreate marker at last known route current position if available.
+        let startPos = latLngs[0];
+        try {
+            if (init_route_current_position && init_route_current_position.lat !== undefined && init_route_current_position.lng !== undefined) {
+                startPos = new google.maps.LatLng(Number(init_route_current_position.lat), Number(init_route_current_position.lng));
+            }
+        } catch (e) {
+        }
+
+        user_marker = createMarker(startPos, 'start', '', 'green');
+
+        const bounds = new google.maps.LatLngBounds();
+        latLngs.forEach(p => bounds.extend(p));
+        polyline.setMap(map);
+        map.fitBounds(bounds);
+
+        // Ensure route status is consistent.
+        try {
+            route_status = 'playing';
+            update_map_setting('route_status', route_status);
+        } catch (e) {
+        }
+
+        // Persist points to ensure DB stays consistent.
+        try {
+            update_map_setting('route_points', JSON.stringify({ provider: 'google', points: points }));
+        } catch (e) {
+        }
+    } catch (e) {
+        console.error('loadRouteFromPoints failed:', e);
+        try {
+            showAlert('Failed to replay cached route. Re-planning is required.', true);
+        } catch (e2) {
+        }
+    }
+}
+
+try {
+    if (typeof window !== 'undefined') {
+        window.loadRouteFromPoints = loadRouteFromPoints;
+    }
+} catch (e) {
+}
+
 // Toggle coordinate link show/hide
 function toggleCoordinateLink() {
     const positionType = document.getElementById("position_type").value;
@@ -472,6 +563,26 @@ function handleRoute(directions) {
 
     polyline.setMap(map);
     map.fitBounds(bounds);
+
+    try {
+        const path = polyline && typeof polyline.getPath === 'function' ? polyline.getPath() : null;
+        const points = [];
+        if (path && typeof path.getLength === 'function') {
+            for (let i = 0; i < path.getLength(); i++) {
+                const p = path.getAt(i);
+                if (!p) continue;
+                const lng = Number(p.lng());
+                const lat = Number(p.lat());
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+                points.push({ lng, lat });
+            }
+        }
+        if (points.length >= 2) {
+            update_map_setting("route_points", JSON.stringify({ provider: "google", points: points }));
+        }
+    } catch (e) {
+        console.warn("Failed to persist route_points:", e);
+    }
 }
 
 

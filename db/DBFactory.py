@@ -1221,6 +1221,7 @@ class AiChatCfg(Base):
     route_end = Column(String(500), doc="路线结束")
     route_status = Column(String(100), doc="路线状态")
     route_current_position = Column(String(100), doc="当前路线位置")
+    route_points = Column(Text, doc="Route points")
     route = Column(Text, doc="路线")
     level = Column(Integer)
     credit = Column(Integer)
@@ -1247,7 +1248,7 @@ class AiChatCfg(Base):
 
 
 
-def add_AiChatCfg(user_id, account, password, nickname, sign, status, humantakeover, name, borndate, gender, area, state, city, community, street_block, address, mail, imaccount, phone, organization, title, orgposition, memo, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, serveraddress, port, ssl, resource, proxyused, proxyaddress, proxyport, proxyssl, savepasswordlocal, autoconnect, sendreceipt, sendreadflag, sendchatstatus, sendgroupchatstatus, agreeallfriendrequest, nationid, nationpassword, sns_url, avatar, avatar3d, house3d, map_type, map_api_key, map_id, current_position, home_position, positionx, positiony, positionz, route_start, route_end, route_status, route_current_position, route, level=1, credit=100, money=100, token_unit="k", life_point=4, energy_point=3, move_point=3, exp_point=4, iq_point=5):
+def add_AiChatCfg(user_id, account, password, nickname, sign, status, humantakeover, name, borndate, gender, area, state, city, community, street_block, address, mail, imaccount, phone, organization, title, orgposition, memo, islimittotalmessage, islimitmessagepp, totalmessages, ppmessages, serveraddress, port, ssl, resource, proxyused, proxyaddress, proxyport, proxyssl, savepasswordlocal, autoconnect, sendreceipt, sendreadflag, sendchatstatus, sendgroupchatstatus, agreeallfriendrequest, nationid, nationpassword, sns_url, avatar, avatar3d, house3d, map_type, map_api_key, map_id, current_position, home_position, positionx, positiony, positionz, route_start, route_end, route_status, route_current_position, route_points, route, level=1, credit=100, money=100, token_unit="k", life_point=4, energy_point=3, move_point=3, exp_point=4, iq_point=5):
     session = Session()
     aichatCfg = AiChatCfg(
         user_id=user_id, account=account, password=password, nickname=nickname,
@@ -1268,7 +1269,7 @@ def add_AiChatCfg(user_id, account, password, nickname, sign, status, humantakeo
         map_api_key=map_api_key, map_id=map_id, current_position=current_position, home_position=home_position,
         positionx=positionx, positiony=positiony, positionz=positionz,
         route_start=route_start, route_end=route_end, route_status=route_status,
-        route_current_position=route_current_position, route=route,
+        route_current_position=route_current_position, route_points=route_points, route=route,
         level=level, credit=credit, money=money, token_unit=token_unit, life_point=life_point, energy_point=energy_point, move_point=move_point, exp_point=exp_point, iq_point=iq_point
     )
     session.add(aichatCfg)
@@ -1378,6 +1379,7 @@ def query_AiChatCfg_map_setting(**kwargs):
             "route_end": record.route_end,
             "route_status": record.route_status,
             "route_current_position": record.route_current_position,
+            "route_points": getattr(record, "route_points", None),
             "route": record.route
         }
         return fields

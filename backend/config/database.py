@@ -218,6 +218,10 @@ def _ensure_aichat_cfg_goods_service_columns(db_path: str) -> None:
             cursor.execute("ALTER TABLE aichat_cfg ADD COLUMN goods_or_service_price VARCHAR(100)")
             changed = True
 
+        if "route_points" not in columns:
+            cursor.execute("ALTER TABLE aichat_cfg ADD COLUMN route_points TEXT")
+            changed = True
+
         if changed:
             conn.commit()
             logger.info("Auto-migrated aichat_cfg: ensured goods/service columns")
