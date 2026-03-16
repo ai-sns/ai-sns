@@ -307,6 +307,68 @@ function parseModelFilename(filename) {
 }
 
 /**
+ * Parse model parameters from a web URL query parameter.
+ * Expected query param: modelparams=rotationX_rotationY_rotationZ_altitude_scale_animationIndex
+ * Example: https://example.com/model.glb?modelparams=0_0_0_0_1_0
+ *
+ * @param {string} url - Web URL
+ * @returns {object|null} Parsed params; returns null if parsing fails
+ */
+function parseModelParamsFromWebUrl(url) {
+    try {
+        const rawUrl = String(url || '').trim();
+        if (!rawUrl) return null;
+
+        let paramValue = '';
+        try {
+            const normalized = rawUrl.startsWith('//')
+                ? `${(typeof window !== 'undefined' && window.location && window.location.protocol) ? window.location.protocol : 'https:'}${rawUrl}`
+                : rawUrl;
+            const u = new URL(normalized);
+            paramValue = u.searchParams.get('modelparams') || '';
+        } catch (e) {
+            const match = rawUrl.match(/[?&]modelparams=([^&]+)/i);
+            paramValue = match && match[1] ? match[1] : '';
+        }
+
+        if (!paramValue) return null;
+        let decoded = '';
+        try {
+            decoded = decodeURIComponent(String(paramValue).replace(/\+/g, '%20')).trim();
+        } catch (e) {
+            decoded = String(paramValue).trim();
+        }
+
+        const parts = decoded.split('_').filter(s => s !== '');
+        if (parts.length < 6) {
+            return null;
+        }
+
+        // Parse scale parameter (5th number, index 4)
+        // If it starts with 0, treat as decimal, e.g. 05 => 0.5
+        let scaleMultiplier = 1;
+        const scaleParam = String(parts[4] || '');
+        if (scaleParam.startsWith('0') && scaleParam.length > 1) {
+            scaleMultiplier = parseFloat('0.' + scaleParam.substring(1));
+            scaleMultiplier = scaleMultiplier * 10;
+        } else {
+            scaleMultiplier = parseFloat(scaleParam);
+        }
+
+        return {
+            rotationX: parseFloat(parts[0]) || 0,
+            rotationY: parseFloat(parts[1]) || 0,
+            rotationZ: parseFloat(parts[2]) || 0,
+            altitude: parseFloat(parts[3]) || 0,
+            scaleMultiplier: scaleMultiplier,
+            animationIndex: parseInt(parts[5]) || 0
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
  * Check whether URL is a web URL
  * @param {string} url - URL string
  * @returns {boolean} True if it's a web URL
@@ -700,15 +762,15 @@ function loadModel(persondata) {
         // Add directory prefix
         url = '/scripts/avatar3d/' + url;
         console.log(`Full model path: ${url}`);
-    }else{
-        modelParams = {
-        rotationX:  0,      // 1st number: X rotation (degrees)
-        rotationY:  0,      // 2nd number: Y rotation (degrees)
-        rotationZ:  0,      // 3rd number: Z rotation (degrees)
-        altitude:  0,       // 4th number: altitude
-        scaleMultiplier: 1,     // 5th number: scale multiplier (Baidu is ~1.8x smaller than Google)
-        animationIndex:  0    // 6th number: animation index
-        }
+    } else {
+        modelParams = parseModelParamsFromWebUrl(url) || {
+            rotationX: 0,
+            rotationY: 0,
+            rotationZ: 0,
+            altitude: 0,
+            scaleMultiplier: 1,
+            animationIndex: 0
+        };
     }
 
     const loader = new mapvgl.THREELoader.GLTFLoader();
@@ -1263,6 +1325,22 @@ function __snsEndActiveConversation(payload) {
 }
 
 function start_talk_to_it(nation_id, content) {
+
+    // Ensure only one active talk target at a time.
+    try {
+        const prev = (typeof window !== 'undefined') ? window.__active_talk_nation_id : undefined;
+        if (prev && String(prev) !== String(nation_id) && typeof stop_talk_to_it === 'function') {
+            stop_talk_to_it(prev, { skipTerminate: true });
+        }
+    } catch (e) {
+        console.warn('start_talk_to_it pre-stop failed:', e);
+    }
+    try {
+        if (typeof window !== 'undefined') {
+            window.__active_talk_nation_id = String(nation_id);
+        }
+    } catch (e) {
+    }
 
     person_target_point = getPersonPointByNationId(nation_id);
     person_data_me = getPersonDataByNationId(nation_id_me);

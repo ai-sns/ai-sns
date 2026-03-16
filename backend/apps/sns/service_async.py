@@ -840,6 +840,40 @@ class SNSService:
                 "message": "AI Social Engine is not initialized"
             }
 
+        try:
+            # Frontend chat button (talk_to_it) uses 【3_COMMUNICATE】 instruction.
+            # In this mode we bypass contact cooldown/recent limits so the user can
+            # immediately talk to the clicked person.
+            if "【3_COMMUNICATE】" in raw_instruction:
+                engine = _social_engine_instance
+                setattr(engine, "_bypass_contact_limits", True)
+
+                try:
+                    if not bool(getattr(engine, "human_take_over", False)):
+                        prev_task = getattr(engine, "_bypass_contact_limits_cleanup_task", None)
+                        if isinstance(prev_task, asyncio.Task) and not prev_task.done():
+                            prev_task.cancel()
+
+                        async def _cleanup_bypass_flag(target_engine):
+                            await asyncio.sleep(120)
+                            try:
+                                if bool(getattr(target_engine, "human_take_over", False)):
+                                    return
+                                if bool(getattr(target_engine, "_bypass_contact_limits", False)):
+                                    setattr(target_engine, "_bypass_contact_limits", False)
+                            except Exception:
+                                pass
+
+                        setattr(
+                            engine,
+                            "_bypass_contact_limits_cleanup_task",
+                            asyncio.create_task(_cleanup_bypass_flag(engine)),
+                        )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         # Ensure engine is fully ready and interrupt current tasks for priority execution
         await self._ensure_engine_running_for_priority_action()
 

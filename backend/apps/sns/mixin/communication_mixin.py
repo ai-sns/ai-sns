@@ -44,6 +44,18 @@ logger = logging.getLogger(__name__)
 
 
 class CommunicationMixin:
+    def _should_bypass_contact_limits(self) -> bool:
+        try:
+            if bool(getattr(self, "human_take_over", False)):
+                return True
+        except Exception:
+            pass
+
+        try:
+            return bool(getattr(self, "_bypass_contact_limits", False))
+        except Exception:
+            return False
+
     def _now_ts(self) -> float:
         return float(time.time())
 
@@ -149,6 +161,8 @@ class CommunicationMixin:
     def _is_contact_allowed(self, talk_type: str, account: str) -> bool:
         if not account:
             return False
+        if self._should_bypass_contact_limits():
+            return True
         cooldown_s = int(getattr(self, "contact_cooldown_seconds", 300) or 300)
         now_ts = self._now_ts()
         last_time = getattr(self, "_contact_last_time", None) or {}
@@ -164,6 +178,8 @@ class CommunicationMixin:
 
     def _get_filtered_people_list_for_talk_type(self, talk_type: str) -> List[dict]:
         people = list(self.get_people_list() or [])
+        if self._should_bypass_contact_limits():
+            return people
         cooldown_s = int(getattr(self, "contact_cooldown_seconds", 300) or 300)
         now_ts = self._now_ts()
         last_time = getattr(self, "_contact_last_time", None) or {}
@@ -213,6 +229,12 @@ class CommunicationMixin:
         self._conversation_last_activity_ts = self._now_ts()
         self._record_contact(talk_type, account)
         self._ensure_conversation_timeout_task()
+
+        try:
+            if getattr(self, "_bypass_contact_limits", False) and not bool(getattr(self, "human_take_over", False)):
+                self._bypass_contact_limits = False
+        except Exception:
+            pass
 
     def end_active_conversation(
         self,
