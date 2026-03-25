@@ -2528,6 +2528,8 @@ class SystemCfg(Base):
     memory_enabled = Column(Boolean, default=True)
     memory_embedding_enabled = Column(Boolean, default=False)
     log_retention_days = Column(Integer, default=3)
+    tool_check_every_n = Column(Integer, default=0)
+    tool_check_before_review_enabled = Column(Boolean, default=False)
     is_delete = Column(Boolean, default=False)
     create_time = Column(DateTime, default=datetime.now)
 
@@ -2555,6 +2557,10 @@ def _ensure_system_cfg_columns():
             cursor.execute("ALTER TABLE system_cfg ADD COLUMN memory_embedding_enabled INTEGER DEFAULT 0")
         if 'log_retention_days' not in columns:
             cursor.execute("ALTER TABLE system_cfg ADD COLUMN log_retention_days INTEGER DEFAULT 3")
+        if 'tool_check_every_n' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN tool_check_every_n INTEGER DEFAULT 0")
+        if 'tool_check_before_review_enabled' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN tool_check_before_review_enabled INTEGER DEFAULT 0")
         conn.commit()
     except Exception:
         try:
@@ -2815,6 +2821,30 @@ def update_prompt(id, **kwargs):
             setattr(record, key, value)
         session.commit()
     session.close()
+
+
+def upsert_prompt_by_title_with_tags(title: str, content: str, tags: str = "") -> bool:
+    """Upsert a prompt by title. Sets tags only on initial insert (does not overwrite existing tags)."""
+    session = Session()
+    try:
+        record = session.query(Prompt).filter_by(title=title).first()
+        if record:
+            record.content = content
+            session.commit()
+            return True
+
+        record = Prompt(title=title, content=content, tags=tags)
+        session.add(record)
+        session.commit()
+        return True
+    except Exception:
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        return False
+    finally:
+        session.close()
 
 
 def upsert_prompt_by_title(title: str, content: str) -> bool:

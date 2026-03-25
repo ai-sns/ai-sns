@@ -152,6 +152,7 @@ def apply_runtime_system_config(payload: dict) -> bool:
         "contact_recent_limit",
         "process_info_compact_every_n",
         "process_info_plan_summary_every_n",
+        "tool_check_every_n",
     ):
         if k in payload and payload[k] is not None:
             try:
@@ -163,6 +164,13 @@ def apply_runtime_system_config(payload: dict) -> bool:
                 changed = True
             except Exception:
                 continue
+
+    if "tool_check_before_review_enabled" in payload and _social_engine_instance is not None:
+        try:
+            setattr(_social_engine_instance, "tool_check_before_review_enabled", bool(payload["tool_check_before_review_enabled"]))
+            changed = True
+        except Exception:
+            pass
 
     try:
         if changed and hasattr(_social_engine_instance, "_ensure_conversation_timeout_task"):
@@ -390,6 +398,13 @@ class SNSService:
     async def send_message(self, to_account: str, content: str) -> dict:
         """Send a message via XMPP"""
         try:
+            to_account = (to_account or "").strip()
+            if (not to_account) or ("@" not in to_account):
+                return {
+                    "success": False,
+                    "message": "Invalid XMPP account. Expected a full JID like user@domain.",
+                }
+
             xmpp_manager = XMPPClientManager.get_instance()
             client = xmpp_manager.get_client()
 
@@ -470,6 +485,13 @@ class SNSService:
     async def send_file(self, to_account: str, file) -> dict:
         """Send a file via XMPP using XEP-0363"""
         try:
+            to_account = (to_account or "").strip()
+            if (not to_account) or ("@" not in to_account):
+                return {
+                    "success": False,
+                    "message": "Invalid XMPP account. Expected a full JID like user@domain.",
+                }
+
             xmpp_manager = XMPPClientManager.get_instance()
             client = xmpp_manager.get_client()
 
@@ -1936,13 +1958,55 @@ class SNSService:
                     if cost > 0:
                         current_money = float(getattr(config, 'money', 0) or 0)
                         if current_money < cost:
+                            try:
+                                msg = (
+                                    f"Insufficient balance to select profession {str(new_profession)}. "
+                                    f"Required: ${float(cost):.2f}, available: ${float(current_money):.2f}."
+                                )
+                                if _social_engine_instance is not None:
+                                    try:
+                                        if hasattr(_social_engine_instance, 'show_alert_on_map'):
+                                            _social_engine_instance.show_alert_on_map(msg, is_error=True)
+                                    except Exception:
+                                        pass
+                                    try:
+                                        ui = getattr(_social_engine_instance, 'taskmng_js', None)
+                                        if ui is not None:
+                                            ui.show_information(f"<b>{msg}</b>")
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
                             return {
                                 "success": False,
                                 "message": f"Insufficient balance. Selecting this profession requires {int(cost)}."
                             }
 
+                        money_before = float(current_money)
                         config.money = current_money - cost
                         deducted = cost
+
+                        try:
+                            money_after = float(getattr(config, 'money', 0) or 0)
+                            msg = (
+                                f"Profession updated to {str(new_profession)}. "
+                                f"Paid: ${float(cost):.2f}. "
+                                f"Money: ${money_before:.2f} -> ${money_after:.2f}."
+                            )
+                            if _social_engine_instance is not None:
+                                try:
+                                    if hasattr(_social_engine_instance, 'show_alert_on_map'):
+                                        _social_engine_instance.show_alert_on_map(msg, is_error=False)
+                                except Exception:
+                                    pass
+                                try:
+                                    ui = getattr(_social_engine_instance, 'taskmng_js', None)
+                                    if ui is not None:
+                                        ui.show_information(f"<b>{msg}</b>")
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
 
                 config.profession = new_profession
 

@@ -905,19 +905,19 @@ function handle_map_setting_loaded(setting_json) {
     nation_id_me = nationid;
 
     if (route_current_position && Object.keys(route_current_position).length > 0) {
-        appendMessageToBoard("Route current position: " + route_current_position.lng + ", " + route_current_position.lat,false);
+        appendMessageToBoard("<b>Route Current Position: </b> <br>" + route_current_position.lng + ", " + route_current_position.lat,false);
     }
 
     if (route && route !== "") {
-        appendMessageToBoard("Route distance: " + route,false);
+        appendMessageToBoard("<b>Route Distance: </b> <br>" + route,false);
     }
 
     if (route_end && route_end !== "") {
-        appendMessageToBoard("Route end: " + route_end,false);
+        appendMessageToBoard("<b>Route End: </b> <br>" + route_end,false);
     }
 
     if (route_start && route_start !== "") {
-        appendMessageToBoard("Route start: " + route_start,false);
+        appendMessageToBoard("<b>Route Start: </b> <br>" + route_start,false);
     }
 
     if (route_status && route_status !== "") {
@@ -933,14 +933,14 @@ function handle_map_setting_loaded(setting_json) {
     }
 
 
-    appendMessageToBoard("<b>Current position:</b> " + current_position.lng + ", " + current_position.lat,false);
+    appendMessageToBoard("<b>Current position:</b> <br>" + current_position.lng + ", " + current_position.lat,false);
     var display_map_type = (map_type == "0") ? "google" : "baidu";
-    appendMessageToBoard("<b>Map type:</b> <br>" + display_map_type,false);
+    appendMessageToBoard("<b>Map Type:</b> <br>" + display_map_type,false);
     appendMessageToBoard("<b>Profile:</b> <br>" + profile,false);
-    appendMessageToBoard("<b>3D avatar:</b> <br>" + avatar3d,false);
+    appendMessageToBoard("<b>3D Avatar:</b> <br>" + avatar3d,false);
     appendMessageToBoard("<b>Avatar:</b> <br>" + avatar,false);
-    appendMessageToBoard("<b>XMPP account:</b> <br>" + account,false);
-    appendMessageToBoard("<b>Nickname:</b> <br>" + nick_name,false);
+    appendMessageToBoard("<b>XMPP Account:</b> <br>" + account,false);
+    appendMessageToBoard("<b>NickName:</b> <br>" + nick_name,false);
     appendMessageToBoard("<b>Nation ID:</b> <br>" + nationid,false);
     appendMessageToBoard("<b>CONFIGURATION LOADED !</b>");
 
@@ -1171,26 +1171,6 @@ function Maximize() {
         }, '*');
     }
 
-    try {
-        const info = document.getElementById('info');
-        const wasVisible = !!(info && info.style && info.style.display !== 'none');
-        if (wasVisible) {
-            if (typeof window.collapseInfoPanel === 'function') {
-                window.collapseInfoPanel();
-            } else if (info && info.classList) {
-                info.classList.add('info-collapsed');
-            }
-        }
-        if (typeof window.__syncTopInfoButtonActiveState === 'function') {
-            window.__syncTopInfoButtonActiveState();
-        }
-        if (typeof window.__postInfoPanelStateToParent === 'function') {
-            window.__postInfoPanelStateToParent();
-        }
-    } catch (e) {
-        console.warn('Failed to collapse info panel on maximize:', e);
-    }
-
     if (typeof window.electron !== 'undefined') {
         window.electron.maximize();
     }
@@ -1235,26 +1215,6 @@ function Minimize() {
             type: 'togglePanels',
             action: 'expand'
         }, '*');
-    }
-
-    try {
-        const info = document.getElementById('info');
-        if (info) {
-            info.style.display = 'block';
-        }
-        if (typeof window.expandInfoPanel === 'function') {
-            window.expandInfoPanel();
-        } else if (info) {
-            info.classList && info.classList.remove('info-collapsed');
-        }
-        if (typeof window.__syncTopInfoButtonActiveState === 'function') {
-            window.__syncTopInfoButtonActiveState();
-        }
-        if (typeof window.__postInfoPanelStateToParent === 'function') {
-            window.__postInfoPanelStateToParent();
-        }
-    } catch (e) {
-        console.warn('Failed to show info panel on minimize:', e);
     }
 
     if (typeof window.electron !== 'undefined') {

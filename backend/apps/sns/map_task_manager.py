@@ -50,6 +50,11 @@ class MapTaskManager:
         self._process_plan_summary_due = False
         self._resume_after_plan_summary = None
 
+        self._process_info_since_tool_check = 0
+        self._tool_check_due = False
+        self._tool_checking = False
+        self._resume_after_tool_check = None
+
         self._pick_people_format_retry = {
             "communication": 0,
             "sell": 0,
@@ -107,11 +112,38 @@ class MapTaskManager:
         self._pick_people_format_retry[talk_type] = retry_count + 1
 
         objective_to_achieve = (getattr(self.parent, "_pending_talk_objective", None) or "").strip()
-        people_list = []
+        all_people = []
         try:
-            people_list = self.parent._get_filtered_people_list_for_talk_type(talk_type) or []
+            all_people = list(self.parent.get_people_list() or [])
         except Exception:
-            people_list = []
+            all_people = []
+
+        people_list = None
+        try:
+            if hasattr(self.parent, "_get_filtered_people_list_for_talk_type"):
+                people_list = self.parent._get_filtered_people_list_for_talk_type(talk_type)
+        except Exception:
+            people_list = None
+
+        try:
+            if (
+                talk_type != "buy"
+                and people_list is not None
+                and hasattr(self.parent, "_maybe_notify_recommended_excluded_by_talk_type_filter")
+            ):
+                self.parent._maybe_notify_recommended_excluded_by_talk_type_filter(
+                    talk_type=talk_type,
+                    objective_text=objective_to_achieve,
+                    all_people=all_people,
+                    filtered_people=list(people_list or []),
+                )
+        except Exception:
+            pass
+        if not people_list:
+            try:
+                people_list = self.parent.get_people_list() or []
+            except Exception:
+                people_list = []
 
         provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         role_prompt = get_prompt_by_title(role_title) or ""
@@ -160,6 +192,11 @@ class MapTaskManager:
         self._process_info_since_plan_summary = 0
         self._process_plan_summary_due = False
         self._resume_after_plan_summary = None
+
+        self._process_info_since_tool_check = 0
+        self._tool_check_due = False
+        self._tool_checking = False
+        self._resume_after_tool_check = None
 
         self.js_task_manager = self.parent.taskmng_js
         self.current_task_record = query_single_map_task(status=1)
@@ -289,6 +326,7 @@ I am participating in a virtual social game based on Google Maps. Players role-p
         if action_requested == "process_activity":
             self.parent.write_on_going_process_to_pane(lt("Thinking about the next action.", "Thinking about the next action."))
             ask_content = kwargs.get("ask_content", self.get_current_objective())
+            tool_check_done = bool(kwargs.get("_tool_check_done", False))
             stop_review = True
             if not self.parent.human_take_over:
                 if not stop_review:
@@ -298,13 +336,31 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     else:
                         self.reviewing_task = False
 
-            item_to_achieved = ""
-            if ask_content:
-                item_to_achieved = ask_content
-
-            self.js_task_manager.show_information(lt(f"Agent is thinking how to proceed:{item_to_achieved}", f"Agent is thinking how to proceed:{item_to_achieved}"))
+            if not tool_check_done:
+                try:
+                    self._process_info_since_tool_check += 1
+                except Exception:
+                    pass
+                self._maybe_schedule_tool_check()
+            if self._tool_check_due and (not self._tool_checking):
+                self.show_status_on_map("using-tool")
+                self.js_task_manager.show_information(lt(
+                    "<b>Agent is checking if tools are needed before action decision.</b>",
+                    "<b>Agent is checking if tools are needed before action decision.</b>",
+                ))
+                self._tool_checking = True
+                self._tool_check_due = False
+                self._resume_after_tool_check = {
+                    "action": "process_activity",
+                    "ask_content": ask_content,
+                    "human_send_flag": human_send_flag,
+                    "_tool_check_done": True,
+                }
+                asyncio.create_task(self.process_task(action="process_tool_check"))
+                return
 
             if self._process_plan_summary_due and (not self._process_plan_summarizing):
+                self.js_task_manager.show_information(lt(f"<b>Agent is updating plan and goals.</b>", f"<b>Agent is updating plan and goals.</b>"))
                 self._process_plan_summarizing = True
                 self._process_plan_summary_due = False
                 self._resume_after_plan_summary = {
@@ -315,6 +371,17 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                 asyncio.create_task(self.process_task(action="process_plan_summary"))
                 return
 
+            counter = None
+            try:
+                counter = getattr(self.parent, "process_activity_counter", None)
+                if counter is not None:
+                    self.parent.process_activity_counter = counter + 1
+            except Exception:
+                counter = None
+
+            suffix = f"[#{counter+1}]" if counter is not None else ""
+            msg = f"<b>Agent is thinking about the next action.{suffix}</b>"
+            self.js_task_manager.show_information(lt(msg, msg))
             self.set_command_status("ask_agent_instruction_to_process_activity")
 
             asyncio.create_task(self.parent.ask_agent_instruction_to_process_activity(ask_content))
@@ -346,26 +413,14 @@ I am participating in a virtual social game based on Google Maps. Players role-p
             self.set_command_status("ask_agent_process_plan_summary")
             asyncio.create_task(self.parent.ask_agent_and_get_instruction(question, plan_manage_prompt))
 
+        elif action_requested == "process_tool_check":
+            # Fire and return to release the _process_lock immediately.
+            # _run_tool_check_before_activity will resume process_activity on completion.
+            asyncio.create_task(self._run_tool_check_before_activity())
+
         elif event == "agent_instruction_to_process_activity_returned":
-            # instruction_dict = json.loads(instruction)
-            instruction_dict = ""
-            if instruction_dict:
-                function = ""
-                objective_to_achieve = ""
-            else:
-                function = ""
-                objective_to_achieve = ""
 
-            activity_mapping = {
-                'activity_find_people_from_list_to_talk': 'Find a people to talk',
-                'activity_find_place_from_list_to_move': 'Find a place to move',
-                'activity_find_tool_from_list_to_use': 'Find a tool to use'
-            }
 
-            # Use dict.get() safely to avoid KeyError
-            function_str = activity_mapping.get(function, 'Unknown function:' + function)
-
-            self.js_task_manager.show_information(lt(f"Agent return instruction:{function_str}.The target is:{objective_to_achieve}", f"Agent return instruction:{function_str}. The target is:{objective_to_achieve}"))
             self.set_command_status("")
             self.parent.parse_agent_instruction_for_process_activity(instruction)
 
@@ -431,8 +486,8 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
             self._pick_people_format_retry["communication"] = 0
             nick_name = (people_dict.get("nick_name") or "").strip()
-            self.parent.write_on_going_process_to_pane(f"Talking with {nick_name}")
-            self.js_task_manager.show_information(lt(f"Agent choose {nick_name} to talk", f"Agent chose {result} to talk"))
+            self.parent.write_on_going_process_to_pane(f"Chatting with {nick_name}")
+            self.js_task_manager.show_information(lt(f"<b>Agent selected {nick_name} for communication.</b>", f"<b>Agent selected {nick_name} for communication.</b>"))
             self.set_command_status("")
             self.last_param = {}
             self.last_param["people_list_picked"] = result
@@ -450,8 +505,8 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
             self._pick_people_format_retry["sell"] = 0
             nick_name = (people_dict.get("nick_name") or "").strip()
-            self.parent.write_on_going_process_to_pane(f"Talking with {nick_name}")
-            self.js_task_manager.show_information(lt(f"Agent choose {nick_name} to talk", f"Agent chose {result} to talk"))
+            self.parent.write_on_going_process_to_pane(f"Marketing to {nick_name}")
+            self.js_task_manager.show_information(lt(f"<b>Agent select {nick_name} to promote to.</b>", f"<b>Agent select {nick_name} to promote to.</b>"))
             self.set_command_status("")
             self.last_param = {}
             self.last_param["people_list_picked"] = result
@@ -469,8 +524,8 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
             self._pick_people_format_retry["buy"] = 0
             nick_name = (people_dict.get("nick_name") or "").strip()
-            self.parent.write_on_going_process_to_pane(f"Talking with {nick_name}")
-            self.js_task_manager.show_information(lt(f"Agent choose {nick_name} to talk", f"Agent chose {result} to talk"))
+            self.parent.write_on_going_process_to_pane(f"Purchasing from {nick_name}")
+            self.js_task_manager.show_information(lt(f"<b>Agent select {nick_name} to buy from.</b>", f"<b>Agent select {nick_name} to buy from.</b>"))
             self.set_command_status("")
             self.last_param = {}
             self.last_param["people_list_picked"] = result
@@ -478,11 +533,31 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
         elif event == "conversation_message_received":
             talk_history_str = kwargs.get("talk_history_str", "")
+            tool_check_done = kwargs.get("_tool_check_done", False)
 
-            if self.parent.talk_type == "sell":
+            effective_talk_type = ""
+            try:
+                active = getattr(self.parent, "active_conversation", None) or {}
+                if isinstance(active, dict):
+                    effective_talk_type = (active.get("talk_type") or "").strip()
+            except Exception:
+                effective_talk_type = ""
+            if not effective_talk_type:
+                effective_talk_type = (getattr(self.parent, "talk_type", "") or "").strip()
+
+            # Run tool check before review if enabled (only once per message)
+            if (not tool_check_done) and bool(getattr(self.parent, "tool_check_before_review_enabled", False)):
+                asyncio.create_task(self._run_tool_check_then_review(
+                    talk_history_str=talk_history_str,
+                    effective_talk_type=effective_talk_type,
+                ))
+                return
+
+            if effective_talk_type == "sell":
                 self.set_command_status("ask_agent_to_review_conversation_sell")
                 asyncio.create_task(self.parent.ask_agent_to_review_conversation_sell(self.current_objective, talk_history_str))
-            elif self.parent.talk_type == "buy":
+
+            elif effective_talk_type == "buy":
                 self.set_command_status("ask_agent_to_review_conversation_buy")
                 asyncio.create_task(self.parent.ask_agent_to_review_conversation_buy(self.current_objective, talk_history_str))
             else:
@@ -519,6 +594,8 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
         self._process_info_since_compact += 1
         self._process_info_since_plan_summary += 1
+        self._process_info_since_tool_check += 1
+
 
         self._maybe_schedule_process_plan_summary()
         self._maybe_schedule_process_info_compaction()
@@ -579,6 +656,142 @@ I am participating in a virtual social game based on Google Maps. Players role-p
             summary_every,
             len(getattr(self, "process_info_list", []) or []),
         )
+
+    def _resolve_tool_check_every_n(self) -> int:
+        try:
+            v = int(getattr(self.parent, "tool_check_every_n", 0))
+        except Exception:
+            v = 0
+        return max(0, v)
+
+    def _maybe_schedule_tool_check(self):
+        every_n = self._resolve_tool_check_every_n()
+        if every_n <= 0:
+            return
+
+        if self._process_info_since_tool_check < every_n:
+            return
+
+        if self._tool_checking:
+            return
+
+        if getattr(self, "_tool_check_due", False):
+            return
+
+        self._process_info_since_tool_check = 0
+
+        self._tool_check_due = True
+        logger.info(
+            "Marked tool check due (every_n=%s, process_info_len=%s)",
+            every_n,
+            len(getattr(self, "process_info_list", []) or []),
+        )
+
+    async def _run_tool_check_before_activity(self):
+        """Run tool check before process_activity using chat_with_agent(use_tools=True).
+        On completion (success or failure), always resumes the original process_activity flow."""
+        tool_result = ""
+        try:
+            tool_prompt = (get_prompt_by_title("__tool_check_before_activity__") or "").strip()
+            if not tool_prompt:
+                logger.warning("Tool check prompt __tool_check_before_activity__ not found, skipping tool check")
+                return
+
+            current_goals = (get_prompt_by_title("__plan_goals__") or "").strip()
+            items = list(self.process_info_list or [])
+            items = items[-30:] if len(items) > 30 else items
+            process_log = "\n".join(f"{idx + 1}. {item}" for idx, item in enumerate(items))
+
+            context_parts = [
+                tool_prompt,
+                "\n--- Current Context ---",
+                f"Current place: {getattr(self.parent, 'current_place', 'unknown')}",
+                f"Current objective: {self.current_objective or '(none)'}",
+                f"Goals:\n{current_goals or '(none)'}",
+                f"Recent process log:\n{process_log or '(empty)'}",
+            ]
+            question = "\n".join(context_parts)
+
+
+            tool_result = await self.parent.chat_with_agent(
+                question,
+                conversation_suffix="tool_check_activity",
+                use_tools=True,
+                use_memory=False,
+                use_knowledge_base=False,
+            )
+
+        except Exception as e:
+            logger.warning("Tool check before activity failed: %s", e)
+            tool_result = ""
+        finally:
+            self._tool_checking = False
+
+            # Record tool result into process_info_list if meaningful
+            tool_result = (tool_result or "").strip()
+            if tool_result and "NO_TOOL_NEEDED" not in tool_result.upper():
+                entry = f"[Tool Check Result] {tool_result[:500]}"
+                self.process_info_list.append(entry)
+                logger.info("Tool check result added to process info list")
+
+            # Resume the original process_activity flow
+            resume_payload = self._resume_after_tool_check
+            self._resume_after_tool_check = None
+            if isinstance(resume_payload, dict) and resume_payload:
+                asyncio.create_task(self.process_task(**resume_payload))
+            else:
+                asyncio.create_task(self.process_task(action="process_activity", ask_content=self.get_current_objective()))
+
+    async def _run_tool_check_then_review(self, *, talk_history_str: str, effective_talk_type: str):
+        """Run tool check before conversation review using chat_with_agent(use_tools=True).
+        Runs outside the _process_lock. On completion, re-dispatches conversation_message_received
+        with the enriched talk_history_str so the review proceeds normally."""
+        tool_context = ""
+        try:
+            tool_prompt = (get_prompt_by_title("__tool_check_before_review__") or "").strip()
+            if not tool_prompt:
+                logger.warning("Tool check prompt __tool_check_before_review__ not found, skipping")
+                # Fall through to re-dispatch
+            else:
+                context_parts = [
+                    tool_prompt,
+                    "\n--- Conversation History ---",
+                    talk_history_str or "(empty)",
+                ]
+                question = "\n".join(context_parts)
+                self.show_status_on_map("using-tool")
+                self.js_task_manager.show_information(lt(
+                    "<b>Message Received.Agent is checking if tools are needed before reply.</b>",
+                    "<b>Message Received.Agent is checking if tools are needed before reply.</b>",
+                ))
+
+                tool_result = await self.parent.chat_with_agent(
+                    question,
+                    conversation_suffix="tool_check_review",
+                    use_tools=True,
+                    use_memory=False,
+                    use_knowledge_base=False,
+                )
+
+                tool_result = (tool_result or "").strip()
+                if tool_result and "NO_TOOL_NEEDED" not in tool_result.upper():
+                    logger.info("Tool check before review returned useful result")
+                    tool_context = tool_result
+        except Exception as e:
+            logger.warning("Tool check before review failed: %s", e)
+
+        # Re-dispatch conversation_message_received with _tool_check_done=True
+        enriched_history = talk_history_str
+        if tool_context:
+            enriched_history = (
+                f"{talk_history_str}\n\n"
+                f"[Tool Check Result Before Review]\n{tool_context[:500]}"
+            )
+        asyncio.create_task(self.process_task(
+            event="conversation_message_received",
+            talk_history_str=enriched_history,
+            _tool_check_done=True,
+        ))
 
     def _schedule_process_history_flush(self):
         try:

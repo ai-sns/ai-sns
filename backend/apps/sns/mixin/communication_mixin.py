@@ -27,7 +27,7 @@ from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_titl
 from util import (generate_random_id, add_memory_list)
 from i18n import lt
 from enum import Enum
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import json
 import logging
 import requests
@@ -94,9 +94,22 @@ class CommunicationMixin:
                 last_ts = float(getattr(self, "_conversation_last_activity_ts", 0.0) or 0.0)
                 timeout_s = int(getattr(self, "conversation_timeout_seconds", 60) or 60)
                 if last_ts > 0 and (self._now_ts() - last_ts) >= timeout_s:
+                    msg_html = f"<b>Conversation timed out after {timeout_s}s. Unable to connect to {active_account}.</b>"
+                    msg_map = f"Conversation timed out after {timeout_s}s. Unable to connect to {active_account}."
+
+                    try:
+                        self.taskmng_js.show_information(msg_html)
+                    except Exception:
+                        pass
+
+                    try:
+                        self.show_alert_on_map(msg_map)
+                    except Exception:
+                        pass
+
                     self.end_active_conversation(
                         reason="timeout",
-                        message=f"Conversation timed out after {timeout_s}s with {active_account}.",
+                        message=f"Conversation timed out after {timeout_s}s. Unable to connect to {active_account}.",
                         resume_activity=True,
                     )
                     return
@@ -137,8 +150,141 @@ class CommunicationMixin:
             return None
         return None
 
+    def _extract_recommended_contact_from_objective(self, text: str) -> Tuple[Optional[str], Optional[str]]:
+        raw = (text or "").strip()
+        if not raw:
+            return None, None
+
+        try:
+            m = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", raw)
+            if m:
+                return (m.group(0) or "").strip(), None
+        except Exception:
+            pass
+
+        recommended_account = None
+        recommended_nick = None
+
+        try:
+            m = re.search(r"(?:^|\b)account\s*[:=]\s*([^\s,;]+)", raw, flags=re.IGNORECASE)
+            if m:
+                recommended_account = (m.group(1) or "").strip().strip('"\'')
+        except Exception:
+            pass
+
+        try:
+            m = re.search(r"(?:^|\b)nick_name\s*[:=]\s*([^\n,;]+)", raw, flags=re.IGNORECASE)
+            if m:
+                recommended_nick = (m.group(1) or "").strip().strip('"\'')
+        except Exception:
+            pass
+
+        try:
+            if not recommended_nick:
+                m = re.search(r"['\"]([^'\"]{2,50})['\"]", raw)
+                if m:
+                    recommended_nick = (m.group(1) or "").strip()
+        except Exception:
+            pass
+
+        recommended_account = (recommended_account or "").strip() or None
+        recommended_nick = (recommended_nick or "").strip() or None
+        return recommended_account, recommended_nick
+
+    def _format_contact_who(self, *, account: Optional[str], nick_name: Optional[str]) -> str:
+        parts = []
+        acct = (account or "").strip()
+        name = (nick_name or "").strip()
+        if acct:
+            parts.append(f"account={acct}")
+        if name:
+            parts.append(f"nick_name={name}")
+        return " / ".join(parts)
+
+    def _notify_llm_recommended_user_unavailable(
+        self,
+        *,
+        account: Optional[str],
+        nick_name: Optional[str],
+    ) -> None:
+        who = self._format_contact_who(account=account, nick_name=nick_name)
+        if not who:
+            return
+
+        msg = (
+            "Due to anti-harassment rules, the LLM-recommended user is unavailable "
+            f"({who}). Selecting another user instead."
+        )
+
+        try:
+            ui = getattr(self, "taskmng_js", None)
+            if ui is not None:
+                ui.show_information(f"<b>{msg}</b>")
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self, "show_alert_on_map"):
+                self.show_alert_on_map(msg, is_error=True)
+        except Exception:
+            pass
+
+    def _maybe_notify_recommended_excluded_by_talk_type_filter(
+        self,
+        *,
+        talk_type: str,
+        objective_text: str,
+        all_people: List[dict],
+        filtered_people: List[dict],
+    ) -> None:
+        if (talk_type or "").strip().lower() == "buy":
+            return
+
+        recommended_account, recommended_nick = self._extract_recommended_contact_from_objective(objective_text)
+        if not recommended_account and not recommended_nick:
+            return
+
+        filtered_accounts = {
+            ((p or {}).get("account") or "").strip()
+            for p in (filtered_people or [])
+            if isinstance(p, dict)
+        }
+
+        excluded = [
+            p
+            for p in (all_people or [])
+            if isinstance(p, dict)
+            and ((p.get("account") or "").strip())
+            and ((p.get("account") or "").strip() not in filtered_accounts)
+        ]
+
+        matched = None
+        if recommended_account:
+            ra = recommended_account.strip()
+            for p in excluded:
+                if ((p.get("account") or "").strip()) == ra:
+                    matched = p
+                    break
+
+        if matched is None and recommended_nick:
+            rn = recommended_nick.strip().lower()
+            for p in excluded:
+                if ((p.get("nick_name") or "").strip().lower()) == rn:
+                    matched = p
+                    break
+
+        if matched is None:
+            return
+
+        self._notify_llm_recommended_user_unavailable(
+            account=(matched.get("account") or recommended_account),
+            nick_name=(matched.get("nick_name") or recommended_nick),
+        )
+
     def _record_contact(self, talk_type: str, account: str) -> None:
         if not account:
+            return
+        if (talk_type or "").strip().lower() == "buy":
             return
         now_ts = self._now_ts()
         last_time = getattr(self, "_contact_last_time", None)
@@ -149,7 +295,7 @@ class CommunicationMixin:
 
         recent = getattr(self, "_recent_contacts", None)
         if recent is None or not isinstance(recent, dict):
-            self._recent_contacts = {"sell": [], "buy": [], "communication": []}
+            self._recent_contacts = {"sell": [], "communication": []}
             recent = self._recent_contacts
         bucket = recent.setdefault(talk_type, [])
         bucket[:] = [a for a in bucket if a != account]
@@ -162,6 +308,8 @@ class CommunicationMixin:
         if not account:
             return False
         if self._should_bypass_contact_limits():
+            return True
+        if (talk_type or "").strip().lower() == "buy":
             return True
         cooldown_s = int(getattr(self, "contact_cooldown_seconds", 300) or 300)
         now_ts = self._now_ts()
@@ -180,6 +328,8 @@ class CommunicationMixin:
         people = list(self.get_people_list() or [])
         if self._should_bypass_contact_limits():
             return people
+        if (talk_type or "").strip().lower() == "buy":
+            return people
         cooldown_s = int(getattr(self, "contact_cooldown_seconds", 300) or 300)
         now_ts = self._now_ts()
         last_time = getattr(self, "_contact_last_time", None) or {}
@@ -197,7 +347,7 @@ class CommunicationMixin:
             if account in bucket:
                 continue
             filtered.append(p)
-        return filtered or people
+        return filtered
 
     def start_active_conversation(self, *, talk_type: str, person: dict, objective: str = "") -> None:
         account = (person or {}).get("account")
@@ -239,6 +389,19 @@ class CommunicationMixin:
             "objective": (objective or "").strip(),
             "started_at": self._now_ts(),
         }
+
+        try:
+            self.talk_type = talk_type
+        except Exception:
+            pass
+
+        try:
+            pending = getattr(self, "_pending_peer_talk_type", None)
+            if isinstance(pending, dict) and account:
+                pending.pop(account, None)
+        except Exception:
+            pass
+
         self._conversation_last_activity_ts = self._now_ts()
         self._record_contact(talk_type, account)
         self._ensure_conversation_timeout_task()
@@ -359,6 +522,45 @@ talk_to_a_people
 
         self.write_thinking_process_to_pane(title_str, content_str)
 
+        account = (account or "").strip()
+        if (not account) or ("@" not in account):
+            warn_msg = f"Invalid XMPP account: {account}. Skipping this contact."
+            try:
+                self.taskmng.add_process_info_to_list(f"system:{warn_msg}")
+            except Exception:
+                pass
+            try:
+                if hasattr(self, "show_alert_on_map"):
+                    self.show_alert_on_map(warn_msg, is_error=True)
+            except Exception:
+                pass
+            try:
+                self.taskmng_js.show_information(f"<b>{warn_msg}</b>")
+            except Exception:
+                pass
+
+            resume_ask_content = ""
+            try:
+                resume_ask_content = self.taskmng.get_current_objective() or ""
+            except Exception:
+                resume_ask_content = ""
+
+            try:
+                self.end_active_conversation(
+                    reason="invalid_account",
+                    message=warn_msg,
+                    resume_activity=True,
+                    resume_ask_content=resume_ask_content,
+                )
+            except Exception:
+                try:
+                    asyncio.create_task(
+                        self.taskmng.process_task(action="process_activity", ask_content=resume_ask_content or "")
+                    )
+                except Exception:
+                    pass
+            return
+
         self.start_active_conversation(
             talk_type=(getattr(self, "talk_type", "") or "communication"),
             person={"nation_id": nationid, "account": account, "nick_name": user_name},
@@ -391,12 +593,42 @@ talk_to_a_people
 
             async def _delayed_first_message():
                 await asyncio.sleep(5)
-                self.sendMessage(content, False, account, user_name)
+                ok = self.sendMessage(content, False, account, user_name)
+                if ok is False:
+                    resume_ask_content = ""
+                    try:
+                        resume_ask_content = self.taskmng.get_current_objective() or ""
+                    except Exception:
+                        resume_ask_content = ""
+                    try:
+                        self.end_active_conversation(
+                            reason="send_failed",
+                            message="Failed to send message. Skipping.",
+                            resume_activity=True,
+                            resume_ask_content=resume_ask_content,
+                        )
+                    except Exception:
+                        pass
 
             asyncio.create_task(_delayed_first_message())
         else:
 
-            self.sendMessage(content, False, account, user_name)
+            ok = self.sendMessage(content, False, account, user_name)
+            if ok is False:
+                resume_ask_content = ""
+                try:
+                    resume_ask_content = self.taskmng.get_current_objective() or ""
+                except Exception:
+                    resume_ask_content = ""
+                try:
+                    self.end_active_conversation(
+                        reason="send_failed",
+                        message="Failed to send message. Skipping.",
+                        resume_activity=True,
+                        resume_ask_content=resume_ask_content,
+                    )
+                except Exception:
+                    pass
 
         if account not in self.talk_history:
             self.talk_history[account] = []
@@ -413,9 +645,32 @@ talk_to_a_people
         # self.taskmng.process_task(action="process_activity", ask_content=ask_content)
 
     def ask_agent_start_to_talk_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        people_list = self._get_filtered_people_list_for_talk_type("communication")
-        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        all_people = []
+        try:
+            all_people = list(self.get_people_list() or [])
+        except Exception:
+            all_people = []
+
+        filtered_people = []
+        try:
+            filtered_people = list(self._get_filtered_people_list_for_talk_type("communication") or [])
+        except Exception:
+            filtered_people = []
+
+        try:
+            self._maybe_notify_recommended_excluded_by_talk_type_filter(
+                talk_type="communication",
+                objective_text=objective_to_achieve,
+                all_people=all_people,
+                filtered_people=filtered_people,
+            )
+        except Exception:
+            pass
+
+        people_list = filtered_people or all_people
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_talk_to_a_people__")
@@ -446,9 +701,32 @@ talk_to_a_people
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
     async def ask_agent_start_to_talk_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
-        people_list = self._get_filtered_people_list_for_talk_type("communication")
-        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        all_people = []
+        try:
+            all_people = list(self.get_people_list() or [])
+        except Exception:
+            all_people = []
+
+        filtered_people = []
+        try:
+            filtered_people = list(self._get_filtered_people_list_for_talk_type("communication") or [])
+        except Exception:
+            filtered_people = []
+
+        try:
+            self._maybe_notify_recommended_excluded_by_talk_type_filter(
+                talk_type="communication",
+                objective_text=objective_to_achieve,
+                all_people=all_people,
+                filtered_people=filtered_people,
+            )
+        except Exception:
+            pass
+
+        people_list = filtered_people or all_people
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_talk_to_a_people__")
@@ -484,16 +762,40 @@ talk_to_a_people
             nick_name = result["nick_name"]
             message = result["message"]
 
-            if not self._is_contact_allowed("communication", account):
-                retry_count = int(getattr(self, "_pick_person_retry_count", {}).get("communication", 0) or 0)
-                if retry_count < 2:
-                    self._pick_person_retry_count["communication"] = retry_count + 1
-                    hint = " Please choose a different person than the recently contacted ones."
-                    self.ask_agent_start_to_talk_to_a_people_sync(self._pending_talk_objective + hint, "")
+            try:
+                if hasattr(self, "_is_contact_allowed") and not self._is_contact_allowed("communication", account):
+                    retry_state = getattr(self, "_contact_pick_retry", None)
+                    if not isinstance(retry_state, dict):
+                        retry_state = {}
+                    retry_count = int(retry_state.get("communication", 0) or 0)
+                    if retry_count < 3:
+                        retry_state["communication"] = retry_count + 1
+                        self._contact_pick_retry = retry_state
+                        try:
+                            self._notify_llm_recommended_user_unavailable(account=account, nick_name=nick_name)
+                        except Exception:
+                            pass
+                        objective = (getattr(self, "_pending_talk_objective", "") or "").strip()
+                        self.ask_agent_start_to_talk_to_a_people_sync(objective, "")
+                        return
+
+                    retry_state["communication"] = 0
+                    self._contact_pick_retry = retry_state
+                    self.taskmng_js.show_information(
+                        lt(
+                            "<b>No eligible contacts are available due to anti-harassment rules.</b>",
+                            "<b>No eligible contacts are available due to anti-harassment rules.</b>",
+                        )
+                    )
+                    asyncio.create_task(
+                        self.taskmng.process_task(
+                            action="process_activity",
+                            ask_content=self.taskmng.get_current_objective(),
+                        )
+                    )
                     return
-                self._pick_person_retry_count["communication"] = 0
-            else:
-                self._pick_person_retry_count["communication"] = 0
+            except Exception:
+                pass
 
             self.current_talk_people = result
             # Explicitly reset talk_round for the new conversation
@@ -571,6 +873,17 @@ talk_to_a_people
         if not continue_chat:
             self.taskmng.add_process_info_to_list(f"After communicating with a friend, got the following: {current_chat_summary}")
             self.write_task_process_to_pane(f"After communicating with a friend, got the following: {current_chat_summary}\n\n")
+            try:
+                self.taskmng_js.show_information(f"<b>Conversation finished. Summary:</b><br> {current_chat_summary}")
+            except Exception:
+                pass
+
+            try:
+                if hasattr(self, "show_alert_on_map"):
+                    self.show_alert_on_map(f"Conversation finished. Summary: {current_chat_summary}", is_error=False)
+            except Exception:
+                pass
+
             self.taskmng.current_situation = f"After communicating with someone, got the following: {current_chat_summary}"
             resume_ask_content = f"- Current objective\n{self.taskmng.current_objective}\n- Current progress\nAfter communicating with someone, got the following: {current_chat_summary}"
             self.end_active_conversation(

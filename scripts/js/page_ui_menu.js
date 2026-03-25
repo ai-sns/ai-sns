@@ -758,7 +758,7 @@ function showHistory() {
     btn = document.getElementById("message_btn");
     btn.classList.remove('active');
     info_title = document.getElementById("info_title");
-    info_title.textContent = lt("Information", "Information");
+    info_title.textContent = lt("Console", "Console");
     document.getElementById("info").style.display = "block";
     __syncTopInfoButtonActiveState();
     __postInfoPanelStateToParent();

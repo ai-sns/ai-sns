@@ -73,7 +73,7 @@
             // Set state text
             const stateTexts = {
                 'thinking': 'Thinking',
-                'talking': 'Talking',
+                'talking': 'Conversation',
                 'moving': 'Moving',
                 'using-tool': 'Using Tool',
                 'idle': 'Idle',

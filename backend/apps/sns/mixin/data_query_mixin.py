@@ -278,25 +278,47 @@ class DataQueryMixin:
     def decline_energy(self):
 
         decline_point = 25
-        energy_point = float(self.aichatcfg_record.energy_point or 0) - decline_point
+        energy_before = float(self.aichatcfg_record.energy_point or 0)
+        energy_point = energy_before - decline_point
         self.aichatcfg_record.energy_point = energy_point
         life_point = float(self.aichatcfg_record.life_point or 0)
         self.aichatcfg_record.move_point = round(
             100 * (life_point / 100) * (energy_point / 100),
             1,
         )
+
+        try:
+            msg = f"Energy: {energy_before:.0f}% -> {float(self.aichatcfg_record.energy_point or 0):.0f}%"
+            if hasattr(self, "show_alert_on_map"):
+                self.show_alert_on_map(msg, is_error=True)
+            if hasattr(self, "taskmng_js"):
+                self.taskmng_js.show_information(f"<b>Energy changed</b><br>{msg}")
+        except Exception:
+            pass
+
         # Check rebirth after all calculations are done
         self.check_and_handle_rebirth()
 
     def decline_life(self):
 
         decline_point = 25
-        life_point = float(self.aichatcfg_record.life_point or 0) - decline_point
+        life_before = float(self.aichatcfg_record.life_point or 0)
+        life_point = life_before - decline_point
         self.aichatcfg_record.life_point = life_point
         energy_point = float(self.aichatcfg_record.energy_point or 0)
         self.aichatcfg_record.move_point = round(
             100 * (life_point / 100) * (energy_point / 100),
             1,
         )
+
+        try:
+            msg = f"Life: {life_before:.0f}% -> {float(self.aichatcfg_record.life_point or 0):.0f}%"
+            if hasattr(self, "show_alert_on_map"):
+                self.show_alert_on_map(msg, is_error=True)
+            if hasattr(self, "taskmng_js"):
+                self.taskmng_js.show_information(f"<b>Life changed</b><br>{msg}")
+        except Exception:
+            pass
+
         # Check rebirth after all calculations are done
         self.check_and_handle_rebirth()

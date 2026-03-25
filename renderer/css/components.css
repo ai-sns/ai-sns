@@ -334,6 +334,7 @@
     width: 280px;
     background-color: var(--bg-content);
     border-left: 1px solid var(--border-light);
+    position: relative;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2262,6 +2263,7 @@ body.theme-dark .action-btn.active svg {
     width: 280px;
     background: #fff;
     border-left: 1px solid var(--border-light);
+    position: relative;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2550,6 +2552,54 @@ body.theme-dark .context-menu-item:hover {
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
+}
+
+.thinking-log-navigator {
+    position: absolute;
+    right: 10px;
+    bottom: 210px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 1000;
+}
+
+.thinking-log-nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--border-light, #e5e7eb);
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--text-secondary, #666);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    transition: transform 0.12s ease, background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.thinking-log-nav-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.98);
+    border-color: var(--color-primary, #1a73e8);
+    color: var(--color-primary, #1a73e8);
+}
+
+.thinking-log-nav-btn:active {
+    transform: translateY(0px) scale(0.98);
+}
+
+body.theme-dark .thinking-log-nav-btn {
+    background: rgba(31, 41, 55, 0.90);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+body.theme-dark .thinking-log-nav-btn:hover {
+    border-color: rgba(59, 130, 246, 0.75);
+    color: rgba(59, 130, 246, 0.95);
 }
 
 .status-row {

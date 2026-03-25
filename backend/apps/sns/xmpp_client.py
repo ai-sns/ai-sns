@@ -61,6 +61,10 @@ class XMPPClient(slixmpp.ClientXMPP):
             from_jid = str(msg['from']).split('/')[0]
             body = msg['body']
 
+            if (not from_jid) or ('@' not in from_jid):
+                logger.warning("Ignoring message from invalid XMPP account: %s", from_jid)
+                return
+
             logger.info(f"Received message from {from_jid}: {body}")
 
             # Forward to AI Social Engine
@@ -183,6 +187,10 @@ class XMPPClient(slixmpp.ClientXMPP):
     def update_roster_local(self, jid: str):
         """Update local database with roster information"""
         if jid == self.jid_str:
+            return
+
+        if (not jid) or ('@' not in str(jid)):
+            logger.warning("Skipping roster update for invalid XMPP account: %s", jid)
             return
 
         try:

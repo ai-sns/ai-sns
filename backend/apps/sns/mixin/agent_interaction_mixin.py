@@ -177,6 +177,7 @@ ask_agent_and_get_instruction
                 use_tools=use_tools,
                 use_memory=False,
                 use_knowledge_base=False,
+                tool_choice="none",
             )
 
             if reply is None:
@@ -214,6 +215,7 @@ ask_agent_and_get_instruction
                         use_tools=use_tools,
                         use_memory=False,
                         use_knowledge_base=False,
+                        tool_choice="none",
                     )
 
                     if reply is None:

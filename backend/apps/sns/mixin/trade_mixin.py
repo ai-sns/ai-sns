@@ -44,6 +44,164 @@ logger = logging.getLogger(__name__)
 
 class TradeMixin:
 
+    def _ensure_sufficient_funds(
+        self,
+        amount: float,
+        *,
+        context: str,
+        ui_notify: bool = True,
+        end_conversation_on_fail: bool = True,
+    ) -> bool:
+        try:
+            required = float(amount or 0)
+        except Exception:
+            required = 0.0
+
+        if required <= 0:
+            return True
+
+        try:
+            available = float(getattr(getattr(self, "aichatcfg_record", None), "money", 0) or 0)
+        except Exception:
+            available = 0.0
+
+        if available >= required:
+            return True
+
+        normalized_context = (context or "payment").strip()
+        msg = (
+            f"Insufficient balance to {normalized_context}. "
+            f"Required: ${required:.2f}, available: ${available:.2f}."
+        )
+
+        try:
+            setattr(self, "_last_insufficient_funds_message", msg)
+        except Exception:
+            pass
+
+        if ui_notify:
+            try:
+                if hasattr(self, "show_alert_on_map"):
+                    self.show_alert_on_map(msg)
+                else:
+                    self.taskmng_js.show_information(f"<b>{msg}</b>")
+            except Exception:
+                pass
+
+        if end_conversation_on_fail:
+            try:
+                active = getattr(self, "active_conversation", None)
+                if active and hasattr(self, "end_active_conversation"):
+                    try:
+                        self.end_active_conversation(
+                            reason="insufficient_funds",
+                            message=msg,
+                            resume_activity=True,
+                            resume_ask_content="",
+                        )
+                    except TypeError:
+                        self.end_active_conversation(
+                            reason="insufficient_funds",
+                            message=msg,
+                            resume_activity=True,
+                        )
+            except Exception as e:
+                logger.error("Failed to end conversation after insufficient funds: %s", e, exc_info=True)
+
+        return False
+
+    def _show_trade_success_info(
+        self,
+        *,
+        title: str,
+        paid: Optional[float] = None,
+        earned: Optional[float] = None,
+        money_before: Optional[float] = None,
+        money_after: Optional[float] = None,
+        energy_before: Optional[float] = None,
+        energy_after: Optional[float] = None,
+        life_before: Optional[float] = None,
+        life_after: Optional[float] = None,
+    ) -> None:
+        try:
+            ui = getattr(self, "taskmng_js", None)
+            if ui is None:
+                return
+
+            def _fmt_money(v: Optional[float]) -> str:
+                if v is None:
+                    return "N/A"
+                try:
+                    return f"${float(v):.2f}"
+                except Exception:
+                    return "N/A"
+
+            def _fmt_pct(v: Optional[float]) -> str:
+                if v is None:
+                    return "N/A"
+                try:
+                    return f"{float(v):.0f}%"
+                except Exception:
+                    return "N/A"
+
+            lines = [f"<b>{title}</b>"]
+            if energy_before is not None or energy_after is not None:
+                lines.append(f"Energy: {_fmt_pct(energy_before)} -> {_fmt_pct(energy_after)}")
+            if life_before is not None or life_after is not None:
+                lines.append(f"Life: {_fmt_pct(life_before)} -> {_fmt_pct(life_after)}")
+            if paid is not None:
+                lines.append(f"Paid: {_fmt_money(paid)}")
+            if earned is not None:
+                lines.append(f"Earned: {_fmt_money(earned)}")
+            if money_before is not None or money_after is not None:
+                lines.append(f"Money: {_fmt_money(money_before)} -> {_fmt_money(money_after)}")
+
+            ui.show_information("<br>".join(lines) + ".")
+
+            try:
+                energy_changed = (
+                    energy_before is not None
+                    and energy_after is not None
+                    and float(energy_before) != float(energy_after)
+                )
+            except Exception:
+                energy_changed = False
+
+            try:
+                life_changed = (
+                    life_before is not None
+                    and life_after is not None
+                    and float(life_before) != float(life_after)
+                )
+            except Exception:
+                life_changed = False
+
+            try:
+                money_changed = (
+                    money_before is not None
+                    and money_after is not None
+                    and float(money_before) != float(money_after)
+                )
+            except Exception:
+                money_changed = False
+
+            if energy_changed or life_changed or money_changed:
+                try:
+                    alert_parts = [str(title or "").strip() or "Status update"]
+                    if energy_changed:
+                        alert_parts.append(f"Energy: {_fmt_pct(energy_before)} -> {_fmt_pct(energy_after)}")
+                    if life_changed:
+                        alert_parts.append(f"Life: {_fmt_pct(life_before)} -> {_fmt_pct(life_after)}")
+                    if money_changed:
+                        alert_parts.append(f"Money: {_fmt_money(money_before)} -> {_fmt_money(money_after)}")
+                    alert_msg = " | ".join(p for p in alert_parts if p)
+                    if hasattr(self, "show_alert_on_map"):
+                        self.show_alert_on_map(alert_msg, is_error=False)
+                except Exception:
+                    pass
+        except Exception:
+            return
+
     def _broadcast_trade_upserted(self, trade_id: str) -> None:
         trade_id = (trade_id or "").strip()
         if not trade_id:
@@ -99,6 +257,14 @@ class TradeMixin:
         people_list_str = ""
         place_list_str = ""
 
+        if not self._ensure_sufficient_funds(
+            fee,
+            context="purchase guidance",
+            ui_notify=False,
+            end_conversation_on_fail=False,
+        ):
+            return getattr(self, "_last_insufficient_funds_message", "Insufficient balance.")
+
         try:
             base = (self._get_ai_sns_server_base() or "").rstrip("/")
             if base:
@@ -135,7 +301,14 @@ class TradeMixin:
         {place_list_str}
         """""
 
-        self.aichatcfg_record.money = float(self.aichatcfg_record.money or 0) - fee
+        money_before = float(self.aichatcfg_record.money or 0)
+        self.aichatcfg_record.money = money_before - fee
+        self._show_trade_success_info(
+            title="Guidance purchased",
+            paid=float(fee),
+            money_before=money_before,
+            money_after=float(self.aichatcfg_record.money or 0),
+        )
         return result
 
     def set_food_order(self):
@@ -145,20 +318,42 @@ class TradeMixin:
             provider = self.get_nearest_people_by_profession("Restaurateur")
         except Exception as e:
             logger.error(f"Failed to get nearest Restaurateur: {e}", exc_info=True)
-
-
-
         if provider:
-            self.send_pay(fee, to_account=provider.get("account"), to_nation_id=provider.get("nation_id"), to_nick_name=provider.get("nick_name"))
+            paid = self.send_pay(
+                fee,
+                to_account=provider.get("account"),
+                to_nation_id=provider.get("nation_id"),
+                to_nick_name=provider.get("nick_name"),
+                good_name="food",
+            )
+            if not paid:
+                return getattr(self, "_last_insufficient_funds_message", "Insufficient balance.")
         else:
-            self.aichatcfg_record.energy_point = self.aichatcfg_record.energy_point + 25
+            if not self._ensure_sufficient_funds(
+                fee,
+                context="purchase food",
+                ui_notify=False,
+                end_conversation_on_fail=False,
+            ):
+                return getattr(self, "_last_insufficient_funds_message", "Insufficient balance.")
+            money_before = float(self.aichatcfg_record.money or 0)
+            energy_before = float(self.aichatcfg_record.energy_point or 0)
+            self.aichatcfg_record.energy_point = energy_before + 25
             self.aichatcfg_record.move_point = round(
-                100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+                100 * (float(self.aichatcfg_record.life_point or 0) / 100) * (float(self.aichatcfg_record.energy_point or 0) / 100),
                 1,
             )
-            self.aichatcfg_record.money = self.aichatcfg_record.money - fee
+            self.aichatcfg_record.money = money_before - fee
+            self._show_trade_success_info(
+                title="Food purchased",
+                paid=float(fee),
+                energy_before=energy_before,
+                energy_after=float(self.aichatcfg_record.energy_point or 0),
+                money_before=money_before,
+                money_after=float(self.aichatcfg_record.money or 0),
+            )
 
-        result = f"You paid {fee} for food. Your energy is now {self.aichatcfg_record.energy_point}%, and your move power is {self.aichatcfg_record.move_point}%"
+        result = f"You paid {fee} for food. Your energy is now {self.aichatcfg_record.energy_point}%"
         return result
 
     def set_taxi_order(self, current_position, target_position, target_place):
@@ -169,8 +364,22 @@ class TradeMixin:
         dist = distance(point1, point2).kilometers
         fee = dist * 2.5
 
+        if not self._ensure_sufficient_funds(
+            float(fee or 0),
+            context="order a taxi",
+            ui_notify=False,
+            end_conversation_on_fail=False,
+        ):
+            return getattr(self, "_last_insufficient_funds_message", "Insufficient balance.")
 
-        self.aichatcfg_record.money = self.aichatcfg_record.money - fee
+        money_before = float(self.aichatcfg_record.money or 0)
+        self.aichatcfg_record.money = money_before - float(fee or 0)
+        self._show_trade_success_info(
+            title="Taxi ordered",
+            paid=float(fee or 0),
+            money_before=money_before,
+            money_after=float(self.aichatcfg_record.money or 0),
+        )
 
         self.aichatcfg_record.last_position = current_position
         self.aichatcfg_record.current_position = target_position
@@ -188,20 +397,42 @@ class TradeMixin:
             provider = self.get_nearest_people_by_profession("Doctor")
         except Exception as e:
             logger.error(f"Failed to get nearest Doctor: {e}", exc_info=True)
-
-
-
         if provider:
-            self.send_pay(fee, to_account=provider.get("account"), to_nation_id=provider.get("nation_id"), to_nick_name=provider.get("nick_name"))
+            paid = self.send_pay(
+                fee,
+                to_account=provider.get("account"),
+                to_nation_id=provider.get("nation_id"),
+                to_nick_name=provider.get("nick_name"),
+                good_name="medical",
+            )
+            if not paid:
+                return getattr(self, "_last_insufficient_funds_message", "Insufficient balance.")
         else:
-            self.aichatcfg_record.life_point = self.aichatcfg_record.life_point + 25
+            if not self._ensure_sufficient_funds(
+                fee,
+                context="purchase remote medical service",
+                ui_notify=False,
+                end_conversation_on_fail=False,
+            ):
+                return getattr(self, "_last_insufficient_funds_message", "Insufficient balance.")
+            money_before = float(self.aichatcfg_record.money or 0)
+            life_before = float(self.aichatcfg_record.life_point or 0)
+            self.aichatcfg_record.life_point = life_before + 25
             self.aichatcfg_record.move_point = round(
-                100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+                100 * (float(self.aichatcfg_record.life_point or 0) / 100) * (float(self.aichatcfg_record.energy_point or 0) / 100),
                 1,
             )
-            self.aichatcfg_record.money = self.aichatcfg_record.money - fee
+            self.aichatcfg_record.money = money_before - fee
+            self._show_trade_success_info(
+                title="Medical service purchased",
+                paid=float(fee),
+                life_before=life_before,
+                life_after=float(self.aichatcfg_record.life_point or 0),
+                money_before=money_before,
+                money_after=float(self.aichatcfg_record.money or 0),
+            )
 
-        result = f"You paid {fee} for remote medical service. Your life is now {self.aichatcfg_record.life_point}%, and your move power is {self.aichatcfg_record.move_point}%"
+        result = f"You paid {fee} for remote medical service. Your life is now {self.aichatcfg_record.life_point}%"
         return result
 
     def sell_to_a_people(self, action_str, instrunction):
@@ -221,9 +452,35 @@ class TradeMixin:
         self.ask_agent_start_to_buy_from_a_people_sync(action_str, human_object)
 
     def ask_agent_start_to_sell_to_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        people_list = self._get_filtered_people_list_for_talk_type("sell")
-        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        all_people = []
+        try:
+            all_people = list(self.get_people_list() or [])
+        except Exception:
+            all_people = []
+
+        filtered_people = None
+        try:
+            if hasattr(self, "_get_filtered_people_list_for_talk_type"):
+                filtered_people = self._get_filtered_people_list_for_talk_type("sell")
+        except Exception:
+            filtered_people = None
+
+        if filtered_people is not None:
+            try:
+                if hasattr(self, "_maybe_notify_recommended_excluded_by_talk_type_filter"):
+                    self._maybe_notify_recommended_excluded_by_talk_type_filter(
+                        talk_type="sell",
+                        objective_text=objective_to_achieve,
+                        all_people=all_people,
+                        filtered_people=list(filtered_people or []),
+                    )
+            except Exception:
+                pass
+
+        people_list = (list(filtered_people or []) if filtered_people is not None else []) or all_people
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_sell_to_a_people__")
@@ -253,7 +510,14 @@ class TradeMixin:
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
     def ask_agent_start_to_buy_from_a_people_sync(self, objective_to_achieve, human_objective_to_achieve=""):
-        people_list = self._get_filtered_people_list_for_talk_type("buy")
+        people_list = None
+        try:
+            if hasattr(self, "_get_filtered_people_list_for_talk_type"):
+                people_list = self._get_filtered_people_list_for_talk_type("buy")
+        except Exception:
+            people_list = None
+        if not people_list:
+            people_list = self.get_people_list()
         provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
         self._pending_talk_objective = objective_to_achieve
@@ -285,9 +549,35 @@ class TradeMixin:
         asyncio.create_task(self.ask_agent_and_get_instruction(content_prompt, role_prompt))
 
     async def ask_agent_start_to_sell_to_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
-        people_list = self._get_filtered_people_list_for_talk_type("sell")
-        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
+
+        all_people = []
+        try:
+            all_people = list(self.get_people_list() or [])
+        except Exception:
+            all_people = []
+
+        filtered_people = None
+        try:
+            if hasattr(self, "_get_filtered_people_list_for_talk_type"):
+                filtered_people = self._get_filtered_people_list_for_talk_type("sell")
+        except Exception:
+            filtered_people = None
+
+        if filtered_people is not None:
+            try:
+                if hasattr(self, "_maybe_notify_recommended_excluded_by_talk_type_filter"):
+                    self._maybe_notify_recommended_excluded_by_talk_type_filter(
+                        talk_type="sell",
+                        objective_text=objective_to_achieve,
+                        all_people=all_people,
+                        filtered_people=list(filtered_people or []),
+                    )
+            except Exception:
+                pass
+
+        people_list = (list(filtered_people or []) if filtered_people is not None else []) or all_people
+        provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         self._pending_talk_objective = objective_to_achieve
 
         role_prompt = get_prompt_by_title("__start_to_sell_to_a_people__")
@@ -300,7 +590,14 @@ class TradeMixin:
         await  self.ask_agent_and_get_instruction(content_prompt, role_prompt)
 
     async def ask_agent_start_to_buy_from_a_people(self, objective_to_achieve, human_objective_to_achieve=""):
-        people_list = self._get_filtered_people_list_for_talk_type("buy")
+        people_list = None
+        try:
+            if hasattr(self, "_get_filtered_people_list_for_talk_type"):
+                people_list = self._get_filtered_people_list_for_talk_type("buy")
+        except Exception:
+            people_list = None
+        if not people_list:
+            people_list = self.get_people_list()
         provided_profile_list = json.dumps(people_list, indent=4, ensure_ascii=False)
         objective_to_achieve = f"{human_objective_to_achieve}{objective_to_achieve}"
         self._pending_talk_objective = objective_to_achieve
@@ -338,16 +635,35 @@ class TradeMixin:
             nick_name = result["nick_name"]
             message = result["message"]
 
-            if not self._is_contact_allowed("sell", account):
-                retry_count = int(getattr(self, "_pick_person_retry_count", {}).get("sell", 0) or 0)
-                if retry_count < 2:
-                    self._pick_person_retry_count["sell"] = retry_count + 1
-                    hint = " Please choose a different person than the recently contacted ones."
-                    self.ask_agent_start_to_sell_to_a_people_sync(self._pending_talk_objective + hint, "")
+            try:
+                if hasattr(self, "_is_contact_allowed") and not self._is_contact_allowed("sell", account):
+                    retry_state = getattr(self, "_contact_pick_retry", None)
+                    if not isinstance(retry_state, dict):
+                        retry_state = {}
+                    retry_count = int(retry_state.get("sell", 0) or 0)
+                    if retry_count < 3:
+                        retry_state["sell"] = retry_count + 1
+                        self._contact_pick_retry = retry_state
+                        try:
+                            if hasattr(self, "_notify_llm_recommended_user_unavailable"):
+                                self._notify_llm_recommended_user_unavailable(account=account, nick_name=nick_name)
+                        except Exception:
+                            pass
+                        objective = (getattr(self, "_pending_talk_objective", "") or "").strip()
+                        self.ask_agent_start_to_sell_to_a_people_sync(objective, "")
+                        return
+                    retry_state["sell"] = 0
+                    self._contact_pick_retry = retry_state
+                    self.taskmng_js.show_information(
+                        lt(
+                            "<b>No eligible contacts are available due to anti-harassment rules.</b>",
+                            "<b>No eligible contacts are available due to anti-harassment rules.</b>",
+                        )
+                    )
+                    asyncio.create_task(self.taskmng.process_task(action="process_activity", ask_content=self.taskmng.get_current_objective()))
                     return
-                self._pick_person_retry_count["sell"] = 0
-            else:
-                self._pick_person_retry_count["sell"] = 0
+            except Exception:
+                pass
 
             self.current_talk_people = result
             # Explicitly reset talk_round for the new conversation
@@ -387,17 +703,6 @@ class TradeMixin:
             account = result["account"]
             nick_name = result["nick_name"]
             message = result["message"]
-
-            if not self._is_contact_allowed("buy", account):
-                retry_count = int(getattr(self, "_pick_person_retry_count", {}).get("buy", 0) or 0)
-                if retry_count < 2:
-                    self._pick_person_retry_count["buy"] = retry_count + 1
-                    hint = " Please choose a different person than the recently contacted ones."
-                    self.ask_agent_start_to_buy_from_a_people_sync(self._pending_talk_objective + hint, "")
-                    return
-                self._pick_person_retry_count["buy"] = 0
-            else:
-                self._pick_person_retry_count["buy"] = 0
 
             self.current_talk_people = result
             # Explicitly reset talk_round for the new conversation
@@ -454,6 +759,15 @@ class TradeMixin:
         if not continue_chat:
             self.taskmng.add_process_info_to_list(f"After talking with a friend, the situation is: {current_chat_summary}")
             self.write_task_process_to_pane(f"After talking with a friend, the situation is: {current_chat_summary}\n\n")
+            self.taskmng_js.show_information(f"<b>Conversation with promotion target finished. Summary:</b><br> {current_chat_summary}")
+            try:
+                if hasattr(self, "show_alert_on_map"):
+                    self.show_alert_on_map(
+                        f"Conversation with promotion target finished. Summary: {current_chat_summary}",
+                        is_error=False,
+                    )
+            except Exception:
+                pass
             self.taskmng.current_situation = f"After talking with someone else, the situation is: {current_chat_summary}"
             resume_ask_content = f"- Current objective\n{self.taskmng.current_objective}\n- Current progress\nAfter talking with someone else, the situation is: {current_chat_summary}"
             self.end_active_conversation(
@@ -519,6 +833,15 @@ class TradeMixin:
         if not continue_chat:
             self.taskmng.add_process_info_to_list(f"After talking with a friend, the situation is: {current_chat_summary}")
             self.write_task_process_to_pane(f"After talking with a friend, the situation is: {current_chat_summary}\n\n")
+            self.taskmng_js.show_information(f"<b>Conversation with the seller finished. Summary:</b><br> {current_chat_summary}")
+            try:
+                if hasattr(self, "show_alert_on_map"):
+                    self.show_alert_on_map(
+                        f"Conversation with the seller finished. Summary: {current_chat_summary}",
+                        is_error=False,
+                    )
+            except Exception:
+                pass
             self.taskmng.current_situation = f"After talking with someone else, the situation is: {current_chat_summary}"
             resume_ask_content = f"- Current objective\n{self.taskmng.current_objective}\n- Current progress\nAfter talking with someone else, the situation is: {current_chat_summary}"
             self.end_active_conversation(
@@ -610,8 +933,11 @@ class TradeMixin:
         to_nation_id: Optional[str] = None,
         to_nick_name: Optional[str] = None,
         good_name: Optional[str] = None,
-    ) -> None:
+    ) -> bool:
         trade_id = generate_random_id()
+        money_before = float(self.aichatcfg_record.money or 0)
+        energy_before = float(self.aichatcfg_record.energy_point or 0)
+        life_before = float(self.aichatcfg_record.life_point or 0)
         current_talk_people = self.current_talk_people or {}
         logger.info("sendpay.......")
         logger.info(current_talk_people)
@@ -621,37 +947,69 @@ class TradeMixin:
         nick_name = (to_nick_name or current_talk_people.get("nick_name") or "").strip()
         if not account:
             logger.warning("send_pay called without a valid recipient account")
-            return
+            return False
         if not nation_id:
             nation_id = account
         if not nick_name:
             nick_name = account
 
-        recipient_profession = (
-            (current_talk_people.get("Profession") or current_talk_people.get("profession") or "").strip()
-        )
+        recipient_profession = (current_talk_people.get("Profession") or current_talk_people.get("profession") or "").strip()
+        if not recipient_profession and account:
+            try:
+                for p in (self.get_people_list() or []):
+                    if not isinstance(p, dict):
+                        continue
+                    p_account = (p.get("account") or "").strip()
+                    if p_account and p_account == account:
+                        recipient_profession = (p.get("profession") or p.get("Profession") or "").strip()
+                        if recipient_profession:
+                            break
+            except Exception:
+                pass
         profession_key = recipient_profession.lower()
         print("recipient_profession")
         print(profession_key)
 
-        if profession_key == "doctor":
+        try:
+            paid_value = float(price or 0)
+        except Exception:
+            paid_value = 0.0
+
+        active_conversation = bool(getattr(self, "active_conversation", None))
+        if not self._ensure_sufficient_funds(
+            paid_value,
+            context=f"make a payment to {nick_name or account}",
+            ui_notify=active_conversation,
+            end_conversation_on_fail=active_conversation,
+        ):
+            return False
+
+        trade_title = "Purchase completed"
+        show_energy = False
+        show_life = False
+
+        if profession_key == "doctor" or (isinstance(good_name, str) and good_name.strip().lower() == "medical"):
             try:
-                self.aichatcfg_record.life_point = self.aichatcfg_record.life_point + 25
+                self.aichatcfg_record.life_point = float(self.aichatcfg_record.life_point or 0) + 25
                 self.aichatcfg_record.move_point = round(
-                    100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+                    100 * (float(self.aichatcfg_record.life_point or 0) / 100) * (float(self.aichatcfg_record.energy_point or 0) / 100),
                     1,
                 )
                 logger.info("Applied Doctor service effect: life_point and move_point updated")
+                trade_title = "Medical service purchased"
+                show_life = True
             except Exception as e:
                 logger.error(f"Failed to apply Doctor service effect: {e}", exc_info=True)
-        elif profession_key == "restaurateur":
+        elif profession_key == "restaurateur" or (isinstance(good_name, str) and good_name.strip().lower() == "food"):
             try:
-                self.aichatcfg_record.energy_point = self.aichatcfg_record.energy_point + 25
+                self.aichatcfg_record.energy_point = float(self.aichatcfg_record.energy_point or 0) + 25
                 self.aichatcfg_record.move_point = round(
-                    100 * (self.aichatcfg_record.life_point / 100) * (self.aichatcfg_record.energy_point / 100),
+                    100 * (float(self.aichatcfg_record.life_point or 0) / 100) * (float(self.aichatcfg_record.energy_point or 0) / 100),
                     1,
                 )
                 logger.info("Applied Restaurateur service effect: energy_point and move_point updated")
+                trade_title = "Food purchased"
+                show_energy = True
             except Exception as e:
                 logger.error(f"Failed to apply Restaurateur service effect: {e}", exc_info=True)
         try:
@@ -672,7 +1030,18 @@ class TradeMixin:
 
             self.talk_to_a_people(message, nation_id, account, nick_name)
 
-            self.add_money(0 - float(price or 0))
+            self.add_money(0 - paid_value)
+            money_after = float(self.aichatcfg_record.money or 0)
+            self._show_trade_success_info(
+                title=trade_title,
+                paid=paid_value,
+                energy_before=energy_before if show_energy else None,
+                energy_after=float(self.aichatcfg_record.energy_point or 0) if show_energy else None,
+                life_before=life_before if show_life else None,
+                life_after=float(self.aichatcfg_record.life_point or 0) if show_life else None,
+                money_before=money_before,
+                money_after=money_after,
+            )
 
             # Memory capture: record buy trade
             try:
@@ -712,8 +1081,10 @@ class TradeMixin:
                 add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=1)
 
             self._broadcast_trade_upserted(trade_id)
+            return True
         except Exception as e:
             logger.error(f"send_pay failed: {e}", exc_info=True)
+            return False
 
     def handle_pay_received(self, price_str) -> None:
         try:
@@ -843,7 +1214,17 @@ class TradeMixin:
                 add_map_trade(trade_id=trade_id, trade_type=trade_type, title=title, detail=detail, pay=price, trade_with_name=trade_with_name, trade_with_account=trade_with_account, status=2)
 
             self._broadcast_trade_upserted(trade_id)
+            money_before = float(self.aichatcfg_record.money or 0)
             self.add_money(price)
+            money_after = float(self.aichatcfg_record.money or 0)
+            self._show_trade_success_info(
+                title="Sale completed",
+                earned=float(price or 0),
+                money_before=money_before,
+                money_after=money_after,
+            )
+
+
 
             # Memory capture: record sell trade
             try:

@@ -48,6 +48,8 @@ class SystemService:
             "memory_enabled": bool(getattr(config, 'memory_enabled', True)),
             "memory_embedding_enabled": bool(getattr(config, 'memory_embedding_enabled', False)),
             "log_retention_days": getattr(config, 'log_retention_days', 3),
+            "tool_check_every_n": getattr(config, 'tool_check_every_n', 0),
+            "tool_check_before_review_enabled": bool(getattr(config, 'tool_check_before_review_enabled', False)),
             "tools": {
                 "page_size": settings.tools.page_size
             }
@@ -76,6 +78,8 @@ class SystemService:
             "memory_enabled",
             "memory_embedding_enabled",
             "log_retention_days",
+            "tool_check_every_n",
+            "tool_check_before_review_enabled",
         }
 
         payload = {k: v for k, v in kwargs.items() if k in allowed_keys}
@@ -89,6 +93,7 @@ class SystemService:
             "process_info_compact_every_n",
             "process_info_plan_summary_every_n",
             "log_retention_days",
+            "tool_check_every_n",
         ):
             if k in payload and payload[k] is not None:
                 try:
@@ -100,7 +105,7 @@ class SystemService:
             if payload["log_retention_days"] is not None and payload["log_retention_days"] < 0:
                 payload.pop("log_retention_days", None)
 
-        for k in ("process_info_compact_every_n", "process_info_plan_summary_every_n"):
+        for k in ("process_info_compact_every_n", "process_info_plan_summary_every_n", "tool_check_every_n"):
             if k in payload:
                 if payload[k] is None:
                     payload.pop(k, None)
@@ -119,6 +124,12 @@ class SystemService:
                 payload["memory_embedding_enabled"] = bool(payload["memory_embedding_enabled"])
             except Exception:
                 payload.pop("memory_embedding_enabled", None)
+
+        if "tool_check_before_review_enabled" in payload:
+            try:
+                payload["tool_check_before_review_enabled"] = bool(payload["tool_check_before_review_enabled"])
+            except Exception:
+                payload.pop("tool_check_before_review_enabled", None)
 
         # If memory is disabled, embedding must be disabled as well.
         if payload.get("memory_enabled") is False:

@@ -126,7 +126,7 @@ class UIDisplayMixin:
 
         # self.thinking_edit.append(new_content)
 
-    def write_task_process_to_pane(self, content):
+    def write_task_process_to_pane(self, content=""):
         # Get ongoing process and task process history content
         ongoing_process = self.get_on_going_process()
         task_process_history = self.get_task_process_history()
@@ -442,6 +442,7 @@ class UIDisplayMixin:
         logger = logging.getLogger(__name__)
 
         # Build message
+        is_error = False # set is_error = False，make the alert close after 1.5 sec
         msg = {
             "type": "alert",
             "message": message,

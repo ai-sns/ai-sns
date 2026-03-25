@@ -305,7 +305,7 @@ export default {
                                 </div>
                                 <div class="status-rows">
                                     <div class="status-row"><span>🤖 Agent</span><span class="value" id="agentValue"> Loading...</span></div>
-                                    <div class="status-row"><span>🔧 Provider</span><span class="value" id="providerValue"> Loading...</span></div>
+                                    <div class="status-row"><span>☁️ Provider</span><span class="value" id="providerValue"> Loading...</span></div>
                                     <div class="status-row"><span>🧠 Model</span><span class="value" id="modelValue"> Loading...</span></div>
 
                                 </div>

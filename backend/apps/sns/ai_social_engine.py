@@ -25,7 +25,7 @@ from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_titl
                           add_function_mng, update_map_task, add_map_visit, get_key_value,
                           update_map_trade, add_map_trade, add_map_tool, query_single_map_trade, update_AiChatCfg_by_user_id, update_AiChatCfg_map, query_AiChatCfg_map, add_mcp_mng, query_mcp_mng,
                           delete_map_preset_msg, query_map_preset_msg_all, add_map_preset_msg, query_tool_list, query_single_tool, query_AiChatCfg_map_setting)
-from db.DBFactory import query_SystemCfg
+from db.DBFactory import query_SystemCfg, upsert_prompt_by_title_with_tags
 from util import (generate_random_id, add_memory_list)
 from i18n import lt
 from enum import Enum
@@ -66,8 +66,8 @@ class AISocialEngine(
     Backend adapter for AI Social Engine
     Wraps the Qt-based ai_social_engine functionality for API use
     """
-    LIFE_DECLINE_INTERVAL = 10    # Decline life every N rounds
-    ENERGY_DECLINE_INTERVAL = 5   # Decline energy every N rounds
+    LIFE_DECLINE_INTERVAL = 50    # Decline life every N rounds
+    ENERGY_DECLINE_INTERVAL = 10   # Decline energy every N rounds
 
     def __init__(self, db: Session):
         self.db = db
@@ -214,6 +214,7 @@ class AISocialEngine(
         self.updown_message_index = -1
         self.life_decline_counter = 0
         self.energy_decline_counter = 0
+        self.process_activity_counter = 0
         self.current_action = ""
         self.action_result = ""
         self.current_task_list = ""
@@ -253,7 +254,6 @@ class AISocialEngine(
         self._contact_last_time = {}
         self._recent_contacts = {
             "sell": [],
-            "buy": [],
             "communication": [],
         }
         self._pending_talk_objective = ""
@@ -265,6 +265,8 @@ class AISocialEngine(
 
         self.process_info_compact_every_n = 50
         self.process_info_plan_summary_every_n = 5
+        self.tool_check_every_n = 0
+        self.tool_check_before_review_enabled = False
 
         try:
             cfg = query_SystemCfg(is_delete=False)
@@ -285,6 +287,13 @@ class AISocialEngine(
                 v = getattr(cfg, "process_info_plan_summary_every_n", None)
                 if v is not None:
                     self.process_info_plan_summary_every_n = int(v)
+
+                v = getattr(cfg, "tool_check_every_n", None)
+                if v is not None:
+                    self.tool_check_every_n = int(v)
+                v = getattr(cfg, "tool_check_before_review_enabled", None)
+                if v is not None:
+                    self.tool_check_before_review_enabled = bool(int(v)) if isinstance(v, (int, float, str)) else bool(v)
 
                 v = getattr(cfg, "memory_enabled", None)
                 if v is not None:
@@ -366,6 +375,12 @@ class AISocialEngine(
                 except Exception as _mem_err:
                     logger.warning("Memory preload failed: %s", _mem_err)
 
+                # Seed default SNS prompts if they do not exist yet
+                try:
+                    self._ensure_sns_prompts()
+                except Exception as _prompt_err:
+                    logger.warning("SNS prompt seeding failed: %s", _prompt_err)
+
                 t = asyncio.create_task(self.taskmng.process_task(action="process_activity"))
                 self._background_tasks.add(t)
                 t.add_done_callback(lambda _t: self._background_tasks.discard(_t))
@@ -388,6 +403,44 @@ class AISocialEngine(
             self.started_flag = False
             self.map_task_status = "error"
             raise
+
+    # ------------------------------------------------------------------
+    # Prompt seeding – ensure default SNS prompts exist in the DB
+    # ------------------------------------------------------------------
+    _SNS_PROMPT_SEEDS = {
+        "__tool_check_before_activity__": (
+            "You are an AI agent playing a virtual social life game on Google Maps.\n"
+            "You are about to decide your next action in the game.\n"
+            "Before proceeding, review the current situation below and determine "
+            "if any of your available tools could help you make a better decision.\n\n"
+            "If you find a useful tool, call it now and return the result.\n"
+            "If no tool is needed, simply reply with the single phrase: NO_TOOL_NEEDED\n\n"
+            "Keep your response concise. Do NOT plan or choose the next game action "
+            "— just focus on whether a tool call would provide useful information right now."
+        ),
+        "__tool_check_before_review__": (
+            "You are an AI agent playing a virtual social life game on Google Maps.\n"
+            "You are currently in a conversation with another player.\n"
+            "Before reviewing this conversation, check if any of your available tools "
+            "could provide useful context (e.g., price lookup, information search, "
+            "knowledge retrieval).\n\n"
+            "If you find a useful tool, call it now and return the result.\n"
+            "If no tool is needed, simply reply with the single phrase: NO_TOOL_NEEDED\n\n"
+            "Keep your response concise. Do NOT evaluate or continue the conversation "
+            "— just focus on whether a tool call would be helpful."
+        ),
+    }
+
+    def _ensure_sns_prompts(self):
+        """Seed default SNS prompts into the DB if they do not already exist."""
+        for title, content in self._SNS_PROMPT_SEEDS.items():
+            try:
+                existing = get_prompt_by_title(title)
+                if existing is None:
+                    upsert_prompt_by_title_with_tags(title, content, tags="SNS")
+                    logger.info("Seeded SNS prompt: %s", title)
+            except Exception as e:
+                logger.warning("Failed to seed SNS prompt %s: %s", title, e)
 
     async def pause_engine(self):
         """
@@ -518,6 +571,11 @@ class AISocialEngine(
                     self.thinking_step_index = 0
                 if hasattr(self, 'process_step_index'):
                     self.process_step_index = 0
+                if hasattr(self, 'life_decline_counter'):
+                    self.life_decline_counter = 0
+                if hasattr(self, 'energy_decline_counter'):
+                    self.energy_decline_counter = 0
+
             except Exception:
                 pass
 
@@ -553,6 +611,10 @@ class AISocialEngine(
                     self.thinking_step_index = 0
                 if hasattr(self, 'process_step_index'):
                     self.process_step_index = 0
+                if hasattr(self, 'life_decline_counter'):
+                    self.life_decline_counter = 0
+                if hasattr(self, 'energy_decline_counter'):
+                    self.energy_decline_counter = 0
             except Exception:
                 pass
 
@@ -652,7 +714,12 @@ class AISocialEngine(
         prompt = prompt.replace(f"__action_result__", self.action_result)
         prompt = prompt.replace(f"__current_status__", current_status)
         prompt = prompt.replace(f"__service_list__", json.dumps(self.get_service_list(), indent=4, ensure_ascii=False))
-        prompt = prompt.replace(f"__people_list__", json.dumps(self.get_people_list(), indent=4, ensure_ascii=False))
+        people_list = []
+        try:
+            people_list = self.get_people_list() or []
+        except Exception:
+            people_list = []
+        prompt = prompt.replace(f"__people_list__", json.dumps(people_list, indent=4, ensure_ascii=False))
         prompt = prompt.replace(f"__place_list__", json.dumps(self.get_place_list(), indent=4, ensure_ascii=False))
         prompt = prompt.replace(f"__question_to_llm__", question_to_llm)
 
@@ -682,14 +749,113 @@ class AISocialEngine(
         else:
             self.aichatcfg_record.iq_point = 100
 
+    def _iter_json_objects_from_text(self, text: str):
+        if not isinstance(text, str) or not text:
+            return []
+
+        objects = []
+        try:
+            for m in re.finditer(r"\{.*?\}", text, flags=re.DOTALL):
+                chunk = m.group(0)
+                try:
+                    obj = json.loads(chunk)
+                except Exception:
+                    continue
+                objects.append(obj)
+        except Exception:
+            objects = []
+
+        if objects:
+            return objects
+
+        objects = []
+        start = None
+        depth = 0
+        in_string = False
+        escape = False
+        for idx, ch in enumerate(text):
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+                continue
+
+            if ch == '{':
+                if depth == 0:
+                    start = idx
+                depth += 1
+            elif ch == '}':
+                if depth > 0:
+                    depth -= 1
+                    if depth == 0 and start is not None:
+                        chunk = text[start:idx + 1]
+                        start = None
+                        try:
+                            obj = json.loads(chunk)
+                        except Exception:
+                            continue
+                        objects.append(obj)
+
+        return objects
+
+    def _extract_place_position_from_action_str(self, action_str: str):
+        for obj in (self._iter_json_objects_from_text(action_str) or []):
+            if not isinstance(obj, dict):
+                continue
+
+            place = obj.get("place")
+            position = obj.get("position")
+            if place is None or position is None:
+                params = obj.get("parameters")
+                if isinstance(params, dict):
+                    place = params.get("place")
+                    position = params.get("position")
+
+            if not isinstance(place, str) or not place.strip():
+                continue
+            if not isinstance(position, list) or len(position) < 2:
+                continue
+
+            try:
+                lng = float(position[0])
+                lat = float(position[1])
+            except Exception:
+                continue
+
+            if not (math.isfinite(lng) and math.isfinite(lat)):
+                continue
+            return place.strip(), [lng, lat]
+
+        return None, None
+
     def handle_parse_agent_instruction_for_process_activity(self, instruction):
         print("llm return instruction:", instruction)
         instruction = instruction.strip()
         self.current_task_list = self.get_current_task_list(instruction)
         action_str = self.get_next_action(instruction)
-        self.current_action = action_str
 
-        print("current action_str:", action_str)
+        action_str_clean = (action_str or "").strip()
+        if not action_str_clean or all(ch in {".", ""} for ch in action_str_clean):
+            self._instruction_total_count += 1
+            self._instruction_invalid_count += 1
+            self._update_iq_point_from_counters()
+            self.taskmng_js.show_information(
+                lt(
+                    "<b>LLM returned invalid structure.</b>",
+                    "<b>LLM returned invalid structure.</b>",
+                )
+            )
+        else:
+            self.taskmng_js.show_information(lt(f"<b>LLM recommended next action:</b><br>{action_str_clean}.", f"<b>LLM-recommended next action:</b><br>{action_str_clean}."))
+
+        self.current_action = action_str_clean
 
         # Increment exp_point by 1 on each call
         current_exp = int(self.aichatcfg_record.exp_point or 0)
@@ -722,30 +888,20 @@ class AISocialEngine(
             if self.move_by_route_flag:
                 action_result = self.move_by_route()
             else:
-                # Extract the JSON part using regex
-                json_match = re.search(r'\{.*\}', action_str)
-                if not json_match:
+                place, target_position = self._extract_place_position_from_action_str(action_str)
+                if not place or not target_position:
                     self._instruction_invalid_count += 1
                     self._update_iq_point_from_counters()
-                    return None, None
-
-                # Parse JSON
-                try:
-                    data = json.loads(json_match.group(0))
-                except Exception:
-                    self._instruction_invalid_count += 1
-                    self._update_iq_point_from_counters()
-                    return None, None
-
-                # Extract required fields
-                place = data.get('place')
-                position = data.get('position')
-                target_position = position
-
-                self.target_position = target_position
-                self.target_place = place
-
-                action_result = self.move_ahead(self.aichatcfg_record.current_position, target_position, place)
+                    msg = "Failed to parse WALK_TO payload from LLM output. Expected JSON with place and position."
+                    try:
+                        self.show_alert_on_map(msg, is_error=True)
+                    except Exception:
+                        pass
+                    action_result = msg
+                else:
+                    self.target_position = target_position
+                    self.target_place = place
+                    action_result = self.move_ahead(self.aichatcfg_record.current_position, target_position, place)
 
         elif "3_COMMUNICATE" in action_str:
             self.communicate_with_a_people(action_str, instruction)
@@ -781,27 +937,18 @@ class AISocialEngine(
             if self.move_by_route_flag:
                 action_result = self.move_by_route()
             else:
-                # Extract the JSON part using regex
-                json_match = re.search(r'\{.*\}', action_str)
-                if not json_match:
+                place, target_position = self._extract_place_position_from_action_str(action_str)
+                if not place or not target_position:
                     self._instruction_invalid_count += 1
                     self._update_iq_point_from_counters()
-                    return None, None
-
-                # Parse JSON
-                try:
-                    data = json.loads(json_match.group(0))
-                except Exception:
-                    self._instruction_invalid_count += 1
-                    self._update_iq_point_from_counters()
-                    return None, None
-
-                # Extract required fields
-                place = data.get('place')
-                position = data.get('position')
-
-                target_position = position
-                action_result = self.set_taxi_order(self.aichatcfg_record.current_position, target_position, place)
+                    msg = "Failed to parse CALL_TAXI payload from LLM output. Expected JSON with place and position."
+                    try:
+                        self.show_alert_on_map(msg, is_error=True)
+                    except Exception:
+                        pass
+                    action_result = msg
+                else:
+                    action_result = self.set_taxi_order(self.aichatcfg_record.current_position, target_position, place)
 
         elif "10_REMOTE_MEDICAL" in action_str:
             action_result = self.call_a_doctor()
@@ -813,8 +960,20 @@ class AISocialEngine(
         self._update_iq_point_from_counters()
 
         self.action_result = action_result
-        self.taskmng.add_process_info_to_list(f"system:{action_result}")
-        self.write_task_process_to_pane(action_result + "\n\n")
+        invalid_action_msg = f"'{action_str}' is not in the list of valid actions."
+        if action_result == invalid_action_msg:
+            if (action_str or "").strip():
+                self.taskmng_js.show_information(lt(invalid_action_msg, invalid_action_msg))
+        else:
+            skip_show_information_for_action_result = (
+                "8_FOOD_DELIVERY" in (action_str or "")
+                or "10_REMOTE_MEDICAL" in (action_str or "")
+            )
+            self.taskmng.add_process_info_to_list(f"system:{action_result}")
+            if not skip_show_information_for_action_result:
+                self.taskmng_js.show_information(f"<b>{action_result}</b>")
+
+        self.write_task_process_to_pane()
         self.show_alert_on_map(action_result)
 
         # Memory capture: record completed action as episode memory
@@ -1042,11 +1201,35 @@ class AISocialEngine(
             self._rebirth_in_progress = True
             try:
                 self._rebirth_count += 1
+                life_before = life
+                energy_before = energy
+                money_before = money
                 self.aichatcfg_record.life_point = 100
                 self.aichatcfg_record.energy_point = 100
                 self.aichatcfg_record.move_point = 100
                 self.aichatcfg_record.money = 1000
                 logger.info(f"Rebirth triggered (#{self._rebirth_count}). Stats reset: life=100, energy=100, move=100, money=1000")
+
+                try:
+                    msg = (
+                        f"Rebirth triggered (#{self._rebirth_count}). "
+                        f"Life: {life_before:.0f}% -> {float(self.aichatcfg_record.life_point or 0):.0f}%. "
+                        f"Energy: {energy_before:.0f}% -> {float(self.aichatcfg_record.energy_point or 0):.0f}%. "
+                        f"Money: ${money_before:.2f} -> ${float(self.aichatcfg_record.money or 0):.2f}."
+                    )
+                    try:
+                        if hasattr(self, "show_alert_on_map"):
+                            self.show_alert_on_map(msg, is_error=True)
+                    except Exception:
+                        pass
+
+                    try:
+                        if hasattr(self, "taskmng_js"):
+                            self.taskmng_js.show_information(f"<b>{msg}</b>")
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
 
                 # Memory capture: record rebirth event
                 try:

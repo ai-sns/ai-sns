@@ -173,6 +173,13 @@ class SNSService:
     async def send_message(self, to_account: str, content: str) -> dict:
         """Send a message via XMPP"""
         try:
+            to_account = (to_account or "").strip()
+            if (not to_account) or ("@" not in to_account):
+                return {
+                    "success": False,
+                    "message": "Invalid XMPP account. Expected a full JID like user@domain.",
+                }
+
             # Get XMPP client
             xmpp_manager = XMPPClientManager.get_instance()
             client = xmpp_manager.get_client()
@@ -220,6 +227,13 @@ class SNSService:
     async def send_file(self, to_account: str, file) -> dict:
         """Send a file via XMPP using XEP-0363"""
         try:
+            to_account = (to_account or "").strip()
+            if (not to_account) or ("@" not in to_account):
+                return {
+                    "success": False,
+                    "message": "Invalid XMPP account. Expected a full JID like user@domain.",
+                }
+
             # Get XMPP client
             xmpp_manager = XMPPClientManager.get_instance()
             client = xmpp_manager.get_client()

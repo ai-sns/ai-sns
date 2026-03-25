@@ -150,7 +150,19 @@ class XmppMixin:
                 # Check whether this is a buy inquiry (someone initiates a purchase request)
                 if (buy_flag := self.check_buy_in_received(content)):
                     logger.info(f"Detected buy inquiry from {account}")
-                    self.talk_type = "sell"
+                    if is_active_peer or not active_account:
+                        self.talk_type = "sell"
+                    else:
+                        pending = getattr(self, "_pending_peer_talk_type", None)
+                        if pending is None or not isinstance(pending, dict):
+                            pending = {}
+                            setattr(self, "_pending_peer_talk_type", pending)
+                        pending[account] = "sell"
+                        logger.info(
+                            "Recorded pending inquiry intent from %s (active_conversation=%s)",
+                            account,
+                            active_account,
+                        )
                 else:
                     logger.debug(f"Processing as general conversation message from {account}")
 
@@ -243,6 +255,11 @@ class XmppMixin:
             # Validate message content
             if not content:
                 logger.warning("Cannot send empty message")
+                return False
+
+            to_jid = (to_jid or "").strip()
+            if (not to_jid) or ("@" not in to_jid):
+                logger.warning("Refusing to send message to invalid XMPP account: %s", to_jid)
                 return False
 
             # Resolve recipient info

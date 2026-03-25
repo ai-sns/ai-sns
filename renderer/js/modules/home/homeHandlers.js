@@ -103,6 +103,13 @@ const homeHandlers = {
                     logRetentionValue = (v === undefined || v === null) ? '' : String(v);
                 }
 
+                const toolCheckEveryValue = (remoteCfg && remoteCfg.tool_check_every_n !== undefined && remoteCfg.tool_check_every_n !== null)
+                    ? String(remoteCfg.tool_check_every_n)
+                    : '0';
+                const toolCheckBeforeReviewValue = (remoteCfg && remoteCfg.tool_check_before_review_enabled !== undefined && remoteCfg.tool_check_before_review_enabled !== null)
+                    ? Boolean(remoteCfg.tool_check_before_review_enabled)
+                    : false;
+
                 const memoryEnabledValue = (remoteCfg && remoteCfg.memory_enabled !== undefined && remoteCfg.memory_enabled !== null)
                     ? Boolean(remoteCfg.memory_enabled)
                     : true;
@@ -119,6 +126,8 @@ const homeHandlers = {
                 const compactEveryInput = modal.element?.querySelector('#homeCfgProcessInfoCompactEveryN');
                 const planSummaryEveryInput = modal.element?.querySelector('#homeCfgProcessInfoPlanSummaryEveryN');
                 const logRetentionInput = modal.element?.querySelector('#homeCfgLogRetentionDays');
+                const toolCheckEveryInput = modal.element?.querySelector('#homeCfgToolCheckEveryN');
+                const toolCheckBeforeReviewInput = modal.element?.querySelector('#homeCfgToolCheckBeforeReviewEnabled');
                 const memoryEnabledInput = modal.element?.querySelector('#homeCfgMemoryEnabled');
                 const memoryEmbeddingEnabledInput = modal.element?.querySelector('#homeCfgMemoryEmbeddingEnabled');
                 const memoryEmbeddingRow = modal.element?.querySelector('#homeCfgMemoryEmbeddingRow');
@@ -145,6 +154,12 @@ const homeHandlers = {
                 }
                 if (logRetentionInput) {
                     logRetentionInput.value = logRetentionValue;
+                }
+                if (toolCheckEveryInput) {
+                    toolCheckEveryInput.value = toolCheckEveryValue;
+                }
+                if (toolCheckBeforeReviewInput) {
+                    toolCheckBeforeReviewInput.checked = !!toolCheckBeforeReviewValue;
                 }
                 if (memoryEnabledInput) {
                     memoryEnabledInput.checked = !!memoryEnabledValue;
@@ -191,12 +206,20 @@ const homeHandlers = {
                         <input type="number" min="0" max="100000" step="1" class="setting-input" id="homeCfgProcessInfoCompactEveryN" value="" placeholder="50" />
                     </div>
                     <div class="setting-group">
-                        <label>Process Plan Summary Every N Rounds</label>
+                        <label>Process Plan Summary Every N Rounds (0 = disabled)</label>
                         <input type="number" min="0" max="100000" step="1" class="setting-input" id="homeCfgProcessInfoPlanSummaryEveryN" value="" placeholder="5" />
                     </div>
                     <div class="setting-group">
                         <label>Log retention days</label>
                         <input type="number" min="0" max="3650" step="1" class="setting-input" id="homeCfgLogRetentionDays" value="" placeholder="Default 3. Leave empty to disable deletion. Deletes folders older than N days." />
+                    </div>
+                    <div class="setting-group">
+                        <label>Tool Check Every N Rounds (0 = disabled)</label>
+                        <input type="number" min="0" max="100000" step="1" class="setting-input" id="homeCfgToolCheckEveryN" value="" placeholder="0" />
+                    </div>
+                    <div class="setting-group">
+                        <label>Enable Tool Check Before Review</label>
+                        <input type="checkbox" id="homeCfgToolCheckBeforeReviewEnabled" />
                     </div>
                     <div class="setting-group">
                         <label>Enable Memory</label>
@@ -265,6 +288,8 @@ const homeHandlers = {
                     const compactEveryRaw = (modal.element?.querySelector('#homeCfgProcessInfoCompactEveryN')?.value || '').trim();
                     const planSummaryEveryRaw = (modal.element?.querySelector('#homeCfgProcessInfoPlanSummaryEveryN')?.value || '').trim();
                     const logRetentionRaw = (modal.element?.querySelector('#homeCfgLogRetentionDays')?.value || '').trim();
+                    const toolCheckEveryRaw = (modal.element?.querySelector('#homeCfgToolCheckEveryN')?.value || '').trim();
+                    const tool_check_before_review_enabled = !!(modal.element?.querySelector('#homeCfgToolCheckBeforeReviewEnabled')?.checked);
 
                     const memory_enabled = !!(modal.element?.querySelector('#homeCfgMemoryEnabled')?.checked);
 
@@ -274,6 +299,7 @@ const homeHandlers = {
 
                     const process_info_compact_every_n = compactEveryRaw ? parseInt(compactEveryRaw, 10) : 50;
                     const process_info_plan_summary_every_n = planSummaryEveryRaw ? parseInt(planSummaryEveryRaw, 10) : 5;
+                    const tool_check_every_n = toolCheckEveryRaw ? parseInt(toolCheckEveryRaw, 10) : 0;
 
                     const log_retention_days = logRetentionRaw ? parseInt(logRetentionRaw, 10) : 3;
 
@@ -291,6 +317,9 @@ const homeHandlers = {
                     }
                     if (!Number.isFinite(process_info_plan_summary_every_n) || process_info_plan_summary_every_n < 0 || process_info_plan_summary_every_n > 100000) {
                         throw new Error('Process Plan Summary Every N Rounds must be between 0 and 100000');
+                    }
+                    if (!Number.isFinite(tool_check_every_n) || tool_check_every_n < 0 || tool_check_every_n > 100000) {
+                        throw new Error('Tool Check Every N Rounds must be between 0 and 100000');
                     }
 
                     if (logRetentionRaw) {
@@ -327,6 +356,8 @@ const homeHandlers = {
                                 contact_recent_limit,
                                 process_info_compact_every_n,
                                 process_info_plan_summary_every_n,
+                                tool_check_every_n,
+                                tool_check_before_review_enabled,
                                 memory_enabled,
                                 memory_embedding_enabled,
                                 log_retention_days: logRetentionRaw ? log_retention_days : null,

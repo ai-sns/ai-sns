@@ -317,6 +317,12 @@ export default {
                 thinkPane.querySelectorAll('.thinking-log-entry').forEach((el) => el.remove());
             } catch (e) {
             }
+
+            try {
+                const nav = document.getElementById('thinkingLogNavigator');
+                if (nav) nav.remove();
+            } catch (e) {
+            }
         }
 
         const searchBar = document.getElementById('statusSearchBar');
@@ -1699,6 +1705,12 @@ export default {
             // Restore scroll position for target tab
             requestAnimationFrame(() => {
                 restoreScrollPosition(targetTab);
+                try {
+                    if (typeof this.ensureThinkingLogNavigator === 'function') {
+                        this.ensureThinkingLogNavigator();
+                    }
+                } catch (e) {
+                }
             });
 
             // Only adjust horizontal scroll of the tab buttons container; do not affect content area
@@ -2997,6 +3009,130 @@ export default {
         // Scroll to bottom
         thinkingLogSection.scrollTop = thinkingLogSection.scrollHeight;
         thinkingLogSection.scrollTop = thinkingLogSection.scrollHeight;
+
+        try {
+            this.ensureThinkingLogNavigator();
+        } catch (e) {
+        }
+    },
+
+    ensureThinkingLogNavigator() {
+        const statusPanel = document.getElementById('snsStatusPanel');
+        const scrollEl = document.getElementById('statusTabContent');
+        const thinkPane = document.querySelector('.tab-pane[data-tab="think"]');
+        if (!statusPanel || !scrollEl || !thinkPane) return;
+
+        let nav = document.getElementById('thinkingLogNavigator');
+        if (!nav) {
+            nav = document.createElement('div');
+            nav.id = 'thinkingLogNavigator';
+            nav.className = 'thinking-log-navigator';
+            nav.style.display = 'none';
+            nav.innerHTML = `
+                <button type="button" class="thinking-log-nav-btn" data-dir="prev" title="Previous log">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                </button>
+                <button type="button" class="thinking-log-nav-btn" data-dir="next" title="Next log">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+            `;
+            statusPanel.appendChild(nav);
+
+            nav.addEventListener('click', (e) => {
+                const btn = e.target.closest('.thinking-log-nav-btn');
+                if (!btn) return;
+                const dir = btn.dataset.dir;
+                if (dir !== 'prev' && dir !== 'next') return;
+                this.scrollThinkingLogByCard(dir);
+            });
+
+            const onLayout = () => {
+                try {
+                    this.updateThinkingLogNavigatorVisibility();
+                } catch (e) {
+                }
+            };
+
+            if (!this._thinkingLogNavigatorBound) {
+                this._thinkingLogNavigatorBound = true;
+                window.addEventListener('resize', onLayout);
+                scrollEl.addEventListener('scroll', onLayout, { passive: true });
+            }
+        }
+
+        this.updateThinkingLogNavigatorVisibility();
+    },
+
+    updateThinkingLogNavigatorVisibility() {
+        const nav = document.getElementById('thinkingLogNavigator');
+        const scrollEl = document.getElementById('statusTabContent');
+        const thinkPane = document.querySelector('.tab-pane[data-tab="think"]');
+        if (!nav || !scrollEl || !thinkPane) return;
+
+        const isThinkActive = thinkPane.classList.contains('active');
+        let entriesCount = 0;
+        try {
+            const listEl = thinkPane.querySelector('.status-section:nth-child(2) .status-rows');
+            if (listEl) {
+                entriesCount = listEl.querySelectorAll('.thinking-log-entry').length;
+            }
+        } catch (e) {
+            entriesCount = 0;
+        }
+
+        const canScroll = (scrollEl.scrollHeight - scrollEl.clientHeight) > 4;
+        const shouldShow = !!(isThinkActive && canScroll && entriesCount >= 2);
+        nav.style.display = shouldShow ? 'flex' : 'none';
+    },
+
+    scrollThinkingLogByCard(direction) {
+        const scrollEl = document.getElementById('statusTabContent');
+        const thinkPane = document.querySelector('.tab-pane[data-tab="think"]');
+        if (!scrollEl || !thinkPane) return;
+        if (!thinkPane.classList.contains('active')) return;
+
+        const listEl = thinkPane.querySelector('.status-section:nth-child(2) .status-rows');
+        if (!listEl) return;
+
+        const entries = Array.from(listEl.querySelectorAll('.thinking-log-entry'));
+        if (!entries.length) return;
+
+        const containerRect = scrollEl.getBoundingClientRect();
+        const top = containerRect.top;
+
+        let currentIndex = -1;
+        let bestDist = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < entries.length; i++) {
+            const r = entries[i].getBoundingClientRect();
+            const dist = Math.abs(r.top - top);
+            if (dist < bestDist) {
+                bestDist = dist;
+                currentIndex = i;
+            }
+        }
+        if (currentIndex < 0) currentIndex = 0;
+
+        let targetIndex = currentIndex;
+        if (direction === 'prev') {
+            targetIndex = Math.max(0, currentIndex - 1);
+        } else {
+            targetIndex = Math.min(entries.length - 1, currentIndex + 1);
+        }
+
+        const target = entries[targetIndex];
+        if (!target) return;
+        try {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+            try {
+                target.scrollIntoView(true);
+            } catch (e2) {
+            }
+        }
     },
 
     /**

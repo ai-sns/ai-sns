@@ -958,7 +958,7 @@ export default {
                             class="trade-with-name trade-with-link"
                             data-account="${this.escapeHtml((trade.trade_with_account || '').toString())}"
                             data-nick-name="${this.escapeHtml((trade.trade_with_name || '').toString())}"
-                            title="${this.escapeHtml((trade.trade_with_name || '').toString())}"
+                            title="${this.escapeHtml(((trade.trade_with_account || '') || (trade.trade_with_name || '')).toString())}"
                         >${this.escapeHtml((trade.trade_with_name || '').toString())}</span>
                         ${trade.create_time ? `<span class="trade-time">${this._formatTradeTime(trade.create_time)}</span>` : ''}
                     </span>
