@@ -474,13 +474,45 @@ function calcRoute() {
 
             // Show view/reset buttons and hide confirm button
             if (msgdiv) {
+                const isRouteConfirmButton = (button) => {
+                    if (!button) return false;
+                    const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
+                    if (action === 'route-confirm') return true;
+                    const text = String(button.textContent || '').trim();
+                    if (text === 'Confirm' || text === 'OK') return true;
+                    const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+                    if (onclickAttr && onclickAttr.includes('planRoute')) return true;
+                    return false;
+                };
+
+                const isRouteViewButton = (button) => {
+                    if (!button) return false;
+                    const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
+                    if (action === 'route-view') return true;
+                    const text = String(button.textContent || '').trim();
+                    if (text === 'View') return true;
+                    const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+                    if (onclickAttr && onclickAttr.includes('viewRoute')) return true;
+                    return false;
+                };
+
+                const isRouteResetButton = (button) => {
+                    if (!button) return false;
+                    const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
+                    if (action === 'route-reset') return true;
+                    const text = String(button.textContent || '').trim();
+                    if (text === 'Reset') return true;
+                    const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+                    if (onclickAttr && onclickAttr.includes('resetRoute')) return true;
+                    return false;
+                };
+
                 const buttons = msgdiv.getElementsByTagName('button');
                 for (let i = 0; i < buttons.length; i++) {
                     const button = buttons[i];
-                    const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
-                    if (action === 'route-confirm') {
+                    if (isRouteConfirmButton(button)) {
                         button.style.display = 'none';
-                    } else if (action === 'route-view' || action === 'route-reset') {
+                    } else if (isRouteViewButton(button) || isRouteResetButton(button)) {
                         button.style.display = 'inline-block';
                     }
                 }
@@ -502,9 +534,19 @@ function calcRoute() {
                     specifiedRouteItem.textContent += ' ✓';
                 }
             }
+
+            try {
+                if (typeof closeRouteSetting === 'function') {
+                    closeRouteSetting();
+                } else {
+                    const routeDialog = document.getElementById('setroute');
+                    if (routeDialog) routeDialog.style.display = 'none';
+                }
+            } catch (e) {
+            }
         } else {
             // Route planning failed; do not update status or UI
-            showAlert("Route planning failed: " + status);
+            showAlert("Route planning failed. Please resubmit and retry. Status: " + status);
         }
     });
 }

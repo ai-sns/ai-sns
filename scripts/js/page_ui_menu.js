@@ -1128,6 +1128,39 @@ function setRoute() {
     msgdiv = document.getElementById("setroute");
     msgdiv.style.display = "inline";
 
+    const isRouteConfirmButton = (button) => {
+        if (!button) return false;
+        const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
+        if (action === 'route-confirm') return true;
+        const text = String(button.textContent || '').trim();
+        if (text === 'Confirm' || text === 'OK') return true;
+        const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+        if (onclickAttr && onclickAttr.includes('planRoute')) return true;
+        return false;
+    };
+
+    const isRouteViewButton = (button) => {
+        if (!button) return false;
+        const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
+        if (action === 'route-view') return true;
+        const text = String(button.textContent || '').trim();
+        if (text === 'View') return true;
+        const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+        if (onclickAttr && onclickAttr.includes('viewRoute')) return true;
+        return false;
+    };
+
+    const isRouteResetButton = (button) => {
+        if (!button) return false;
+        const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
+        if (action === 'route-reset') return true;
+        const text = String(button.textContent || '').trim();
+        if (text === 'Reset') return true;
+        const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+        if (onclickAttr && onclickAttr.includes('resetRoute')) return true;
+        return false;
+    };
+
     // Get start/end input elements
     const startInput = document.getElementById('start');
     const endInput = document.getElementById('end');
@@ -1148,10 +1181,9 @@ function setRoute() {
         const buttons = msgdiv.getElementsByTagName('button');
         for (let i = 0; i < buttons.length; i++) {
             const button = buttons[i];
-            const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
-            if (action === 'route-confirm') {
+            if (isRouteConfirmButton(button)) {
                 button.style.display = 'none';
-            } else if (action === 'route-view' || action === 'route-reset') {
+            } else if (isRouteViewButton(button) || isRouteResetButton(button)) {
                 button.style.display = 'inline';
             }
         }
@@ -1180,10 +1212,9 @@ function setRoute() {
         const buttons = msgdiv.getElementsByTagName('button');
         for (let i = 0; i < buttons.length; i++) {
             const button = buttons[i];
-            const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
-            if (action === 'route-confirm') {
+            if (isRouteConfirmButton(button)) {
                 button.style.display = 'inline';
-            } else if (action === 'route-view' || action === 'route-reset') {
+            } else if (isRouteViewButton(button) || isRouteResetButton(button)) {
                 button.style.display = 'none';
             }
         }

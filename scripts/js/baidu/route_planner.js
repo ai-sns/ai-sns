@@ -669,9 +669,9 @@ async function planRoute(isUserInitiated = true) {
 
     if (!start || !end) {
         try {
-            showAlert("请输入起点和终点，格式：地址,城市", true);
+            showAlert('Please enter both start and end. Recommended format: "address, city".', true);
         } catch (e) {
-            showAlert("请输入起点和终点，格式：地址,城市", true);
+            showAlert('Please enter both start and end. Recommended format: "address, city".', true);
         }
         return;
     }
@@ -690,9 +690,9 @@ async function planRoute(isUserInitiated = true) {
         const startParts = validateAddressCity(start);
         if (!startParts) {
             try {
-                showAlert('起点必须为中文地址，且包含城市，格式：地址,城市', true);
+                showAlert('Start must include a city. Recommended format: "address, city".', true);
             } catch (e) {
-                showAlert('起点必须为中文地址，且包含城市，格式：地址,城市', true);
+                showAlert('Start must include a city. Recommended format: "address, city".', true);
             }
             return;
         }
@@ -703,9 +703,9 @@ async function planRoute(isUserInitiated = true) {
         const endParts = validateAddressCity(end);
         if (!endParts) {
             try {
-                showAlert('终点必须为中文地址，且包含城市，格式：地址,城市', true);
+                showAlert('End must include a city. Recommended format: "address, city".', true);
             } catch (e) {
-                showAlert('终点必须为中文地址，且包含城市，格式：地址,城市', true);
+                showAlert('End must include a city. Recommended format: "address, city".', true);
             }
             return;
         }
@@ -714,9 +714,9 @@ async function planRoute(isUserInitiated = true) {
         endCityForGeocode = endParts.city;
 
         try {
-            showAlert('开始规划路线,仅支持中文和中国城市', false);
+            showAlert('Planning route...', false);
         } catch (e) {
-            showAlert('开始规划路线,仅支持中文和中国城市', false);
+            showAlert('Planning route...', false);
         }
     }
 
@@ -791,14 +791,26 @@ async function planRoute(isUserInitiated = true) {
         console.log("Requesting route search and plan.");
         await __drivingSearchWithRetry(startPoint, endPoint, 1000, 40);
 
+        try {
+            if (typeof closeRouteSetting === 'function') {
+                closeRouteSetting();
+            } else {
+                const routeDialog = document.getElementById('setroute');
+                if (routeDialog) routeDialog.style.display = 'none';
+            }
+        } catch (e0) {
+        }
+
         // Note: do not update state/UI here
         // Only update after confirming success in onSearchComplete
         // This avoids incorrect UI updates when planning fails
     } catch (error) {
         try {
-            showAlert(error.message || error, true);
+            const detail = String((error && (error.message || error)) || '');
+            showAlert('Route planning failed. Please resubmit and retry. ' + detail, true);
         } catch (e2) {
-            showAlert(error.message || error, true);
+            const detail = String((error && (error.message || error)) || '');
+            showAlert('Route planning failed. Please resubmit and retry. ' + detail, true);
         }
     }
 }
