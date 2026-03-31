@@ -347,6 +347,13 @@ function planRoute(isUserInitiated = true) {
     // Set flag based on parameter: whether route planning is initiated by the user
     isUserInitiatedRoutePlanning = isUserInitiated;
 
+    try {
+        if (isUserInitiated && typeof showAlert === 'function') {
+            showAlert('Planning route...', true);
+        }
+    } catch (e) {
+    }
+
     stopTrack(); // Clear existing route
     calcRoute();
 }
@@ -442,6 +449,13 @@ function calcRoute() {
         if (status == google.maps.DirectionsStatus.OK) {
             let directions = response;
             directionsDisplay.setDirections(directions);
+
+            try {
+                if (typeof hideAlert === 'function') {
+                    hideAlert();
+                }
+            } catch (e) {
+            }
 
             // Save start/end to backend
             update_map_setting("route_start", startForStorage);
@@ -546,6 +560,12 @@ function calcRoute() {
             }
         } else {
             // Route planning failed; do not update status or UI
+            try {
+                if (typeof hideAlert === 'function') {
+                    hideAlert();
+                }
+            } catch (e) {
+            }
             showAlert("Route planning failed. Please resubmit and retry. Status: " + status);
         }
     });

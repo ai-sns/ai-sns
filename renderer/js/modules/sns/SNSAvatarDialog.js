@@ -791,7 +791,8 @@ export class SNSAvatarDialog {
                 avatar3d: avatar3dValue,
                 nickname,
                 profile: sign,
-                sns_url: snsUrl
+                sns_url: snsUrl,
+                agent_id: agentId
             };
 
             try {
@@ -821,11 +822,12 @@ export class SNSAvatarDialog {
                     nicknameChanged = true;
                     nicknameValue = nickname;
                 }
+                this.existingAgentId = agentId;
                 this.existingUserInfo = {
                     nickname,
                     sign,
                     sns_url: snsUrl,
-                    agent_id: this.existingUserInfo ? this.existingUserInfo.agent_id : null
+                    agent_id: agentId ? agentId : null
                 };
                 this.existingConfig = {
                     ...(this.existingConfig || {}),

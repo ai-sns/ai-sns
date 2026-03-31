@@ -13,6 +13,9 @@ from backend.database.models.system import LlmConfig
 from .llm_schemas import LlmConfigCreate, LlmConfigUpdate, LlmTestRequest
 from openai import AsyncOpenAI
 
+from backend.shared.llm_endpoints import normalize_openai_base_url, normalize_provider
+from backend.shared.claude_client import ClaudeClient
+
 
 class LlmConfigService:
     """Service for managing LLM configurations."""
@@ -119,12 +122,45 @@ class LlmConfigService:
 
     async def test_connection(self, test_data: LlmTestRequest) -> Dict[str, Any]:
         """Test LLM connection."""
+        provider = normalize_provider(getattr(test_data, 'provider', '') or '')
         raw_endpoint = str(test_data.api_endpoint or '').strip()
         if not raw_endpoint:
             raise ValueError('api_endpoint is required')
 
-        base_url = raw_endpoint
-        base_url = re.sub(r"/chat/completions/?$", "", base_url, flags=re.IGNORECASE)
+        if provider == 'claude':
+            t0 = time.perf_counter()
+            client = ClaudeClient(api_key=test_data.api_key, api_endpoint=raw_endpoint)
+            try:
+                result = await asyncio.wait_for(
+                    client.create(
+                        model=test_data.model_name,
+                        system="",
+                        messages=[{"role": "user", "content": "hello"}],
+                        tools=None,
+                        max_tokens=32,
+                        temperature=0,
+                    ),
+                    timeout=15.0,
+                )
+            except asyncio.TimeoutError as e:
+                raise TimeoutError('Connection test timed out') from e
+
+            latency_ms = int((time.perf_counter() - t0) * 1000)
+            reply = str((result or {}).get('text') or '').strip()
+            if not reply:
+                raise RuntimeError('Empty response from model')
+
+            return {
+                "status": "success",
+                "message": "Connection test succeeded",
+                "latency_ms": latency_ms,
+                "reply": reply,
+                "model": test_data.model_name,
+                "provider": provider,
+                "base_url": client.api_endpoint,
+            }
+
+        base_url = normalize_openai_base_url(raw_endpoint)
         base_url = re.sub(r"/v1/?$", "/v1", base_url, flags=re.IGNORECASE)
         base_url = base_url.rstrip('/')
 
@@ -165,6 +201,7 @@ class LlmConfigService:
             "latency_ms": latency_ms,
             "reply": reply,
             "model": test_data.model_name,
+            "provider": provider,
             "base_url": base_url,
         }
 

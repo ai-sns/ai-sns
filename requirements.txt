@@ -73,6 +73,7 @@ jsonschema-specifications==2025.9.1
 kiwisolver==1.4.9
 kubernetes==33.1.0
 lxml==6.0.2
+anthropic==0.79.0
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 marshmallow==3.26.1

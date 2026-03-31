@@ -1611,6 +1611,13 @@ class SNSService:
             raw_sns_url = payload.get('sns_url', None)
             sns_url = '' if raw_sns_url is None else str(raw_sns_url).strip()
             xmpp_account = (payload.get('account') or payload.get('xmpp_account') or payload.get('sns_account') or '').strip()
+            raw_agent_id = payload.get('agent_id', None)
+            agent_id = None
+            if raw_agent_id is not None and str(raw_agent_id).strip() != '':
+                try:
+                    agent_id = int(str(raw_agent_id).strip())
+                except Exception:
+                    return {'success': False, 'message': 'agent_id must be an integer'}
 
             if not avatar3d:
                 return {'success': False, 'message': 'avatar3d is required'}
@@ -1663,6 +1670,7 @@ class SNSService:
             _profile = profile
             _sns_url = sns_url
             _xmpp_account = xmpp_account
+            _agent_id = agent_id
 
             def _update_avatar_dialog(session):
                 rec = session.query(AiChatCfg).filter_by(id=_config_id).first()
@@ -1675,6 +1683,8 @@ class SNSService:
                     rec.sns_url = _sns_url
                     if _xmpp_account and hasattr(rec, 'account'):
                         rec.account = _xmpp_account
+                    if _agent_id is not None and hasattr(rec, 'agent_id'):
+                        rec.agent_id = _agent_id
             await db_write_async(_update_avatar_dialog, description="service_async_submit_avatar_dialog")
 
             cfg_stmt = (

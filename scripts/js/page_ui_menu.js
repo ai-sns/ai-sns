@@ -1341,6 +1341,40 @@ function closeRouteSetting() {
     msgdiv = document.getElementById("setroute");
     msgdiv.style.display = "none";
 
+    try {
+        const backup = (typeof window !== 'undefined') ? window.__routeResetBackup : null;
+        if (backup && typeof backup === 'object') {
+            const startInput = document.getElementById('start');
+            const endInput = document.getElementById('end');
+            const positionTypeSelect = document.getElementById('position_type');
+
+            const curStart = startInput ? String(startInput.value || '').trim() : '';
+            const curEnd = endInput ? String(endInput.value || '').trim() : '';
+            const shouldRestore = (curStart === '' && curEnd === '');
+
+            if (!shouldRestore) {
+                if (typeof window !== 'undefined') {
+                    window.__routeResetBackup = null;
+                }
+            } else {
+                if (startInput && typeof backup.start === 'string') {
+                    startInput.value = backup.start;
+                }
+                if (endInput && typeof backup.end === 'string') {
+                    endInput.value = backup.end;
+                }
+                if (positionTypeSelect && typeof backup.positionType === 'string') {
+                    positionTypeSelect.value = backup.positionType;
+                }
+
+                if (typeof window !== 'undefined') {
+                    window.__routeResetBackup = null;
+                }
+            }
+        }
+    } catch (e) {
+    }
+
     // Reset coordinate links to initial state
     resetCoordinateLinks();
 }
@@ -1357,6 +1391,17 @@ function resetRoute() {
     const startCoordLink = document.getElementById("start_coord_link");
     const endCoordLink = document.getElementById("end_coord_link");
 
+    try {
+        if (typeof window !== 'undefined') {
+            window.__routeResetBackup = {
+                start: startInput ? String(startInput.value || '') : '',
+                end: endInput ? String(endInput.value || '') : '',
+                positionType: positionTypeSelect ? String(positionTypeSelect.value || '') : ''
+            };
+        }
+    } catch (e) {
+    }
+
     // Remove readonly attribute
     startInput.removeAttribute('readonly');
     endInput.removeAttribute('readonly');
@@ -1366,9 +1411,16 @@ function resetRoute() {
     for (let i = 0; i < buttons.length; i++) {
         const button = buttons[i];
         const action = (button && button.dataset) ? String(button.dataset.action || '') : '';
-        if (action === 'route-confirm') {
+        const text = String(button.textContent || '').trim();
+        const onclickAttr = button.getAttribute ? String(button.getAttribute('onclick') || '') : '';
+
+        const isConfirm = (action === 'route-confirm') || (text === 'Confirm' || text === 'OK') || (onclickAttr && onclickAttr.includes('planRoute'));
+        const isView = (action === 'route-view') || (text === 'View') || (onclickAttr && onclickAttr.includes('viewRoute'));
+        const isReset = (action === 'route-reset') || (text === 'Reset') || (onclickAttr && onclickAttr.includes('resetRoute'));
+
+        if (isConfirm) {
             button.style.display = 'inline-block';
-        } else if (action === 'route-view' || action === 'route-reset') {
+        } else if (isView || isReset) {
             button.style.display = 'none';
         }
     }

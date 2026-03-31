@@ -366,6 +366,7 @@ async def stream_chat(
             ai_config = {
                 'api_base': model_config.get('api_endpoint'),
                 'api_key': model_config.get('api_key'),
+                'provider': model_config.get('provider'),
                 'model': model_config.get('model_name'),
                 'temperature': model_config.get('temperature', 0.7),
                 'max_tokens': model_config.get('max_tokens', 2048)

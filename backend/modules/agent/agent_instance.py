@@ -10,6 +10,10 @@ from typing import Dict, Any, List, Optional, AsyncIterator
 from datetime import datetime
 import openai
 from openai import AsyncOpenAI
+import httpx
+
+from backend.shared.llm_endpoints import normalize_openai_base_url, normalize_provider
+from backend.shared.claude_client import ClaudeClient, build_tool_result_block
 
 from .tool_executor import tool_executor
 from .code_executor import CodeExecutor
@@ -78,6 +82,10 @@ class AgentInstance:
         self.plugins = plugins or []
         self.enable_code_execution = enable_code_execution
 
+        self._provider = normalize_provider(self.llm_config.get('provider'))
+        self._openai_client: Optional[AsyncOpenAI] = None
+        self._claude_client: Optional[ClaudeClient] = None
+
         # Memory - stores conversation history
         self.memory: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -101,24 +109,317 @@ class AgentInstance:
     def _init_llm_client(self):
         """Initialize the LLM client."""
         try:
+            self._provider = normalize_provider(self.llm_config.get('provider'))
             api_endpoint = self.llm_config.get('api_endpoint', 'https://api.openai.com/v1')
             api_key = self.llm_config.get('api_key', '')
 
             if not api_key:
                 logger.warning(f"Agent {self.name} has no API key configured")
-                self.client = None
+                self._openai_client = None
+                self._claude_client = None
                 return
 
-            # Create async OpenAI client
-            self.client = AsyncOpenAI(
+            if self._provider == 'claude':
+                self._openai_client = None
+                self._claude_client = ClaudeClient(api_key=api_key, api_endpoint=api_endpoint)
+                logger.info("LLM client initialized: provider=claude endpoint=%s", api_endpoint)
+                return
+
+            base_url = normalize_openai_base_url(api_endpoint)
+            self._claude_client = None
+            self._openai_client = AsyncOpenAI(
                 api_key=api_key,
-                base_url=api_endpoint
+                base_url=base_url
             )
 
-            logger.info(f"LLM client initialized: {api_endpoint}")
+            logger.info("LLM client initialized: provider=%s endpoint=%s", self._provider, base_url)
         except Exception as e:
             logger.error(f"Failed to initialize LLM client: {e}")
-            self.client = None
+            self._openai_client = None
+            self._claude_client = None
+
+    def _get_openai_compatible_chat_completions_url(self) -> str:
+        api_endpoint = str(self.llm_config.get('api_endpoint', 'https://api.openai.com/v1') or '')
+        base_url = normalize_openai_base_url(api_endpoint)
+        return f"{base_url.rstrip('/')}/chat/completions"
+
+    async def _httpx_stream_openai_compatible_chat_completions(
+        self,
+        *,
+        request_json: Dict[str, Any],
+        request_id: str,
+        source: str,
+    ) -> AsyncIterator[Dict[str, Any]]:
+        url = self._get_openai_compatible_chat_completions_url()
+        api_key = str(self.llm_config.get('api_key') or '')
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream(
+                'POST',
+                url,
+                json=request_json,
+                headers={
+                    'Authorization': f"Bearer {api_key}",
+                    'Content-Type': 'application/json',
+                },
+            ) as response:
+                if response.status_code != 200:
+                    body = await response.aread()
+                    raise RuntimeError(f"HTTP {response.status_code}: {body.decode(errors='ignore')}")
+
+                buffer = ""
+                async for chunk in response.aiter_bytes():
+                    try:
+                        chunk_str = chunk.decode('utf-8', errors='ignore')
+                    except Exception:
+                        continue
+                    buffer += chunk_str
+
+                    lines = buffer.split('\n')
+                    buffer = lines.pop() if lines else ""
+
+                    for line in lines:
+                        line = line.strip()
+                        if not line.startswith('data: '):
+                            continue
+                        data = line[6:]
+                        if data == '[DONE]':
+                            return
+                        parsed = json.loads(data)
+                        try:
+                            log_llm_stream_chunk(request_id=request_id, source=source, stream_raw=parsed)
+                        except Exception:
+                            pass
+                        yield parsed
+
+    async def _claude_chat(
+        self,
+        *,
+        message: str,
+        conversation_id: Optional[str],
+        use_tools: bool,
+        use_memory: bool,
+        use_knowledge_base: bool,
+        attachments_text: str,
+        image_data_urls: Optional[List[str]],
+        tool_choice: Optional[dict],
+        show_token_usage: bool,
+    ) -> str:
+        if not self._claude_client:
+            return "Error: LLM client is not configured"
+
+        effective_use_tools = bool(use_tools)
+        try:
+            if isinstance(tool_choice, str) and tool_choice.strip().lower() == "none":
+                effective_use_tools = False
+        except Exception:
+            pass
+
+        if effective_use_tools and not self.tools_loaded:
+            await self.load_tools_from_db()
+
+        messages: List[Dict[str, Any]] = []
+
+        system_prompt = self.get_system_prompt()
+        if use_knowledge_base and self.knowledge_bases:
+            kb_context = await self._search_knowledge_base(message)
+            if kb_context:
+                system_prompt += f"\n\nRelated knowledge base information:\n{kb_context}"
+
+        messages.append({'role': 'system', 'content': system_prompt})
+
+        if use_memory:
+            history = self._get_conversation_memory(conversation_id)
+            for msg in history:
+                if msg['role'] in ['user', 'assistant']:
+                    messages.append({'role': msg['role'], 'content': msg['content']})
+
+        user_text = message
+        if attachments_text:
+            user_text += f"\n\nAttachment content:\n{attachments_text}"
+
+        if image_data_urls:
+            messages.append({'role': 'user', 'content': user_text})
+        else:
+            messages.append({'role': 'user', 'content': user_text})
+
+        tools_openai = self._prepare_tools_schema() if effective_use_tools else []
+        tools_anthropic = ClaudeClient.openai_tools_to_anthropic(tools_openai) if tools_openai else []
+        system_text, anthropic_messages = ClaudeClient.openai_messages_to_anthropic(messages)
+
+        max_rounds = 5
+        reply = ""
+        for _round in range(max_rounds):
+            result = await self._claude_client.create(
+                model=self.get_model_name(),
+                system=system_text,
+                messages=anthropic_messages,
+                tools=tools_anthropic if effective_use_tools and tools_anthropic else None,
+                max_tokens=self.get_max_tokens(),
+                temperature=self.get_temperature(),
+            )
+
+            reply = (result.get('text') or "")
+            if show_token_usage and result.get('usage'):
+                self._set_last_usage(conversation_id, result.get('usage'))
+
+            tool_uses = result.get('tool_uses') or []
+            if not (effective_use_tools and tool_uses):
+                break
+
+            assistant_blocks: List[Dict[str, Any]] = []
+            if reply:
+                assistant_blocks.append({'type': 'text', 'text': reply})
+            for tu in tool_uses:
+                try:
+                    assistant_blocks.append({
+                        'type': 'tool_use',
+                        'id': tu.get('id'),
+                        'name': tu.get('name'),
+                        'input': tu.get('input') or {},
+                    })
+                except Exception:
+                    continue
+            anthropic_messages.append({'role': 'assistant', 'content': assistant_blocks or ''})
+
+            tool_result_blocks: List[Dict[str, Any]] = []
+            for tu in tool_uses:
+                tool_name = tu.get('name')
+                tool_args = tu.get('input') or {}
+                tool_id = tu.get('id')
+                if not (tool_name and tool_id):
+                    continue
+                tool_result = await self._execute_tool(tool_name, tool_args)
+                formatted_result = self._format_tool_result(tool_result)
+                tool_result_blocks.append(build_tool_result_block(tool_id, formatted_result))
+
+            anthropic_messages.append({'role': 'user', 'content': tool_result_blocks})
+
+        if use_memory:
+            self._add_to_memory('user', message, conversation_id)
+            self._add_to_memory('assistant', reply, conversation_id)
+
+        return reply
+
+    async def _claude_chat_stream(
+        self,
+        *,
+        message: str,
+        conversation_id: Optional[str],
+        use_tools: bool,
+        use_memory: bool,
+        use_knowledge_base: bool,
+        attachments_text: str,
+        image_data_urls: Optional[List[str]],
+        attachments_meta: Optional[List[Dict[str, Any]]],
+        tool_choice: Optional[dict],
+        show_token_usage: bool,
+    ) -> AsyncIterator[str]:
+        if not self._claude_client:
+            yield "Error: LLM client is not configured"
+            return
+
+        effective_use_tools = bool(use_tools)
+        try:
+            if isinstance(tool_choice, str) and tool_choice.strip().lower() == "none":
+                effective_use_tools = False
+        except Exception:
+            pass
+
+        if effective_use_tools and not self.tools_loaded:
+            await self.load_tools_from_db()
+
+        messages: List[Dict[str, Any]] = []
+
+        system_prompt = self.get_system_prompt()
+        if use_knowledge_base and self.knowledge_bases:
+            kb_context = await self._search_knowledge_base(message)
+            if kb_context:
+                system_prompt += f"\n\nRelated knowledge base information:\n{kb_context}"
+
+        messages.append({'role': 'system', 'content': system_prompt})
+
+        if use_memory:
+            history = self._get_conversation_memory(conversation_id)
+            for msg in history:
+                if msg['role'] in ['user', 'assistant']:
+                    messages.append({'role': msg['role'], 'content': msg['content']})
+
+        user_text = message
+        if attachments_text:
+            user_text += f"\n\nAttachment content:\n{attachments_text}"
+
+        if image_data_urls:
+            messages.append({'role': 'user', 'content': user_text})
+        else:
+            messages.append({'role': 'user', 'content': user_text})
+
+        tools_openai = self._prepare_tools_schema() if effective_use_tools else []
+        tools_anthropic = ClaudeClient.openai_tools_to_anthropic(tools_openai) if tools_openai else []
+        system_text, anthropic_messages = ClaudeClient.openai_messages_to_anthropic(messages)
+
+        full_reply = ""
+        max_rounds = 5
+        round_idx = 0
+        while round_idx < max_rounds:
+            gen, done_fut = self._claude_client.stream(
+                model=self.get_model_name(),
+                system=system_text,
+                messages=anthropic_messages,
+                tools=tools_anthropic if effective_use_tools and tools_anthropic else None,
+                max_tokens=self.get_max_tokens(),
+                temperature=self.get_temperature(),
+            )
+
+            round_text = ""
+            async for chunk in gen:
+                round_text += chunk
+                full_reply += chunk
+                yield chunk
+
+            result = await done_fut
+            if show_token_usage and result.get('usage'):
+                self._set_last_usage(conversation_id, result.get('usage'))
+
+            tool_uses = result.get('tool_uses') or []
+            if not (effective_use_tools and tool_uses):
+                break
+
+            assistant_blocks: List[Dict[str, Any]] = []
+            if round_text:
+                assistant_blocks.append({'type': 'text', 'text': round_text})
+            for tu in tool_uses:
+                try:
+                    assistant_blocks.append({
+                        'type': 'tool_use',
+                        'id': tu.get('id'),
+                        'name': tu.get('name'),
+                        'input': tu.get('input') or {},
+                    })
+                except Exception:
+                    continue
+            anthropic_messages.append({'role': 'assistant', 'content': assistant_blocks or ''})
+
+            tool_result_blocks: List[Dict[str, Any]] = []
+            for tu in tool_uses:
+                tool_name = tu.get('name')
+                tool_args = tu.get('input') or {}
+                tool_id = tu.get('id')
+                if not (tool_name and tool_id):
+                    continue
+                tool_result = await self._execute_tool(tool_name, tool_args)
+                formatted_result = self._format_tool_result(tool_result)
+                tool_result_blocks.append(build_tool_result_block(tool_id, formatted_result))
+
+            anthropic_messages.append({'role': 'user', 'content': tool_result_blocks})
+            round_idx += 1
+
+        if use_memory:
+            self._add_to_memory('user', message, conversation_id)
+            self._add_to_memory('assistant', full_reply, conversation_id)
+
+        if show_token_usage and self.get_last_usage(conversation_id):
+            pass
 
     def get_system_prompt(self) -> str:
         """Get the system prompt."""
@@ -230,6 +531,11 @@ IMPORTANT Tool Usage Guidelines:
             kwargs['stream'] = True
             if show_token_usage:
                 kwargs['stream_options'] = {'include_usage': True}
+
+        if self._provider == 'gemini':
+            kwargs.pop('frequency_penalty', None)
+            kwargs.pop('presence_penalty', None)
+            kwargs.pop('stream_options', None)
 
         return kwargs
 
@@ -555,7 +861,20 @@ IMPORTANT Tool Usage Guidelines:
         Returns:
             Agent reply
         """
-        if not self.client:
+        if self._provider == 'claude':
+            return await self._claude_chat(
+                message=message,
+                conversation_id=conversation_id,
+                use_tools=use_tools,
+                use_memory=use_memory,
+                use_knowledge_base=use_knowledge_base,
+                attachments_text=attachments_text,
+                image_data_urls=image_data_urls,
+                tool_choice=tool_choice,
+                show_token_usage=show_token_usage,
+            )
+
+        if not self._openai_client:
             return "Error: LLM client is not configured"
 
         try:
@@ -630,7 +949,7 @@ IMPORTANT Tool Usage Guidelines:
             except Exception:
                 pass
 
-            response = await self.client.chat.completions.create(**kwargs)
+            response = await self._openai_client.chat.completions.create(**kwargs)
 
             try:
                 raw = response.model_dump() if hasattr(response, 'model_dump') else getattr(response, '__dict__', str(response))
@@ -671,14 +990,47 @@ IMPORTANT Tool Usage Guidelines:
                             'name': tool_name,
                             'content': formatted_result
                         })
-                        tool_calls_payload.append({
+                        payload = {
                             'id': tc.id,
                             'type': 'function',
                             'function': {
                                 'name': tc.function.name,
                                 'arguments': tc.function.arguments
                             }
-                        })
+                        }
+                        try:
+                            ts = getattr(tc, 'thought_signature', None)
+                            extra_content: Optional[Dict[str, Any]] = None
+                            if ts is None:
+                                extra = getattr(tc, 'model_extra', None)
+                                if isinstance(extra, dict):
+                                    ts = extra.get('thought_signature')
+                                    if ts is None:
+                                        extra_content = extra.get('extra_content')
+                                        if isinstance(extra_content, dict):
+                                            google = extra_content.get('google')
+                                            if isinstance(google, dict):
+                                                ts = google.get('thought_signature')
+                            else:
+                                extra = getattr(tc, 'model_extra', None)
+                                if isinstance(extra, dict):
+                                    extra_content = extra.get('extra_content') if isinstance(extra.get('extra_content'), dict) else None
+
+                            if ts:
+                                payload['thought_signature'] = ts
+                                if self._provider == 'gemini':
+                                    if not isinstance(extra_content, dict):
+                                        extra_content = {}
+                                    google = extra_content.get('google')
+                                    if not isinstance(google, dict):
+                                        google = {}
+                                    if not google.get('thought_signature'):
+                                        google['thought_signature'] = ts
+                                    extra_content['google'] = google
+                                    payload['extra_content'] = extra_content
+                        except Exception:
+                            pass
+                        tool_calls_payload.append(payload)
 
                     messages.append({
                         'role': 'assistant',
@@ -700,7 +1052,7 @@ IMPORTANT Tool Usage Guidelines:
                     except Exception:
                         pass
 
-                    response2 = await self.client.chat.completions.create(**kwargs2)
+                    response2 = await self._openai_client.chat.completions.create(**kwargs2)
 
                     try:
                         raw2 = response2.model_dump() if hasattr(response2, 'model_dump') else getattr(response2, '__dict__', str(response2))
@@ -752,7 +1104,23 @@ IMPORTANT Tool Usage Guidelines:
         Yields:
             Streamed text chunks
         """
-        if not self.client:
+        if self._provider == 'claude':
+            async for chunk in self._claude_chat_stream(
+                message=message,
+                conversation_id=conversation_id,
+                use_tools=use_tools,
+                use_memory=use_memory,
+                use_knowledge_base=use_knowledge_base,
+                attachments_text=attachments_text,
+                image_data_urls=image_data_urls,
+                attachments_meta=attachments_meta,
+                tool_choice=tool_choice,
+                show_token_usage=show_token_usage,
+            ):
+                yield chunk
+            return
+
+        if not self._openai_client:
             error_msg = (
                 f"Agent '{self.name}' has no LLM client configured."
                 f"Please select a valid model configuration in the top toolbar of the Agent chat page."
@@ -830,12 +1198,17 @@ IMPORTANT Tool Usage Guidelines:
             except Exception:
                 pass
 
-            stream = await self.client.chat.completions.create(**kwargs)
+            stream = await self._openai_client.chat.completions.create(**kwargs)
 
             # Collect full reply and tool calls
             full_reply = ""
             tool_calls_accumulator = {}
             last_usage: Optional[Dict[str, Any]] = None
+
+            raw_tool_sig_accumulator_by_index: Dict[int, Any] = {}
+            raw_tool_sig_accumulator_by_id: Dict[str, Any] = {}
+            raw_tool_extra_accumulator_by_index: Dict[int, Any] = {}
+            raw_tool_extra_accumulator_by_id: Dict[str, Any] = {}
 
             async for chunk in stream:
                 try:
@@ -843,6 +1216,38 @@ IMPORTANT Tool Usage Guidelines:
                     log_llm_stream_chunk(request_id=request_id, source="backend.modules.agent.agent_instance.AgentInstance.chat_stream", stream_raw=raw_chunk)
                 except Exception:
                     pass
+
+                if effective_use_tools and isinstance(raw_chunk, dict):
+                    try:
+                        choices0 = (raw_chunk.get('choices') or [None])[0] or {}
+                        raw_delta = choices0.get('delta') or {}
+                        for raw_tc_pos, raw_tc in enumerate(raw_delta.get('tool_calls') or []):
+                            if not isinstance(raw_tc, dict):
+                                continue
+                            idx = raw_tc.get('index')
+                            tc_id = raw_tc.get('id')
+                            extra_content = raw_tc.get('extra_content')
+
+                            ts = raw_tc.get('thought_signature')
+                            if not ts and isinstance(extra_content, dict):
+                                google = extra_content.get('google')
+                                if isinstance(google, dict):
+                                    ts = google.get('thought_signature')
+
+                            if ts:
+                                try:
+                                    use_idx = int(idx) if idx is not None else int(raw_tc_pos)
+                                    raw_tool_sig_accumulator_by_index[use_idx] = ts
+                                    if isinstance(extra_content, dict):
+                                        raw_tool_extra_accumulator_by_index[use_idx] = extra_content
+                                except Exception:
+                                    pass
+                                if tc_id:
+                                    raw_tool_sig_accumulator_by_id[str(tc_id)] = ts
+                                    if isinstance(extra_content, dict):
+                                        raw_tool_extra_accumulator_by_id[str(tc_id)] = extra_content
+                    except Exception:
+                        pass
                 if show_token_usage and getattr(chunk, 'usage', None):
                     last_usage = self._usage_to_dict(getattr(chunk, 'usage', None))
 
@@ -858,24 +1263,103 @@ IMPORTANT Tool Usage Guidelines:
 
                 # Handle tool calls (accumulate delta)
                 if effective_use_tools and delta.tool_calls:
-                    for tc_delta in delta.tool_calls:
-                        idx = tc_delta.index
-                        if idx not in tool_calls_accumulator:
-                            tool_calls_accumulator[idx] = {
-                                'id': tc_delta.id or f'tc_{idx}',
+                    for tc_pos, tc_delta in enumerate(delta.tool_calls):
+                        acc_key: Any
+                        if tc_delta.index is not None:
+                            acc_key = tc_delta.index
+                        elif tc_delta.id:
+                            acc_key = tc_delta.id
+                        else:
+                            acc_key = tc_pos
+
+                        if acc_key not in tool_calls_accumulator:
+                            tool_calls_accumulator[acc_key] = {
+                                'id': tc_delta.id or f'tc_{tc_pos}',
                                 'type': 'function',
-                                'function': {'name': '', 'arguments': ''}
+                                'function': {'name': '', 'arguments': ''},
+                                'thought_signature': None,
+                                'extra_content': None,
                             }
                         if tc_delta.id:
-                            tool_calls_accumulator[idx]['id'] = tc_delta.id
+                            tool_calls_accumulator[acc_key]['id'] = tc_delta.id
                         if tc_delta.function:
                             if tc_delta.function.name:
-                                tool_calls_accumulator[idx]['function']['name'] = tc_delta.function.name
+                                tool_calls_accumulator[acc_key]['function']['name'] = tc_delta.function.name
                             if tc_delta.function.arguments:
-                                tool_calls_accumulator[idx]['function']['arguments'] += tc_delta.function.arguments
+                                tool_calls_accumulator[acc_key]['function']['arguments'] += tc_delta.function.arguments
+
+                        if tool_calls_accumulator[acc_key].get('thought_signature') is None:
+                            try:
+                                ts = getattr(tc_delta, 'thought_signature', None)
+                                extra_content: Optional[Dict[str, Any]] = None
+                                if ts is None:
+                                    extra = getattr(tc_delta, 'model_extra', None)
+                                    if isinstance(extra, dict):
+                                        ts = extra.get('thought_signature')
+                                        if ts is None:
+                                            extra_content = extra.get('extra_content')
+                                            if isinstance(extra_content, dict):
+                                                google = extra_content.get('google')
+                                                if isinstance(google, dict):
+                                                    ts = google.get('thought_signature')
+                                else:
+                                    extra = getattr(tc_delta, 'model_extra', None)
+                                    if isinstance(extra, dict):
+                                        extra_content = extra.get('extra_content') if isinstance(extra.get('extra_content'), dict) else None
+
+                                if not ts:
+                                    if tc_delta.id:
+                                        ts = raw_tool_sig_accumulator_by_id.get(str(tc_delta.id))
+                                        if tc_delta.id:
+                                            extra_content = raw_tool_extra_accumulator_by_id.get(str(tc_delta.id))
+                                if not ts:
+                                    if tc_delta.index is not None:
+                                        ts = raw_tool_sig_accumulator_by_index.get(int(tc_delta.index))
+                                        if tc_delta.index is not None:
+                                            extra_content = raw_tool_extra_accumulator_by_index.get(int(tc_delta.index))
+                                    else:
+                                        ts = raw_tool_sig_accumulator_by_index.get(int(tc_pos))
+                                        extra_content = raw_tool_extra_accumulator_by_index.get(int(tc_pos))
+                                if ts:
+                                    tool_calls_accumulator[acc_key]['thought_signature'] = ts
+                                    if isinstance(extra_content, dict):
+                                        tool_calls_accumulator[acc_key]['extra_content'] = extra_content
+                            except Exception:
+                                pass
 
             # If there are tool calls, execute tools and get final reply (allow multi-round tool chaining)
             if effective_use_tools and tool_calls_accumulator:
+                def _normalize_tool_calls_for_request(raw_calls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                    out: List[Dict[str, Any]] = []
+                    for c in raw_calls or []:
+                        if not isinstance(c, dict):
+                            continue
+                        c2 = dict(c)
+                        if self._provider != 'gemini':
+                            c2.pop('thought_signature', None)
+                            c2.pop('extra_content', None)
+                        else:
+                            if not c2.get('thought_signature'):
+                                raise RuntimeError(
+                                    "Gemini tool call is missing thought_signature. "
+                                    "This value must be replayed in follow-up requests for function calling to work."
+                                )
+                            ts = c2.get('thought_signature')
+                            extra_content = c2.get('extra_content')
+                            if not isinstance(extra_content, dict):
+                                extra_content = {}
+                            google = extra_content.get('google')
+                            if not isinstance(google, dict):
+                                google = {}
+                            if not google.get('thought_signature'):
+                                google['thought_signature'] = ts
+                            extra_content['google'] = google
+                            c2['extra_content'] = extra_content
+                        if c2.get('thought_signature', None) is None:
+                            c2.pop('thought_signature', None)
+                        out.append(c2)
+                    return out
+
                 max_rounds = 5
                 round_idx = 0
                 pending_tool_calls = tool_calls_accumulator
@@ -900,10 +1384,12 @@ IMPORTANT Tool Usage Guidelines:
                             'content': formatted_result
                         })
 
+                    tool_calls_for_request = _normalize_tool_calls_for_request(list(pending_tool_calls.values()))
+
                     messages.append({
                         'role': 'assistant',
                         'content': None,
-                        'tool_calls': list(pending_tool_calls.values())
+                        'tool_calls': tool_calls_for_request
                     })
                     messages.extend(tool_messages)
 
@@ -922,16 +1408,78 @@ IMPORTANT Tool Usage Guidelines:
                     except Exception:
                         pass
 
-                    final_stream = await self.client.chat.completions.create(**kwargs_final)
+                    if self._provider == 'gemini':
+                        final_stream = self._httpx_stream_openai_compatible_chat_completions(
+                            request_json=kwargs_final,
+                            request_id=request_id_round,
+                            source="backend.modules.agent.agent_instance.AgentInstance.chat_stream",
+                        )
+                    else:
+                        final_stream = await self._openai_client.chat.completions.create(**kwargs_final)
 
                     full_reply = ""
                     pending_tool_calls = {}
+
                     async for chunk in final_stream:
+                        if isinstance(chunk, dict):
+                            raw_chunk = chunk
+                            if show_token_usage:
+                                usage_obj = raw_chunk.get('usage')
+                                if isinstance(usage_obj, dict):
+                                    last_usage = usage_obj
+
+                            choices0 = (raw_chunk.get('choices') or [None])[0] or {}
+                            raw_delta = choices0.get('delta') or {}
+                            content = raw_delta.get('content')
+                            if content:
+                                full_reply += str(content)
+                                yield str(content)
+
+                            if effective_use_tools and raw_delta.get('tool_calls'):
+                                for tc_pos, raw_tc in enumerate(raw_delta.get('tool_calls') or []):
+                                    if not isinstance(raw_tc, dict):
+                                        continue
+                                    acc_key: Any = raw_tc.get('id') or raw_tc.get('index') or tc_pos
+                                    entry = pending_tool_calls.get(acc_key)
+                                    if not isinstance(entry, dict):
+                                        entry = {
+                                            'id': raw_tc.get('id') or f'tc_{round_idx}_{tc_pos}',
+                                            'type': 'function',
+                                            'function': {'name': '', 'arguments': ''},
+                                            'thought_signature': None,
+                                            'extra_content': None,
+                                        }
+                                        pending_tool_calls[acc_key] = entry
+
+                                    if raw_tc.get('id'):
+                                        entry['id'] = raw_tc.get('id')
+                                    func = raw_tc.get('function') or {}
+                                    if isinstance(func, dict):
+                                        if func.get('name'):
+                                            entry['function']['name'] = func.get('name')
+                                        if func.get('arguments'):
+                                            entry['function']['arguments'] += str(func.get('arguments'))
+
+                                    extra_content = raw_tc.get('extra_content')
+                                    if isinstance(extra_content, dict):
+                                        entry['extra_content'] = extra_content
+
+                                    if entry.get('thought_signature') is None:
+                                        ts = raw_tc.get('thought_signature')
+                                        if not ts and isinstance(extra_content, dict):
+                                            google = extra_content.get('google')
+                                            if isinstance(google, dict):
+                                                ts = google.get('thought_signature')
+                                        if ts:
+                                            entry['thought_signature'] = ts
+                            continue
+
                         try:
                             raw_chunk = chunk.model_dump() if hasattr(chunk, 'model_dump') else getattr(chunk, '__dict__', str(chunk))
                             log_llm_stream_chunk(request_id=request_id_round, source="backend.modules.agent.agent_instance.AgentInstance.chat_stream", stream_raw=raw_chunk)
                         except Exception:
                             pass
+
                         if show_token_usage and getattr(chunk, 'usage', None):
                             last_usage = self._usage_to_dict(getattr(chunk, 'usage', None))
 
@@ -949,7 +1497,8 @@ IMPORTANT Tool Usage Guidelines:
                                     pending_tool_calls[idx] = {
                                         'id': tc_delta.id or f'tc_{round_idx}_{idx}',
                                         'type': 'function',
-                                        'function': {'name': '', 'arguments': ''}
+                                        'function': {'name': '', 'arguments': ''},
+                                        'thought_signature': None,
                                     }
                                 if tc_delta.id:
                                     pending_tool_calls[idx]['id'] = tc_delta.id
