@@ -17,6 +17,15 @@ const getApiClient = () => {
     return null;
 };
 
+const SNS_MEMBERSHIP_INFO_MAP = Object.freeze({
+    0: { emoji: '\u{1F530}', tooltip: 'Adventurer' },
+    1: { emoji: '\u{1F5E1}\uFE0F', tooltip: 'Explorer' },
+    2: { emoji: '\u2694\uFE0F', tooltip: 'Voyager' },
+    3: { emoji: '\u{1F3DB}\uFE0F', tooltip: 'Squire' },
+    4: { emoji: '\u{1F3F0}', tooltip: 'Baron' },
+    5: { emoji: '\u{1F451}', tooltip: 'Lord' },
+});
+
 export default {
     userStats: {
         rebirth: 0,
@@ -193,14 +202,7 @@ export default {
 
     _getMembershipInfo(membershipValue) {
         const v = this._normalizeMembershipValue(membershipValue);
-        const map = {
-            1: { emoji: '\u{1F5E1}\uFE0F', tooltip: 'Explorer' },
-            2: { emoji: '\u2694\uFE0F', tooltip: 'Voyager' },
-            3: { emoji: '\u{1F3DB}\uFE0F', tooltip: 'Squire' },
-            4: { emoji: '\u{1F3F0}', tooltip: 'Baron' },
-            5: { emoji: '\u{1F451}', tooltip: 'Lord' },
-        };
-        return map[v] || null;
+        return SNS_MEMBERSHIP_INFO_MAP[v] || null;
     },
 
     _renderExploreTitleHTML(nickname, membershipValue) {

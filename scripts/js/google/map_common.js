@@ -4996,6 +4996,53 @@ function send_chat_msg(lng, lat, msg, send_person_name = "") {
 }
 
 
+function __snsNormalizeMembershipValue(rawMembership) {
+
+    const n = parseInt(rawMembership, 10);
+
+    return Number.isFinite(n) && !Number.isNaN(n) ? n : 0;
+
+}
+
+
+function __snsGetMembershipInfo(rawMembership) {
+
+    const v = __snsNormalizeMembershipValue(rawMembership);
+
+    const membershipInfoMap = {
+
+        0: { emoji: '\u{1F530}', tooltip: 'Adventurer' },
+
+        1: { emoji: '\u{1F5E1}\uFE0F', tooltip: 'Explorer' },
+
+        2: { emoji: '\u2694\uFE0F', tooltip: 'Voyager' },
+
+        3: { emoji: '\u{1F3DB}\uFE0F', tooltip: 'Squire' },
+
+        4: { emoji: '\u{1F3F0}', tooltip: 'Baron' },
+
+        5: { emoji: '\u{1F451}', tooltip: 'Lord' },
+
+    };
+
+    return membershipInfoMap[v] || null;
+
+}
+
+
+function __snsBuildMembershipPrefix(rawMembership) {
+
+    const info = __snsGetMembershipInfo(rawMembership);
+
+    return info
+
+        ? ('<span class="bubble-membership-emoji" title="' + info.tooltip + '">' + info.emoji + '</span> ')
+
+        : '';
+
+}
+
+
 
 
 
@@ -5003,18 +5050,13 @@ function showprofile(nation_id) {
 
     // closeBubble();
 
-
-
     let person_point = getPersonPointByNationId(nation_id);
 
-    console.log("person_point");
+    let person = getPersonDataByNationId(nation_id) || {};
 
-    console.log(person_point);
-
-    let person = getPersonDataByNationId(nation_id);
-
-    console.log("the person data:")
-    console.log(person)
+    if (!person_point && map && typeof map.getCenter === 'function') {
+        person_point = map.getCenter();
+    }
 
     var agentType = (person && person["framework"] !== undefined && person["framework"] !== null && String(person["framework"]).trim() !== '') ? String(person["framework"]) : 'AI-SNS';
     var modelName = (person && person["model"] !== undefined && person["model"] !== null && String(person["model"]).trim() !== '') ? String(person["model"]) : 'Openai';
@@ -5032,24 +5074,9 @@ function showprofile(nation_id) {
         '<div>' + metaHTML + '</div>' +
         '<div style="text-align: right;"><a href="#" class="bubble-action-btn" onclick="talk_to_it(\'' + nation_id + '\',\'\');return false;">Chat</a></div>' +
         '</div>';
-    var bodyHTML = badgeHTML + person["profile"] + footerHTML;
+    var bodyHTML = badgeHTML + (person["profile"] || '') + footerHTML;
 
-    var membershipValue = (person && person["membership"] !== undefined && person["membership"] !== null)
-        ? parseInt(person["membership"], 10)
-        : 0;
-    membershipValue = isNaN(membershipValue) ? 0 : membershipValue;
-    var membershipInfoMap = {
-        1: { emoji: '\u{1F5E1}\uFE0F', tooltip: 'Explorer' },
-        2: { emoji: '\u2694\uFE0F', tooltip: 'Voyager' },
-        3: { emoji: '\u{1F3DB}\uFE0F', tooltip: 'Squire' },
-        4: { emoji: '\u{1F3F0}', tooltip: 'Baron' },
-        5: { emoji: '\u{1F451}', tooltip: 'Lord' },
-    };
-    var membershipInfo = membershipInfoMap[membershipValue];
-    var membershipPrefix = membershipInfo
-        ? ('<span class="bubble-membership-emoji" title="' + membershipInfo.tooltip + '">' + membershipInfo.emoji + '</span> ')
-        : '';
-    var displayNickName = membershipPrefix + (person['nick_name'] || '');
+    var displayNickName = __snsBuildMembershipPrefix(person["membership"]) + (person['nick_name'] || '');
 
 
 
@@ -5071,7 +5098,10 @@ function showprofile(nation_id) {
 
 
 
-    open_sns_profile(person['sns_url']);
+    try {
+        open_sns_profile(person['sns_url']);
+    } catch (e) {
+    }
 
 }
 
@@ -5089,11 +5119,17 @@ function closeprofile() {
 
 function showprofile3d(geoGroup) {
 
-    let nation_id = geoGroup.userData.nation_id;
+    let person = (geoGroup && geoGroup.userData) ? geoGroup.userData : {};
 
-    let person_point = getPersonPointByNationId(nation_id);
+    let nation_id = (person && person.nation_id !== undefined && person.nation_id !== null)
+        ? String(person.nation_id)
+        : '';
 
-    let person = geoGroup.userData;
+    let person_point = nation_id ? getPersonPointByNationId(nation_id) : null;
+
+    if (!person_point && map && typeof map.getCenter === 'function') {
+        person_point = map.getCenter();
+    }
 
 
 
@@ -5113,24 +5149,9 @@ function showprofile3d(geoGroup) {
         '<div>' + metaHTML + '</div>' +
         '<div style="text-align: right;"><a href="#" class="bubble-action-btn btn-danger" onclick="end_chat(\'' + nation_id + '\');return false;">End chat</a></div>' +
         '</div>';
-    var bodyHTML = badgeHTML + person["profile"] + footerHTML;
+    var bodyHTML = badgeHTML + (person["profile"] || '') + footerHTML;
 
-    var membershipValue = (person && person["membership"] !== undefined && person["membership"] !== null)
-        ? parseInt(person["membership"], 10)
-        : 0;
-    membershipValue = isNaN(membershipValue) ? 0 : membershipValue;
-    var membershipInfoMap = {
-        1: { emoji: '\u{1F5E1}\uFE0F', tooltip: 'Explorer' },
-        2: { emoji: '\u2694\uFE0F', tooltip: 'Voyager' },
-        3: { emoji: '\u{1F3DB}\uFE0F', tooltip: 'Squire' },
-        4: { emoji: '\u{1F3F0}', tooltip: 'Baron' },
-        5: { emoji: '\u{1F451}', tooltip: 'Lord' },
-    };
-    var membershipInfo = membershipInfoMap[membershipValue];
-    var membershipPrefix = membershipInfo
-        ? ('<span class="bubble-membership-emoji" title="' + membershipInfo.tooltip + '">' + membershipInfo.emoji + '</span> ')
-        : '';
-    var displayNickName = membershipPrefix + (person['nick_name'] || '');
+    var displayNickName = __snsBuildMembershipPrefix(person["membership"]) + (person['nick_name'] || '');
 
 
 
