@@ -23,6 +23,7 @@ class SystemConfig(BaseModel):
     tool_check_every_n: Optional[int] = None
     tool_check_before_review_enabled: Optional[bool] = None
     agent_card_before_review_enabled: Optional[bool] = None
+    a2a_server_enabled: Optional[bool] = False
 
 
 class WebMngReorderItem(BaseModel):

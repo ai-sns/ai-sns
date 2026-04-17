@@ -58,6 +58,7 @@ class SystemService:
             "tool_check_every_n": getattr(config, 'tool_check_every_n', 0),
             "tool_check_before_review_enabled": bool(getattr(config, 'tool_check_before_review_enabled', False)),
             "agent_card_before_review_enabled": bool(getattr(config, 'agent_card_before_review_enabled', False)),
+            "a2a_server_enabled": bool(getattr(config, 'a2a_server_enabled', False)),
             "tools": {
                 "page_size": settings.tools.page_size
             }
@@ -76,6 +77,7 @@ class SystemService:
             "showinfo",
             "showinfoicon",
             "infosound",
+            "language",
             "agent_server",
             "ai_sns_server",
             "contact_cooldown_seconds",
@@ -88,6 +90,7 @@ class SystemService:
             "tool_check_every_n",
             "tool_check_before_review_enabled",
             "agent_card_before_review_enabled",
+            "a2a_server_enabled",
         }
 
         payload = {k: v for k, v in kwargs.items() if k in allowed_keys}
@@ -143,6 +146,22 @@ class SystemService:
                 payload["agent_card_before_review_enabled"] = bool(payload["agent_card_before_review_enabled"])
             except Exception:
                 payload.pop("agent_card_before_review_enabled", None)
+
+        if "a2a_server_enabled" in payload:
+            try:
+                payload["a2a_server_enabled"] = bool(payload["a2a_server_enabled"])
+            except Exception:
+                payload.pop("a2a_server_enabled", None)
+
+        # Update global language setting at runtime
+        if "language" in payload and payload["language"]:
+            try:
+                from globals import global_env
+                from i18n import reload_lang
+                global_env["lang"] = str(payload["language"])
+                reload_lang()
+            except Exception:
+                pass
 
         # If memory is disabled, embedding must be disabled as well.
         if payload.get("memory_enabled") is False:

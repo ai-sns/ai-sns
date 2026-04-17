@@ -1461,6 +1461,8 @@ class SystemCfg(Base):
     tool_check_every_n = Column(Integer, default=0)
     tool_check_before_review_enabled = Column(Boolean, default=False)
     agent_card_before_review_enabled = Column(Boolean, default=False)
+    language = Column(String(10), default='en')
+    a2a_server_enabled = Column(Boolean, default=False)
     is_delete = Column(Boolean, default=False)
     create_time = Column(DateTime, default=datetime.now)
 
@@ -1494,6 +1496,10 @@ def _ensure_system_cfg_columns():
             cursor.execute("ALTER TABLE system_cfg ADD COLUMN tool_check_before_review_enabled INTEGER DEFAULT 0")
         if 'agent_card_before_review_enabled' not in columns:
             cursor.execute("ALTER TABLE system_cfg ADD COLUMN agent_card_before_review_enabled INTEGER DEFAULT 0")
+        if 'language' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN language TEXT DEFAULT 'en'")
+        if 'a2a_server_enabled' not in columns:
+            cursor.execute("ALTER TABLE system_cfg ADD COLUMN a2a_server_enabled INTEGER DEFAULT 0")
         conn.commit()
     except Exception:
         try:

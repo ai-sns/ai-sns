@@ -155,6 +155,11 @@ const homeHandlers = {
                     ? Boolean(remoteCfg.memory_embedding_enabled)
                     : false;
 
+                const languageValue = (remoteCfg && remoteCfg.language) ? String(remoteCfg.language) : 'en';
+                const a2aServerEnabledValue = (remoteCfg && remoteCfg.a2a_server_enabled !== undefined && remoteCfg.a2a_server_enabled !== null)
+                    ? Boolean(remoteCfg.a2a_server_enabled)
+                    : false;
+
                 const agentInput = modal.element?.querySelector('#homeCfgAgentServer');
                 const snsInput = modal.element?.querySelector('#homeCfgAiSnsServer');
                 const cooldownInput = modal.element?.querySelector('#homeCfgContactCooldownSeconds');
@@ -166,6 +171,8 @@ const homeHandlers = {
                 const toolCheckBeforeReviewInput = modal.element?.querySelector('#homeCfgToolCheckBeforeReviewEnabled');
                 const agentCardBeforeReviewInput = modal.element?.querySelector('#homeCfgAgentCardBeforeReviewEnabled');
                 const agentCardBeforeReviewRow = modal.element?.querySelector('#homeCfgAgentCardBeforeReviewRow');
+                const languageSelect = modal.element?.querySelector('#homeCfgLanguage');
+                const a2aServerEnabledInput = modal.element?.querySelector('#homeCfgA2aServerEnabled');
                 const memoryEnabledInput = modal.element?.querySelector('#homeCfgMemoryEnabled');
                 const memoryEmbeddingEnabledInput = modal.element?.querySelector('#homeCfgMemoryEmbeddingEnabled');
                 const memoryEmbeddingRow = modal.element?.querySelector('#homeCfgMemoryEmbeddingRow');
@@ -210,6 +217,12 @@ const homeHandlers = {
                 }
                 if (memoryEmbeddingRow) {
                     memoryEmbeddingRow.style.display = memoryEnabledValue ? '' : 'none';
+                }
+                if (languageSelect) {
+                    languageSelect.value = languageValue;
+                }
+                if (a2aServerEnabledInput) {
+                    a2aServerEnabledInput.checked = !!a2aServerEnabledValue;
                 }
             } catch (e) {
                 if (typeof Notification !== 'undefined' && Notification.error) {
@@ -276,6 +289,19 @@ const homeHandlers = {
                         <label class="setting-checkbox">
                             <input type="checkbox" id="homeCfgMemoryEmbeddingEnabled" />
                             <span>Enable Memory Embedding</span>
+                        </label>
+                    </div>
+                    <div class="setting-group">
+                        <label>Language</label>
+                        <select class="setting-input" id="homeCfgLanguage">
+                            <option value="en">English</option>
+                            <option value="zh">中文</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-checkbox">
+                            <input type="checkbox" id="homeCfgA2aServerEnabled" />
+                            <span>Enable A2A Server (port 8789)</span>
                         </label>
                     </div>
                 </div>
@@ -396,6 +422,9 @@ const homeHandlers = {
                         memory_embedding_enabled = false;
                     }
 
+                    const language = (modal.element?.querySelector('#homeCfgLanguage')?.value || 'en').trim();
+                    const a2a_server_enabled = !!(modal.element?.querySelector('#homeCfgA2aServerEnabled')?.checked);
+
                     const localRes = await window.electronAPI.writeConfigJson({
                         agent_server,
                         ai_sns_server,
@@ -423,6 +452,8 @@ const homeHandlers = {
                                 agent_card_before_review_enabled,
                                 memory_enabled,
                                 memory_embedding_enabled,
+                                language,
+                                a2a_server_enabled,
                                 log_retention_days: logRetentionRaw ? log_retention_days : null,
                             });
                             remoteOk = !!(remoteRes && remoteRes.success);

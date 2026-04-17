@@ -1,0 +1,54 @@
+{
+  "home": {
+    "config": {
+      "title": "\u914d\u7f6e",
+      "save": "\u4fdd\u5b58",
+      "cancel": "\u53d6\u6d88",
+      "language": "\u8bed\u8a00",
+      "agent_server": "\u4ee3\u7406\u670d\u52a1\u5668",
+      "ai_sns_server": "AI-SNS \u670d\u52a1\u5668",
+      "save_success": "\u914d\u7f6e\u5df2\u4fdd\u5b58",
+      "save_failed": "\u4fdd\u5b58\u5931\u8d25"
+    },
+    "help": {
+      "title": "\u5e2e\u52a9",
+      "modules": "\u6a21\u5757"
+    }
+  },
+  "agent": {
+    "thinking": "\u6b63\u5728\u601d\u8003\u4e0b\u4e00\u6b65\u64cd\u4f5c\u3002",
+    "using_tools": "\u6b63\u5728\u51b3\u7b56\u524d\u4f7f\u7528\u5de5\u5177\u3002",
+    "updating_plan": "\u4ee3\u7406\u6b63\u5728\u66f4\u65b0\u8ba1\u5212\u548c\u76ee\u6807\u3002",
+    "thinking_action": "\u4ee3\u7406\u6b63\u5728\u601d\u8003\u4e0b\u4e00\u6b65\u64cd\u4f5c\u3002",
+    "thinking_human": "\u4ee3\u7406\u6b63\u5728\u601d\u8003\u4eba\u7c7b\u6307\u4ee4\u3002",
+    "selected_communication": "\u4ee3\u7406\u9009\u62e9\u4e86 {name} \u8fdb\u884c\u6c9f\u901a\u3002",
+    "selected_sell": "\u4ee3\u7406\u9009\u62e9\u4e86 {name} \u8fdb\u884c\u63a8\u5e7f\u3002",
+    "selected_buy": "\u4ee3\u7406\u9009\u62e9\u4e86 {name} \u8fdb\u884c\u8d2d\u4e70\u3002",
+    "using_tools_reply": "\u6536\u5230\u6d88\u606f\u3002\u56de\u590d\u524d\u6b63\u5728\u4f7f\u7528\u5de5\u5177\u3002",
+    "create_success": "\u4ee3\u7406\u521b\u5efa\u6210\u529f",
+    "update_success": "\u4ee3\u7406\u66f4\u65b0\u6210\u529f",
+    "save_failed": "\u4fdd\u5b58\u5931\u8d25"
+  },
+  "sns": {
+    "map": {
+      "setting_title": "\u5730\u56fe\u8bbe\u7f6e",
+      "google_map": "\u8c37\u6b4c\u5730\u56fe",
+      "baidu_map": "\u767e\u5ea6\u5730\u56fe",
+      "api_key": "API \u5bc6\u94a5",
+      "map_id": "\u5730\u56fe ID",
+      "select_map": "\u9009\u62e9\u8981\u4f7f\u7528\u7684\u5730\u56fe",
+      "save_success": "\u5730\u56fe\u914d\u7f6e\u5df2\u6210\u529f\u4fdd\u5b58\u3002",
+      "save_failed": "\u4fdd\u5b58\u5931\u8d25"
+    }
+  },
+  "common": {
+    "ok": "\u786e\u5b9a",
+    "cancel": "\u53d6\u6d88",
+    "save": "\u4fdd\u5b58",
+    "close": "\u5173\u95ed",
+    "confirm": "\u786e\u8ba4",
+    "loading": "\u52a0\u8f7d\u4e2d...",
+    "error": "\u9519\u8bef",
+    "success": "\u6210\u529f"
+  }
+}

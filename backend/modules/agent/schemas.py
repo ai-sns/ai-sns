@@ -34,6 +34,7 @@ class AgentConfig(BaseModel):
 
     # A2A Protocol Fields (Google A2A v0.3)
     url: Optional[str] = ""  # Agent's A2A endpoint URL
+    agent_card_url: Optional[str] = ""  # URL to the agent's A2A agent card JSON
     version: Optional[str] = "1.0.0"
     protocol_version: Optional[str] = "0.3"
 
@@ -80,6 +81,7 @@ class AgentResponse(BaseModel):
     model_config_id: Optional[str] = None
     role_id: Optional[str] = None
     url: Optional[str] = ""
+    agent_card_url: Optional[str] = ""
     is_active: Optional[bool] = True
 
 
@@ -110,6 +112,7 @@ class AgentUpdateConfig(BaseModel):
 
     # A2A Protocol Fields
     url: Optional[str] = None
+    agent_card_url: Optional[str] = None
     version: Optional[str] = None
     protocol_version: Optional[str] = None
 

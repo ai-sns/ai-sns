@@ -1,0 +1,42 @@
+{
+  "home": {
+    "config": {
+      "title": "\u914d\u7f6e",
+      "save": "\u4fdd\u5b58",
+      "cancel": "\u53d6\u6d88",
+      "language": "\u8bed\u8a00"
+    }
+  },
+  "agent": {
+    "settings": {
+      "title": "\u4ee3\u7406\u8bbe\u7f6e",
+      "basic_info": "\u57fa\u672c\u4fe1\u606f",
+      "a2a_protocol": "A2A \u534f\u8bae",
+      "name": "\u4ee3\u7406\u540d\u79f0",
+      "description": "\u63cf\u8ff0",
+      "agent_type": "\u4ee3\u7406\u7c7b\u578b",
+      "local_agent": "\u672c\u5730\u4ee3\u7406",
+      "remote_agent": "\u8fdc\u7a0b\u4ee3\u7406",
+      "a2a_endpoint": "A2A \u7aef\u70b9 URL",
+      "agent_card_url": "A2A Agent Card URL",
+      "framework": "\u6846\u67b6",
+      "save": "\u4fdd\u5b58",
+      "cancel": "\u53d6\u6d88"
+    }
+  },
+  "sns": {
+    "map_setting": "\u5730\u56fe\u8bbe\u7f6e",
+    "google_map": "\u8c37\u6b4c\u5730\u56fe",
+    "baidu_map": "\u767e\u5ea6\u5730\u56fe"
+  },
+  "common": {
+    "ok": "\u786e\u5b9a",
+    "cancel": "\u53d6\u6d88",
+    "save": "\u4fdd\u5b58",
+    "close": "\u5173\u95ed",
+    "confirm": "\u786e\u8ba4",
+    "loading": "\u52a0\u8f7d\u4e2d...",
+    "error": "\u9519\u8bef",
+    "success": "\u6210\u529f"
+  }
+}

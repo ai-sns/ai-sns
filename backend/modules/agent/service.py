@@ -55,6 +55,7 @@ class AgentService:
                 "model_config_id": extra_data.get('model_config_id', ''),
                 "role_id": extra_data.get('role_id', ''),
                 "url": extra_data.get('url', ''),
+                "agent_card_url": extra_data.get('agent_card_url', ''),
                 "is_active": getattr(agent, 'is_show', True)
             })
         return result
@@ -81,6 +82,7 @@ class AgentService:
             'model_config_id': kwargs.get('model_config_id', ''),
             'role_id': kwargs.get('role_id', ''),
             'url': kwargs.get('url', ''),
+            'agent_card_url': kwargs.get('agent_card_url', ''),
             'version': kwargs.get('version', '1.0.0'),
             'protocol_version': kwargs.get('protocol_version', '0.3'),
             'capabilities': kwargs.get('capabilities', {}),
@@ -190,6 +192,7 @@ class AgentService:
             "role_id": extra_data.get('role_id', ''),
             "system_prompt": getattr(agent, 'prompt', ''),
             "url": extra_data.get('url', ''),
+            "agent_card_url": extra_data.get('agent_card_url', ''),
             "version": extra_data.get('version', '1.0.0'),
             "protocol_version": extra_data.get('protocol_version', '0.3'),
             "capabilities": extra_data.get('capabilities', {}),
@@ -238,9 +241,9 @@ class AgentService:
             agent.is_show = kwargs['is_active']
 
         # Update extra fields in memo
-        for key in ['description', 'agent_type', 'url', 'version', 'protocol_version', 'capabilities',
-                    'skills', 'default_input_modes', 'default_output_modes', 'security_schemes',
-                    'provider_organization', 'provider_url', 'documentation_url',
+        for key in ['description', 'agent_type', 'url', 'agent_card_url', 'version', 'protocol_version',
+                    'capabilities', 'skills', 'default_input_modes', 'default_output_modes',
+                    'security_schemes', 'provider_organization', 'provider_url', 'documentation_url',
                     'icon_url', 'model_config_id', 'role_id',
                     'framework', 'framework_other', 'llm_provider', 'model_description']:
             if key in kwargs:

@@ -157,6 +157,12 @@ const AgentSettingsDialog = {
                     <div class="dialog-section agent-remote-only">
                         <h4>Remote Configuration</h4>
                         <div class="form-group">
+                            <label>A2A Endpoint URL *</label>
+                            <input type="text" class="form-input" id="agentUrl" value="${this.escapeHtml(data.url)}" placeholder="">
+                            <small class="form-hint">A2A protocol access address for the Agent</small>
+                        </div>
+
+                        <div class="form-group">
                             <label>Framework *</label>
                             <select class="form-input" id="agentFramework">
                                 <option value="">Select a framework...</option>
@@ -215,11 +221,11 @@ const AgentSettingsDialog = {
                 <!-- A2A Protocol tab -->
                 <div class="settings-tab-pane" id="${a2aTabId}" data-tab="a2a">
                     <div class="dialog-section">
-                        <h4>Endpoint</h4>
+                        <h4>Agent Card</h4>
                         <div class="form-group">
-                            <label>A2A Endpoint URL *</label>
-                            <input type="text" class="form-input" id="agentUrl" value="${this.escapeHtml(data.url)}" placeholder="">
-                            <small class="form-hint">A2A protocol access address for the Agent</small>
+                            <label>A2A Agent Card URL</label>
+                            <input type="text" class="form-input" id="agentCardUrl" value="${this.escapeHtml(data.agent_card_url || '')}" placeholder="http://app.example.com/a2a/.well-known/agent-card.json">
+                            <small class="form-hint">URL to the agent's A2A agent card JSON</small>
                         </div>
                     </div>
 
@@ -512,6 +518,7 @@ const AgentSettingsDialog = {
 
             // Collect A2A protocol fields
             const url = document.getElementById('agentUrl').value.trim();
+            const agentCardUrl = document.getElementById('agentCardUrl')?.value?.trim() || '';
 
             if (!url) {
                 if (typeof Notification !== 'undefined') {
@@ -595,6 +602,7 @@ const AgentSettingsDialog = {
 
                 agent_type: agentType,
                 url,
+                agent_card_url: agentCardUrl,
                 is_active: true
             };
 

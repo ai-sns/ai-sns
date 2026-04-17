@@ -516,3 +516,128 @@ async def end_active_conversation(
         resume_activity=bool(request.resume_activity),
     )
 
+
+# ── XMPP A2A Debug Endpoints ──────────────────────────────────────────────
+# These endpoints let you verify the A2A setup without a third-party XMPP client.
+
+@router.get("/xmpp-a2a/debug/status")
+async def xmpp_a2a_debug_status():
+    """Return the current XMPP A2A status, including registered features,
+    ad-hoc commands, and the cached agent card.
+    """
+    try:
+        from backend.apps.sns.xmpp_client import XMPPClientManager
+        manager = XMPPClientManager.get_instance()
+        client = manager.get_client()
+        if client is None:
+            return {"success": False, "message": "XMPP client not started"}
+
+        a2a = getattr(client, "_a2a_manager", None)
+        if a2a is None:
+            return {"success": False, "message": "A2A manager not initialized"}
+
+        status = {
+            "success": True,
+            "connected": bool(client.is_connected()),
+            "jid": str(getattr(client, "boundjid", "")),
+            "bare_jid": str(getattr(client.boundjid, "bare", "")) if getattr(client, "boundjid", None) else "",
+            "agent_card": a2a._agent_card,
+            "disco_features": list(getattr(a2a, "_registered_features", []) or []),
+            "adhoc_commands": list(getattr(a2a, "_registered_commands", []) or []),
+            "plugins": [],
+        }
+
+        # Try multiple paths to enumerate loaded slixmpp plugins
+        try:
+            pm = client.plugin
+            names = None
+            for attr in ("_plugins", "_enabled"):
+                try:
+                    obj = getattr(pm, attr, None)
+                    if obj:
+                        names = sorted(list(obj))
+                        break
+                except Exception:
+                    continue
+            if names is None:
+                try:
+                    names = sorted(list(iter(pm)))
+                except Exception:
+                    names = []
+            status["plugins"] = names
+        except Exception as e:
+            status["plugins_error"] = repr(e)
+
+        return status
+    except Exception as e:
+        return {"success": False, "message": f"Error: {e}"}
+
+
+@router.get("/xmpp-a2a/debug/pep-items")
+async def xmpp_a2a_debug_pep_items():
+    """Read items from the A2A agent card PEP/PubSub node on the local account."""
+    try:
+        from backend.apps.sns.xmpp_client import XMPPClientManager
+        from backend.apps.sns.xmpp_a2a import A2A_PEP_NODE
+        manager = XMPPClientManager.get_instance()
+        client = manager.get_client()
+        if client is None or not client.is_connected():
+            return {"success": False, "message": "XMPP client not connected"}
+
+        try:
+            pubsub = client['xep_0060']
+        except Exception:
+            pubsub = None
+        if pubsub is None:
+            return {"success": False, "message": "xep_0060 not available"}
+
+        try:
+            iq = await pubsub.get_items(client.boundjid.bare, A2A_PEP_NODE, timeout=10)
+        except Exception as e:
+            return {"success": False, "message": f"get_items failed: {e!r}"}
+
+        items_out = []
+        try:
+            for item in iq['pubsub']['items']['substanzas']:
+                try:
+                    from slixmpp.xmlstream import tostring
+                    items_out.append({
+                        "id": item.get('id', ''),
+                        "xml": tostring(item.xml, xmlns='http://jabber.org/protocol/pubsub'),
+                    })
+                except Exception:
+                    items_out.append({"id": item.get('id', ''), "xml": ""})
+        except Exception as e:
+            return {"success": False, "message": f"parse failed: {e!r}"}
+
+        return {"success": True, "node": A2A_PEP_NODE, "items": items_out, "count": len(items_out)}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {e}"}
+
+
+@router.post("/xmpp-a2a/debug/call-exchange")
+async def xmpp_a2a_debug_call_exchange(request: dict):
+    """Invoke exchange_business_card on a target JID (defaults to our own full JID).
+
+    Body: {"target_jid": "lili@xabber.de/RESOURCE"}
+    """
+    try:
+        from backend.apps.sns.xmpp_client import XMPPClientManager
+        manager = XMPPClientManager.get_instance()
+        client = manager.get_client()
+        if client is None or not client.is_connected():
+            return {"success": False, "message": "XMPP client not connected"}
+
+        a2a = getattr(client, "_a2a_manager", None)
+        if a2a is None:
+            return {"success": False, "message": "A2A manager not initialized"}
+
+        target_jid = (request or {}).get("target_jid") or ""
+        if not target_jid:
+            target_jid = client.boundjid.full
+
+        result = await a2a.call_exchange_business_card(target_jid)
+        return {"success": result is not None, "target_jid": target_jid, "result": result}
+    except Exception as e:
+        return {"success": False, "message": f"Error: {e}"}
+

@@ -588,6 +588,7 @@ class SNSService:
             google_api_key = str(data.get('google_api_key', '') or '').strip()
             google_map_id = str(data.get('google_map_id', '') or '').strip()
             baidu_api_key = str(data.get('baidu_api_key', '') or '').strip()
+            baidu_map_id = str(data.get('baidu_map_id', '') or '').strip()
 
             if map_type == '0':
                 if (not google_api_key) or google_api_key == GOOGLE_KEY_PLACEHOLDER:
@@ -595,14 +596,34 @@ class SNSService:
                 if (not google_map_id) or google_map_id == GOOGLE_MAP_ID_PLACEHOLDER:
                     return {"success": False, "message": "Google map ID is required."}
 
-                map_api_key = f"{google_api_key},{BAIDU_KEY_PLACEHOLDER}"
-                map_id = f"{google_map_id},{BAIDU_MAP_ID_SENTINEL}"
             else:
                 if (not baidu_api_key) or baidu_api_key == BAIDU_KEY_PLACEHOLDER:
                     return {"success": False, "message": "Baidu Maps API key is required."}
 
-                map_api_key = f"{GOOGLE_KEY_PLACEHOLDER},{baidu_api_key}"
-                map_id = f"{GOOGLE_MAP_ID_PLACEHOLDER},{BAIDU_MAP_ID_SENTINEL}"
+            # Preserve the other map type's existing values instead of resetting to placeholders
+            existing_google_key = old_api_keys[0] if len(old_api_keys) > 0 else ''
+            existing_google_map_id = old_map_ids[0] if len(old_map_ids) > 0 else ''
+            existing_baidu_key = old_api_keys[1] if len(old_api_keys) > 1 else ''
+            existing_baidu_map_id = old_map_ids[1] if len(old_map_ids) > 1 else ''
+
+            # Use submitted value if provided, otherwise keep existing DB value
+            final_google_key = google_api_key if google_api_key else existing_google_key
+            final_google_map_id = google_map_id if google_map_id else existing_google_map_id
+            final_baidu_key = baidu_api_key if baidu_api_key else existing_baidu_key
+            final_baidu_map_id = baidu_map_id if baidu_map_id else existing_baidu_map_id
+
+            # Fall back to placeholder only if truly empty
+            if not final_google_key:
+                final_google_key = GOOGLE_KEY_PLACEHOLDER
+            if not final_google_map_id:
+                final_google_map_id = GOOGLE_MAP_ID_PLACEHOLDER
+            if not final_baidu_key:
+                final_baidu_key = BAIDU_KEY_PLACEHOLDER
+            if not final_baidu_map_id:
+                final_baidu_map_id = BAIDU_MAP_ID_SENTINEL
+
+            map_api_key = f"{final_google_key},{final_baidu_key}"
+            map_id = f"{final_google_map_id},{final_baidu_map_id}"
 
             # Check if map type is changing
             map_type_changing = (old_map_type != map_type)

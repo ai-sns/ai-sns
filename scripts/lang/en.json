@@ -1,0 +1,24 @@
+{
+  "map": {
+    "loading": "Loading map...",
+    "error": "Map loading failed",
+    "zoom_in": "Zoom In",
+    "zoom_out": "Zoom Out",
+    "home": "Home",
+    "locate": "Locate",
+    "route": {
+      "start": "Route start",
+      "end": "Route end",
+      "calculate": "Calculate route"
+    }
+  },
+  "marker": {
+    "my_position": "My Position",
+    "home_position": "Home Position"
+  },
+  "common": {
+    "ok": "Ok",
+    "cancel": "Cancel",
+    "loading": "Loading..."
+  }
+}

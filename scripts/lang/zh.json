@@ -1,0 +1,24 @@
+{
+  "map": {
+    "loading": "\u52a0\u8f7d\u5730\u56fe\u4e2d...",
+    "error": "\u5730\u56fe\u52a0\u8f7d\u5931\u8d25",
+    "zoom_in": "\u653e\u5927",
+    "zoom_out": "\u7f29\u5c0f",
+    "home": "\u4e3b\u9875",
+    "locate": "\u5b9a\u4f4d",
+    "route": {
+      "start": "\u8d77\u70b9",
+      "end": "\u7ec8\u70b9",
+      "calculate": "\u8ba1\u7b97\u8def\u7ebf"
+    }
+  },
+  "marker": {
+    "my_position": "\u6211\u7684\u4f4d\u7f6e",
+    "home_position": "\u5bb6\u7684\u4f4d\u7f6e"
+  },
+  "common": {
+    "ok": "\u786e\u5b9a",
+    "cancel": "\u53d6\u6d88",
+    "loading": "\u52a0\u8f7d\u4e2d..."
+  }
+}

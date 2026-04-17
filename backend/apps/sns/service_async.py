@@ -2482,29 +2482,49 @@ class SNSService:
             if not config:
                 return {"success": False, "message": "No config found"}
 
-            old_api_keys = config.map_api_key.split(',') if config.map_api_key else ['', '']
-            old_map_ids = config.map_id.split(',') if config.map_id else ['', '']
+            old_api_keys = config.map_api_key.split(',') if config.map_api_key else ['','']
+            old_map_ids = config.map_id.split(',') if config.map_id else ['','']
+            if len(old_api_keys) < 2:
+                old_api_keys = (old_api_keys + ['',''])[:2]
+            if len(old_map_ids) < 2:
+                old_map_ids = (old_map_ids + ['',''])[:2]
             old_map_type = config.map_type
 
             map_type = str(data.get('map_type', '0')).strip() or '0'
             google_api_key = str(data.get('google_api_key', '') or '').strip()
             google_map_id = str(data.get('google_map_id', '') or '').strip()
             baidu_api_key = str(data.get('baidu_api_key', '') or '').strip()
+            baidu_map_id = str(data.get('baidu_map_id', '') or '').strip()
 
             if map_type == '0':
                 if (not google_api_key) or google_api_key == GOOGLE_KEY_PLACEHOLDER:
                     return {"success": False, "message": "Google Maps API key is required."}
                 if (not google_map_id) or google_map_id == GOOGLE_MAP_ID_PLACEHOLDER:
                     return {"success": False, "message": "Google map ID is required."}
-
-                map_api_key = f"{google_api_key},{BAIDU_KEY_PLACEHOLDER}"
-                map_id = f"{google_map_id},{BAIDU_MAP_ID_SENTINEL}"
             else:
                 if (not baidu_api_key) or baidu_api_key == BAIDU_KEY_PLACEHOLDER:
                     return {"success": False, "message": "Baidu Maps API key is required."}
 
-                map_api_key = f"{GOOGLE_KEY_PLACEHOLDER},{baidu_api_key}"
-                map_id = f"{GOOGLE_MAP_ID_PLACEHOLDER},{BAIDU_MAP_ID_SENTINEL}"
+            # Strip placeholders from existing DB values so they are treated as empty
+            _placeholders = {GOOGLE_KEY_PLACEHOLDER, BAIDU_KEY_PLACEHOLDER,
+                             GOOGLE_MAP_ID_PLACEHOLDER, BAIDU_MAP_ID_SENTINEL,
+                             'do_not_need_map_id', 'N/A', ''}
+            def _strip_ph(v):
+                return '' if (v or '').strip() in _placeholders else (v or '').strip()
+
+            existing_google_key = _strip_ph(old_api_keys[0] if len(old_api_keys) > 0 else '')
+            existing_google_map_id = _strip_ph(old_map_ids[0] if len(old_map_ids) > 0 else '')
+            existing_baidu_key = _strip_ph(old_api_keys[1] if len(old_api_keys) > 1 else '')
+            existing_baidu_map_id = _strip_ph(old_map_ids[1] if len(old_map_ids) > 1 else '')
+
+            # Prefer submitted value > existing DB value > placeholder
+            final_google_key = google_api_key or existing_google_key or GOOGLE_KEY_PLACEHOLDER
+            final_google_map_id = google_map_id or existing_google_map_id or GOOGLE_MAP_ID_PLACEHOLDER
+            final_baidu_key = baidu_api_key or existing_baidu_key or BAIDU_KEY_PLACEHOLDER
+            final_baidu_map_id = baidu_map_id or existing_baidu_map_id or BAIDU_MAP_ID_SENTINEL
+
+            map_api_key = f"{final_google_key},{final_baidu_key}"
+            map_id = f"{final_google_map_id},{final_baidu_map_id}"
 
             map_type_changing = (old_map_type != map_type)
 
@@ -2576,11 +2596,17 @@ class SNSService:
             await db_write_async(_update_map, description="service_async_update_map_config")
 
             try:
+                new_api_keys = map_api_key.split(',') if map_api_key else ['','']
+                new_map_ids = map_id.split(',') if map_id else ['','']
+                if len(new_api_keys) < 2:
+                    new_api_keys = (new_api_keys + ['',''])[:2]
+                if len(new_map_ids) < 2:
+                    new_map_ids = (new_map_ids + ['',''])[:2]
                 replace_map_config_in_files(
                     old_api_keys,
                     old_map_ids,
-                    map_api_key.split(',') if map_api_key else ['', ''],
-                    map_id.split(',') if map_id else ['', ''],
+                    new_api_keys,
+                    new_map_ids,
                     logger,
                 )
             except Exception as e:

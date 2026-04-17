@@ -1,15 +1,59 @@
-function lt(...args) {
-  // Convert map_type to language index
-  const lang = (map_type === "baidu") ? 1 : 0;
+// i18n: key-based translation lookup
+// Language files: scripts/lang/{lang}.json
+var _i18n_cache = null;
+var _i18n_lang = "en";
 
-  let txt;
-  if (args.length === 1) {
-    txt = args[0].split("|")[lang];
-  } else {
-    txt = args[lang];
+function _i18n_init(langCode) {
+  _i18n_lang = langCode || "en";
+  _i18n_cache = null; // force reload on next lt() call
+}
+
+function _i18n_load() {
+  if (_i18n_cache !== null) return;
+  try {
+    var xhr = new XMLHttpRequest();
+    var url = "/scripts/lang/" + _i18n_lang + ".json";
+    xhr.open("GET", url, false); // synchronous for simplicity
+    xhr.send();
+    if (xhr.status === 200) {
+      _i18n_cache = JSON.parse(xhr.responseText);
+    } else {
+      _i18n_cache = {};
+    }
+  } catch (e) {
+    console.warn("[i18n] Failed to load language file:", e);
+    _i18n_cache = {};
   }
+}
 
-  return txt;
+function _i18n_resolve(data, key) {
+  var parts = key.split(".");
+  var current = data;
+  for (var i = 0; i < parts.length; i++) {
+    if (current && typeof current === "object" && parts[i] in current) {
+      current = current[parts[i]];
+    } else {
+      return null;
+    }
+  }
+  return (typeof current === "string") ? current : null;
+}
+
+function lt(key, fallback) {
+  // Backward compatible: if called with two non-key args (old style), detect and use fallback
+  if (arguments.length === 2 && key.indexOf(".") === -1) {
+    // Old-style call: lt("English", "Chinese") — return fallback directly
+    return (_i18n_lang === "zh") ? fallback : key;
+  }
+  if (arguments.length === 1 && key.indexOf("|") !== -1) {
+    // Old-style call: lt("English|Chinese")
+    var parts = key.split("|");
+    return (_i18n_lang === "zh" && parts.length > 1) ? parts[1] : parts[0];
+  }
+  _i18n_load();
+  var result = _i18n_resolve(_i18n_cache, key);
+  if (result !== null) return result;
+  return (typeof fallback === "string") ? fallback : key;
 }
 
 // Baidu map.flyTo — sets center, zoom, heading, tilt in one atomic call

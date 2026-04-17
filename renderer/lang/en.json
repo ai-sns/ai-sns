@@ -1,0 +1,42 @@
+{
+  "home": {
+    "config": {
+      "title": "Configuration",
+      "save": "Save",
+      "cancel": "Cancel",
+      "language": "Language"
+    }
+  },
+  "agent": {
+    "settings": {
+      "title": "Agent Settings",
+      "basic_info": "Basic Information",
+      "a2a_protocol": "A2A Protocol",
+      "name": "Agent Name",
+      "description": "Description",
+      "agent_type": "Agent Type",
+      "local_agent": "Local Agent",
+      "remote_agent": "Remote Agent",
+      "a2a_endpoint": "A2A Endpoint URL",
+      "agent_card_url": "A2A Agent Card URL",
+      "framework": "Framework",
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  },
+  "sns": {
+    "map_setting": "Map Setting",
+    "google_map": "Google Map",
+    "baidu_map": "Baidu Map"
+  },
+  "common": {
+    "ok": "Ok",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  }
+}

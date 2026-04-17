@@ -38,7 +38,7 @@ from backend.config.database import init_db
 
 # Import the WebSocket manager - use the global manager
 from backend.shared.websocket_manager import ConnectionManager, manager as ws_manager
-
+from i18n import lt
 # Configure logging (must run before the logger is used)
 logging.basicConfig(
     level=logging.INFO,
@@ -229,6 +229,7 @@ if plugins_router:
 if sns_router:
     app.include_router(sns_router, prefix="/api/sns", tags=["SNS"])
     logger.info("✓ SNS Module registered")
+    logger.info(lt("home.config.title","cjrok"))
 
 
 @app.get("/.well-known/agent.json")
@@ -894,6 +895,33 @@ async def startup_event():
     logger.info("  - SNS Module")
     logger.info("="*60)
 
+    # Ensure system_cfg DB columns exist before reading them
+    try:
+        from db.DBFactory import _ensure_system_cfg_columns
+        _ensure_system_cfg_columns()
+    except Exception as e:
+        logger.warning("Failed to ensure system_cfg columns: %s", e)
+
+    # Load language setting and start A2A server if enabled
+    try:
+        from db.DBFactory import query_SystemCfg
+        from globals import global_env
+        sys_cfg = query_SystemCfg(is_delete=False)
+        if sys_cfg:
+            lang = getattr(sys_cfg, 'language', None) or 'en'
+            global_env["lang"] = lang
+            logger.info("Language set to: %s", lang)
+            logger.info(lt("home.config.title", "Configuration"))
+
+            a2a_enabled = getattr(sys_cfg, 'a2a_server_enabled', False)
+            logger.info("A2A server enabled: %s", a2a_enabled)
+            if a2a_enabled:
+                _start_a2a_server_subprocess()
+        else:
+            logger.info("No system config found, using defaults")
+    except Exception as e:
+        logger.warning("Failed to load system config: %s", e, exc_info=True)
+
     # Start XMPP client
     if sns_router:
         try:
@@ -928,11 +956,54 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"Failed to register zero-clients hook: {e}")
 
+# ── A2A Server subprocess management ─────────────────────────────────────────
+_a2a_process = None
+
+def _start_a2a_server_subprocess():
+    """Launch a2aserver/server.py as a subprocess."""
+    global _a2a_process
+    if _a2a_process and _a2a_process.poll() is None:
+        logger.info("A2A server already running (pid=%d)", _a2a_process.pid)
+        return
+    import subprocess
+    python_exe = sys.executable
+    server_script = str(app_directory / "a2aserver" / "server.py")
+    try:
+        # Use DEVNULL to prevent pipe buffer from blocking the child process
+        _a2a_process = subprocess.Popen(
+            [python_exe, server_script],
+            cwd=str(app_directory),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info("✓ A2A Server started (pid=%d, port=8789)", _a2a_process.pid)
+    except Exception as e:
+        logger.error("Failed to start A2A server subprocess: %s", e)
+
+def _stop_a2a_server_subprocess():
+    """Terminate the A2A server subprocess."""
+    global _a2a_process
+    if _a2a_process:
+        try:
+            _a2a_process.terminate()
+            _a2a_process.wait(timeout=5)
+            logger.info("✓ A2A Server stopped")
+        except Exception as e:
+            logger.warning("Failed to stop A2A server: %s", e)
+            try:
+                _a2a_process.kill()
+            except Exception:
+                pass
+        _a2a_process = None
+
 # Shutdown event
 @app.on_event("shutdown")
 async def shutdown_event():
     """Execute when the application shuts down"""
     logger.info("AI-SNS API Server shutting down...")
+
+    # Stop A2A server
+    _stop_a2a_server_subprocess()
 
     # Stop XMPP client
     if sns_router:

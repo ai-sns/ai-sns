@@ -1,0 +1,54 @@
+{
+  "home": {
+    "config": {
+      "title": "Configuration",
+      "save": "Save",
+      "cancel": "Cancel",
+      "language": "Language",
+      "agent_server": "Agent Server",
+      "ai_sns_server": "AI-SNS Server",
+      "save_success": "Configuration saved",
+      "save_failed": "Save failed"
+    },
+    "help": {
+      "title": "Help",
+      "modules": "Modules"
+    }
+  },
+  "agent": {
+    "thinking": "Thinking about the next action.",
+    "using_tools": "Using tools before action decision.",
+    "updating_plan": "Agent is updating plan and goals.",
+    "thinking_action": "Agent is thinking about the next action.",
+    "thinking_human": "Agent is thinking the human instruction.",
+    "selected_communication": "Agent selected {name} for communication.",
+    "selected_sell": "Agent select {name} to promote to.",
+    "selected_buy": "Agent select {name} to buy from.",
+    "using_tools_reply": "Message Received. Using tools before reply.",
+    "create_success": "Agent created successfully",
+    "update_success": "Agent updated successfully",
+    "save_failed": "Failed to save"
+  },
+  "sns": {
+    "map": {
+      "setting_title": "Map Setting",
+      "google_map": "Google Map",
+      "baidu_map": "Baidu Map",
+      "api_key": "API Key",
+      "map_id": "Map ID",
+      "select_map": "Select a map to use",
+      "save_success": "Map configuration saved successfully.",
+      "save_failed": "Save failed"
+    }
+  },
+  "common": {
+    "ok": "Ok",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success"
+  }
+}

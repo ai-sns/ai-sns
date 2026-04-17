@@ -30,8 +30,27 @@ class XMPPClient(slixmpp.ClientXMPP):
 
         # Register plugins
         self.register_plugin('xep_0030')  # Service Discovery
+        try:
+            self.register_plugin('xep_0004')  # Data Forms
+        except Exception as e:
+            logger.warning("Failed to register xep_0004: %s", e)
+        try:
+            self.register_plugin('xep_0050')  # Ad-hoc Commands
+        except Exception as e:
+            logger.warning("Failed to register xep_0050: %s", e)
+        try:
+            self.register_plugin('xep_0060')  # PubSub
+        except Exception as e:
+            logger.warning("Failed to register xep_0060: %s", e)
+        try:
+            self.register_plugin('xep_0163')  # PEP (Personal Eventing Protocol)
+        except Exception as e:
+            logger.warning("Failed to register xep_0163: %s", e)
         self.register_plugin('xep_0199', {'keepalive': False})  # XMPP Ping (we manage our own heartbeat)
         self.register_plugin('xep_0363')  # HTTP File Upload
+
+        # A2A manager (initialized after session start)
+        self._a2a_manager = None
 
         # Subscription waiter infrastructure
         self._subscription_waiters: Dict[str, asyncio.Event] = {}
@@ -67,6 +86,14 @@ class XMPPClient(slixmpp.ClientXMPP):
 
         # Start heartbeat
         self.heartbeat_task = asyncio.create_task(self.heartbeat())
+
+        # Initialize XMPP A2A integration
+        try:
+            from backend.apps.sns.xmpp_a2a import XMPPA2AManager
+            self._a2a_manager = XMPPA2AManager(self)
+            asyncio.create_task(self._a2a_manager.initialize())
+        except Exception as e:
+            logger.warning(f"Failed to initialize XMPP A2A: {e}")
 
     async def _delayed_roster_cleanup(self):
         try:

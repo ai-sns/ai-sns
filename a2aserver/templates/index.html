@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2A Server - Business Card Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a; color: #e2e8f0; min-height: 100vh;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 24px; margin-bottom: 8px; color: #38bdf8; }
+        h2 { font-size: 18px; margin: 24px 0 12px; color: #94a3b8; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+        .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+        .form-group { flex: 1; }
+        .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 8px 12px; background: #0f172a; border: 1px solid #334155;
+            border-radius: 8px; color: #e2e8f0; font-size: 14px; outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus { border-color: #38bdf8; }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .btn {
+            padding: 8px 20px; border: none; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 500; transition: background 0.2s;
+        }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        .actions { margin-top: 12px; display: flex; gap: 8px; }
+        .toast {
+            position: fixed; top: 16px; right: 16px; padding: 12px 20px;
+            border-radius: 8px; font-size: 14px; z-index: 1000; display: none;
+        }
+        .toast.success { background: #059669; color: #fff; }
+        .toast.error { background: #dc2626; color: #fff; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-weight: 500; }
+        td { color: #e2e8f0; }
+        .empty-msg { color: #64748b; text-align: center; padding: 24px; }
+        .badge { display: inline-block; padding: 2px 8px; background: #1e293b; border-radius: 4px; font-size: 11px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>A2A Business Card Exchange</h1>
+        <p class="subtitle">Manage your business card and view received cards</p>
+
+        <h2>My Business Card</h2>
+        <div class="card" id="myCardForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="mcName" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="mcTitle" placeholder="Your title">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Company</label>
+                    <input type="text" id="mcCompany" placeholder="Your company">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="mcEmail" placeholder="you@example.com">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>XMPP</label>
+                    <input type="text" id="mcXmpp" placeholder="you@xmpp.example.com">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" id="mcPhone" placeholder="+1 234 567 890">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Website</label>
+                    <input type="text" id="mcWebsite" placeholder="https://...">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Memo</label>
+                    <textarea id="mcMemo" placeholder="Additional notes"></textarea>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="saveMyCard()">Save Card</button>
+            </div>
+        </div>
+
+        <h2>Received Cards <span class="badge" id="cardCount">0</span></h2>
+        <div class="card">
+            <table id="receivedTable">
+                <thead>
+                    <tr>
+                        <th>Name</th><th>Company</th><th>Title</th>
+                        <th>Email</th><th>XMPP</th><th>Received</th><th></th>
+                    </tr>
+                </thead>
+                <tbody id="receivedBody">
+                    <tr><td colspan="7" class="empty-msg">No cards received yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        function showToast(msg, type) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + (type || 'success');
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        async function loadMyCard() {
+            try {
+                const res = await fetch('/api/my-card');
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const c = data.data;
+                    document.getElementById('mcName').value = c.name || '';
+                    document.getElementById('mcTitle').value = c.title || '';
+                    document.getElementById('mcCompany').value = c.company || '';
+                    document.getElementById('mcEmail').value = c.email || '';
+                    document.getElementById('mcXmpp').value = c.xmpp || '';
+                    document.getElementById('mcPhone').value = c.phone || '';
+                    document.getElementById('mcWebsite').value = c.website || '';
+                    document.getElementById('mcMemo').value = c.memo || '';
+                }
+            } catch (e) {
+                console.error('Failed to load card:', e);
+            }
+        }
+
+        async function saveMyCard() {
+            const card = {
+                name: document.getElementById('mcName').value.trim(),
+                title: document.getElementById('mcTitle').value.trim(),
+                company: document.getElementById('mcCompany').value.trim(),
+                email: document.getElementById('mcEmail').value.trim(),
+                xmpp: document.getElementById('mcXmpp').value.trim(),
+                phone: document.getElementById('mcPhone').value.trim(),
+                website: document.getElementById('mcWebsite').value.trim(),
+                memo: document.getElementById('mcMemo').value.trim(),
+            };
+            try {
+                const res = await fetch('/api/my-card', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(card)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Card saved successfully', 'success');
+                } else {
+                    showToast('Failed to save card', 'error');
+                }
+            } catch (e) {
+                showToast('Error saving card: ' + e.message, 'error');
+            }
+        }
+
+        async function loadReceivedCards() {
+            try {
+                const res = await fetch('/api/received-cards');
+                const data = await res.json();
+                const tbody = document.getElementById('receivedBody');
+                const countBadge = document.getElementById('cardCount');
+
+                if (data.success && data.data && data.data.length > 0) {
+                    countBadge.textContent = data.data.length;
+                    tbody.innerHTML = data.data.map(c => `
+                        <tr>
+                            <td>${esc(c.name)}</td>
+                            <td>${esc(c.company)}</td>
+                            <td>${esc(c.title)}</td>
+                            <td>${esc(c.email)}</td>
+                            <td>${esc(c.xmpp || c.sender_jid)}</td>
+                            <td>${esc(c.received_at || '')}</td>
+                            <td><button class="btn btn-danger btn-sm" onclick="deleteCard(${c.id})">Delete</button></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    countBadge.textContent = '0';
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">No cards received yet</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to load received cards:', e);
+            }
+        }
+
+        async function deleteCard(id) {
+            if (!confirm('Delete this card?')) return;
+            try {
+                const res = await fetch('/api/received-cards/' + id, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Card deleted', 'success');
+                    loadReceivedCards();
+                } else {
+                    showToast('Failed to delete', 'error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
+        function esc(s) {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        // Initialize
+        loadMyCard();
+        loadReceivedCards();
+    </script>
+</body>
+</html>
