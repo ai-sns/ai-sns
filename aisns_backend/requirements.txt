@@ -2,54 +2,54 @@
 # Install: pip install -r requirements.txt
 
 # Web Framework & Server
-fastapi==0.136.0
-uvicorn==0.44.0
-sse-starlette==3.1.2
+fastapi
+uvicorn
+sse-starlette
 
 # Database
-sqlalchemy==2.0.49
-aiosqlite>=0.20.0
+sqlalchemy
+aiosqlite
 
 # Data Validation
-pydantic==1.10.9
+pydantic
 
 # LLM APIs
 openai>=1.0.0
-anthropic==0.96.0
-httpx==0.28.1
-requests==2.33.1
+anthropic
+httpx
+requests
 
 # Vector Database
-chromadb==1.5.8
+chromadb
 
 # MCP Protocol
-mcp==1.27.0
+mcp
 
 # XMPP Client
 slixmpp==1.8.6
 
 # Geographic
-geopy==2.4.1
-geographiclib==2.1
+geopy
+geographiclib
 
 # Text Processing
-jieba==0.42.1
+jieba
 
 # Document Processing
-pypdf==6.10.2
-python-docx==1.2.0
-python-pptx==1.0.2
-openpyxl==3.1.5
+pypdf
+python-docx
+python-pptx
+openpyxl
 
 # Image Processing
-pillow==12.2.0
+pillow
 
 # Configuration
-pyyaml==6.0.3
+pyyaml
 
 # System Utilities
-psutil==7.2.1
-pyautogui==0.9.54
+psutil
+pyautogui
 
 # Windows Only (optional - for legacy Office file conversion)
 # pywin32==311
