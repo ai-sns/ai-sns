@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import shutil
 from typing import Dict, List
 
 
@@ -27,8 +28,31 @@ def _do_replace(
     replacements in order, and write back only if something changed."""
     abs_path = (_REPO_ROOT / rel_path).resolve()
     if not abs_path.exists():
-        logger.warning("File not found for map-config replace: %s", abs_path)
-        return
+        template_path = (_REPO_ROOT / (rel_path + ".example")).resolve()
+        if template_path.exists():
+            try:
+                abs_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(template_path, abs_path)
+                logger.info(
+                    "Created missing map-config file from template: %s -> %s",
+                    template_path,
+                    abs_path,
+                )
+            except Exception as exc:
+                logger.error(
+                    "Failed to create missing map-config file from template: %s -> %s (%s)",
+                    template_path,
+                    abs_path,
+                    exc,
+                )
+                return
+        else:
+            logger.warning(
+                "File not found for map-config replace and no template exists: %s (template: %s)",
+                abs_path,
+                template_path,
+            )
+            return
 
     try:
         content = abs_path.read_text(encoding="utf-8")

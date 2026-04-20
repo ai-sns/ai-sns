@@ -100,7 +100,7 @@
 
         markerCluster = new MarkerClusterer(map, clusterMarkers, {
             // imagePath: 'https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m'
-            imagePath: './m'
+            imagePath: './assets/m'
             // Combined m1-m5: actual URL e.g. https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/m1.png
         });
         console.log("markers", markers);

@@ -7,9 +7,10 @@
     "start": "concurrently \"venv/Scripts/python.exe api_server.py\" \"wait-on http://localhost:${AI_SNS_AGENT_PORT:-8788} && npx electron .\"",
     "start:electron": "electron .",
     "start:electron:dev": "electron . --dev",
-    "start:api": "venv/Scripts/python.exe api_server.py",
-    "dev": "concurrently \"venv/Scripts/python.exe api_server.py\" \"wait-on http://localhost:${AI_SNS_AGENT_PORT:-8788} && npx electron . --dev\"",
+    "start:api": "call ..\\venv\\Scripts\\python.exe ..\\aisns_backend\\api_server.py || ..\\venv\\Scripts\\python.exe ..\\aisns_backend\\api_server.py",
+    "dev": "concurrently \"npm run start:api\" \"wait-on http://localhost:${AI_SNS_AGENT_PORT:-8788} && electron . --dev\"",
     "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
@@ -19,65 +20,74 @@
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "electron": "^28.3.3",
-    "electron-builder": "^24.9.1",
-    "wait-on": "^7.2.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0",
+    "wait-on": "^8.0.0"
   },
   "dependencies": {
-    "axios": "^1.6.2",
-    "electron-store": "^8.1.0",
-    "socket.io-client": "^4.7.2"
+    "axios": "^1.7.0",
+    "electron-store": "^8.2.0",
+    "socket.io-client": "^4.7.5"
   },
   "build": {
     "appId": "org.ai-sns.app",
     "productName": "AI-SNS",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "app": "."
     },
     "files": [
       "electron/**/*",
       "renderer/**/*",
-      "static/**/*",
-      "runtime/**/*",
-      "api_server.py",
-      "db/**/*",
-      "agent/**/*",
-      "km/**/*",
-      "resource/**/*",
       "images/**/*",
-      "*.py",
       "config.json",
-      "requirements.txt"
+      "../aisns_backend/api_server.py",
+      "../aisns_backend/db/**/*",
+      "../aisns_backend/runtime/**/*",
+      "../aisns_backend/static/**/*",
+      "../aisns_backend/skills/**/*",
+      "../aisns_backend/test_examples/**/*",
+      "../aisns_backend/requirements.txt",
+      "../a2aserver/**/*",
+      "!**/node_modules/**",
+      "!**/*.map"
     ],
     "extraResources": [
       {
-        "from": ".",
-        "to": "app",
+        "from": "../aisns_backend",
+        "to": "backend",
         "filter": [
           "**/*.py",
           "db/**/*",
-          "agent/**/*",
-          "km/**/*",
-          "resource/**/*",
-          "images/**/*",
-          "static/**/*",
           "runtime/**/*",
-          "config.json",
+          "static/**/*",
+          "skills/**/*",
           "requirements.txt"
+        ]
+      },
+      {
+        "from": "../a2aserver",
+        "to": "a2aserver",
+        "filter": [
+          "**/*.py",
+          "**/*.html",
+          "data/**/*",
+          "templates/**/*",
+          "static/**/*"
         ]
       }
     ],
     "win": {
       "target": "nsis",
-      "icon": "images/logowithe.png"
+      "icon": "images/aisnsiconv2.png"
     },
     "mac": {
       "target": "dmg",
-      "icon": "images/logowithe.png"
+      "icon": "images/aisnsiconv2.png"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "images/logowithe.png"
+      "icon": "images/aisnsiconv2.png"
     }
   }
 }

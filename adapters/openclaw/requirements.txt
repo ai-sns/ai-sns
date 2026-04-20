@@ -1,0 +1,10 @@
+# OpenClaw Gateway Clients
+# HTTP/WebSocket/A2A/Wiki chat clients for OpenClaw gateway
+
+# HTTP/A2A client dependencies
+requests>=2.31.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# WebSocket client dependencies
+websockets>=12.0

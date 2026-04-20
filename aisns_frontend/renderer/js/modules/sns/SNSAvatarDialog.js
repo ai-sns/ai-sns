@@ -425,7 +425,7 @@ export class SNSAvatarDialog {
             const customItem = document.createElement('div');
             customItem.className = 'avatar3d-item avatar3d-item-custom';
             customItem.dataset.custom = '1';
-            const customPreviewUrl = this.resolve('/static/images/custom3d.png');
+            const customPreviewUrl = this.resolve('/static/assets/custom3d.png');
             customItem.innerHTML = `
                 <img src="${customPreviewUrl}" alt="Custom">
                 <div class="avatar3d-name">Custom</div>

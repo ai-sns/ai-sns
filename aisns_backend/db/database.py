@@ -150,7 +150,7 @@ get_db = get_db_async_depends
 def init_db():
     """
     Initialize database tables (sync)
-    Creates all tables if they don't exist
+    Creates all tables if they don't exist and loads seed data if tables are empty
     """
     try:
         # Import all models to register them to Base
@@ -161,6 +161,10 @@ def init_db():
 
         _ensure_aisns_cfg_goods_service_columns(settings.database.full_path)
         _ensure_map_visit_columns(settings.database.full_path)
+
+        # Load seed data if tables are empty (new database)
+        _load_seed_data_if_empty()
+
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
@@ -231,4 +235,104 @@ def _ensure_map_visit_columns(db_path: str) -> None:
         except Exception:
             pass
 
+
+def _load_seed_data_if_empty():
+    """
+    Load seed data into tables if they are empty (for new database initialization).
+    This function populates tables with template data extracted from the reference database.
+    """
+    from datetime import datetime
+    from sqlalchemy import select, func
+    from db.models.agent import AgentCfg, Prompt
+    from db.models.aisns import AISnsCfg
+    from db.models.system import SystemCfg, SystemInit
+    from db.models.web import WebMng
+    from db.seed_data import (
+        AGENT_CFG_SEED,
+        AISNS_CFG_SEED,
+        SYSTEM_INIT_SEED,
+        SYSTEM_CFG_SEED,
+        PROMPTS_SEED,
+        WEB_MNG_SEED,
+    )
+
+    def _convert_datetime(data: dict, datetime_fields: list) -> dict:
+        """Convert datetime string fields to datetime objects."""
+        result = data.copy()
+        for field in datetime_fields:
+            if field in result and isinstance(result[field], str):
+                try:
+                    # Try multiple datetime formats
+                    for fmt in ["%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"]:
+                        try:
+                            result[field] = datetime.strptime(result[field], fmt)
+                            break
+                        except ValueError:
+                            continue
+                except Exception:
+                    # If conversion fails, keep original value
+                    pass
+        return result
+
+    session = SessionLocal()
+    try:
+        # Check and populate agent_cfg
+        count = session.scalar(select(func.count()).select_from(AgentCfg))
+        if count == 0 and AGENT_CFG_SEED:
+            for data in AGENT_CFG_SEED:
+                converted = _convert_datetime(data, ["borndate", "create_time"])
+                record = AgentCfg(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: agent_cfg (%d records)", len(AGENT_CFG_SEED))
+
+        # Check and populate aisns_cfg
+        count = session.scalar(select(func.count()).select_from(AISnsCfg))
+        if count == 0 and AISNS_CFG_SEED:
+            for data in AISNS_CFG_SEED:
+                converted = _convert_datetime(data, ["borndate", "create_time"])
+                record = AISnsCfg(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: aisns_cfg (%d records)", len(AISNS_CFG_SEED))
+
+        # Check and populate system_init
+        count = session.scalar(select(func.count()).select_from(SystemInit))
+        if count == 0 and SYSTEM_INIT_SEED:
+            for data in SYSTEM_INIT_SEED:
+                converted = _convert_datetime(data, ["create_time"])
+                record = SystemInit(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: system_init (%d records)", len(SYSTEM_INIT_SEED))
+
+        # Check and populate system_cfg
+        count = session.scalar(select(func.count()).select_from(SystemCfg))
+        if count == 0 and SYSTEM_CFG_SEED:
+            for data in SYSTEM_CFG_SEED:
+                converted = _convert_datetime(data, ["create_time"])
+                record = SystemCfg(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: system_cfg (%d records)", len(SYSTEM_CFG_SEED))
+
+        # Check and populate prompts (no datetime fields)
+        count = session.scalar(select(func.count()).select_from(Prompt))
+        if count == 0 and PROMPTS_SEED:
+            for data in PROMPTS_SEED:
+                record = Prompt(**data)
+                session.add(record)
+            logger.info("Seed data loaded: prompts (%d records)", len(PROMPTS_SEED))
+
+        # Check and populate web_mng
+        count = session.scalar(select(func.count()).select_from(WebMng))
+        if count == 0 and WEB_MNG_SEED:
+            for data in WEB_MNG_SEED:
+                converted = _convert_datetime(data, ["create_time"])
+                record = WebMng(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: web_mng (%d records)", len(WEB_MNG_SEED))
+
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.warning("Failed to load seed data: %s", e)
+    finally:
+        session.close()
 

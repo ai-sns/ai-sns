@@ -134,7 +134,7 @@ function loadRouteFromPoints(points) {
                 sequence: true,
                 marginLength: 32,
                 arrowColor: '#fff',
-                strokeTextureUrl: 'https://mapopen-pub-jsapi.bj.bcebos.com/jsapiGlgeo/img/down.png',
+                strokeTextureUrl: './assets/down.png',
                 strokeTextureWidth: 64,
                 strokeTextureHeight: 32,
                 traceColor: [27, 142, 236]
@@ -868,7 +868,7 @@ function getAllGpsPositions(routeResult) {
             sequence: true,
             marginLength: 32,
             arrowColor: '#fff',
-            strokeTextureUrl: 'https://mapopen-pub-jsapi.bj.bcebos.com/jsapiGlgeo/img/down.png',
+            strokeTextureUrl: './assets/down.png',
             strokeTextureWidth: 64,
             strokeTextureHeight: 32,
             traceColor: [27, 142, 236]
@@ -909,7 +909,7 @@ function getAllGpsPositions(routeResult) {
                ? new BMapGL.Point(init_route_current_position.lng, init_route_current_position.lat)
                : trackData[0].getPoint(),
         style: {
-            url: 'http://localhost:8900/static/car3.png',//https://mapopen-pub-jsapi.bj.bcebos.com/jsapiGlgeo/img/car.png
+            url: './assets/car.png',
             level: 18,
             scale: 1,
             size: new BMapGL.Size(16, 32),
@@ -1093,7 +1093,7 @@ function stopTrack() {
             }
         }
 
-        // 2. Remove move point first (bus.glb model)
+        // 2. Remove move point first
         if (movePoint && trackLine) {
             try {
                 // Remove movePoint from trackLine

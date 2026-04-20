@@ -1586,7 +1586,7 @@ function initMap() {
 
             // Load model with retry
 
-            const gltf = await loadModelWithRetry(loader2, 'aisnsbuilding.glb');
+            const gltf = await loadModelWithRetry(loader2, './assets/aisnsbuilding.glb');
 
             const modelBuilding = gltf.scene;
 
@@ -1676,89 +1676,6 @@ function initMap() {
 
     };
 
-    const loadHouse = async () => {
-
-        try {
-
-            // Load model with retry
-
-            const gltf = await loadModelWithRetry(loader, 'house_red.glb');
-
-            modelhouse = gltf.scene;
-
-            // Add ambient light
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
-
-            //overlay.scene.add(ambientLight);
-
-            // Add directional light
-
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25);
-
-            directionalLight.position.set(-1, -1, -1); // Place the light behind the model
-
-            // overlay.scene.add(directionalLight);
-
-            // Compute model bounding box
-
-            const box = new THREE.Box3().setFromObject(modelhouse);
-
-            const size = box.getSize(new THREE.Vector3());
-
-            const height = size.y; // Model height
-
-            console.log("House model height:", height);
-
-            // Set model scale/rotation/position
-
-            // Adjust scale based on height
-
-            const desiredHeight = 150; // Desired height
-
-            const scale = desiredHeight / height;
-
-            // Set model scale/rotation/position
-
-            // modelhouse.scale.set(scale, scale, scale);
-
-            modelhouse.scale.set(1, 1, 1);
-
-            modelhouse.rotation.x = (Math.PI / 15) * 0;
-
-            modelhouse.rotation.y = (Math.PI / 15) * 1.6;
-
-            const position3 = overlay.latLngAltitudeToVector3(home_position, modelhouse.position);
-
-            try {
-
-                if (home_position && home_position.lat !== undefined && home_position.lng !== undefined) {
-
-                    registerGeoBoundObject(modelhouse, { lat: Number(home_position.lat), lng: Number(home_position.lng), altitude: Number(home_position.altitude) || 0 });
-
-                }
-
-            } catch (e) {
-
-            }
-
-            // Add model to scene
-
-            overlay.scene.add(modelhouse);
-
-            console.log("House model loaded successfully");
-
-            modelLoadStatus.house = true;
-
-            checkAnimationStart();
-
-        } catch (error) {
-
-            console.error('Failed to load house model:', error);
-
-        }
-
-    };
 
     const loadTower = async () => {
 
@@ -1766,7 +1683,7 @@ function initMap() {
 
             // Load model with retry
 
-            const gltf = await loadModelWithRetry(loader, 'chinese_tower.glb');
+            const gltf = await loadModelWithRetry(loader, './assets/chinese_tower.glb');
 
             modeltower = gltf.scene;
 
@@ -1851,7 +1768,7 @@ function initMap() {
 
     loadBuilding();
 
-    loadHouse();
+
 
     loadTower();
 
@@ -2199,7 +2116,7 @@ function initMap() {
 
     playGroundOverlay = new google.maps.GroundOverlay(
 
-        "shouhuimap.png",//"https://storage.googleapis.com/geo-devrel-public-buckets/newark_nj_1922-661x516.jpeg",
+        "./assets/playgroundmap.png",
 
         imageBounds,
 
@@ -2256,7 +2173,7 @@ function initMap() {
 
         const texture = textureLoader.load(
 
-            'https://i.ibb.co/PtWsXLY/three-Layer.png',
+            './assets/aisnslayer3d.png',
 
             () => console.log("Cube texture loaded successfully"),
 

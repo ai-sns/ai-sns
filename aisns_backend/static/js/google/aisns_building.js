@@ -798,7 +798,7 @@ function createVideoScreen() {
     const { height: buildingHeight, depth } = BUILDING_CONFIG.dimensions;
     const { spacing } = BUILDING_CONFIG.window;
 
-    const videoScreen = new VideoScreen(width, height, 'aisns.webm');
+    const videoScreen = new VideoScreen(width, height, './assets/aisns.webm');
 
     // Position the screen
     videoScreen.position.set(

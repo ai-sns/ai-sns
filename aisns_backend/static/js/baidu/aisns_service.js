@@ -19,7 +19,7 @@ function initGroundOverlay() {
     );
     layerManager.groundOverlay = new BMapGL.GroundOverlay(bounds, {
         type: 'image',
-        url: 'shouhuimap.png',
+        url: './assets/playgroundmap.png',
         opacity: 1
     });
     map.addOverlay(layerManager.groundOverlay);
@@ -35,7 +35,7 @@ function initModelConfigs() {
             id: 'mainModel',
             layerId: 'mainLayer',
             position: [103.86335829551814, 1.2847964346121146],
-            modelUrl: 'aisnsbuilding.glb',
+            modelUrl: './assets/aisnsbuilding.glb',
             scale: 0.02,
             rotation: {x: Math.PI / 2}
         },
@@ -43,7 +43,7 @@ function initModelConfigs() {
             id: 'towerModel',
             layerId: 'mainLayer',
             position: [116.01984538680082, 40.35719706363071],
-            modelUrl: 'chinese_tower.glb',
+            modelUrl: './assets/chinese_tower.glb',
             scale: 24,
             rotation: {x: Math.PI / 2}
         }
@@ -300,7 +300,7 @@ function loadFacilityModel(threeLayer, config) {
  */
 function loadCubeModel(threeLayer) {
     const texture = new THREE.TextureLoader().load(
-        'aisnslayer3d.png',
+        './assets/aisnslayer3d.png',
         () => console.log('Cube texture loaded successfully'),
         undefined,
         error => console.error('Failed to load cube texture:', error)

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>百度地图 API & Style ID 测试工具</title>
+    <title>Baidu Map API & Style ID Test Tool</title>
     <meta charset="utf-8">
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
     <style>
@@ -84,28 +84,28 @@
 <body>
 
 <div class="container">
-    <h2>百度地图 API 测试工具</h2>
+    <h2>Baidu Map API Test Tool</h2>
     
     <div class="input-group">
-        <label for="ak">浏览器端 AK (Access Key):</label>
-        <input type="text" id="ak" placeholder="在此输入你的百度地图 AK">
+        <label for="ak">Browser AK (Access Key):</label>
+        <input type="text" id="ak" placeholder="Enter your Baidu Map AK here">
     </div>
 
     <div class="input-group">
-        <label for="styleId">个性化地图 Style ID (可选):</label>
-        <input type="text" id="styleId" placeholder="例如: 8e0a97af938520ad (在个性化地图编辑器中生成)">
+        <label for="styleId">Custom Map Style ID (optional):</label>
+        <input type="text" id="styleId" placeholder="e.g., 8e0a97af938520ad (generated in custom map editor)">
     </div>
 
-    <button onclick="loadBaiduMap()">加载百度地图</button>
+    <button onclick="loadBaiduMap()">Load Baidu Map</button>
 
     <div id="status"></div>
-    <div id="map-container">地图将在此处显示</div>
+    <div id="map-container">Map will be displayed here</div>
 
     <div class="info-box">
-        <strong>提示：</strong><br>
-        1. 请确保 AK 的应用类型为 <b>浏览器端</b>。<br>
-        2. 如果设置了“Referer白名单”，请确保当前访问地址（如 localhost 或 127.0.0.1）在白名单内。<br>
-        3. 本页面使用 <b>MapVGL / JavaScript API GL (v1.0)</b> 版本测试。
+        <strong>Tips:</strong><br>
+        1. Please ensure the AK application type is <b>Browser</b>.<br>
+        2. If "Referer whitelist" is set, ensure the current address (e.g., localhost or 127.0.0.1) is in the whitelist.<br>
+        3. This page uses <b>MapVGL / JavaScript API GL (v1.0)</b> for testing.
     </div>
 </div>
 
@@ -123,60 +123,60 @@
         const mapContainer = document.getElementById('map-container');
 
         if (!ak) {
-            alert('请输入百度地图 AK');
+            alert('Please enter Baidu Map AK');
             return;
         }
 
-        // 清理现有的内容
-        mapContainer.innerHTML = '正在加载百度地图脚本...';
+        // Clean up existing content
+        mapContainer.innerHTML = 'Loading Baidu Map script...';
         document.getElementById('status').style.display = 'none';
 
-        // 移除旧脚本
+        // Remove old script
         const oldScript = document.getElementById('baidu-script');
         if (oldScript) oldScript.remove();
         
-        // 百度地图全局变量清理（由于百度API设计，彻底清理较难，建议刷新页面重试如果多次切换AK）
+        // Baidu Map global variable cleanup (due to Baidu API design, thorough cleanup is difficult; refresh page if switching AK multiple times)
         
-        // 创建回调函数
+        // Create callback function
         window.onBMapCallback = function() {
             try {
-                // 初始化地图
-                // BMapGL 适用于最新版个性化地图和 3D 效果
+                // Initialize map
+                // BMapGL is for latest custom maps and 3D effects
                 const map = new BMapGL.Map("map-container");
-                const point = new BMapGL.Point(116.404, 39.915); // 北京天安门
+                const point = new BMapGL.Point(116.404, 39.915); // Beijing Tiananmen
                 map.centerAndZoom(point, 12);
                 map.enableScrollWheelZoom(true);
 
-                // 添加一个标记
+                // Add a marker
                 const marker = new BMapGL.Marker(point);
                 map.addOverlay(marker);
 
-                let statusMsg = "<strong>成功：</strong> 地图加载完成。";
+                let statusMsg = "<strong>Success:</strong> Map loaded successfully.";
 
-                // 如果提供了 Style ID，尝试应用
+                // If Style ID is provided, try to apply it
                 if (styleId) {
                     map.setMapStyleV2({
                         styleId: styleId
                     });
-                    statusMsg += `<br>已尝试应用样式 ID: ${styleId}。若样式未生效，请检查 Style ID 是否属于该 AK 账号。`;
+                    statusMsg += `<br>Attempted to apply Style ID: ${styleId}. If style not applied, check if Style ID belongs to this AK account.`;
                 }
 
                 showStatus(statusMsg, 'success');
 
             } catch (e) {
-                showStatus('地图初始化失败: ' + e.message, 'error');
+                showStatus('Map initialization failed: ' + e.message, 'error');
             }
         };
 
-        // 动态加载百度地图脚本
-        // type=webgl 表示使用 GL 版（支持 Style ID）
+        // Dynamically load Baidu Map script
+        // type=webgl indicates using GL version (supports Style ID)
         const script = document.createElement('script');
         script.id = 'baidu-script';
         script.type = 'text/javascript';
         script.src = `https://api.map.baidu.com/api?v=1.0&type=webgl&ak=${ak}&callback=onBMapCallback`;
         
         script.onerror = function() {
-            showStatus('脚本加载失败，请检查网络或 AK 是否正确。', 'error');
+            showStatus('Script loading failed, please check network or AK.', 'error');
         };
 
         document.head.appendChild(script);

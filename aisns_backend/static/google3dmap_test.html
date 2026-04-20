@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Google Maps API & Map ID 测试工具</title>
+    <title>Google Maps API & Map ID Test Tool</title>
     <meta charset="utf-8">
     <style>
         body {
@@ -71,33 +71,33 @@
 <body>
 
 <div class="container">
-    <h2>Google Maps API 测试工具</h2>
+    <h2>Google Maps API Test Tool</h2>
     
     <div class="input-group">
         <label for="apiKey">API Key:</label>
-        <input type="text" id="apiKey" placeholder="在此粘贴你的 Google Maps API Key">
+        <input type="text" id="apiKey" placeholder="Paste your Google Maps API Key here">
     </div>
 
     <div class="input-group">
-        <label for="mapId">Map ID (可选):</label>
-        <input type="text" id="mapId" placeholder="例如: 8e0a97af938520ad (用于测试矢量地图或云端样式)">
-        <div class="info">注：测试 Advanced Markers（高级标记）必须提供 Map ID。</div>
+        <label for="mapId">Map ID (optional):</label>
+        <input type="text" id="mapId" placeholder="e.g., 8e0a97af938520ad (for testing vector maps or cloud styles)">
+        <div class="info">Note: Map ID is required for testing Advanced Markers.</div>
     </div>
 
-    <button onclick="loadMap()">加载地图测试</button>
+    <button onclick="loadMap()">Load Map Test</button>
 
     <div id="status"></div>
-    <div id="map-container">地图将显示在这里</div>
+    <div id="map-container">Map will be displayed here</div>
 </div>
 
 <script>
-    // 捕获 API 身份验证错误（如 Key 无效、未授权域名等）
+    // Capture API authentication errors (e.g., invalid Key, unauthorized domain, etc.)
     window.gm_authFailure = function() {
         const status = document.getElementById('status');
         status.style.display = 'block';
         status.className = 'error';
-        status.innerHTML = '<strong>身份验证错误：</strong> 你的 API Key 可能无效，或者未授权此域名/IP。请检查 Google Cloud Console 的限制设置。';
-        document.getElementById('map-container').innerHTML = '地图加载失败';
+        status.innerHTML = '<strong>Authentication Error:</strong> Your API Key may be invalid or this domain/IP is not authorized. Please check the restrictions in Google Cloud Console.';
+        document.getElementById('map-container').innerHTML = 'Map loading failed';
     };
 
     function loadMap() {
@@ -107,21 +107,21 @@
         const mapContainer = document.getElementById('map-container');
 
         if (!apiKey) {
-            alert('请输入 API Key');
+            alert('Please enter API Key');
             return;
         }
 
-        // 清理旧状态和旧脚本
+        // Clean up old state and scripts
         status.style.display = 'none';
-        mapContainer.innerHTML = '正在加载 Google Maps 脚本...';
+        mapContainer.innerHTML = 'Loading Google Maps script...';
         const oldScript = document.getElementById('google-maps-script');
         if (oldScript) oldScript.remove();
         if (window.google) window.google = undefined;
 
-        // 动态创建脚本标签
+        // Dynamically create script tag
         const script = document.createElement('script');
         script.id = 'google-maps-script';
-        // 使用 v=beta 以支持最新的 MapID 和高级标记功能
+        // Use v=beta to support latest MapID and Advanced Markers features
         script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=marker&v=beta&callback=initMap`;
         script.async = true;
         script.defer = true;
@@ -129,47 +129,47 @@
         script.onerror = function() {
             status.style.display = 'block';
             status.className = 'error';
-            status.innerHTML = '脚本加载错误：请检查网络或 API Key 格式。';
+            status.innerHTML = 'Script loading error: Please check the network or API Key format.';
         };
 
         window.initMap = function() {
             try {
                 const mapOptions = {
-                    center: { lat: 39.9042, lng: 116.4074 }, // 默认北京
+                    center: { lat: 39.9042, lng: 116.4074 }, // Default: Beijing
                     zoom: 12
                 };
 
-                // 如果提供了 MapID，则加入配置
+                // If MapID is provided, add to configuration
                 if (mapId) {
                     mapOptions.mapId = mapId;
                 }
 
                 const map = new google.maps.Map(mapContainer, mapOptions);
 
-                // 测试高级标记 (Advanced Marker) - 只有提供 MapID 才会生效
+                // Test Advanced Marker - only works when MapID is provided
                 if (mapId && google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
                     new google.maps.marker.AdvancedMarkerElement({
                         map: map,
                         position: { lat: 39.9042, lng: 116.4074 },
-                        title: "测试标记 (高级)"
+                        title: "Test Marker (Advanced)"
                     });
                 } else {
-                    // 普通标记
+                    // Regular marker
                     new google.maps.Marker({
                         position: { lat: 39.9042, lng: 116.4074 },
                         map: map,
-                        title: "测试标记 (普通)"
+                        title: "Test Marker (Regular)"
                     });
                 }
 
                 status.style.display = 'block';
                 status.className = 'success';
-                status.innerHTML = `成功！地图已初始化。${mapId ? '已应用 Map ID。' : '未提供 Map ID，使用默认样式。'}`;
+                status.innerHTML = `Success! Map initialized. ${mapId ? 'Map ID applied.' : 'No Map ID provided, using default style.'}`;
                 
             } catch (e) {
                 status.style.display = 'block';
                 status.className = 'error';
-                status.innerHTML = '初始化地图时出错: ' + e.message;
+                status.innerHTML = 'Error initializing map: ' + e.message;
             }
         };
 
