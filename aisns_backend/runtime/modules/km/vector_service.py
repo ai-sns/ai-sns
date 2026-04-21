@@ -10,7 +10,8 @@ import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
 
-from runtime.config.settings import get_settings
+from runtime.modules.agent.llm_service import LLMConfigService
+from runtime.shared.llm_endpoints import normalize_openai_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +29,21 @@ class VectorService:
             settings=Settings(anonymized_telemetry=False)
         )
 
-        # Initialize OpenAI client using ai_config.yaml (via settings) with env overrides.
-        _settings = get_settings()
-        api_key = getattr(_settings.ai, 'api_key', None)
-        api_base = getattr(_settings.ai, 'api_base', None)
+        # Initialize OpenAI client from the default LLM config in DB, with env overrides.
+        api_key = os.environ.get('OPENAI_API_KEY')
+        api_base = os.environ.get('OPENAI_API_BASE')
+        self.embedding_model = 'text-embedding-3-small'
+
+        if not api_key:
+            try:
+                default_cfg = LLMConfigService().get_default_config()
+                if default_cfg:
+                    api_key = default_cfg.get('api_key') or api_key
+                    raw_endpoint = default_cfg.get('api_endpoint') or ''
+                    if raw_endpoint:
+                        api_base = api_base or normalize_openai_base_url(raw_endpoint)
+            except Exception as e:
+                logger.warning(f"Failed to load default LLM config for embedding: {e}")
 
         if api_key and api_base:
             self.openai_client = OpenAI(api_key=api_key, base_url=api_base)
@@ -39,8 +51,6 @@ class VectorService:
             self.openai_client = OpenAI(api_key=api_key)
         else:
             self.openai_client = OpenAI()
-
-        self.embedding_model = getattr(_settings.ai, 'embedding_model', 'text-embedding-3-small')
 
     def get_or_create_collection(self, km_id: str):
         """Get or create a collection for a knowledge base"""

@@ -25,9 +25,6 @@ from runtime.core.dependencies import (
 # WebSocket
 from runtime.shared.websocket_manager import ConnectionManager, manager
 
-# AI Client
-from runtime.shared.ai_client import AIClient, get_ai_client, get_default_client
-
 # Utilities
 from runtime.shared.utils import (
     # ID Generation
@@ -132,44 +129,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         manager.disconnect(client_id)
 ```
 
-### 6. AI Chat (Non-Streaming)
-
-```python
-from runtime.shared.ai_client import get_ai_client
-
-async def chat(message: str):
-    client = get_ai_client()
-    response = await client.simple_chat(message)
-    return response
-```
-
-### 7. AI Chat (Streaming)
-
-```python
-from runtime.shared.ai_client import get_ai_client
-from sse_starlette.sse import EventSourceResponse
-
-@app.post("/chat/stream")
-async def stream_chat(messages: list):
-    client = get_ai_client()
-
-    async def event_generator():
-        async for chunk in client.chat_completion_stream(messages):
-            if chunk["event"] == "message":
-                yield {
-                    "event": "message",
-                    "data": chunk["data"]["content"]
-                }
-            elif chunk["event"] == "done":
-                yield {
-                    "event": "done",
-                    "data": "completed"
-                }
-
-    return EventSourceResponse(event_generator())
-```
-
-### 8. Using Settings
+### 6. Using Settings
 
 ```python
 from runtime.config.settings import settings
@@ -276,18 +236,6 @@ UPLOAD_DIR=/path/to/uploads
 MAX_UPLOAD_SIZE=52428800
 ```
 
-### Config File (ai_config.yaml)
-
-```yaml
-ai:
-  api_base: "https://api.openai.com/v1"
-  api_key: "sk-..."
-  model: "gpt-4o-mini"
-  temperature: 1.0
-  max_tokens: 4096
-  stream: true
-```
-
 ## Testing
 
 ```bash
@@ -315,7 +263,6 @@ print('Settings OK:', settings.has_valid_api_key())
 │   └── dependencies.py       # FastAPI dependencies
 ├── shared/
 │   ├── websocket_manager.py  # WebSocket manager
-│   ├── ai_client.py          # AI API client
 │   └── utils.py              # Utility functions
 ├── README.md                 # Documentation
 ├── IMPLEMENTATION_SUMMARY.md # Implementation details
@@ -338,7 +285,7 @@ print('Settings OK:', settings.has_valid_api_key())
 ## Common Issues
 
 ### Issue: "API key not configured"
-**Solution**: Set API key in environment, ai_config.yaml, or database
+**Solution**: Configure a default LLM in Settings, or set OPENAI_API_KEY environment variable
 
 ### Issue: "Database locked"
 **Solution**: Check that database sessions are properly closed

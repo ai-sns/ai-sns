@@ -243,7 +243,7 @@ def _load_seed_data_if_empty():
     """
     from datetime import datetime
     from sqlalchemy import select, func
-    from db.models.agent import AgentCfg, Prompt
+    from db.models.agent import AgentCfg, Prompt, LLMConfig, RoleConfig
     from db.models.aisns import AISnsCfg
     from db.models.system import SystemCfg, SystemInit
     from db.models.web import WebMng
@@ -254,6 +254,8 @@ def _load_seed_data_if_empty():
         SYSTEM_CFG_SEED,
         PROMPTS_SEED,
         WEB_MNG_SEED,
+        LLM_CONFIG_SEED,
+        ROLE_CONFIG_SEED,
     )
 
     def _convert_datetime(data: dict, datetime_fields: list) -> dict:
@@ -328,6 +330,24 @@ def _load_seed_data_if_empty():
                 record = WebMng(**converted)
                 session.add(record)
             logger.info("Seed data loaded: web_mng (%d records)", len(WEB_MNG_SEED))
+
+        # Check and populate llm_config
+        count = session.scalar(select(func.count()).select_from(LLMConfig))
+        if count == 0 and LLM_CONFIG_SEED:
+            for data in LLM_CONFIG_SEED:
+                converted = _convert_datetime(data, ["create_time", "update_time"])
+                record = LLMConfig(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: llm_config (%d records)", len(LLM_CONFIG_SEED))
+
+        # Check and populate role_config
+        count = session.scalar(select(func.count()).select_from(RoleConfig))
+        if count == 0 and ROLE_CONFIG_SEED:
+            for data in ROLE_CONFIG_SEED:
+                converted = _convert_datetime(data, ["create_time", "update_time"])
+                record = RoleConfig(**converted)
+                session.add(record)
+            logger.info("Seed data loaded: role_config (%d records)", len(ROLE_CONFIG_SEED))
 
         session.commit()
     except Exception as e:

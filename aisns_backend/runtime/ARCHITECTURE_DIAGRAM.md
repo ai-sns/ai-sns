@@ -108,16 +108,13 @@
 │                                                                      │
 │   Priority Order (Highest to Lowest):                              │
 │                                                                      │
-│   1. Environment Variables                                          │
+│   1. Default LLM Config (Database)                                  │
+│      └─ Runtime config stored in SQLite (llm_config table)         │
+│                                                                      │
+│   2. Environment Variables                                          │
 │      └─ OPENAI_API_KEY, HOST, PORT, etc.                          │
 │                                                                      │
-│   2. Database Configuration                                         │
-│      └─ Runtime config stored in SQLite                            │
-│                                                                      │
-│   3. Config File (ai_config.yaml)                                   │
-│      └─ File-based configuration                                   │
-│                                                                      │
-│   4. Default Values                                                 │
+│   3. Default Values                                                 │
 │      └─ Hardcoded defaults in code                                 │
 │                                                                      │
 └────────────────────────────────────────────────────────────────────┘

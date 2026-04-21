@@ -22,7 +22,6 @@ EXPECTED_FILES = {
     "shared": [
         "__init__.py",
         "websocket_manager.py",
-        "ai_client.py",
         "utils.py"
     ],
     "root": [
@@ -101,7 +100,6 @@ def print_summary():
         "config/database.py",
         "core/dependencies.py",
         "shared/websocket_manager.py",
-        "shared/ai_client.py",
         "shared/utils.py"
     ]
 

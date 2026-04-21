@@ -33,6 +33,15 @@ class LLMConfigService:
         configs = query.order_by(LLMConfig.position, LLMConfig.id).all()
         return [self._to_dict(config) for config in configs]
 
+    def get_default_config(self) -> Optional[Dict[str, Any]]:
+        """Get the default LLM configuration (is_default=True and is_active=True)."""
+        config = self.db.query(LLMConfig).filter(
+            LLMConfig.is_default == True,
+            LLMConfig.is_active == True,
+            LLMConfig.is_delete == False
+        ).first()
+        return self._to_dict(config) if config else None
+
     def get_by_config_id(self, config_id: str) -> Optional[Dict[str, Any]]:
         """Get configuration by config_id."""
         config = self.db.query(LLMConfig).filter(

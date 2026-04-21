@@ -86,26 +86,6 @@ Successfully created the backend configuration and core layers for the AI-SNS ap
 
 **Extracted from**: `api_server.py` ConnectionManager class (lines 76-97)
 
-#### `/mnt/c/dev/agi-ev/ai-sns-el/runtime/shared/ai_client.py` (293 lines)
-- **Purpose**: Unified AI API client wrapper
-- **Features**:
-  - OpenAI-compatible API interface
-  - Streaming and non-streaming chat completions
-  - Automatic configuration from settings
-  - Error handling and logging
-  - Flexible parameter overrides
-
-**Key Components**:
-- `AIClient` - Main AI client class
-- `chat_completion()` - Non-streaming chat
-- `chat_completion_stream()` - Streaming chat (SSE)
-- `simple_chat()` - Simplified chat interface
-- `check_config()` - Configuration validation
-- `get_ai_client()` - Factory function
-- `get_default_client()` - Singleton client
-
-**Extracted from**: `api_server.py` streaming logic (lines 638-756)
-
 #### `/mnt/c/dev/agi-ev/ai-sns-el/runtime/shared/utils.py` (386 lines)
 - **Purpose**: Common utility functions
 - **Features**:
@@ -148,13 +128,11 @@ Successfully created the backend configuration and core layers for the AI-SNS ap
 The settings system implements a clear priority hierarchy:
 
 ```
-1. Environment Variables (highest)
+1. Default LLM Config in Database (highest)
    ↓
-2. Database Configuration
+2. Environment Variables
    ↓
-3. Config File (ai_config.yaml)
-   ↓
-4. Default Values (lowest)
+3. Default Values (lowest)
 ```
 
 ## Code Statistics
@@ -198,7 +176,6 @@ The settings system implements a clear priority hierarchy:
 |-------------------------------|--------------|
 | `get_ai_config()` (lines 103-172) | `runtime.config.settings.Settings._load_ai_config()` |
 | `ConnectionManager` (lines 76-97) | `runtime.shared.websocket_manager.ConnectionManager` |
-| Streaming chat logic (lines 638-756) | `runtime.shared.ai_client.AIClient.chat_completion_stream()` |
 | Database imports (lines 32-44) | `runtime.config.database` |
 | Various utility functions | `runtime.shared.utils` |
 
@@ -248,21 +225,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             await manager.broadcast({"message": data})
     except WebSocketDisconnect:
         manager.disconnect(client_id)
-```
-
-### 4. AI Client Usage
-```python
-from runtime.shared.ai_client import get_ai_client
-
-client = get_ai_client()
-
-# Simple chat
-response = await client.simple_chat("Hello!")
-
-# Streaming chat
-async for chunk in client.chat_completion_stream(messages):
-    if chunk["event"] == "message":
-        print(chunk["data"]["content"], end="")
 ```
 
 ## Testing Results

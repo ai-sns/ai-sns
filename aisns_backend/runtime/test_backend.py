@@ -77,25 +77,6 @@ def test_websocket_manager():
     print("✓ WebSocket manager test passed")
 
 
-def test_ai_client():
-    """Test AI client"""
-    print("Testing AI client...")
-    from runtime.shared.ai_client import AIClient, get_ai_client
-
-    # Test client creation
-    client = get_ai_client()
-    assert client is not None
-    assert isinstance(client, AIClient)
-
-    # Test config check
-    config = client.check_config()
-    assert "has_api_key" in config
-    assert "api_base" in config
-    assert "model" in config
-
-    print("✓ AI client test passed")
-
-
 def test_utils():
     """Test utility functions"""
     print("Testing utility functions...")
@@ -181,7 +162,6 @@ def run_all_tests():
         test_settings()
         test_database_config()
         test_websocket_manager()
-        test_ai_client()
         test_utils()
         test_dependencies()
 

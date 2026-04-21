@@ -389,7 +389,7 @@ async def stream_chat(
                 }
             return EventSourceResponse(error_generator())
     else:
-        # Use default ai_config.yaml configuration
+        # Use default LLM configuration
         ai_config = chat_service.get_ai_config()
 
         # Check API key
@@ -398,7 +398,7 @@ async def stream_chat(
                 yield {
                     "event": "error",
                     "data": json.dumps({
-                        "error": "API key is not configured. Please set api_key in ai_config.yaml"
+                        "error": "API key is not configured. Please set a default LLM in Settings."
                     })
                 }
             return EventSourceResponse(error_generator())
@@ -438,6 +438,5 @@ async def config_status(service: ChatService = Depends(get_chat_service)):
         "api_base": config.get('api_base'),
         "model": config.get('model'),
         "api_key_preview": config.get('api_key', '')[:10] + "..." if has_api_key else "Not configured",
-        "config_file_exists": Path('ai_config.yaml').exists(),
-        "recommendation": "Configuration OK" if has_api_key else "Please set api_key in ai_config.yaml"
+        "recommendation": "Configuration OK" if has_api_key else "Please configure a default LLM in Settings."
     }

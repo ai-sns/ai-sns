@@ -17,7 +17,6 @@ backend/
 └── shared/                    # Shared utilities
     ├── __init__.py
     ├── websocket_manager.py  # WebSocket connection management
-    ├── ai_client.py          # AI API client wrapper
     └── utils.py              # Common utility functions
 ```
 
@@ -25,10 +24,9 @@ backend/
 
 The settings system follows this priority order (highest to lowest):
 
-1. **Environment Variables** - Override everything
-2. **Database Configuration** - Runtime configuration stored in database
-3. **Config File** (`ai_config.yaml`) - File-based configuration
-4. **Default Values** - Fallback defaults
+1. **Default LLM Config (Database)** - Runtime configuration stored in database
+2. **Environment Variables** - Override everything
+3. **Default Values** - Fallback defaults
 
 ## Usage Examples
 
@@ -81,25 +79,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         manager.disconnect(client_id)
 ```
 
-### 4. Using AI Client
-
-```python
-from runtime.shared.ai_client import get_ai_client
-
-# Create client
-client = get_ai_client()
-
-# Simple chat
-response = await client.simple_chat("Hello, how are you?")
-print(response)
-
-# Streaming chat
-async for chunk in client.chat_completion_stream(messages):
-    if chunk["event"] == "message":
-        print(chunk["data"]["content"], end="", flush=True)
-```
-
-### 5. Using Dependencies
+### 4. Using Dependencies
 
 ```python
 from fastapi import Depends
@@ -176,18 +156,6 @@ MAX_UPLOAD_SIZE=52428800
 KM_BASE_DIR=/path/to/km
 ```
 
-### ai_config.yaml
-
-```yaml
-ai:
-  api_base: "https://api.openai.com/v1"
-  api_key: "sk-..."
-  model: "gpt-4o-mini"
-  temperature: 1.0
-  max_tokens: 4096
-  stream: true
-```
-
 ## Migrating from api_server.py
 
 The backend layer extracts and organizes code from `api_server.py`:
@@ -196,7 +164,6 @@ The backend layer extracts and organizes code from `api_server.py`:
 |----------|--------------|
 | `get_ai_config()` | `runtime.config.settings.Settings._load_ai_config()` |
 | `ConnectionManager` | `runtime.shared.websocket_manager.ConnectionManager` |
-| OpenAI API calls | `runtime.shared.ai_client.AIClient` |
 | Database session | `runtime.config.database.get_db()` |
 | Utility functions | `runtime.shared.utils` |
 
@@ -220,12 +187,6 @@ assert settings.has_valid_api_key()
 from runtime.config.database import get_db_session
 db = get_db_session()
 assert db is not None
-
-# Test AI client
-from runtime.shared.ai_client import get_ai_client
-client = get_ai_client()
-config = client.check_config()
-assert config["has_api_key"]
 
 # Test WebSocket manager
 from runtime.shared.websocket_manager import manager

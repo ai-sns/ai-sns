@@ -122,7 +122,7 @@ $RECYCLE.BIN/
 # =============================================================================
 
 # Backend
-aisns_backend/ai_config.yaml
+
 aisns_backend/db/db.sqlite*
 aisns_backend/km/*/
 !aisns_backend/km/.gitkeep

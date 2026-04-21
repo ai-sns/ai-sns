@@ -468,41 +468,6 @@ async def get_people_list(lng: float = None, lat: float = None, include_me: int 
         except Exception as e:
             logger.warning(f"Failed to fetch people list from remote server: {e}")
 
-    try:
-        import json
-        local_path = Path("static") / "personsdata.json"
-        if not local_path.exists():
-            raise FileNotFoundError(str(local_path))
-        data = json.loads(local_path.read_text(encoding="utf-8"))
-        return JSONResponse(content=_normalize_and_filter_people_list(data, exclude_nation_id))
-    except Exception as e:
-        logger.error(f"Failed to load local personsdata.json: {e}")
-        raise HTTPException(status_code=500, detail="Failed to provide people list")
-
-
-@app.get("/personsdata.json")
-async def get_personsdata_json():
-    remote_base = _get_remote_ai_sns_server_base()
-    if remote_base:
-        try:
-            import httpx
-            url = f"{remote_base}/personsdata.json"
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                return JSONResponse(content=resp.json())
-        except Exception as e:
-            logger.warning(f"Failed to fetch personsdata.json from remote server: {e}")
-
-    try:
-        import json
-        local_path = Path("static") / "personsdata.json"
-        if not local_path.exists():
-            raise FileNotFoundError(str(local_path))
-        return JSONResponse(content=json.loads(local_path.read_text(encoding="utf-8")))
-    except Exception as e:
-        logger.error(f"Failed to load local personsdata.json: {e}")
-        raise HTTPException(status_code=500, detail="Failed to provide persons data")
 
 
 @app.get("/news.json")

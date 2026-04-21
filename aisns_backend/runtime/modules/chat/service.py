@@ -8,7 +8,6 @@ import logging
 import os
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-import yaml
 
 from db.DBFactory import (
     query_AISnsCfg_All,
@@ -18,6 +17,8 @@ from db.DBFactory import (
 )
 
 from db.repositories import AIChatMessagesRepository
+from runtime.modules.agent.llm_service import LLMConfigService
+from runtime.shared.llm_endpoints import normalize_openai_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -32,48 +33,28 @@ class ChatService:
         self._chat_repo = AIChatMessagesRepository()
 
     @staticmethod
-    def load_ai_config_from_file():
-        """Load AI configuration from config file"""
-        config_file = Path(__file__).parent.parent.parent.parent / 'ai_config.yaml'
-        if config_file.exists():
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config = yaml.safe_load(f)
-                    ai_config = config.get('ai', {})
-                    return {
-                        "api_base": ai_config.get('api_base', 'https://api.openai.com/v1'),
-                        "api_key": ai_config.get('api_key', ''),
-                        "model": ai_config.get('model', 'gpt-4o-mini'),
-                        "temperature": ai_config.get('temperature', 1.0),
-                        "max_tokens": ai_config.get('max_tokens', 4096)
-                    }
-            except Exception as e:
-                logger.warning(f"Failed to load AI config from file: {e}")
-        return None
-
-    @staticmethod
     def get_ai_config():
         """
-        Get AI configuration
-        Priority: Database > Environment Variables > Config File
+        Get AI configuration.
+        Priority: Default LLM Config (DB) > Environment Variables > Defaults
         """
-        # 1. Try to load from database
+        # 1. Try to load from default LLM config in database
         try:
-            configs = query_AISnsCfg_All(is_delete=0)
-            if configs and len(configs) > 0:
-                cfg = configs[0]
-                api_key = getattr(cfg, 'api_key', '')
-                if api_key and api_key.strip():
-                    logger.info("Using AI config from database")
-                    return {
-                        "api_base": getattr(cfg, 'api_base', 'https://api.openai.com/v1'),
-                        "api_key": api_key,
-                        "model": getattr(cfg, 'model', 'gpt-4o-mini'),
-                        "temperature": getattr(cfg, 'temperature', 1.0),
-                        "max_tokens": getattr(cfg, 'max_tokens', 4096)
-                    }
+            default_cfg = LLMConfigService().get_default_config()
+            if default_cfg and default_cfg.get('api_key'):
+                raw_endpoint = default_cfg.get('api_endpoint') or 'https://api.openai.com/v1'
+                api_base = normalize_openai_base_url(raw_endpoint)
+                logger.info("Using AI config from default LLM config")
+                return {
+                    "api_base": api_base,
+                    "api_key": default_cfg['api_key'],
+                    "provider": default_cfg.get('provider'),
+                    "model": default_cfg.get('model_name', 'gpt-4o-mini'),
+                    "temperature": default_cfg.get('temperature', 0.7),
+                    "max_tokens": default_cfg.get('max_tokens', 2048)
+                }
         except Exception as e:
-            logger.warning(f"Failed to load AI config from database: {e}")
+            logger.warning(f"Failed to load default LLM config: {e}")
 
         # 2. Try to load from environment variables
         if os.environ.get('OPENAI_API_KEY'):
@@ -86,14 +67,8 @@ class ChatService:
                 "max_tokens": int(os.environ.get('OPENAI_MAX_TOKENS', '4096'))
             }
 
-        # 3. Try to load from config file
-        file_config = ChatService.load_ai_config_from_file()
-        if file_config and file_config.get('api_key'):
-            logger.info("Using AI config from ai_config.yaml")
-            return file_config
-
-        # 4. Default configuration
-        logger.error("No valid AI config found!")
+        # 3. Default configuration (no valid source found)
+        logger.error("No valid AI config found! Please configure a default LLM in Settings.")
         return {
             "api_base": 'https://api.openai.com/v1',
             "api_key": '',
