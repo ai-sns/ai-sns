@@ -1,0 +1,65 @@
+# AI 聊天配置文件示例
+# 复制此文件为 ai_config.yaml 并填入你的配置
+
+ai:
+  # API 基础地址
+  # 常用选项:
+  # - OpenAI: https://api.openai.com/v1
+  # - OpenAI 代理: https://api.chatanywhere.tech/v1
+  # - DeepSeek: https://api.deepseek.com/v1
+  api_base: "https://api.openai.com/v1"
+
+  # API 密钥
+  # 请替换为你自己的 API 密钥
+  api_key: "your-api-key-here"
+
+  # 模型名称
+  # 常用模型:
+  # - gpt-4o-mini (推荐，性价比高)
+  # - gpt-4o
+  # - gpt-4-turbo
+  # - gpt-3.5-turbo
+  model: "gpt-4o-mini"
+
+  # 向量化 Embedding 模型名称
+  # 常用模型:
+  # - text-embedding-3-small (默认)
+  # - text-embedding-3-large
+  embedding_model: "text-embedding-3-small"
+
+  # 温度参数 (0.0 - 2.0)
+  # 较低的值 (0.0-0.5) 使输出更确定和一致
+  # 较高的值 (0.8-2.0) 使输出更随机和创造性
+  temperature: 1.0
+
+  # 最大 token 数
+  # 控制单次响应的最大长度
+  max_tokens: 4096
+
+  # 是否启用流式输出
+  stream: true
+
+# 备选配置示例 (可选)
+# 如果需要配置多个 AI 服务，可以在这里添加
+# alternatives:
+#   openai:
+#     api_base: "https://api.openai.com/v1"
+#     api_key: "sk-..."
+#     model: "gpt-4"
+#     temperature: 0.7
+#     max_tokens: 2048
+#
+#   deepseek:
+#     api_base: "https://api.deepseek.com/v1"
+#     api_key: "sk-..."
+#     model: "deepseek-chat"
+#     temperature: 1.0
+#     max_tokens: 4096
+
+# Tools 模块配置
+tools:
+  # 每次加载的工具数量
+  # 默认值为 4，点击 More 按钮会再加载 4 个
+  # 可以根据需要调整
+  page_size: 4
+
