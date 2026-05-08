@@ -677,6 +677,33 @@ var handle_command = function (command, param_1, param_2) {
         } catch (e) {
             console.error('[sns][talk] start_talk_to_it failed:', e);
         }
+    } else if (command == "incoming_talk_to_me") {
+        const nationId = (typeof __snsNormalizeNationId === 'function')
+            ? __snsNormalizeNationId(param_1)
+            : String(param_1 ?? '').trim();
+        try {
+            if (map_type == "google") {
+                let marker = null;
+                try {
+                    marker = (typeof getMarkerByNationId === 'function') ? getMarkerByNationId(nationId) : null;
+                } catch (e) {
+                    console.warn('[sns][marker] getMarkerByNationId failed:', e);
+                }
+                if (typeof hiddenMarkers !== 'undefined' && hiddenMarkers) {
+                    hiddenMarkers[nationId] = marker;
+                }
+            } else {
+                div = document.getElementById(nationId);
+                if (!div) {
+                    console.warn(`Element with ID ${nationId} not found on map, proceeding anyway`);
+                } else {
+                    hiddenPoints[nationId] = div;
+                }
+            }
+            incoming_talk_to_me(nationId);
+        } catch (e) {
+            console.error('[sns][talk] incoming_talk_to_me failed:', e);
+        }
     } else if (command == "stop_talk_to_it") {
         try {
             const nationId = (typeof __snsNormalizeNationId === 'function')

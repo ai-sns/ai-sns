@@ -139,11 +139,85 @@ class CommunicationMixin:
             inbox = self.conversation_inbox
         inbox.setdefault(account, []).append({"ts": self._now_ts(), "content": content})
         try:
-            #Temporarily not displayed on the map,Temporarily commented out
-            # self.send_msg_to_map(("show_information_chat", self._format_inbox_message(account, content), ""))
-            logger.info("show_information_chat is canceled Temporarily")
+            logger.info("Inbox message enqueued from %s", account)
         except Exception as e:
             logger.error(f"Failed to notify inbox message: {e}")
+
+        # Auto-start engine and process inbox if engine is not running or idle
+        self._maybe_auto_start_for_inbox(account, content)
+
+    def _maybe_auto_start_for_inbox(self, account: str, content: str) -> None:
+        """Schedule engine auto-start and immediate inbox processing if needed."""
+        try:
+            # Guard: prevent duplicate scheduling
+            if getattr(self, "_inbox_auto_start_scheduled", False):
+                return
+
+            started = bool(getattr(self, "started_flag", False))
+            status = (getattr(self, "map_task_status", "") or "").strip()
+            active_account = self._get_active_account()
+            if not active_account:
+                return
+
+            if not started or status in ("paused", "stopped", ""):
+                # Engine not running: schedule start + inbox drain
+                self._inbox_auto_start_scheduled = True
+                asyncio.create_task(self._auto_start_engine_and_process_inbox(account, content))
+            # else: engine running + active conversation → existing flow will drain inbox later
+        except Exception as e:
+            self._inbox_auto_start_scheduled = False
+            logger.error(f"_maybe_auto_start_for_inbox failed: {e}")
+
+    async def _auto_start_engine_and_process_inbox(self, account: str, content: str) -> None:
+        """Start/resume engine, broadcast status, then process the inbox message."""
+        # CRITICAL: Pop inbox message BEFORE any await to prevent race with
+        # the process_activity background task that start_engine() will launch.
+        try:
+            inbox = getattr(self, "conversation_inbox", None)
+            if isinstance(inbox, dict):
+                inbox.pop(account, None)
+        except Exception:
+            pass
+
+        try:
+            started = bool(getattr(self, "started_flag", False))
+            status = (getattr(self, "map_task_status", "") or "").strip()
+
+            if status == "paused":
+                logger.info("Auto-start for inbox: resuming paused engine")
+                await self.resume_engine()
+            elif not started or status in ("stopped", ""):
+                logger.info("Auto-start for inbox: starting engine")
+                self.map_task_status = ""
+                await self.start_engine()
+
+            # Broadcast engine status so frontend button shows "Pause"
+            await self._broadcast_engine_status_from_engine()
+
+            # Small delay to let frontend settle
+            await asyncio.sleep(1)
+
+            # Process the inbox message
+            await self._auto_reply_from_inbox_message(account, content)
+        except Exception as e:
+            logger.error(f"_auto_start_engine_and_process_inbox failed: {e}", exc_info=True)
+        finally:
+            self._inbox_auto_start_scheduled = False
+
+    async def _broadcast_engine_status_from_engine(self) -> None:
+        """Broadcast sns_engine_status from within the engine instance."""
+        try:
+            payload = {
+                "type": "sns_engine_status",
+                "success": True,
+                "running": True,
+                "started": True,
+                "task_status": (getattr(self, "map_task_status", "started") or "started"),
+            }
+            await websocket_manager.broadcast(payload)
+            logger.info("Broadcast engine status for inbox processing: started")
+        except Exception as e:
+            logger.error(f"Failed to broadcast engine status: {e}")
 
     async def maybe_auto_reply_from_inbox(self) -> bool:
         try:
@@ -301,18 +375,50 @@ class CommunicationMixin:
 
         try:
             if nation_id and hasattr(self, "send_msg_to_map"):
-                self.send_msg_to_map(("start_talk_to_it", nation_id, ""))
+                # Use incoming_talk_to_me: moves sender's avatar to south of me
+                self.send_msg_to_map(("incoming_talk_to_me", nation_id, ""))
         except Exception:
             pass
 
-        await asyncio.sleep(0)
-
+        # Broadcast engine status to ensure frontend button shows "Pause"
         try:
-            if hasattr(self, "handle_receiveMessage"):
-                await self.handle_receiveMessage(content, account)
+            await self._broadcast_engine_status_from_engine()
+        except Exception:
+            pass
+
+        # Append the received message to current talk history and trigger review directly
+        try:
+            if not isinstance(self.current_talk_history, list):
+                self.current_talk_history = []
+            self.current_talk_history.append("Friend:" + str(content or ""))
+        except Exception:
+            pass
+
+        # Touch conversation activity timestamp (avoid timeout while reviewing)
+        try:
+            if hasattr(self, "_touch_conversation_activity"):
+                self._touch_conversation_activity(account)
+        except Exception:
+            pass
+
+        # Respect human take-over: do not auto-process when enabled
+        try:
+            if bool(getattr(self, "human_take_over", False)):
+                logger.info("Human takeover is enabled, skip auto review for inbox message from %s", account)
                 return True
         except Exception:
-            logger.exception("Failed to process inbox message")
+            pass
+
+        # Schedule conversation review task
+        try:
+            if hasattr(self, "taskmng") and hasattr(self.taskmng, "process_task"):
+                asyncio.create_task(self.taskmng.process_task(
+                    event="conversation_message_received",
+                    talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
+                ))
+                return True
+        except Exception:
+            logger.exception("Failed to schedule conversation review from inbox message")
 
         return False
 

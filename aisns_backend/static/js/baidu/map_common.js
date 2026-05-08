@@ -580,6 +580,154 @@ function resetMyModelRotationAfterTalk(options = {}) {
     }
 }
 
+/**
+ * Rotate any person's 3D model to face north (rotation.z = PI).
+ * Baidu version: uses Z-axis for yaw and threeLayer for rendering.
+ */
+function rotateModelToFaceNorthByNationId(nationId, options) {
+    options = options || {};
+    var targetId = String(nationId || '').trim();
+    if (!targetId) return;
+
+    var maxRetries = (options.maxRetries !== undefined) ? Number(options.maxRetries) : 10;
+    var retryDelayMs = (options.retryDelayMs !== undefined) ? Number(options.retryDelayMs) : 200;
+
+    var group = null;
+    try {
+        group = (model_loaded_list && model_loaded_list[targetId]) ? model_loaded_list[targetId] : null;
+    } catch (e) {
+        group = null;
+    }
+    if (!group) {
+        try {
+            if (typeof threeLayer !== 'undefined' && threeLayer && threeLayer.scene && typeof threeLayer.scene.getObjectByName === 'function') {
+                group = threeLayer.scene.getObjectByName(targetId);
+            }
+        } catch (e) {
+            group = null;
+        }
+    }
+    if (!group) {
+        if (maxRetries > 0) {
+            setTimeout(function () { rotateModelToFaceNorthByNationId(targetId, { maxRetries: maxRetries - 1, retryDelayMs: retryDelayMs }); }, retryDelayMs);
+        }
+        return;
+    }
+
+    try {
+        if (!group.userData) group.userData = {};
+        if (group.userData.__talk_original_rotation_z === undefined || group.userData.__talk_original_rotation_z === null) {
+            group.userData.__talk_original_rotation_z = (group.rotation && typeof group.rotation.z === 'number') ? group.rotation.z : 0;
+        }
+        group.userData.__talk_face_target_last_nation_id = (typeof nation_id_me !== 'undefined') ? String(nation_id_me) : '';
+        group.userData.__talk_is_active = true;
+    } catch (e) {}
+
+    try {
+        // Baidu map 3D: rotation.z is yaw. Face north: rotation.z = PI
+        var desiredZ = Math.PI;
+        var currentZ = (group.rotation && typeof group.rotation.z === 'number') ? group.rotation.z : 0;
+        if (Math.abs(currentZ - desiredZ) > 1e-6) {
+            group.rotation.z = desiredZ;
+        }
+    } catch (e) {
+        console.warn('Failed to rotate model to face north for', targetId, e);
+        return;
+    }
+
+    try {
+        if (typeof threeLayer !== 'undefined' && threeLayer && typeof threeLayer.render === 'function') {
+            threeLayer.render();
+        }
+    } catch (e) {}
+}
+
+
+/**
+ * Handle an incoming talk request (Baidu version): move the SENDER's avatar to the south of ME,
+ * then adjust camera to focus on my position. This is the reverse of start_talk_to_it.
+ */
+function incoming_talk_to_me(nation_id) {
+    // Ensure only one active talk target at a time.
+    try {
+        var prev = (typeof window !== 'undefined') ? window.__active_talk_nation_id : undefined;
+        if (prev && String(prev) !== String(nation_id) && typeof stop_talk_to_it === 'function') {
+            stop_talk_to_it(prev, { skipTerminate: true });
+        }
+    } catch (e) {
+        console.warn('incoming_talk_to_me pre-stop failed:', e);
+    }
+    try {
+        if (typeof window !== 'undefined') {
+            window.__active_talk_nation_id = String(nation_id);
+        }
+    } catch (e) {}
+
+    // Get my position and sender data
+    var my_point = getPersonPointByNationId(nation_id_me);
+    person_data_me = getPersonDataByNationId(nation_id_me);
+    var person_sender = getPersonDataByNationId(nation_id);
+
+    // Track sender account for stop_talk_to_it
+    try {
+        var senderAccount = (person_sender && person_sender["account"]) ? String(person_sender["account"]).trim() : '';
+        if (typeof window !== 'undefined' && senderAccount) {
+            if (!window.__talk_target_account_by_nation_id || typeof window.__talk_target_account_by_nation_id !== 'object') {
+                window.__talk_target_account_by_nation_id = {};
+            }
+            window.__talk_target_account_by_nation_id[String(nation_id)] = senderAccount;
+        }
+    } catch (e) {}
+
+    // Center camera on my position (with same offset pattern as start_talk_to_it)
+    setTimeout(function () {
+        var targetLng = my_point.lng - 0.005;
+        var targetLat = my_point.lat - 0.005;
+        var currentCenter = map.getCenter();
+        if (!currentCenter || Math.abs(currentCenter.lng - targetLng) > 0.0001 || Math.abs(currentCenter.lat - targetLat) > 0.0001) {
+            showAlert("Incoming conversation.");
+        }
+        map.setCenter(new BMapGL.Point(targetLng, targetLat));
+    }, 100);
+
+    setTimeout(function () {
+        map.setZoom(16.5);
+    }, 3000);
+
+    setTimeout(function () {
+        map.setHeading(90);
+    }, 3500);
+
+    setTimeout(function () {
+        map.setTilt(60);
+    }, 4500);
+
+    // Load sender's 3D model
+    loadModel(person_sender);
+
+    // Move sender's avatar to south of me (my_lat - 0.01)
+    var sender_new_point = new BMapGL.Point(my_point.lng, my_point.lat - 0.01);
+    setPersonModelPointByNationId(nation_id, sender_new_point);
+    setPersonPointByNationId(nation_id, sender_new_point.lng, sender_new_point.lat);
+
+    // Rotate sender's model to face north (toward me)
+    rotateModelToFaceNorthByNationId(nation_id);
+
+    // Hide sender's marker/point
+    try {
+        if (typeof setSinglePointHidden === 'function') {
+            setSinglePointHidden(nation_id, true);
+        } else {
+            var div = document.getElementById(nation_id);
+            if (div) {
+                hiddenPoints[nation_id] = div;
+                div.style.display = 'none';
+            }
+        }
+    } catch (e) {}
+}
+
+
 // Rotate the person model to face a given geographic bearing after movement.
 // bearingDeg: geographic bearing in degrees (0=N, 90=E, 180=S, 270=W).
 // Baidu 3D: x/y are Mercator plane, z is altitude; yaw rotation is around Z axis.

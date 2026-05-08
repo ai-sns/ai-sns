@@ -3043,6 +3043,155 @@ function resetMyModelRotationAfterTalk(options = {}) {
 
 
 
+/**
+ * Rotate any person's 3D model to face north (rotation.y = PI).
+ * Generic version of rotateMyModel180AfterTalkMove, parameterized by nation_id.
+ */
+function rotateModelToFaceNorthByNationId(nationId, options) {
+    options = options || {};
+    var targetId = String(nationId || '').trim();
+    if (!targetId) return;
+
+    var maxRetries = (options.maxRetries !== undefined) ? Number(options.maxRetries) : 40;
+    var retryDelayMs = (options.retryDelayMs !== undefined) ? Number(options.retryDelayMs) : 200;
+
+    var model = null;
+    try {
+        model = (model_loaded_list && model_loaded_list[targetId]) ? model_loaded_list[targetId] : null;
+    } catch (e) {
+        model = null;
+    }
+    if (!model) {
+        try {
+            if (typeof overlay !== 'undefined' && overlay && overlay.scene && typeof overlay.scene.getObjectByName === 'function') {
+                model = overlay.scene.getObjectByName(targetId);
+            }
+        } catch (e) {
+            model = null;
+        }
+    }
+    if (!model) {
+        if (maxRetries > 0) {
+            setTimeout(function () { rotateModelToFaceNorthByNationId(targetId, { maxRetries: maxRetries - 1, retryDelayMs: retryDelayMs }); }, retryDelayMs);
+        }
+        return;
+    }
+
+    try {
+        if (!model.userData) model.userData = {};
+        if (model.userData.__talk_original_rotation_y === undefined || model.userData.__talk_original_rotation_y === null) {
+            model.userData.__talk_original_rotation_y = (model.rotation && typeof model.rotation.y === 'number') ? model.rotation.y : 0;
+        }
+        model.userData.__talk_face_target_last_nation_id = (typeof nation_id_me !== 'undefined') ? String(nation_id_me) : '';
+        model.userData.__talk_is_active = true;
+    } catch (e) {}
+
+    try {
+        var desiredY = Math.PI;
+        var currentY = (model.rotation && typeof model.rotation.y === 'number') ? model.rotation.y : 0;
+        if (Math.abs(currentY - desiredY) > 1e-6) {
+            model.rotation.y = desiredY;
+        }
+    } catch (e) {
+        console.warn('Failed to rotate model to face north for', targetId, e);
+        return;
+    }
+
+    try {
+        if (typeof overlay !== 'undefined' && overlay && typeof overlay.requestRedraw === 'function') {
+            overlay.requestRedraw();
+        }
+    } catch (e) {}
+}
+
+
+/**
+ * Handle an incoming talk request: move the SENDER's avatar to the south of ME,
+ * then adjust camera to focus on my position. This is the reverse of start_talk_to_it.
+ */
+function incoming_talk_to_me(nation_id) {
+    var __nationId = (typeof __snsNormalizeNationId === 'function')
+        ? __snsNormalizeNationId(nation_id)
+        : String(nation_id || '').trim();
+
+    // Stop any previous active talk
+    try {
+        var prev = (typeof window !== 'undefined') ? window.__active_talk_nation_id : undefined;
+        if (prev && String(prev) !== String(__nationId) && typeof stop_talk_to_it === 'function') {
+            stop_talk_to_it(prev, { skipTerminate: true });
+        }
+    } catch (e) {
+        console.warn('incoming_talk_to_me pre-stop failed:', e);
+    }
+    try {
+        if (typeof window !== 'undefined') {
+            window.__active_talk_nation_id = String(__nationId);
+        }
+    } catch (e) {}
+
+    // Hide sender's marker
+    var marker = hiddenMarkers[__nationId];
+    try {
+        if (typeof hideMarker === 'function') {
+            hideMarker(marker, __nationId);
+        }
+    } catch (e) {
+        console.warn('[sns][marker] incoming_talk_to_me hideMarker failed:', e);
+    }
+
+    // Get my position and sender's data
+    var my_point = getPersonPointByNationId(nation_id_me);
+    person_data_me = getPersonDataByNationId(nation_id_me);
+    var person_sender = getPersonDataByNationId(__nationId);
+
+    // Track sender account for stop_talk_to_it
+    try {
+        var senderAccount = (person_sender && person_sender["account"]) ? String(person_sender["account"]).trim() : '';
+        if (typeof window !== 'undefined' && senderAccount) {
+            if (!window.__talk_target_account_by_nation_id || typeof window.__talk_target_account_by_nation_id !== 'object') {
+                window.__talk_target_account_by_nation_id = {};
+            }
+            window.__talk_target_account_by_nation_id[String(__nationId)] = senderAccount;
+        }
+    } catch (e) {}
+
+    // Center camera on my position (with same offset pattern as start_talk_to_it)
+    setTimeout(function () {
+        var targetLat = my_point.lat() - 0.0025;
+        var targetLng = my_point.lng() - 0.0025;
+        var currentCenter = map.getCenter();
+        if (!currentCenter || Math.abs(currentCenter.lat() - targetLat) > 0.0001 || Math.abs(currentCenter.lng() - targetLng) > 0.0001) {
+            showAlert("Incoming conversation.");
+        }
+        map.setCenter(new google.maps.LatLng(targetLat, targetLng));
+    }, 100);
+
+    setTimeout(function () {
+        map.setZoom(16.9);
+    }, 2000);
+
+    setTimeout(function () {
+        map.setTilt(90);
+    }, 2500);
+
+    setTimeout(function () {
+        map.setHeading(270);
+    }, 2800);
+
+    // Load sender's 3D model
+    loadModel(person_sender);
+
+    // Move sender's avatar to south of me (my_lat - 0.005)
+    var sender_new_point = new google.maps.LatLng(my_point.lat() - 0.005, my_point.lng());
+    setPersonModelPointByNationId(__nationId, sender_new_point);
+    setPersonPointByNationId(__nationId, sender_new_point.lng(), sender_new_point.lat());
+
+    // Rotate sender's model to face north (toward me)
+    rotateModelToFaceNorthByNationId(__nationId);
+}
+
+
+
 // Rotate the person model to face a given geographic bearing after movement.
 // bearingDeg: geographic bearing in degrees (0=N, 90=E, 180=S, 270=W).
 // Google Maps 3D overlay: Y is the up-axis; yaw rotation is around Y.
