@@ -1,6 +1,7 @@
 """
-A2A Server - SQLite database for business card management.
-Stores: my_card (own business card config) and received_cards (cards from others).
+A2A Server - SQLite database for business card and greeting management.
+Stores: my_card (own business card config), received_cards (cards from others),
+and greetings (greeting exchange history between agents).
 """
 import sqlite3
 import os
@@ -55,6 +56,14 @@ def init_db():
             memo TEXT NOT NULL DEFAULT '',
             raw_json TEXT NOT NULL DEFAULT '{}',
             received_at TEXT NOT NULL DEFAULT ''
+        );
+
+        CREATE TABLE IF NOT EXISTS greetings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_jid TEXT NOT NULL DEFAULT '',
+            sender_greeting TEXT NOT NULL DEFAULT '',
+            my_greeting TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT ''
         );
     """)
     conn.close()
@@ -137,6 +146,42 @@ def delete_received_card(card_id: int) -> bool:
     """Delete a received card by ID."""
     conn = _get_conn()
     cur = conn.execute("DELETE FROM received_cards WHERE id = ?", (card_id,))
+    conn.commit()
+    deleted = cur.rowcount > 0
+    conn.close()
+    return deleted
+
+
+# ── Greeting CRUD ─────────────────────────────────────────────────────────
+
+def add_greeting(sender_jid: str, sender_greeting: str, my_greeting: str) -> int:
+    """Store a greeting exchange record. Returns the new row ID."""
+    conn = _get_conn()
+    now = datetime.utcnow().isoformat()
+    cur = conn.execute("""
+        INSERT INTO greetings (sender_jid, sender_greeting, my_greeting, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (sender_jid, sender_greeting, my_greeting, now))
+    conn.commit()
+    row_id = cur.lastrowid
+    conn.close()
+    return row_id
+
+
+def get_greetings() -> list:
+    """Get all greeting exchange records, newest first."""
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT * FROM greetings ORDER BY created_at DESC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def delete_greeting(greeting_id: int) -> bool:
+    """Delete a greeting record by ID."""
+    conn = _get_conn()
+    cur = conn.execute("DELETE FROM greetings WHERE id = ?", (greeting_id,))
     conn.commit()
     deleted = cur.rowcount > 0
     conn.close()

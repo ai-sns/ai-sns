@@ -128,44 +128,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 
 
-    // AI chat streaming output
-
-    chatStreamStart: (messages, requestId) => {
-
-        ipcRenderer.send('chat-stream-start', { messages, requestId });
-
-    },
-
-    onChatStreamData: (callback) => {
-
-        ipcRenderer.on('chat-stream-data', (event, data) => callback(data));
-
-    },
-
-    onChatStreamEnd: (callback) => {
-
-        ipcRenderer.on('chat-stream-end', (event, data) => callback(data));
-
-    },
-
-    onChatStreamError: (callback) => {
-
-        ipcRenderer.on('chat-stream-error', (event, data) => callback(data));
-
-    },
-
-    removeChatStreamListeners: () => {
-
-        ipcRenderer.removeAllListeners('chat-stream-data');
-
-        ipcRenderer.removeAllListeners('chat-stream-end');
-
-        ipcRenderer.removeAllListeners('chat-stream-error');
-
-    },
-
-
-
     // Map window features
 
     openMapWindow: () => ipcRenderer.send('open-map-window'),

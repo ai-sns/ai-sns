@@ -6,8 +6,9 @@ Mirrors the system backend's ad-hoc command functionality so the two sides
 can fully test each other:
 
   Inbound (peer receives):
-    - urn:xmpp:a2a:cmd:tasks            (A2A Task JSON-RPC)
-    - urn:xmpp:a2a:cmd:exchange_business_card  (Business Card Exchange)
+    - urn:xmpp:a2a:cmd:tasks                    (A2A Task JSON-RPC)
+    - urn:xmpp:a2a:cmd:exchange_business_card   (Business Card Exchange)
+    - urn:xmpp:a2a:cmd:greeting                 (Greeting Exchange)
 
   Outbound (peer initiates):
     - call_adhoc_command   -> any ad-hoc command node on a target peer
@@ -22,12 +23,13 @@ import argparse
 import asyncio
 import json
 import logging
+import random
 import signal
 import sys
 import threading
 import uuid
 from functools import partial
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import slixmpp
 from slixmpp.xmlstream import ET
@@ -35,12 +37,25 @@ from slixmpp.xmlstream import ET
 # ── Constants (must match system backend) ────────────────────────────────
 A2A_ADHOC_TASK_NODE = "urn:xmpp:a2a:cmd:tasks"
 A2A_ADHOC_EXCHANGE_NODE = "urn:xmpp:a2a:cmd:exchange_business_card"
+A2A_ADHOC_GREETING_NODE = "urn:xmpp:a2a:cmd:greeting"
 
 A2A_FEATURE_NS = "urn:xmpp:a2a:1"
 A2A_BUSINESS_CARD_NS = "urn:xmpp:a2a:business_card:1"
 A2A_PEP_NODE = "urn:xmpp:a2a:agentcard"
+A2A_COMMANDS_NODE = "http://jabber.org/protocol/commands"
+A2A_COMMAND_META_FORM_TYPE = "urn:xmpp:a2a:cmd:meta"
 
 CARD_FIELDS = ("name", "company", "title", "email", "xmpp", "website", "phone")
+
+GREETING_TYPES = (
+    "handshake",
+    "hug",
+    "bow",
+    "high_five",
+    "fist_bump",
+    "nod",
+    "wave",
+)
 
 LOGGER = logging.getLogger("test_a2a_peer")
 
@@ -65,6 +80,9 @@ class TestA2APeer(slixmpp.ClientXMPP):
         self.result_echo = result_echo
         self._shutdown_event: Optional[asyncio.Event] = None
         self._session_ready = asyncio.Event()
+        self._registered_features: List[str] = []
+        self._registered_commands: Dict[str, Dict[str, Any]] = {}
+        self._agent_card: Dict[str, Any] = {}
 
         self.add_event_handler("session_start", self._on_session_start)
         self.add_event_handler("disconnected", self._on_disconnected)
@@ -89,29 +107,18 @@ class TestA2APeer(slixmpp.ClientXMPP):
         self.send_presence()
         await self.get_roster()
 
-        # Register disco features and publish agent card via PEP
+        # Register disco features and inbound ad-hoc commands before PEP publish.
         try:
             self._register_disco_features()
         except Exception:
             pass
+
+        self._register_adhoc_commands()
+
         try:
-            await self._publish_agent_card_pep()
+            await self.publish_agent_card_pep()
         except Exception:
             pass
-
-        # Register inbound ad-hoc commands
-        self["xep_0050"].add_command(
-            node=A2A_ADHOC_TASK_NODE,
-            name="A2A Task",
-            handler=self._handle_a2a_task_command,
-        )
-        self["xep_0050"].add_command(
-            node=A2A_ADHOC_EXCHANGE_NODE,
-            name="Exchange Business Card",
-            handler=self._handle_exchange_command,
-        )
-        LOGGER.info("Registered inbound ad-hoc commands: %s, %s",
-                     A2A_ADHOC_TASK_NODE, A2A_ADHOC_EXCHANGE_NODE)
         self._session_ready.set()
 
     def _on_disconnected(self, _event: Any) -> None:
@@ -230,6 +237,59 @@ class TestA2APeer(slixmpp.ClientXMPP):
         return session
 
     # =====================================================================
+    #  INBOUND: Greeting Exchange  (urn:xmpp:a2a:cmd:greeting)
+    # =====================================================================
+
+    async def _handle_greeting_command(self, _iq: Any, session: Dict[str, Any]) -> Dict[str, Any]:
+        """Stage 1: return form requesting a greeting type."""
+        form = self["xep_0004"].make_form(ftype="form", title="Greeting Exchange")
+        form.addField(
+            var="greeting_type",
+            ftype="list-single",
+            label="Greeting Type (leave empty for random)",
+            value="",
+            options=[
+                {"label": g.replace("_", " ").title(), "value": g}
+                for g in GREETING_TYPES
+            ],
+        )
+        session["payload"] = form
+        session["next"] = self._handle_greeting_submit
+        session["has_next"] = True
+        session["allow_complete"] = True
+        return session
+
+    async def _handle_greeting_submit(self, payload: Any, session: Dict[str, Any]) -> Dict[str, Any]:
+        """Stage 2: read their greeting, pick a random reply, return it."""
+        sender_jid = str(session.get("from", ""))
+        their_greeting = _extract_form_value(payload, "greeting_type").strip()
+        if not their_greeting or their_greeting not in GREETING_TYPES:
+            their_greeting = random.choice(GREETING_TYPES)
+        my_greeting = random.choice(GREETING_TYPES)
+
+        LOGGER.info(
+            "[INBOUND greeting] from %s: their=%s, my=%s",
+            sender_jid, their_greeting, my_greeting,
+        )
+
+        message = (
+            f"Received a {their_greeting} from {sender_jid or 'you'}, "
+            f"responded with a {my_greeting}!"
+        )
+
+        result_form = self["xep_0004"].make_form(ftype="result", title="Greeting Exchange Result")
+        result_form.addField(var="sender_greeting", ftype="text-single",
+                             label="Their Greeting", value=their_greeting)
+        result_form.addField(var="my_greeting", ftype="text-single",
+                             label="My Greeting", value=my_greeting)
+        result_form.addField(var="message", ftype="text-single",
+                             label="Message", value=message)
+        session["payload"] = result_form
+        session["next"] = None
+        session["has_next"] = False
+        return session
+
+    # =====================================================================
     #  JID Resolution
     # =====================================================================
 
@@ -241,11 +301,141 @@ class TestA2APeer(slixmpp.ClientXMPP):
             disco = None
         if not disco:
             return
-        for ns in (A2A_FEATURE_NS, A2A_BUSINESS_CARD_NS, "http://jabber.org/protocol/commands"):
+        for ns in (A2A_FEATURE_NS, A2A_BUSINESS_CARD_NS, A2A_COMMANDS_NODE):
             try:
                 disco.add_feature(ns)
+                if ns not in self._registered_features:
+                    self._registered_features.append(ns)
             except Exception:
                 pass
+        LOGGER.info("Registered disco features: %s", self._registered_features)
+
+    def _register_adhoc_commands(self) -> None:
+        commands = [
+            {
+                "node": A2A_ADHOC_TASK_NODE,
+                "name": "A2A Task",
+                "description": "Accept an A2A JSON-RPC task request and return a task result.",
+                "handler": self._handle_a2a_task_command,
+                "source": "test_peer",
+                "form_fields": [
+                    {
+                        "var": "jsonrpc_request",
+                        "type": "text-multi",
+                        "label": "JSON-RPC Request",
+                        "default": "",
+                    }
+                ],
+            },
+            {
+                "node": A2A_ADHOC_EXCHANGE_NODE,
+                "name": "Exchange Business Card",
+                "description": "Exchange business cards between XMPP A2A agents.",
+                "handler": self._handle_exchange_command,
+                "source": "test_peer",
+                "form_fields": [
+                    {
+                        "var": field_name,
+                        "type": "text-single",
+                        "label": field_name.capitalize(),
+                        "default": "",
+                    }
+                    for field_name in CARD_FIELDS
+                ],
+            },
+            {
+                "node": A2A_ADHOC_GREETING_NODE,
+                "name": "Greeting Exchange",
+                "description": (
+                    "Exchange friendly greetings between agents. "
+                    "Supports: handshake, hug, bow, high_five, fist_bump, nod, wave. "
+                    "Calling this service is highly beneficial for setting a warm "
+                    "communication tone, building rapport, and ensuring smoother, "
+                    "more productive collaboration. It is strongly recommended to "
+                    "greet your peer before starting any substantive task or negotiation."
+                ),
+                "handler": self._handle_greeting_command,
+                "source": "test_peer",
+                "form_fields": [
+                    {
+                        "var": "greeting_type",
+                        "type": "list-single",
+                        "label": "Greeting Type (leave empty for random)",
+                        "default": "",
+                        "options": list(GREETING_TYPES),
+                    }
+                ],
+            },
+        ]
+        for command in commands:
+            try:
+                self["xep_0050"].add_command(
+                    jid=self.boundjid,
+                    node=command["node"],
+                    name=command["name"],
+                    handler=command["handler"],
+                )
+                self._ensure_command_disco_item(command["node"], command["name"])
+                metadata = dict(command)
+                metadata.pop("handler", None)
+                self._registered_commands[metadata["node"]] = metadata
+                self._publish_command_meta_xep0128(metadata)
+            except Exception as exc:
+                LOGGER.warning("Failed to register ad-hoc command %s: %s", command["node"], exc)
+        LOGGER.info("Registered inbound ad-hoc commands: %s", list(self._registered_commands.keys()))
+
+    def _ensure_command_disco_item(self, node: str, name: str) -> None:
+        try:
+            disco = self["xep_0030"]
+            disco.add_identity(
+                category="automation",
+                itype="command-list",
+                name="Ad-Hoc commands",
+                node=A2A_COMMANDS_NODE,
+                jid=self.boundjid,
+            )
+            disco.add_item(
+                jid=self.boundjid.full,
+                name=name,
+                node=A2A_COMMANDS_NODE,
+                subnode=node,
+                ijid=self.boundjid,
+            )
+            disco.add_identity(
+                category="automation",
+                itype="command-node",
+                name=name,
+                node=node,
+                jid=self.boundjid,
+            )
+            disco.add_feature(A2A_COMMANDS_NODE, None, self.boundjid)
+        except Exception as exc:
+            LOGGER.debug("Failed to ensure command disco item for %s: %s", node, exc)
+
+    def _publish_command_meta_xep0128(self, command: Dict[str, Any]) -> None:
+        try:
+            form = self["xep_0004"].make_form(ftype="result")
+            form.addField(var="FORM_TYPE", ftype="hidden", value=A2A_COMMAND_META_FORM_TYPE)
+            form.addField(var="description", ftype="text-single", value=command.get("description", ""))
+            form.addField(var="source", ftype="text-single", value=command.get("source", ""))
+            form.addField(
+                var="form_fields_json",
+                ftype="text-multi",
+                value=json.dumps(command.get("form_fields", []), ensure_ascii=False),
+            )
+            disco = self["xep_0030"]
+        except Exception:
+            return
+        for setter_name in ("set_extended_info", "add_extended_info"):
+            setter = getattr(disco, setter_name, None)
+            if setter is None:
+                continue
+            try:
+                setter(node=command["node"], data=form)
+                LOGGER.debug("Published XEP-0128 metadata for %s via %s", command["node"], setter_name)
+                return
+            except Exception as exc:
+                LOGGER.debug("Failed to publish XEP-0128 metadata with %s: %s", setter_name, exc)
 
     def _build_agent_card(self) -> Dict[str, Any]:
         name = self.my_card.get("name", "Test A2A Peer")
@@ -260,15 +450,7 @@ class TestA2APeer(slixmpp.ClientXMPP):
                 "pushNotifications": False,
                 "stateTransitionHistory": False,
             },
-            "skills": [
-                {
-                    "id": "exchange_business_card",
-                    "name": "Exchange Business Card",
-                    "description": "Exchange business cards between agents.",
-                    "tags": ["business_card", "networking"],
-                    "examples": ["Exchange business cards", "Send my business card"],
-                }
-            ],
+            "skills": [],
             "defaultInputModes": ["application/json"],
             "defaultOutputModes": ["application/json"],
             "provider": {
@@ -276,15 +458,25 @@ class TestA2APeer(slixmpp.ClientXMPP):
                 "url": "https://ai-sns.com",
             },
         }
+        for command in self._registered_commands.values():
+            agent_card["skills"].append({
+                "id": command["node"],
+                "name": command.get("name", ""),
+                "description": command.get("description", ""),
+                "command_node": command["node"],
+                "source": command.get("source", ""),
+                "form_fields": command.get("form_fields", []),
+            })
+        self._agent_card = agent_card
         return agent_card
 
-    async def _publish_agent_card_pep(self) -> None:
-        card = self._build_agent_card()
+    async def publish_agent_card_pep(self, card: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        card = card or self._build_agent_card()
         try:
             item = ET.Element("{%s}agentcard" % A2A_PEP_NODE)
             item.text = json.dumps(card, ensure_ascii=False)
         except Exception:
-            return
+            return {"ok": False, "error": "Could not build agent card payload"}
         published = False
         try:
             pep = self["xep_0163"]
@@ -311,6 +503,18 @@ class TestA2APeer(slixmpp.ClientXMPP):
                     pass
         if not published:
             LOGGER.warning("PEP/0060 not available: failed to publish agent card")
+            return {"ok": False, "error": "PEP publish failed"}
+        self._agent_card = card
+        return {"ok": True, "node": A2A_PEP_NODE, "agent_card": card}
+
+    def get_local_disco_features(self) -> Dict[str, Any]:
+        return {"jid": self.boundjid.full, "features": list(self._registered_features)}
+
+    def get_local_adhoc_commands(self) -> List[Dict[str, Any]]:
+        return list(self._registered_commands.values())
+
+    def get_local_agent_card(self) -> Dict[str, Any]:
+        return self._agent_card or self._build_agent_card()
 
     def _resolve_full_jid(self, bare_jid: str) -> str:
         """
@@ -336,6 +540,58 @@ class TestA2APeer(slixmpp.ClientXMPP):
 
         LOGGER.warning("No presence found for %s, using bare JID (may fail)", bare_jid)
         return bare_jid
+
+    def _get_all_resources(self, target_jid: str) -> List[str]:
+        if not target_jid:
+            return []
+        if "/" in target_jid:
+            return [target_jid]
+        try:
+            roster = getattr(self, "client_roster", None)
+            if roster is None:
+                return []
+            if hasattr(roster, "has_jid") and not roster.has_jid(target_jid):
+                return []
+            item = roster[target_jid]
+            resources = getattr(item, "resources", None)
+            if not resources:
+                return []
+            sorted_resources = sorted(
+                resources.items(),
+                key=lambda pair: pair[1].get("priority", 0) if isinstance(pair[1], dict) else 0,
+                reverse=True,
+            )
+            return [f"{target_jid}/{resource}" for resource, _meta in sorted_resources]
+        except Exception as exc:
+            LOGGER.debug("Resource lookup failed for %s: %s", target_jid, exc)
+            return []
+
+    async def get_disco_info(self, target_jid: str, node: Optional[str] = None) -> Dict[str, Any]:
+        resolved = self._resolve_full_jid(target_jid)
+        try:
+            iq = await asyncio.wait_for(self["xep_0030"].get_info(jid=resolved, node=node), timeout=15)
+            info = iq["disco_info"]
+            return {
+                "ok": True,
+                "jid": resolved,
+                "node": node or "",
+                "identities": [tuple(identity) for identity in info.get("identities", [])],
+                "features": sorted(list(info.get("features", []))),
+                "xep0128": self._extract_xep0128_meta(iq),
+            }
+        except Exception as exc:
+            return {"ok": False, "jid": resolved, "node": node or "", "error": str(exc)}
+
+    async def get_disco_items(self, target_jid: str, node: Optional[str] = None) -> Dict[str, Any]:
+        resolved = self._resolve_full_jid(target_jid)
+        try:
+            iq = await asyncio.wait_for(self["xep_0030"].get_items(jid=resolved, node=node), timeout=15)
+            items = []
+            for item in iq["disco_items"]["items"]:
+                items.append({"jid": item[0], "node": item[1], "name": item[2] or ""})
+            return {"ok": True, "jid": resolved, "node": node or "", "items": items}
+        except Exception as exc:
+            return {"ok": False, "jid": resolved, "node": node or "", "error": str(exc)}
 
     # =====================================================================
     #  PEP: Fetch peer agent card (optional helper)
@@ -371,6 +627,88 @@ class TestA2APeer(slixmpp.ClientXMPP):
             return None
         except Exception:
             return None
+
+    @staticmethod
+    def _derive_adhoc_node_from_skill(skill: Dict[str, Any]) -> Optional[str]:
+        for key in ("xmpp_adhoc_node", "adhoc_node", "command_node", "node"):
+            value = skill.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        skill_id = str(skill.get("id", "") or "").strip()
+        if not skill_id:
+            return None
+        if skill_id.startswith("urn:") or "://" in skill_id:
+            return skill_id
+        return f"urn:xmpp:a2a:cmd:{skill_id}"
+
+    async def discover_peer_adhoc_commands(
+        self,
+        peer_jid: str,
+        agent_card: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        commands: List[Dict[str, Any]] = []
+        seen_nodes = set()
+
+        if agent_card is None:
+            agent_card = await self.fetch_peer_agent_card_pep(peer_jid)
+
+        if isinstance(agent_card, dict):
+            for skill in agent_card.get("skills", []) or []:
+                if not isinstance(skill, dict):
+                    continue
+                node = self._derive_adhoc_node_from_skill(skill)
+                if node and node not in seen_nodes:
+                    seen_nodes.add(node)
+                    commands.append({
+                        "node": node,
+                        "name": skill.get("name", "") or "",
+                        "description": skill.get("description", "") or "",
+                        "source": "agent_card",
+                        "form_fields": skill.get("form_fields", []) or [],
+                    })
+
+        candidates = self._get_all_resources(peer_jid) or [peer_jid]
+        disco_info_jid = candidates[0]
+        for candidate in candidates:
+            try:
+                iq = await asyncio.wait_for(
+                    self["xep_0030"].get_items(jid=candidate, node=A2A_COMMANDS_NODE),
+                    timeout=15,
+                )
+                for item in iq["disco_items"]["items"]:
+                    node = item[1]
+                    name = item[2] or ""
+                    if node and node not in seen_nodes:
+                        seen_nodes.add(node)
+                        commands.append({
+                            "node": node,
+                            "name": name,
+                            "description": "",
+                            "source": "disco",
+                        })
+                disco_info_jid = candidate
+                break
+            except Exception as exc:
+                LOGGER.debug("disco#items command discovery failed for %s: %s", candidate, exc)
+
+        for command in commands:
+            if command.get("description"):
+                continue
+            try:
+                iq = await asyncio.wait_for(
+                    self["xep_0030"].get_info(jid=disco_info_jid, node=command["node"]),
+                    timeout=5,
+                )
+                meta = self._extract_xep0128_meta(iq)
+                if meta.get("description"):
+                    command["description"] = meta["description"]
+                if meta.get("source"):
+                    command["source_meta"] = meta["source"]
+                if meta.get("form_fields") and "form_fields" not in command:
+                    command["form_fields"] = meta["form_fields"]
+            except Exception as exc:
+                LOGGER.debug("disco#info command metadata fetch failed for %s: %s", command.get("node"), exc)
+        return commands
 
     # =====================================================================
     #  OUTBOUND: Generic Ad-hoc Command
@@ -509,6 +847,41 @@ class TestA2APeer(slixmpp.ClientXMPP):
             pass
         return result
 
+    @staticmethod
+    def _extract_xep0128_meta(info_iq: Any) -> Dict[str, Any]:
+        result: Dict[str, Any] = {"description": "", "source": "", "form_fields": []}
+        try:
+            info = info_iq["disco_info"]
+            xml_root = getattr(info, "xml", None)
+            if xml_root is None:
+                return result
+            for x_el in xml_root.findall("{jabber:x:data}x"):
+                form_type = ""
+                values = {"description": "", "source": "", "form_fields_json": ""}
+                for field in x_el.findall("{jabber:x:data}field"):
+                    var = field.get("var", "") or ""
+                    value_el = field.find("{jabber:x:data}value")
+                    value = (value_el.text if value_el is not None else "") or ""
+                    if var == "FORM_TYPE":
+                        form_type = value
+                    elif var in values:
+                        values[var] = value
+                if form_type == A2A_COMMAND_META_FORM_TYPE:
+                    result["description"] = values.get("description", "") or ""
+                    result["source"] = values.get("source", "") or ""
+                    raw_fields = values.get("form_fields_json", "") or ""
+                    if raw_fields:
+                        try:
+                            parsed = json.loads(raw_fields)
+                            if isinstance(parsed, list):
+                                result["form_fields"] = parsed
+                        except Exception:
+                            pass
+                    break
+        except Exception:
+            pass
+        return result
+
     # ── Run loop ─────────────────────────────────────────────────────────
 
     async def run_until_stopped(self) -> None:
@@ -561,15 +934,25 @@ def _extract_form_value(payload: Any, field_name: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════
 HELP_TEXT = """
 Available commands (type and press Enter):
-  msg <target_jid> <message>     Send a plain XMPP chat message
-  task <target_jid> [message]    Call peer's A2A Task (tasks/send)
-  exchange <target_jid>          Call peer's Exchange Business Card
-  adhoc <target_jid> <node> [json_form_data]   Call any ad-hoc command
-  inspect <target_jid> <node>    Inspect a command's form fields
-  agentcard <target_jid>         Fetch peer Agent Card from PEP
-  card                           Show our own business card
-  help                           Show this help
-  quit / exit                    Disconnect and quit
+  msg <target_jid> <message>                 Send a plain XMPP chat message
+  task <target_jid> [message]                Call peer's A2A Task command
+  exchange <target_jid>                      Call peer's Exchange Business Card command
+  greet <target_jid> [greeting_type]         Call peer's Greeting Exchange command
+  adhoc <target_jid> <node> [json_form_data] Call any ad-hoc command
+  inspect <target_jid> <node>                Inspect a command form
+  localdisco                                 Show local registered disco features
+  localitems                                 Show local registered ad-hoc commands
+  localcommands                              Show local ad-hoc command metadata
+  localagentcard                             Show local Agent Card payload
+  publishcard [json_agent_card]              Publish local Agent Card to PEP
+  discoinfo <target_jid> [node]              Query peer disco#info
+  discoitems <target_jid> [node]             Query peer disco#items
+  peercommands <target_jid>                  Discover peer ad-hoc commands
+  agentcard <target_jid>                     Fetch peer Agent Card from PEP
+  resources <target_jid>                     Show known full JID resources
+  card                                       Show local business card
+  help                                       Show this help
+  quit / exit                                Disconnect and quit
 """.strip()
 
 
@@ -607,6 +990,87 @@ def _start_input_thread(peer: TestA2APeer, loop: asyncio.AbstractEventLoop) -> N
                 print(HELP_TEXT)
             elif cmd == "card":
                 print(json.dumps(peer.my_card, indent=2, ensure_ascii=False))
+            elif cmd == "localdisco":
+                print(json.dumps(peer.get_local_disco_features(), indent=2, ensure_ascii=False))
+            elif cmd in ("localitems", "localcommands"):
+                print(json.dumps({"ok": True, "commands": peer.get_local_adhoc_commands()}, indent=2, ensure_ascii=False))
+            elif cmd == "localagentcard":
+                print(json.dumps({"ok": True, "agent_card": peer.get_local_agent_card()}, indent=2, ensure_ascii=False))
+            elif cmd == "resources":
+                if len(parts) < 2:
+                    print("Usage: resources <target_jid>")
+                    continue
+                target = parts[1]
+                result = {
+                    "ok": True,
+                    "target_jid": target,
+                    "resources": peer._get_all_resources(target),
+                    "resolved": peer._resolve_full_jid(target),
+                }
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            elif cmd == "publishcard":
+                rest_parts = raw.split(None, 1)
+                card_payload = None
+                if len(rest_parts) > 1:
+                    try:
+                        card_payload = json.loads(rest_parts[1])
+                    except json.JSONDecodeError as exc:
+                        print(f"Invalid JSON for agent card: {exc}")
+                        continue
+                    if not isinstance(card_payload, dict):
+                        print("Agent Card JSON must be an object")
+                        continue
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.publish_agent_card_pep(card_payload), loop
+                )
+                try:
+                    result = future.result(timeout=30)
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+            elif cmd == "discoinfo":
+                rest_parts = raw.split(None, 2)
+                if len(rest_parts) < 2:
+                    print("Usage: discoinfo <target_jid> [node]")
+                    continue
+                target = rest_parts[1]
+                node = rest_parts[2] if len(rest_parts) > 2 else None
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.get_disco_info(target, node), loop
+                )
+                try:
+                    result = future.result(timeout=30)
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+            elif cmd == "discoitems":
+                rest_parts = raw.split(None, 2)
+                if len(rest_parts) < 2:
+                    print("Usage: discoitems <target_jid> [node]")
+                    continue
+                target = rest_parts[1]
+                node = rest_parts[2] if len(rest_parts) > 2 else None
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.get_disco_items(target, node), loop
+                )
+                try:
+                    result = future.result(timeout=30)
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+            elif cmd == "peercommands":
+                if len(parts) < 2:
+                    print("Usage: peercommands <target_jid>")
+                    continue
+                target = parts[1]
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.discover_peer_adhoc_commands(target), loop
+                )
+                try:
+                    commands = future.result(timeout=45)
+                    print(json.dumps({"ok": True, "commands": commands}, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
             elif cmd == "msg":
                 if len(parts) < 3:
                     print("Usage: msg <target_jid> <message>")
@@ -652,6 +1116,29 @@ def _start_input_thread(peer: TestA2APeer, loop: asyncio.AbstractEventLoop) -> N
                 form_data = {key: (peer.my_card.get(key, "") or "") for key in CARD_FIELDS}
                 future = asyncio.run_coroutine_threadsafe(
                     peer.call_adhoc_command(target, A2A_ADHOC_EXCHANGE_NODE, form_data), loop
+                )
+                try:
+                    result = future.result(timeout=90)
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(f"Error: {exc}")
+            elif cmd == "greet":
+                if len(parts) < 2:
+                    print("Usage: greet <target_jid> [greeting_type]")
+                    print(f"  Supported types: {', '.join(GREETING_TYPES)} (leave empty for random)")
+                    continue
+                target = parts[1]
+                greeting_type = parts[2].strip() if len(parts) > 2 else ""
+                if greeting_type and greeting_type not in GREETING_TYPES:
+                    print(f"Invalid greeting type: {greeting_type}")
+                    print(f"  Supported: {', '.join(GREETING_TYPES)}")
+                    continue
+                if not greeting_type:
+                    greeting_type = random.choice(GREETING_TYPES)
+                    print(f"  (Randomly chose: {greeting_type})")
+                form_data = {"greeting_type": greeting_type}
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.call_adhoc_command(target, A2A_ADHOC_GREETING_NODE, form_data), loop
                 )
                 try:
                     result = future.result(timeout=90)

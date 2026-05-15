@@ -29,10 +29,16 @@
         }, 10);
     };
 
-    // Override confirm - always return true to avoid blocking
+    // Override confirm - native blocking confirm is disabled in Electron
+    // frameless windows. We deliberately return false (fail-closed) so a
+    // missing confirmation never auto-approves a destructive action. Real
+    // confirmation flows must use Toast.confirm() / Modal.show() instead.
     window.confirm = function(message) {
-        console.warn('[Confirm]', message);
-        return true;
+        console.warn(
+            '[Confirm] native confirm is disabled; use Toast.confirm() / Modal.show() for real confirmations. Message:',
+            message
+        );
+        return false;
     };
 
     // Override prompt - return empty string to avoid blocking

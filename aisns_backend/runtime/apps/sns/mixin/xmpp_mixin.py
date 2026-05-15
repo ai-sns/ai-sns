@@ -133,6 +133,40 @@ class XmppMixin:
 
             logger.debug(f"Updated talk history for {account}, total messages: {len(self.talk_history[account])}")
 
+            # Terminate short-circuit: if the peer sends a terminate command,
+            # end the conversation immediately without tool check or review.
+            is_terminate = str(content or "").strip().lower() == "terminate"
+            if is_terminate:
+                if is_active_peer:
+                    logger.info(
+                        "Received TERMINATE from active peer %s, ending conversation immediately (no tool check / no review)",
+                        account,
+                    )
+                    try:
+                        self.end_active_conversation(
+                            reason="peer_terminate",
+                            message="Peer requested conversation termination.",
+                            resume_activity=True,
+                            resume_ask_content="",
+                        )
+                    except Exception as e:
+                        logger.error("Failed to end active conversation on peer TERMINATE: %s", e, exc_info=True)
+                else:
+                    logger.info(
+                        "Received TERMINATE from non-active peer %s, removing from inbox",
+                        account,
+                    )
+                    try:
+                        inbox = getattr(self, "conversation_inbox", None)
+                        if isinstance(inbox, dict):
+                            inbox.pop(account, None)
+                    except Exception as e:
+                        logger.error("Failed to remove %s from inbox on TERMINATE: %s", account, e)
+
+                self.current_received_msg = content
+                logger.info("TERMINATE handling completed for %s", account)
+                return
+
             # Message type routing - use walrus operator for conditional checks
             message_handled = False
 

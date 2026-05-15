@@ -678,7 +678,8 @@ const KMSidebar = {
             const name = (kb.name || 'Unnamed KB');
             const memo = (kb.memo || '');
             const showText = kb.is_show === false ? 'Hidden' : 'Shown';
-            const typeText = kb.kmtype === 1 ? 'Note' : kb.kmtype === 0 ? 'File' : kb.kmtype === 2 ? 'Key-Value' : String(kb.kmtype);
+            const kmTypeNum = Number(kb.kmtype);
+            const typeText = kmTypeNum === 1 ? 'Note' : kmTypeNum === 0 ? 'File' : kmTypeNum === 2 ? 'Key-Value' : String(kb.kmtype);
 
             return `
                 <div class="web-manage-item" draggable="true" data-id="${kb.id}" data-position="${kb.position ?? index}">
@@ -695,7 +696,15 @@ const KMSidebar = {
                         <div class="web-manage-item-url">${memo ? memo : `${typeText} | ${showText}`}</div>
                     </div>
                     <div class="web-manage-item-actions">
-                        <div style="font-size:12px; color:#666; padding:0 6px;">${typeText}</div>
+                        <button type="button" class="web-manage-item-btn web-manage-item-btn-delete" data-action="delete-kb" data-id="${kb.id}" title="Delete">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18"/>
+                                <path d="M8 6V4h8v2"/>
+                                <path d="M19 6l-1 14H6L5 6"/>
+                                <path d="M10 11v6"/>
+                                <path d="M14 11v6"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             `;
@@ -732,6 +741,92 @@ const KMSidebar = {
                         await this.reload();
                         // Switch to the newly created KB
                         this.switchKb(created.id);
+                    }
+                }
+                return;
+            }
+
+            if (action === 'delete-kb') {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const kbId = parseInt(button.dataset.id);
+                if (!kbId) return;
+
+                const kbsAll = await this.fetchAllKnowledgeBasesForManage();
+                const kb = (kbsAll || []).find(k => parseInt(k.id) === kbId);
+                const kbName = kb && kb.name ? `"${kb.name}"` : 'this knowledge base';
+
+                const confirmed = await (async () => {
+                    try {
+                        if (window.Toast && typeof window.Toast.confirm === 'function') {
+                            return await window.Toast.confirm(`Delete ${kbName}?`, {
+                                title: 'Delete Knowledge Base',
+                                confirmText: 'Delete',
+                                cancelText: 'Cancel',
+                                type: 'warning'
+                            });
+                        }
+
+                        if (window.Modal && typeof window.Modal.show === 'function') {
+                            return await new Promise((resolve) => {
+                                window.Modal.show({
+                                    title: 'Delete Knowledge Base',
+                                    content: `<p>Delete ${kbName}?</p>`,
+                                    confirmText: 'Delete',
+                                    cancelText: 'Cancel',
+                                    onConfirm: () => {
+                                        resolve(true);
+                                        return true;
+                                    },
+                                    onCancel: () => {
+                                        resolve(false);
+                                        return true;
+                                    }
+                                });
+                            });
+                        }
+                    } catch (err) {
+                        console.error('Failed to show delete KB confirmation dialog:', err);
+                    }
+                    return false;
+                })();
+
+                if (!confirmed) return;
+
+                try {
+                    const deleteUrl = (typeof window !== 'undefined' && typeof window.resolveAgentServerUrl === 'function')
+                        ? window.resolveAgentServerUrl(`/api/km/${kbId}`)
+                        : `/api/km/${kbId}`;
+                    const resp = await fetch(deleteUrl, {
+                        method: 'DELETE'
+                    });
+
+                    if (!resp.ok) {
+                        const text = await resp.text();
+                        throw new Error(text || `Delete failed: ${resp.status}`);
+                    }
+
+                    const payload = await resp.json().catch(() => ({}));
+                    if (payload && payload.success === false) {
+                        throw new Error(payload.detail || payload.error || 'Delete failed');
+                    }
+
+                    if (window.Toast && typeof window.Toast.success === 'function') {
+                        window.Toast.success('Knowledge base deleted successfully');
+                    }
+
+                    const nextKbs = await this.fetchAllKnowledgeBasesForManage();
+                    const list = document.getElementById('kmManageList');
+                    if (list) {
+                        list.innerHTML = this.renderKMManageItems(nextKbs);
+                    }
+
+                    await this.reload();
+                } catch (err) {
+                    console.error('[KMSidebar] Failed to delete knowledge base:', err);
+                    if (window.Toast && typeof window.Toast.error === 'function') {
+                        window.Toast.error('Delete failed: ' + (err.message || String(err)));
                     }
                 }
             }

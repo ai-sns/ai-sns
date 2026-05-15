@@ -587,23 +587,6 @@ const agentApi = {
     },
 
     /**
-     * Send message (streaming) - legacy electronAPI compatibility
-     */
-    async sendMessageStreamLegacy(messages, requestId) {
-        try {
-            if (window.electronAPI && window.electronAPI.chatStreamStart) {
-                window.electronAPI.chatStreamStart(messages, requestId);
-                return { success: true };
-            }
-            // If electronAPI is not available, fail
-            throw new Error('Streaming chat API is not available');
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            throw error;
-        }
-    },
-
-    /**
      * Send message (non-streaming, for compatibility)
      */
     async sendMessage(messages) {

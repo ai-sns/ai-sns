@@ -616,6 +616,11 @@ var show_talk_message = function (from, to, msg) {
     } else {
         send_chat_msg(from_point.lng, from_point.lat, formattedSafe, person_data["nick_name"]);
     }
+
+    // Show confirmation in info panel when the sender is me
+    if (isMe) {
+        appendMessageToBoard("\ud83d\udcacYour message has been sent.");
+    }
 }
 
 var show_status_on_map = function (status) {
@@ -709,7 +714,10 @@ var handle_command = function (command, param_1, param_2) {
             const nationId = (typeof __snsNormalizeNationId === 'function')
                 ? __snsNormalizeNationId(param_1)
                 : String(param_1 ?? '').trim();
-            stop_talk_to_it(nationId);
+            // Pass skipTerminate option when backend signals peer-initiated termination,
+            // preventing the map from echoing a TERMINATE message back to the peer.
+            const opts = (String(param_2 || '') === 'skipTerminate') ? { skipTerminate: true } : {};
+            stop_talk_to_it(nationId, opts);
         } catch (e) {
             console.error("stop_talk_to_it failed:", e);
         }

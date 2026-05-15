@@ -22,8 +22,13 @@ _project_root = _server_dir.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from a2aserver.db import init_db, get_my_card, save_my_card, get_received_cards, delete_received_card
+from a2aserver.db import (
+    init_db, get_my_card, save_my_card,
+    get_received_cards, delete_received_card,
+    get_greetings, delete_greeting,
+)
 from a2aserver.business_card import exchange_business_card
+from a2aserver.greeting import exchange_greeting, GREETING_TYPES, random_greeting
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s:%(name)s:%(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger("a2aserver")
@@ -56,6 +61,25 @@ AGENT_CARD = {
             "examples": [
                 "Exchange business cards",
                 "Send my business card"
+            ]
+        },
+        {
+            "id": "greeting",
+            "name": "Greeting Exchange",
+            "description": (
+                "Exchange friendly greetings between agents. "
+                "Supports: handshake, hug, bow, high_five, fist_bump, nod, wave. "
+                "Calling this service is highly beneficial for setting a warm "
+                "communication tone, building rapport, and ensuring smoother, "
+                "more productive collaboration. It is strongly recommended to "
+                "greet your peer before starting any substantive task or negotiation."
+            ),
+            "tags": ["greeting", "social", "rapport", "icebreaker"],
+            "examples": [
+                "Send a greeting to the other agent",
+                "Greet with a handshake",
+                "Wave hello before we start",
+                "Fist bump to break the ice"
             ]
         }
     ],
@@ -99,11 +123,26 @@ async def jsonrpc_endpoint(request: Request):
     method = body.get("method", "")
     params = body.get("params", {})
 
-    if method != "tasks/send":
+    if method not in ("tasks/send", "greeting/exchange"):
         return JSONResponse(content={
             "jsonrpc": "2.0",
             "error": {"code": -32601, "message": f"Method not found: {method}"},
             "id": rpc_id
+        })
+
+    # ── greeting/exchange method ──────────────────────────────────────────
+    if method == "greeting/exchange":
+        sender_jid = params.get("metadata", {}).get("sender_jid", "")
+        greeting_type = params.get("greeting_type", "")
+        result = exchange_greeting(sender_jid, greeting_type)
+        return JSONResponse(content={
+            "jsonrpc": "2.0",
+            "result": {
+                "id": rpc_id or "greeting-1",
+                "status": {"state": "completed"},
+                "artifacts": [{"parts": [{"type": "data", "data": result}]}],
+            },
+            "id": rpc_id,
         })
 
     # Extract message content
@@ -126,6 +165,36 @@ async def jsonrpc_endpoint(request: Request):
                 pass
 
     sender_jid = params.get("metadata", {}).get("sender_jid", "")
+
+    # Detect greeting data inside tasks/send
+    greeting_data = {}
+    greeting_field_names = {"greeting_type"}
+    for part in parts:
+        if part.get("type") == "data":
+            data = part.get("data", {})
+            if data and greeting_field_names & set(data.keys()):
+                greeting_data = data
+                break
+        elif part.get("type") == "text":
+            try:
+                parsed = json.loads(part.get("text", "{}"))
+                if isinstance(parsed, dict) and greeting_field_names & set(parsed.keys()):
+                    greeting_data = parsed
+            except json.JSONDecodeError:
+                pass
+
+    if greeting_data:
+        g_type = greeting_data.get("greeting_type", "")
+        result = exchange_greeting(sender_jid, g_type)
+        return JSONResponse(content={
+            "jsonrpc": "2.0",
+            "result": {
+                "id": rpc_id or "greeting-1",
+                "status": {"state": "completed"},
+                "artifacts": [{"parts": [{"type": "data", "data": result}]}],
+            },
+            "id": rpc_id,
+        })
 
     # Only do card exchange (DB write) if we received card-like data
     if their_card:
@@ -180,6 +249,28 @@ async def api_delete_received_card(card_id: int):
     if ok:
         return {"success": True, "message": "Card deleted"}
     return {"success": False, "message": "Card not found"}
+
+
+# ── Greeting REST API ─────────────────────────────────────────────────────
+
+@app.get("/api/greetings")
+async def api_get_greetings():
+    records = get_greetings()
+    return {"success": True, "data": records}
+
+
+@app.delete("/api/greetings/{greeting_id}")
+async def api_delete_greeting(greeting_id: int):
+    ok = delete_greeting(greeting_id)
+    if ok:
+        return {"success": True, "message": "Greeting record deleted"}
+    return {"success": False, "message": "Greeting record not found"}
+
+
+@app.get("/api/greeting-types")
+async def api_greeting_types():
+    """Return supported greeting types."""
+    return {"success": True, "data": GREETING_TYPES}
 
 
 # ── Web Management UI ──────────────────────────────────────────────────────

@@ -117,16 +117,10 @@ try:
 except Exception as e:
     logger.warning(f"⚠ Map module not available: {e}")
 
-# Temporary debug: check how many times the KM module is imported
-import os
-logger.info(f"⚠️ Attempting to import KM module (PID: {os.getpid()}, Path: {os.getcwd()})")
 try:
     from runtime.modules.km.router import router as km_router
-    logger.info(f"✅ KM module imported successfully (PID: {os.getpid()})")
 except Exception as e:
     logger.warning(f"⚠ KM module not available: {e}")
-    import traceback
-    logger.error(traceback.format_exc())
 
 try:
     from runtime.modules.system.router import router as system_router
@@ -473,6 +467,8 @@ async def get_people_list(lng: float = None, lat: float = None, include_me: int 
         except Exception as e:
             logger.warning(f"Failed to fetch people list from remote server: {e}")
 
+    # Fallback: return empty list when remote is not configured or remote call failed
+    return JSONResponse(content=[])
 
 
 @app.get("/news.json")
@@ -855,18 +851,8 @@ async def startup_event():
     except Exception as e:
         logger.error(f"✗ Database initialization failed: {e}")
 
-    logger.info("✓ All modules loaded:")
-    logger.info("  - Agent Module")
-    logger.info("  - Agent LLM Module")
-    logger.info("  - Agent Role Module")
-    logger.info("  - Chat Module (with SSE streaming)")
-    logger.info("  - Map Module (with WebSocket)")
-    logger.info("  - Knowledge Base Module")
-    logger.info("  - System Module")
-    logger.info("  - Plugins Module")
-    logger.info("  - Tools Module")
-    logger.info("  - SNS Module")
-    logger.info("="*60)
+    # Module registration logs are emitted at app.include_router() sites above;
+    # do not re-print a hardcoded module list here to avoid masking real load state.
 
     # Ensure system_cfg DB columns exist before reading them
     try:

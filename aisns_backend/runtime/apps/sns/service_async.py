@@ -1570,8 +1570,14 @@ class SNSService:
             _config_id = config.id
             _data = {k: v for k, v in data.items() if v is not None}
 
-            # Extract a2a_config for special memo-merge handling
+            # Extract a2a_config for special memo-merge handling.
+            # Inline agent_card is no longer supported — strip it on save so
+            # legacy records get cleaned up the next time the user touches
+            # this config. The agent card is now sourced exclusively from
+            # AgentCfg.memo.agent_card_url via HTTP fetch.
             _a2a_config = _data.pop('a2a_config', None)
+            if isinstance(_a2a_config, dict):
+                _a2a_config.pop('agent_card', None)
 
             def _update_cfg(session):
                 rec = session.query(AISnsCfg).filter_by(id=_config_id).first()

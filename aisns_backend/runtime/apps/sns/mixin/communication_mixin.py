@@ -274,7 +274,7 @@ class CommunicationMixin:
 
             inbox[account] = recent_items
 
-            if newest_content is not None and newest_content.strip() == "TERMINATE":
+            if newest_content is not None and newest_content.strip().lower() == "terminate":
                 accounts_to_drop.append(account)
                 continue
 
@@ -800,7 +800,10 @@ class CommunicationMixin:
 
         try:
             if nation_id:
-                self.send_msg_to_map(("stop_talk_to_it", nation_id, ""))
+                # When peer requested termination, pass skipTerminate to
+                # prevent the map from echoing a TERMINATE back to the peer.
+                stop_flag = "skipTerminate" if reason == "peer_terminate" else ""
+                self.send_msg_to_map(("stop_talk_to_it", nation_id, stop_flag))
         except Exception as e:
             logger.error(f"Failed to send stop_talk_to_it: {e}")
 

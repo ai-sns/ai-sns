@@ -17,7 +17,7 @@ from runtime.globals import global_env
 logger = logging.getLogger(__name__)
 
 _lang_cache = {}  # {"en": {...}, "zh": {...}}
-_lang_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runtime", "lang")
+_lang_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lang")
 
 
 def _get_lang_code() -> str:

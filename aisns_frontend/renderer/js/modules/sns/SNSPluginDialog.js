@@ -214,7 +214,21 @@ export class SNSPluginDialog {
                 const id = select ? String(select.value || '').trim() : '';
                 if (!id) return;
 
-                const ok = window.confirm('Delete selected plugin?');
+                const ok = await (async () => {
+                    try {
+                        if (window.Toast && typeof window.Toast.confirm === 'function') {
+                            return await window.Toast.confirm('Delete selected plugin?', {
+                                title: 'Delete Plugin',
+                                confirmText: 'Delete',
+                                cancelText: 'Cancel',
+                                type: 'warning'
+                            });
+                        }
+                    } catch (e) {
+                        console.error('[SNSPluginDialog] Failed to show confirm dialog:', e);
+                    }
+                    return false;
+                })();
                 if (!ok) return;
 
                 const deleted = await this._deletePlugin(id);

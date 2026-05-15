@@ -531,7 +531,8 @@ const WebSidebar = {
                 console.error('[WebSidebar] Failed to show delete confirmation dialog:', err);
             }
 
-            return confirm(`Delete ${itemName}?`);
+            // Fail-closed: when no confirmation UI is available, do not delete.
+            return false;
         })();
 
         if (!confirmed) return;

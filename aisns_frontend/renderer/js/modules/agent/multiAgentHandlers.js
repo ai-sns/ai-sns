@@ -787,9 +787,6 @@ const multiAgentHandlers = {
             this.loadChatListForAgent(agents[0].id);
         }
 
-        // 10. Initialize stream listeners
-        this.initChatStreamListeners();
-
         console.log('[MultiAgentHandlers] Multi-agent system initialization completed');
     },
 
@@ -4525,17 +4522,6 @@ const multiAgentHandlers = {
     },
 
     /**
-     * Initialize streaming chat listeners
-     */
-    initChatStreamListeners() {
-        if (window.electronAPI && window.electronAPI.onChatStreamData) {
-            // Streaming listener in Electron environment
-            console.log('[MultiAgentHandlers] Initializing Electron streaming listeners');
-            // TODO: Implement streaming listener in Electron environment
-        }
-    },
-
-    /**
      * Markdown render
      */
     renderMarkdown(text, isStreaming = false) {
@@ -4754,7 +4740,21 @@ const multiAgentHandlers = {
                         const value = select ? String(select.value || '').trim() : '';
                         if (!value.startsWith('renderer:')) return;
                         const id = value.slice('renderer:'.length);
-                        const ok = window.confirm('Delete selected plugin?');
+                        const ok = await (async () => {
+                            try {
+                                if (Toast && typeof Toast.confirm === 'function') {
+                                    return await Toast.confirm('Delete selected plugin?', {
+                                        title: 'Delete Plugin',
+                                        confirmText: 'Delete',
+                                        cancelText: 'Cancel',
+                                        type: 'warning'
+                                    });
+                                }
+                            } catch (e) {
+                                console.error('[multiAgentHandlers] Failed to show confirm dialog:', e);
+                            }
+                            return false;
+                        })();
                         if (!ok) return;
                         const deleted = await this._deleteRendererPlugin(id, agentId);
                         if (deleted) {

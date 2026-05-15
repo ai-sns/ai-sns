@@ -78,6 +78,7 @@ class KMService:
     @staticmethod
     def update_knowledge_base(kb_id: int, **kwargs) -> None:
         """Update knowledge base configuration"""
+        kwargs.pop('id', None)
         update_KMCfg(kb_id, **kwargs)
 
     @staticmethod

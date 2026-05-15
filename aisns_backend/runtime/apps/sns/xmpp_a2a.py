@@ -39,6 +39,7 @@ from runtime.apps.sns.a2a_commands.exchange_business_card import (
     A2A_ADHOC_EXCHANGE_NODE,
 )
 from runtime.apps.sns.a2a_commands.a2a_task import A2A_ADHOC_TASK_NODE
+from runtime.apps.sns.a2a_commands.greeting import A2A_ADHOC_GREETING_NODE
 
 
 class XMPPA2AManager:
@@ -384,6 +385,139 @@ class XMPPA2AManager:
         logger.info(
             "Ad-hoc command registration complete: %d commands registered",
             len(self._registered_commands),
+        )
+
+        # Publish XEP-0128 extended Service Discovery info per command so
+        # that peers can fetch description/source/form_fields via
+        # disco#info on the command node, even when PEP is unreachable.
+        for node in list(self._registered_commands):
+            cmd = self._command_instances.get(node)
+            if cmd is None:
+                continue
+            self._publish_command_meta_xep0128(cmd)
+
+    def _publish_command_meta_xep0128(self, cmd: AdhocCommand) -> None:
+        """Attach a XEP-0128 result-form to the command's disco#info node.
+
+        Form fields:
+          FORM_TYPE        = urn:xmpp:a2a:cmd:meta
+          description      = human readable description (may be empty)
+          source           = builtin / plugin / config
+          form_fields_json = JSON-encoded list of declared form fields
+
+        slixmpp API name varies across versions; we try the known setters
+        in turn and treat all failures as non-fatal (PEP skills[] remains
+        the primary description channel).
+        """
+        try:
+            disco = self.client['xep_0030']
+        except Exception:
+            disco = None
+        if disco is None:
+            return
+
+        try:
+            form = self.client['xep_0004'].make_form(ftype='result')
+            form.addField(
+                var='FORM_TYPE', ftype='hidden',
+                value='urn:xmpp:a2a:cmd:meta',
+            )
+            form.addField(
+                var='description',
+                ftype='text-single',
+                value=getattr(cmd, 'description', '') or '',
+            )
+            form.addField(
+                var='source',
+                ftype='text-single',
+                value=getattr(cmd, '_source', '') or '',
+            )
+            try:
+                form.addField(
+                    var='form_fields_json',
+                    ftype='text-multi',
+                    value=json.dumps(
+                        list(getattr(cmd, 'form_fields', []) or []),
+                        ensure_ascii=False,
+                    ),
+                )
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug(
+                "[XMPP-A2A] xep0128: form build failed for %s: %s",
+                getattr(cmd, 'node', '?'), e,
+            )
+            return
+
+        for setter_name in ('set_extended_info', 'add_extended_info'):
+            setter = getattr(disco, setter_name, None)
+            if setter is None:
+                continue
+            try:
+                setter(node=cmd.node, data=form)
+                logger.debug(
+                    "[XMPP-A2A] xep0128: published meta for %s via %s",
+                    cmd.node, setter_name,
+                )
+                return
+            except Exception as e:
+                logger.debug(
+                    "[XMPP-A2A] xep0128: %s failed for %s: %s",
+                    setter_name, cmd.node, e,
+                )
+
+        logger.debug(
+            "[XMPP-A2A] xep0128: no compatible disco extended-info API for %s",
+            cmd.node,
+        )
+
+    def _merge_commands_into_agent_card(self) -> None:
+        """Inject registered ad-hoc commands as skills entries in the agent
+        card so that peers receive each command's description (and form
+        fields) in a single PEP read, with zero extra IQ round-trips.
+
+        - If the card already declares a skill referencing a command node,
+          we keep the user-defined entry as-is.
+        - If self._agent_card is None (no agent_card_url configured), we
+          synthesize a minimal card so the command catalog can still be
+          published. This is intentional: the command catalog itself has
+          value even without a full A2A agent card URL.
+        """
+        if not isinstance(self._agent_card, dict):
+            self._agent_card = {}
+        skills = self._agent_card.get("skills")
+        if not isinstance(skills, list):
+            skills = []
+            self._agent_card["skills"] = skills
+
+        existing_nodes = set()
+        for s in skills:
+            if not isinstance(s, dict):
+                continue
+            for k in ("xmpp_adhoc_node", "adhoc_node", "command_node", "node", "id"):
+                v = s.get(k)
+                if isinstance(v, str) and v.strip():
+                    existing_nodes.add(v.strip())
+
+        added = 0
+        for node, cmd in self._command_instances.items():
+            if not node or node in existing_nodes:
+                continue
+            skills.append({
+                "id": node,
+                "name": getattr(cmd, "name", "") or "",
+                "description": getattr(cmd, "description", "") or "",
+                "command_node": node,
+                "source": getattr(cmd, "_source", "") or "",
+                "form_fields": list(getattr(cmd, "form_fields", []) or []),
+            })
+            existing_nodes.add(node)
+            added += 1
+
+        logger.info(
+            "[XMPP-A2A] merge_commands_into_card: %d commands merged (skills total=%d)",
+            added, len(skills),
         )
 
     def _make_execute_handler(self, cmd: AdhocCommand):
@@ -841,6 +975,7 @@ class XMPPA2AManager:
 
         # Source 2: disco#items fallback — try all known resources
         candidates = self._get_all_resources(peer_jid) or [peer_jid]
+        disco_info_jid = candidates[0]
         disco_success = False
         for candidate_jid in candidates:
             try:
@@ -861,6 +996,7 @@ class XMPPA2AManager:
                             "source": "disco",
                         })
                 disco_success = True
+                disco_info_jid = candidate_jid
                 break  # success on this resource, no need to try others
             except Exception as e:
                 logger.debug(
@@ -870,13 +1006,88 @@ class XMPPA2AManager:
         if not disco_success:
             logger.debug("[XMPP-A2A] discover_commands: disco#items failed on all resources for %s", peer_jid)
 
+        # Source 3: For commands still missing a description, fetch XEP-0128
+        # extended info from the command node via disco#info. This is the
+        # safety net when the peer's PEP is unreachable or its agent card
+        # does not list the command in skills[].
+        filled_via_info = 0
+        try:
+            disco_for_info = self.client['xep_0030']
+        except Exception:
+            disco_for_info = None
+        if disco_for_info is not None and commands:
+            target_jid = disco_info_jid
+            for cmd in commands:
+                if cmd.get("description"):
+                    continue
+                try:
+                    info_iq = await asyncio.wait_for(
+                        disco_for_info.get_info(jid=target_jid, node=cmd["node"]),
+                        timeout=5,
+                    )
+                    meta = self._extract_xep0128_meta(info_iq)
+                    if meta.get("description"):
+                        cmd["description"] = meta["description"]
+                        filled_via_info += 1
+                    if meta.get("source") and not cmd.get("source_meta"):
+                        cmd["source_meta"] = meta["source"]
+                    if meta.get("form_fields") and "form_fields" not in cmd:
+                        cmd["form_fields"] = meta["form_fields"]
+                except Exception as e:
+                    logger.debug(
+                        "[XMPP-A2A] discover_commands: disco#info meta-fetch for %s failed: %s",
+                        cmd.get("node"), e,
+                    )
+
         logger.info(
-            "[XMPP-A2A] discover_commands: peer=%s found=%d (agent_card=%d disco=%d)",
+            "[XMPP-A2A] discover_commands: peer=%s found=%d (agent_card=%d disco_items=%d disco_info=%d)",
             peer_jid, len(commands),
             sum(1 for c in commands if c["source"] == "agent_card"),
             sum(1 for c in commands if c["source"] == "disco"),
+            filled_via_info,
         )
         return commands
+
+    @staticmethod
+    def _extract_xep0128_meta(info_iq) -> Dict[str, Any]:
+        """Parse XEP-0128 extended disco#info into a flat metadata dict.
+
+        Returns {"description": str, "source": str, "form_fields": list}.
+        Only forms whose FORM_TYPE matches urn:xmpp:a2a:cmd:meta are
+        considered.
+        """
+        out: Dict[str, Any] = {"description": "", "source": "", "form_fields": []}
+        try:
+            di = info_iq['disco_info']
+            xml_root = getattr(di, 'xml', None)
+            if xml_root is None:
+                return out
+            for x_el in xml_root.findall('{jabber:x:data}x'):
+                form_type = ""
+                tmp = {"description": "", "source": "", "form_fields_json": ""}
+                for fld in x_el.findall('{jabber:x:data}field'):
+                    var = fld.get('var', '') or ''
+                    val_el = fld.find('{jabber:x:data}value')
+                    val = (val_el.text if val_el is not None else '') or ''
+                    if var == 'FORM_TYPE':
+                        form_type = val
+                    elif var in tmp:
+                        tmp[var] = val
+                if form_type == 'urn:xmpp:a2a:cmd:meta':
+                    out["description"] = tmp.get("description", "") or ""
+                    out["source"] = tmp.get("source", "") or ""
+                    ff_raw = tmp.get("form_fields_json", "") or ""
+                    if ff_raw:
+                        try:
+                            parsed = json.loads(ff_raw)
+                            if isinstance(parsed, list):
+                                out["form_fields"] = parsed
+                        except Exception:
+                            pass
+                    break
+        except Exception:
+            pass
+        return out
 
     def _resolve_full_jid(self, target_jid: str) -> str:
         """Best-effort resolution of bare JID to a full JID using the roster.
@@ -970,33 +1181,31 @@ class XMPPA2AManager:
     async def initialize(self):
         """
         Full initialization sequence, called after XMPP session starts.
-        1. Try inline agent card from DB config; fall back to URL fetch
-        2. Register disco features
-        3. Publish agent card via PEP
-        4. Register ad-hoc command handlers (plugin-based)
+
+        Order matters:
+        1. Fetch the agent card via HTTP (AgentCfg.memo.agent_card_url).
+           Inline agent cards in a2a_config are no longer supported.
+        2. Register XEP-0030 disco features.
+        3. Register ad-hoc commands and publish XEP-0128 metadata per command.
+        4. Merge registered commands into agent_card.skills[] so peers can
+           read each command's description via PEP without an extra IQ.
+        5. Publish the merged agent card via PEP.
         """
         logger.info("Initializing XMPP A2A integration...")
 
-        # Try inline agent card from a2a_config first
-        a2a_config = self._load_a2a_config()
-        inline_card = a2a_config.get('agent_card')
-        if inline_card and isinstance(inline_card, dict) and any(inline_card.values()):
-            self._agent_card = inline_card
-            logger.info(
-                "Using inline agent card from a2a_config: name=%s",
-                inline_card.get('name', 'unknown'),
-            )
-        else:
-            # Fall back to URL fetch
-            await self.fetch_agent_card()
+        # 1. Fetch agent card via HTTP only
+        await self.fetch_agent_card()
 
-        # Register Service Discovery features
+        # 2. Register Service Discovery features
         self.register_disco_features()
 
-        # Publish via PEP
-        await self.publish_agent_card_pep()
-
-        # Register ad-hoc commands (plugin-based)
+        # 3. Register ad-hoc commands (plugin-based) + per-command XEP-0128 meta
         self.register_adhoc_commands()
+
+        # 4. Merge commands into agent_card.skills[]
+        self._merge_commands_into_agent_card()
+
+        # 5. Publish via PEP
+        await self.publish_agent_card_pep()
 
         logger.info("XMPP A2A initialization complete")

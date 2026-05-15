@@ -56,6 +56,23 @@ def _sqlite_on_connect(dbapi_connection, connection_record):
 
 Session = sessionmaker(bind=engine)
 
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _session_scope():
+    """Yield a SQLAlchemy session that is always closed, even on exception.
+
+    Use this instead of the bare ``session = Session(); ... session.close()``
+    pattern to guarantee session release on exception paths.
+    """
+    session = Session()
+    try:
+        yield session
+    finally:
+        session.close()
+
 import time
 import logging
 _dbfactory_logger = logging.getLogger(__name__)
@@ -91,118 +108,111 @@ def add_AIChatMessages(conversation_id, flag, title, content, owner_name, owner_
 
 
 def query_map_activity_previous(last_record_id=None, count=20, type_str=None):
-    session = Session()
+    with _session_scope() as session:
 
-    query = session.query(MapActivity)
+        query = session.query(MapActivity)
 
-    if last_record_id is not None:
-        query = query.filter(MapActivity.id < last_record_id)
+        if last_record_id is not None:
+            query = query.filter(MapActivity.id < last_record_id)
 
-    if type_str:
-        query = query.filter(MapActivity.type == type_str)
+        if type_str:
+            query = query.filter(MapActivity.type == type_str)
 
-    records = query.order_by(MapActivity.id.desc()).limit(count).all()
+        records = query.order_by(MapActivity.id.desc()).limit(count).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_AIChatMessages_All_previous(last_record_id=None, count=20, **kwargs):
-    session = Session()
-    query = session.query(AIChatMessages)
-    if last_record_id is not None:
-        query = query.filter(AIChatMessages.id < last_record_id)
-    records = query.filter_by(**kwargs).order_by(desc(AIChatMessages.create_time)).limit(count).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        query = session.query(AIChatMessages)
+        if last_record_id is not None:
+            query = query.filter(AIChatMessages.id < last_record_id)
+        records = query.filter_by(**kwargs).order_by(desc(AIChatMessages.create_time)).limit(count).all()
+        return records
 
 
 def query_AIChatMessages_All(label: bool = False, limit: int = None, **kwargs):
-    session = Session()
+    with _session_scope() as session:
 
-    if label:
-        query = session.query(AIChatMessages).filter(AIChatMessages.label.isnot(None)).filter_by(
-            **kwargs).order_by(desc(AIChatMessages.stick_time),
-                               desc(AIChatMessages.create_time))
-    else:
-        query = session.query(AIChatMessages).filter_by(**kwargs).order_by(desc(AIChatMessages.stick_time),
-                                                                           desc(AIChatMessages.create_time))
+        if label:
+            query = session.query(AIChatMessages).filter(AIChatMessages.label.isnot(None)).filter_by(
+                **kwargs).order_by(desc(AIChatMessages.stick_time),
+                                   desc(AIChatMessages.create_time))
+        else:
+            query = session.query(AIChatMessages).filter_by(**kwargs).order_by(desc(AIChatMessages.stick_time),
+                                                                               desc(AIChatMessages.create_time))
 
-    if limit is not None:
-        query = query.limit(limit)
+        if limit is not None:
+            query = query.limit(limit)
 
-    records = query.all()
-    session.close()
-    return records
+        records = query.all()
+        return records
 
 
 def query_AIChatMessages(**kwargs):
-    session = Session()
-    record = session.query(AIChatMessages).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(AIChatMessages).filter_by(**kwargs).first()
+        return record
 
 
 def query_AIChatMessages_ById(id):
-    session = Session()
-    res = session.query(AIChatMessages).filter(AIChatMessages.is_first == True, AIChatMessages.id == id).one_or_none()
-    session.close()
+    with _session_scope() as session:
+        res = session.query(AIChatMessages).filter(AIChatMessages.is_first == True, AIChatMessages.id == id).one_or_none()
 
-    return res
+        return res
 
 
 def query_AIChatMessages_ByLabel(is_first, owner_account, friend_account):
-    session = Session()
+    with _session_scope() as session:
 
-    res = session.query(AIChatMessages.label).filter(AIChatMessages.is_first == True,
-                                                     AIChatMessages.owner_account == owner_account,
-                                                     AIChatMessages.friend_account == friend_account, ).distinct().all()
-    session.close()
-    if res is None:
-        labels = []
-    else:
-        labels = [i.label for i in res if i.label is not None]
-    return labels
+        res = session.query(AIChatMessages.label).filter(AIChatMessages.is_first == True,
+                                                         AIChatMessages.owner_account == owner_account,
+                                                         AIChatMessages.friend_account == friend_account, ).distinct().all()
+        if res is None:
+            labels = []
+        else:
+            labels = [i.label for i in res if i.label is not None]
+        return labels
 
 
 def query_AIChatMessages_Search_Content(label: bool = False, **kwargs):
-    session = Session()
+    with _session_scope() as session:
 
-    is_first = kwargs.get('is_first', None)
-    owner_account = kwargs.get('owner_account', None)
-    friend_account = kwargs.get('friend_account', None)
+        is_first = kwargs.get('is_first', None)
+        owner_account = kwargs.get('owner_account', None)
+        friend_account = kwargs.get('friend_account', None)
 
-    title_keyword = kwargs.get('title', None)
-    content_keyword = kwargs.get('content', None)
+        title_keyword = kwargs.get('title', None)
+        content_keyword = kwargs.get('content', None)
 
-    query = session.query(AIChatMessages)
+        query = session.query(AIChatMessages)
 
-    if is_first is not None:
-        query = query.filter(AIChatMessages.is_first == is_first)
-    if owner_account is not None:
-        query = query.filter(AIChatMessages.owner_account == owner_account)
-    if friend_account is not None:
-        query = query.filter(AIChatMessages.friend_account == friend_account)
+        if is_first is not None:
+            query = query.filter(AIChatMessages.is_first == is_first)
+        if owner_account is not None:
+            query = query.filter(AIChatMessages.owner_account == owner_account)
+        if friend_account is not None:
+            query = query.filter(AIChatMessages.friend_account == friend_account)
 
-    if title_keyword == "":
-        query = query.filter(AIChatMessages.is_first == True)
+        if title_keyword == "":
+            query = query.filter(AIChatMessages.is_first == True)
 
-    if label:
-        query = query.filter(AIChatMessages.label.isnot(None))
+        if label:
+            query = query.filter(AIChatMessages.label.isnot(None))
 
-    search_terms = []
-    if title_keyword:
-        search_terms.append(AIChatMessages.title.contains(title_keyword))
-    if content_keyword:
-        search_terms.append(AIChatMessages.content.contains(content_keyword))
+        search_terms = []
+        if title_keyword:
+            search_terms.append(AIChatMessages.title.contains(title_keyword))
+        if content_keyword:
+            search_terms.append(AIChatMessages.content.contains(content_keyword))
 
-    if search_terms:
-        query = query.filter(or_(*search_terms))
+        if search_terms:
+            query = query.filter(or_(*search_terms))
 
-    tasks = query.order_by(desc(AIChatMessages.stick_time), desc(AIChatMessages.create_time)).limit(50000).all()
+        tasks = query.order_by(desc(AIChatMessages.stick_time), desc(AIChatMessages.create_time)).limit(50000).all()
 
-    session.close()
-    return tasks
+        return tasks
 
 
 def update_AIChatMessages(id, **kwargs):
@@ -231,16 +241,15 @@ def delete_AIChatMessages(id):
 
 
 def query_AIChat_Content(id, **kwargs):
-    session = Session()
-    res = session.query(AIChatMessages).filter(AIChatMessages.is_first == True, AIChatMessages.id == id).one_or_none()
-    if res:
-        conversation_id = res.conversation_id
-    tasks = session.query(AIChatMessages).filter(AIChatMessages.conversation_id == conversation_id).order_by(
-        asc(AIChatMessages.create_time)).all()
+    with _session_scope() as session:
+        res = session.query(AIChatMessages).filter(AIChatMessages.is_first == True, AIChatMessages.id == id).one_or_none()
+        if res:
+            conversation_id = res.conversation_id
+        tasks = session.query(AIChatMessages).filter(AIChatMessages.conversation_id == conversation_id).order_by(
+            asc(AIChatMessages.create_time)).all()
 
-    session.close()
 
-    return tasks
+        return tasks
 
 
 
@@ -253,24 +262,21 @@ def add_AIFriend(account, nick_name, groups, owner_sns_account, memo, sign, subs
 
 
 def query_AIFriend_All(**kwargs):
-    session = Session()
-    records = session.query(AIFriend).filter_by(**kwargs).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(AIFriend).filter_by(**kwargs).all()
+        return records
 
 
 def query_AIFriend_All_Orderby_Updatetime(**kwargs):
-    session = Session()
-    records = session.query(AIFriend).filter_by(**kwargs).order_by(desc(AIFriend.last_message_time)).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(AIFriend).filter_by(**kwargs).order_by(desc(AIFriend.last_message_time)).all()
+        return records
 
 
 def query_AIFriend(**kwargs):
-    session = Session()
-    record = session.query(AIFriend).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(AIFriend).filter_by(**kwargs).first()
+        return record
 
 
 def update_AIFriend_ById(id, **kwargs):
@@ -310,22 +316,20 @@ def add_AgentCfg(user_id, name, memo, borndate, borncontry, language, gender, jo
 
 
 def query_AgentCfg_All(**kwargs):
-    session = Session()
-    # Exclude soft-deleted agents by default
-    if 'is_delete' not in kwargs:
-        kwargs['is_delete'] = False
-    agents = session.query(AgentCfg).filter_by(**kwargs).order_by(asc(AgentCfg.position)).all()
-    for agent in agents:
-        print(f"ID: {agent.id}, Name: {agent.name}, Memo: {agent.memo}")
-    session.close()
-    return agents
+    with _session_scope() as session:
+        # Exclude soft-deleted agents by default
+        if 'is_delete' not in kwargs:
+            kwargs['is_delete'] = False
+        agents = session.query(AgentCfg).filter_by(**kwargs).order_by(asc(AgentCfg.position)).all()
+        for agent in agents:
+            print(f"ID: {agent.id}, Name: {agent.name}, Memo: {agent.memo}")
+        return agents
 
 
 def query_AgentCfg(**kwargs):
-    session = Session()
-    agent = session.query(AgentCfg).filter_by(**kwargs).first()
-    session.close()
-    return agent
+    with _session_scope() as session:
+        agent = session.query(AgentCfg).filter_by(**kwargs).first()
+        return agent
 
 
 def update_AgentCfg(id, **kwargs):
@@ -355,17 +359,17 @@ def delete_AgentCfg(user_id):
 
 
 def get_agent_system_prompt(name):
-    session = Session()
-    agentcfg = session.query(AgentCfg).filter_by(name=name).first()
+    with _session_scope() as session:
+        agentcfg = session.query(AgentCfg).filter_by(name=name).first()
 
-    return agentcfg.prompt if agentcfg else None
+        return agentcfg.prompt if agentcfg else None
 
 
 def get_agent_specialization_description(name):
-    session = Session()
-    agentcfg = session.query(AgentCfg).filter_by(name=name).first()
+    with _session_scope() as session:
+        agentcfg = session.query(AgentCfg).filter_by(name=name).first()
 
-    return agentcfg.specialization if agentcfg else None
+        return agentcfg.specialization if agentcfg else None
 
 
 
@@ -401,94 +405,88 @@ def add_AISnsCfg(user_id, account, password, nickname, sign, status, humantakeov
 
 
 def query_AISnsCfg_All(**kwargs):
-    session = Session()
-    records = session.query(AISnsCfg).filter_by(**kwargs).order_by(asc(AISnsCfg.position)).all()
+    with _session_scope() as session:
+        records = session.query(AISnsCfg).filter_by(**kwargs).order_by(asc(AISnsCfg.position)).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_AISnsCfg_Search_Content(**kwargs):
-    session = Session()
+    with _session_scope() as session:
 
-    nickname_keyword = kwargs.get('nickname', None)
-    account_keyword = kwargs.get('account', None)
+        nickname_keyword = kwargs.get('nickname', None)
+        account_keyword = kwargs.get('account', None)
 
-    query = session.query(AISnsCfg)
+        query = session.query(AISnsCfg)
 
-    search_terms = []
-    if nickname_keyword:
-        search_terms.append(AISnsCfg.nickname.contains(nickname_keyword))
-    if account_keyword:
-        search_terms.append(AISnsCfg.account.contains(account_keyword))
+        search_terms = []
+        if nickname_keyword:
+            search_terms.append(AISnsCfg.nickname.contains(nickname_keyword))
+        if account_keyword:
+            search_terms.append(AISnsCfg.account.contains(account_keyword))
 
-    if search_terms:
-        query = query.filter(or_(*search_terms))
+        if search_terms:
+            query = query.filter(or_(*search_terms))
 
-    tasks = query.order_by(desc(AISnsCfg.create_time)).limit(50000).all()
+        tasks = query.order_by(desc(AISnsCfg.create_time)).limit(50000).all()
 
-    session.close()
-    return tasks
+        return tasks
 
 
 def query_AISnsCfg(**kwargs):
-    session = Session()
-    record = session.query(AISnsCfg).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(AISnsCfg).filter_by(**kwargs).first()
+        return record
 
 
 def query_AISnsCfg_map():
-    session = Session()
-    record = session.query(AISnsCfg).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(AISnsCfg).first()
+        return record
 
 
 def query_AISnsCfg_common():
-    session = Session()
-    record = session.query(AISnsCfg).offset(1).limit(1).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(AISnsCfg).offset(1).limit(1).first()
+        return record
 
 
 def query_AISnsCfg_map_setting(**kwargs):
-    session = Session()
+    with _session_scope() as session:
 
-    record = session.query(AISnsCfg).filter_by(**kwargs).first()
-    session.close()
+        record = session.query(AISnsCfg).filter_by(**kwargs).first()
 
-    if record:
-        fields = {
-            "nick_name": record.nickname,
-            "account": record.account,
-            "profile": record.sign,
-            "profession": record.profession,
-            "nationid": record.nationid,
-            "nationpassword": record.nationpassword,
-            "sns_url": record.sns_url,
-            "status": record.status,
-            "avatar": record.avatar,
-            "avatar3d": record.avatar3d,
-            "house3d": record.house3d,
-            "map_type": record.map_type,
-            "map_api_key": record.map_api_key,
-            "map_id": record.map_id,
-            "current_position": record.current_position,
-            "home_position": record.home_position,
-            "positionx": record.positionx,
-            "positiony": record.positiony,
-            "positionz": record.positionz,
-            "route_start": record.route_start,
-            "route_end": record.route_end,
-            "route_status": record.route_status,
-            "route_current_position": record.route_current_position,
-            "route_points": getattr(record, "route_points", None),
-            "route": record.route
-        }
-        return fields
-    else:
-        return None
+        if record:
+            fields = {
+                "nick_name": record.nickname,
+                "account": record.account,
+                "profile": record.sign,
+                "profession": record.profession,
+                "nationid": record.nationid,
+                "nationpassword": record.nationpassword,
+                "sns_url": record.sns_url,
+                "status": record.status,
+                "avatar": record.avatar,
+                "avatar3d": record.avatar3d,
+                "house3d": record.house3d,
+                "map_type": record.map_type,
+                "map_api_key": record.map_api_key,
+                "map_id": record.map_id,
+                "current_position": record.current_position,
+                "home_position": record.home_position,
+                "positionx": record.positionx,
+                "positiony": record.positiony,
+                "positionz": record.positionz,
+                "route_start": record.route_start,
+                "route_end": record.route_end,
+                "route_status": record.route_status,
+                "route_current_position": record.route_current_position,
+                "route_points": getattr(record, "route_points", None),
+                "route": record.route
+            }
+            return fields
+        else:
+            return None
 
 
 def update_AISnsCfg_map(**kwargs):
@@ -536,18 +534,16 @@ def add_KMCfg(km_id, name, memo, label, kmpath, vectorization, stopvectorization
 
 
 def query_KMCfg_All(**kwargs):
-    session = Session()
-    records = session.query(KMCfg).filter_by(**kwargs).order_by(asc(KMCfg.position)).all()
+    with _session_scope() as session:
+        records = session.query(KMCfg).filter_by(**kwargs).order_by(asc(KMCfg.position)).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_KMCfg(**kwargs):
-    session = Session()
-    record = session.query(KMCfg).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(KMCfg).filter_by(**kwargs).first()
+        return record
 
 
 def update_KMCfg(id, **kwargs):
@@ -568,9 +564,9 @@ def update_KMCfg_by_kmid(km_id, **kwargs):
     db_write(_do, description="update_KMCfg_by_kmid")
 
 
-def delete_KMCfg(km_id):
+def delete_KMCfg(id):
     def _do(session):
-        record = session.query(KMCfg).filter_by(km_id=km_id).first()
+        record = session.query(KMCfg).filter_by(id=id).first()
         if record:
             session.delete(record)
     db_write(_do, description="delete_KMCfg")
@@ -588,18 +584,16 @@ def add_KMData(km_id, filename, filenum, textblocklength, overlaplength, waitvec
 
 
 def query_KMData_All(**kwargs):
-    session = Session()
-    records = session.query(KMData).filter_by(**kwargs).all()
+    with _session_scope() as session:
+        records = session.query(KMData).filter_by(**kwargs).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_KMData(**kwargs):
-    session = Session()
-    record = session.query(KMData).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(KMData).filter_by(**kwargs).first()
+        return record
 
 
 def update_KMData(id, **kwargs):
@@ -663,11 +657,10 @@ def copy_plugin_record(plugin_id, new_plugin_id, **kwargs):
 
 
 def query_PluginMng_All(**kwargs):
-    session = Session()
-    records = session.query(PluginMng).filter_by(**kwargs).all()
+    with _session_scope() as session:
+        records = session.query(PluginMng).filter_by(**kwargs).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_PluginMng_All_Tool(**kwargs):
@@ -709,10 +702,9 @@ def query_PluginMng_All_Tool_Search(**kwargs):
 
 
 def query_PluginMng(**kwargs):
-    session = Session()
-    record = session.query(PluginMng).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(PluginMng).filter_by(**kwargs).first()
+        return record
 
 
 def update_PluginMng(id, **kwargs):
@@ -749,17 +741,15 @@ def add_function_mng(function_id, name, instruction, file_path, requirement, par
 
 
 def query_function_mng_all(**kwargs):
-    session = Session()
-    records = session.query(FunctionMng).filter_by(**kwargs).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(FunctionMng).filter_by(**kwargs).all()
+        return records
 
 
 def query_function_mng(**kwargs):
-    session = Session()
-    record = session.query(FunctionMng).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(FunctionMng).filter_by(**kwargs).first()
+        return record
 
 
 def update_function_mng(function_id, **kwargs):
@@ -805,17 +795,15 @@ def add_mcp_mng(mcp_id, name, instruction, file_path, requirement, parameter,
 
 
 def query_mcp_mng_all(**kwargs):
-    session = Session()
-    records = session.query(McpMng).filter_by(**kwargs).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(McpMng).filter_by(**kwargs).all()
+        return records
 
 
 def query_mcp_mng(**kwargs):
-    session = Session()
-    record = session.query(McpMng).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(McpMng).filter_by(**kwargs).first()
+        return record
 
 
 def update_mcp_mng(mcp_id, **kwargs):
@@ -861,17 +849,15 @@ def add_skill_mng(skill_id, name, instruction, file_path, requirement, parameter
 
 
 def query_skill_mng_all(**kwargs):
-    session = Session()
-    records = session.query(SkillMng).filter_by(**kwargs).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(SkillMng).filter_by(**kwargs).all()
+        return records
 
 
 def query_skill_mng(**kwargs):
-    session = Session()
-    record = session.query(SkillMng).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(SkillMng).filter_by(**kwargs).first()
+        return record
 
 
 def update_skill_mng(skill_id, **kwargs):
@@ -916,17 +902,15 @@ def add_web_mng(web_id, name, title, type, description,
 
 
 def query_web_mng_all(**kwargs):
-    session = Session()
-    records = session.query(WebMng).filter_by(**kwargs).order_by(asc(WebMng.position)).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(WebMng).filter_by(**kwargs).order_by(asc(WebMng.position)).all()
+        return records
 
 
 def query_web_mng(**kwargs):
-    session = Session()
-    record = session.query(WebMng).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(WebMng).filter_by(**kwargs).first()
+        return record
 
 
 def update_web_mng(web_id, **kwargs):
@@ -962,55 +946,51 @@ def add_note_mng(note_id, title, file_name, content, km_id, tag_1, tag_2,
 
 
 def query_note_mng_all(count, label: bool = False, **kwargs):
-    session = Session()
-    if label:
-        if count == -1:
-            records = session.query(NoteMng).filter(NoteMng.label.isnot(None)).filter_by(**kwargs).order_by(
-                desc(NoteMng.stick_time),
-                desc(NoteMng.create_time)).all()
+    with _session_scope() as session:
+        if label:
+            if count == -1:
+                records = session.query(NoteMng).filter(NoteMng.label.isnot(None)).filter_by(**kwargs).order_by(
+                    desc(NoteMng.stick_time),
+                    desc(NoteMng.create_time)).all()
+            else:
+                records = session.query(NoteMng).filter(NoteMng.label.isnot(None)).filter_by(**kwargs).order_by(
+                    desc(NoteMng.stick_time),
+                    desc(NoteMng.create_time)).limit(
+                    count).all()
         else:
-            records = session.query(NoteMng).filter(NoteMng.label.isnot(None)).filter_by(**kwargs).order_by(
-                desc(NoteMng.stick_time),
-                desc(NoteMng.create_time)).limit(
-                count).all()
-    else:
-        if count == -1:
-            records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.stick_time),
-                                                                          desc(
-                                                                              NoteMng.create_time)).all()
-        else:
-            records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.stick_time),
-                                                                          desc(NoteMng.create_time)).limit(
-                count).all()
-    session.close()
-    return records
+            if count == -1:
+                records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.stick_time),
+                                                                              desc(
+                                                                                  NoteMng.create_time)).all()
+            else:
+                records = session.query(NoteMng).filter_by(**kwargs).order_by(desc(NoteMng.stick_time),
+                                                                              desc(NoteMng.create_time)).limit(
+                    count).all()
+        return records
 
 
 def query_note_mng(**kwargs):
-    session = Session()
-    record = session.query(NoteMng).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(NoteMng).filter_by(**kwargs).first()
+        return record
 
 
 def query_note_mng_ById(id):
-    session = Session()
-    res = session.query(NoteMng).filter(NoteMng.id == id).one_or_none()
-    session.close()
+    with _session_scope() as session:
+        res = session.query(NoteMng).filter(NoteMng.id == id).one_or_none()
 
-    return res
+        return res
 
 
 def query_note_mng_ByLabel(km_id):
-    session = Session()
+    with _session_scope() as session:
 
-    res = session.query(NoteMng.label).filter(NoteMng.km_id == km_id).distinct().all()
-    session.close()
-    if res is None:
-        labels = []
-    else:
-        labels = [i.label for i in res if i.label is not None]
-    return labels
+        res = session.query(NoteMng.label).filter(NoteMng.km_id == km_id).distinct().all()
+        if res is None:
+            labels = []
+        else:
+            labels = [i.label for i in res if i.label is not None]
+        return labels
 
 
 def update_note_mng(note_id, **kwargs):
@@ -1048,36 +1028,35 @@ def delete_note_mng(**kwargs):
 
 
 def query_Note_mng_Search_Content(count, label: bool = False, **kwargs):
-    session = Session()
+    with _session_scope() as session:
 
-    title_keyword = kwargs.get('title', None)
-    content_keyword = kwargs.get('content', None)
+        title_keyword = kwargs.get('title', None)
+        content_keyword = kwargs.get('content', None)
 
-    query = session.query(NoteMng)
+        query = session.query(NoteMng)
 
-    if label:
-        query = query.filter(NoteMng.label.isnot(None))
+        if label:
+            query = query.filter(NoteMng.label.isnot(None))
 
-    search_terms = []
-    if title_keyword:
-        search_terms.append(NoteMng.title.contains(title_keyword))
-    if content_keyword:
-        search_terms.append(NoteMng.content.contains(content_keyword))
+        search_terms = []
+        if title_keyword:
+            search_terms.append(NoteMng.title.contains(title_keyword))
+        if content_keyword:
+            search_terms.append(NoteMng.content.contains(content_keyword))
 
-    if search_terms:
-        query = query.filter(or_(*search_terms))
+        if search_terms:
+            query = query.filter(or_(*search_terms))
 
-    if count == -1:
-        records = query.order_by(
-            desc(NoteMng.stick_time),
-            desc(NoteMng.create_time)).limit(50000).all()
-    else:
-        records = query.order_by(
-            desc(NoteMng.stick_time),
-            desc(NoteMng.create_time)).limit(count).all()
+        if count == -1:
+            records = query.order_by(
+                desc(NoteMng.stick_time),
+                desc(NoteMng.create_time)).limit(50000).all()
+        else:
+            records = query.order_by(
+                desc(NoteMng.stick_time),
+                desc(NoteMng.create_time)).limit(count).all()
 
-    session.close()
-    return records
+        return records
 
 
 
@@ -1136,18 +1115,16 @@ def add_SystemCfg(autorun, showtaskbar, updateinfo, minirunontray, closebuttonty
 
 
 def query_SystemCfg_All(**kwargs):
-    session = Session()
-    records = session.query(SystemCfg).filter_by(**kwargs).all()
+    with _session_scope() as session:
+        records = session.query(SystemCfg).filter_by(**kwargs).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_SystemCfg(**kwargs):
-    session = Session()
-    record = session.query(SystemCfg).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(SystemCfg).filter_by(**kwargs).first()
+        return record
 
 
 def update_SystemCfg(id, **kwargs):
@@ -1170,19 +1147,17 @@ def delete_SystemCfg(id):
 
 
 def get_prompt_by_title(title):
-    session = Session()
-    prompt = session.query(Prompt).filter_by(title=title).first()
+    with _session_scope() as session:
+        prompt = session.query(Prompt).filter_by(title=title).first()
 
-    session.close()
-    return prompt.content if prompt else None
+        return prompt.content if prompt else None
 
 
 def get_prompt_by_id(id):
-    session = Session()
-    prompt = session.query(Prompt).filter_by(id=id).first()
+    with _session_scope() as session:
+        prompt = session.query(Prompt).filter_by(id=id).first()
 
-    session.close()
-    return prompt.content if prompt else None
+        return prompt.content if prompt else None
 
 
 def get_all_prompt(**kwargs):
@@ -1266,21 +1241,21 @@ def add_key_value(key: str, value: str):
 
 
 def get_key_value(key: str):
-    session = Session()
-    result = session.query(KeyValue).filter_by(key=key).first()
-    return result.value if result else None
+    with _session_scope() as session:
+        result = session.query(KeyValue).filter_by(key=key).first()
+        return result.value if result else None
 
 
 def get_all_key_values() -> list:
-    session = Session()
-    records = session.query(KeyValue).all()
-    return records
+    with _session_scope() as session:
+        records = session.query(KeyValue).all()
+        return records
 
 
 def search_key_values(search_text: str) -> list:
-    session = Session()
-    records = session.query(KeyValue).filter(KeyValue.key.like(f'%{search_text}%')).all()
-    return records
+    with _session_scope() as session:
+        records = session.query(KeyValue).filter(KeyValue.key.like(f'%{search_text}%')).all()
+        return records
 
 
 def update_key_value(key: str, new_value: str):
@@ -1437,17 +1412,15 @@ def add_SystemInit(name, avatar, password, confirm_password, profile, llm, llm_s
 
 
 def query_SystemInit_All(**kwargs):
-    session = Session()
-    records = session.query(SystemInit).filter_by(**kwargs).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(SystemInit).filter_by(**kwargs).all()
+        return records
 
 
 def query_SystemInit(**kwargs):
-    session = Session()
-    record = session.query(SystemInit).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(SystemInit).filter_by(**kwargs).first()
+        return record
 
 
 def update_SystemInit_ById(id, **kwargs):
@@ -1485,34 +1458,31 @@ def add_map_activity(activity_id, content, type):
 
 
 def query_map_activity_all(**kwargs):
-    session = Session()
-    records = session.query(MapActivity).filter_by(**kwargs).all()
-    session.close()
-    return records
+    with _session_scope() as session:
+        records = session.query(MapActivity).filter_by(**kwargs).all()
+        return records
 
 
 def query_map_activity_previous(last_record_id=None, count=20, type_str=None):
-    session = Session()
+    with _session_scope() as session:
 
-    query = session.query(MapActivity)
+        query = session.query(MapActivity)
 
-    if last_record_id is not None:
-        query = query.filter(MapActivity.id < last_record_id)
+        if last_record_id is not None:
+            query = query.filter(MapActivity.id < last_record_id)
 
-    if type_str:
-        query = query.filter(MapActivity.type == type_str)
+        if type_str:
+            query = query.filter(MapActivity.type == type_str)
 
-    records = query.order_by(MapActivity.id.desc()).limit(count).all()
+        records = query.order_by(MapActivity.id.desc()).limit(count).all()
 
-    session.close()
-    return records
+        return records
 
 
 def query_map_activity(**kwargs):
-    session = Session()
-    record = session.query(MapActivity).filter_by(**kwargs).first()
-    session.close()
-    return record
+    with _session_scope() as session:
+        record = session.query(MapActivity).filter_by(**kwargs).first()
+        return record
 
 
 def update_map_activity_by_id(activity_id, **kwargs):
@@ -1551,15 +1521,14 @@ def query_map_preset_msg_all(**kwargs):
 
 
 def query_map_preset_msg_previous(last_record_id=None, count=20):
-    session = Session()
-    query = session.query(MapPresetMsg)
+    with _session_scope() as session:
+        query = session.query(MapPresetMsg)
 
-    if last_record_id is not None:
-        query = query.filter(MapPresetMsg.id < last_record_id)
+        if last_record_id is not None:
+            query = query.filter(MapPresetMsg.id < last_record_id)
 
-    records = query.order_by(MapPresetMsg.id.desc()).limit(count).all()
-    session.close()
-    return records
+        records = query.order_by(MapPresetMsg.id.desc()).limit(count).all()
+        return records
 
 
 def query_map_preset_msg(**kwargs):

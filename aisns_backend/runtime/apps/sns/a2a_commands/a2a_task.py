@@ -198,6 +198,47 @@ def _local_handle_jsonrpc(request: dict, sender_jid: str = "") -> dict:
                 except json.JSONDecodeError:
                     pass
 
+        # Detect greeting data
+        greeting_data = {}
+        for part in parts:
+            if part.get("type") == "data":
+                data = part.get("data", {})
+                if data and "greeting_type" in data:
+                    greeting_data = data
+                    break
+            elif part.get("type") == "text":
+                try:
+                    parsed = json.loads(part.get("text", "{}"))
+                    if isinstance(parsed, dict) and "greeting_type" in parsed:
+                        greeting_data = parsed
+                except json.JSONDecodeError:
+                    pass
+
+        if greeting_data:
+            meta_jid = params.get("metadata", {}).get("sender_jid", "")
+            effective_jid = meta_jid or sender_jid
+            try:
+                from a2aserver.greeting import exchange_greeting
+                result = exchange_greeting(effective_jid, greeting_data.get("greeting_type", ""))
+                return {
+                    "jsonrpc": "2.0",
+                    "result": {
+                        "id": rpc_id or "greeting-local",
+                        "status": {"state": "completed"},
+                        "artifacts": [
+                            {"parts": [{"type": "data", "data": result}]}
+                        ],
+                    },
+                    "id": rpc_id,
+                }
+            except Exception as e:
+                logger.warning("Local greeting exchange failed: %s", e)
+                return {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32000, "message": f"Local greeting error: {e}"},
+                    "id": rpc_id,
+                }
+
         # Only do business card exchange if we detected card-like data
         if their_card:
             meta_jid = params.get("metadata", {}).get("sender_jid", "")

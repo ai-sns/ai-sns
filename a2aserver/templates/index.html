@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A2A Server - Business Card Management</title>
+    <title>A2A Server - Management</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -113,6 +113,24 @@
                 </thead>
                 <tbody id="receivedBody">
                     <tr><td colspan="7" class="empty-msg">No cards received yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2>Greeting History <span class="badge" id="greetCount">0</span></h2>
+        <div class="card">
+            <table id="greetTable">
+                <thead>
+                    <tr>
+                        <th>Sender JID</th>
+                        <th>Their Greeting</th>
+                        <th>My Greeting</th>
+                        <th>Time</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="greetBody">
+                    <tr><td colspan="5" class="empty-msg">No greeting records yet</td></tr>
                 </tbody>
             </table>
         </div>
@@ -229,9 +247,53 @@
             return d.innerHTML;
         }
 
+        async function loadGreetings() {
+            try {
+                const res = await fetch('/api/greetings');
+                const data = await res.json();
+                const tbody = document.getElementById('greetBody');
+                const countBadge = document.getElementById('greetCount');
+
+                if (data.success && data.data && data.data.length > 0) {
+                    countBadge.textContent = data.data.length;
+                    tbody.innerHTML = data.data.map(g => `
+                        <tr>
+                            <td>${esc(g.sender_jid)}</td>
+                            <td>${esc(g.sender_greeting)}</td>
+                            <td>${esc(g.my_greeting)}</td>
+                            <td>${esc(g.created_at || '')}</td>
+                            <td><button class="btn btn-danger btn-sm" onclick="deleteGreeting(${g.id})">Delete</button></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    countBadge.textContent = '0';
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">No greeting records yet</td></tr>';
+                }
+            } catch (e) {
+                console.error('Failed to load greetings:', e);
+            }
+        }
+
+        async function deleteGreeting(id) {
+            if (!confirm('Delete this greeting record?')) return;
+            try {
+                const res = await fetch('/api/greetings/' + id, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Greeting record deleted', 'success');
+                    loadGreetings();
+                } else {
+                    showToast('Failed to delete', 'error');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message, 'error');
+            }
+        }
+
         // Initialize
         loadMyCard();
         loadReceivedCards();
+        loadGreetings();
     </script>
 </body>
 </html>

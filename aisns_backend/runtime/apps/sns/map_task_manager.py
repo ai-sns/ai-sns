@@ -1391,14 +1391,34 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                 else:
                     tool_result = remote_text
 
-                # Determine if result is useful
-                # If local ad-hoc was executed, always treat as useful (even if remote_text has NO_TOOL_NEEDED)
+                # Determine if result is useful.
+                # If local ad-hoc was executed, always treat as useful even when
+                # remote_text says NO_TOOL_NEEDED. Plain remote errors are not
+                # useful and must not be injected into the review history.
+                result_upper = (tool_result or "").upper()
+                result_lower = (tool_result or "").lower()
+                error_markers = (
+                    "error:",
+                    "tool execution error:",
+                    "remote agent network error",
+                    "all connection attempts failed",
+                    "exception:",
+                    "traceback",
+                )
+                is_plain_error = bool(tool_result) and any(
+                    marker in result_lower[:500]
+                    for marker in error_markers
+                )
                 has_useful_result = bool(adhoc_text) or (
-                    bool(tool_result) and "NO_TOOL_NEEDED" not in tool_result.upper()
+                    bool(tool_result)
+                    and "NO_TOOL_NEEDED" not in result_upper
+                    and not is_plain_error
                 )
                 if has_useful_result:
                     logger.info("[XMPP-A2A] tool_check_review: tool returned useful result (%d chars, adhoc=%s)", len(tool_result), bool(adhoc_text))
                     tool_context = tool_result
+                elif is_plain_error:
+                    logger.info("[XMPP-A2A] tool_check_review: tool check returned a non-useful error, skipping injection")
                 else:
                     logger.info("[XMPP-A2A] tool_check_review: no tool invocation needed")
         except Exception as e:

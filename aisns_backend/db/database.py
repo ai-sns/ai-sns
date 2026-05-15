@@ -123,28 +123,10 @@ def get_db_sync_depends() -> Generator[Session, None, None]:
         db.close()
 
 
-# For backward compatibility, provide a non-generator alias
-# But this should not be used in FastAPI Depends
-get_db_legacy = get_db  # This overwrites the async generator version, so the original get_db must be renamed
-
-
-# Redefine get_db as an async generator (because it was overwritten above)
-async def get_db_async_depends() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency injection - async DB session (explicit name)
-
-    Usage:
-        @app.get("/items")
-        async def get_items(db: AsyncSession = Depends(get_db_async_depends)):
-            result = await db.execute(select(Item))
-            return result.scalars().all()
-    """
-    async with AsyncSessionLocal() as session:
-        yield session
-
-
-# For backward compatibility, make get_db point to the async version
-get_db = get_db_async_depends
+# Backward-compatible aliases for the async generator above.
+# These all point to the same `get_db` defined earlier in this file.
+get_db_async_depends = get_db
+get_db_legacy = get_db
 
 
 def init_db():

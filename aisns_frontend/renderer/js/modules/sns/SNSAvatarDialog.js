@@ -292,34 +292,6 @@ export class SNSAvatarDialog {
                                     </div>
                                 </div>
                                 <div class="avatar-section" style="margin-top: 16px;">
-                                    <h4>Agent Card</h4>
-                                    <div class="user-info-form" style="font-size: 12px; color: #888; margin-bottom: 6px;">
-                                        Leave empty to use agent_card_url from Agent settings.
-                                    </div>
-                                    <div class="user-info-form">
-                                        <div class="form-group">
-                                            <label for="a2aCardName">Name</label>
-                                            <input type="text" id="a2aCardName" class="form-control" placeholder="Agent name">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="a2aCardDescription">Description</label>
-                                            <input type="text" id="a2aCardDescription" class="form-control" placeholder="Agent description">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="a2aCardVersion">Version</label>
-                                            <input type="text" id="a2aCardVersion" class="form-control" placeholder="1.0.0">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="a2aCardProviderOrg">Provider Org</label>
-                                            <input type="text" id="a2aCardProviderOrg" class="form-control" placeholder="Organization name">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="a2aCardProviderUrl">Provider URL</label>
-                                            <input type="text" id="a2aCardProviderUrl" class="form-control" placeholder="https://...">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="avatar-section" style="margin-top: 16px;">
                                     <h4>Ad-hoc Commands</h4>
                                     <div id="a2aCommandList" style="margin-bottom: 8px;"></div>
                                     <button type="button" class="btn btn-sm btn-outline-primary" id="a2aAddCommandBtn" style="font-size: 12px;">+ Add Command</button>
@@ -410,21 +382,11 @@ export class SNSAvatarDialog {
             const xmppAccountEl = this._q('#xmppAccount');
             if (xmppAccountEl) xmppAccountEl.value = config.account || '';
 
-            // Load A2A config from memo
+            // Load A2A config from memo (inline agent_card is no longer
+            // supported on the UI — the agent card is sourced exclusively
+            // from AgentCfg.memo.agent_card_url via HTTP fetch).
             const a2aConfig = config.a2a_config || {};
             this._a2aConfig = a2aConfig;
-            const agentCard = a2aConfig.agent_card || {};
-            const a2aNameEl = this._q('#a2aCardName');
-            const a2aDescEl = this._q('#a2aCardDescription');
-            const a2aVersionEl = this._q('#a2aCardVersion');
-            const a2aProvOrgEl = this._q('#a2aCardProviderOrg');
-            const a2aProvUrlEl = this._q('#a2aCardProviderUrl');
-            if (a2aNameEl) a2aNameEl.value = agentCard.name || '';
-            if (a2aDescEl) a2aDescEl.value = agentCard.description || '';
-            if (a2aVersionEl) a2aVersionEl.value = agentCard.version || '';
-            const provider = agentCard.provider || {};
-            if (a2aProvOrgEl) a2aProvOrgEl.value = provider.organization || '';
-            if (a2aProvUrlEl) a2aProvUrlEl.value = provider.url || '';
 
             // Load merged ad-hoc command list (builtin + plugin + config) from backend
             await this._loadMergedA2ACommands(a2aConfig.adhoc_commands || []);
@@ -1167,17 +1129,34 @@ export class SNSAvatarDialog {
         });
         container.querySelectorAll('.a2a-cmd-edit').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const i = parseInt(e.target.dataset.cmdIdx, 10);
+                // Use currentTarget (the button) instead of target, which may be
+                // the inner <svg>/<path> and would yield NaN -> wrong index.
+                const i = parseInt(e.currentTarget.dataset.cmdIdx, 10);
                 this._openA2ACommandDialog(i);
             });
         });
         container.querySelectorAll('.a2a-cmd-del').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const i = parseInt(e.target.dataset.cmdIdx, 10);
-                if (confirm('Delete this command?')) {
-                    this._a2aCommands.splice(i, 1);
-                    this._renderA2ACommandList();
-                }
+            btn.addEventListener('click', async (e) => {
+                // Same reason as above: read dataset from the button, not the SVG.
+                const i = parseInt(e.currentTarget.dataset.cmdIdx, 10);
+                const ok = await (async () => {
+                    try {
+                        if (window.Toast && typeof window.Toast.confirm === 'function') {
+                            return await window.Toast.confirm('Delete this command?', {
+                                title: 'Delete Command',
+                                confirmText: 'Delete',
+                                cancelText: 'Cancel',
+                                type: 'warning'
+                            });
+                        }
+                    } catch (err) {
+                        console.error('[SNSAvatarDialog] Failed to show confirm dialog:', err);
+                    }
+                    return false;
+                })();
+                if (!ok) return;
+                this._a2aCommands.splice(i, 1);
+                this._renderA2ACommandList();
             });
         });
     }
@@ -1271,22 +1250,6 @@ export class SNSAvatarDialog {
     }
 
     _collectA2AConfig() {
-        const a2aCardName = (this._q('#a2aCardName') || {}).value || '';
-        const a2aCardDesc = (this._q('#a2aCardDescription') || {}).value || '';
-        const a2aCardVersion = (this._q('#a2aCardVersion') || {}).value || '';
-        const a2aCardProvOrg = (this._q('#a2aCardProviderOrg') || {}).value || '';
-        const a2aCardProvUrl = (this._q('#a2aCardProviderUrl') || {}).value || '';
-
-        const agentCard = {};
-        if (a2aCardName.trim()) agentCard.name = a2aCardName.trim();
-        if (a2aCardDesc.trim()) agentCard.description = a2aCardDesc.trim();
-        if (a2aCardVersion.trim()) agentCard.version = a2aCardVersion.trim();
-        if (a2aCardProvOrg.trim() || a2aCardProvUrl.trim()) {
-            agentCard.provider = {};
-            if (a2aCardProvOrg.trim()) agentCard.provider.organization = a2aCardProvOrg.trim();
-            if (a2aCardProvUrl.trim()) agentCard.provider.url = a2aCardProvUrl.trim();
-        }
-
         const adhocCommands = [];
         for (const c of (this._a2aCommands || [])) {
             const source = c.source || 'builtin';
@@ -1314,7 +1277,6 @@ export class SNSAvatarDialog {
         }
 
         return {
-            agent_card: agentCard,
             adhoc_commands: adhocCommands,
         };
     }
