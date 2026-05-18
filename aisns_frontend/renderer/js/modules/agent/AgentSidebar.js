@@ -834,7 +834,10 @@ const AgentSidebar = {
         const dialog = document.getElementById('agentManageDialog');
         if (dialog) dialog.remove();
 
-        if (window.electronAPI && window.electronAPI.showBrowserView) {
+        // Only restore BrowserView if user is currently on the Web page; otherwise
+        // showing it would cover the active Agent/KM/etc. page with a stale webview.
+        const onWebPage = !!(window.router && typeof window.router.getCurrentPage === 'function' && window.router.getCurrentPage() === 'web');
+        if (onWebPage && window.electronAPI && window.electronAPI.showBrowserView) {
             window.electronAPI.showBrowserView();
         }
 

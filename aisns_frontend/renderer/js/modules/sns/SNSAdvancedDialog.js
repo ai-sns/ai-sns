@@ -1,8 +1,8 @@
 /**
- * SNS Avatar Configuration Dialog
+ * SNS Advanced Configuration Dialog
  */
 
-export class SNSAvatarDialog {
+export class SNSAdvancedDialog {
     constructor() {
         this.dialog = null;
         this.selectedAvatar3D = null;
@@ -32,7 +32,7 @@ export class SNSAvatarDialog {
     }
 
     clearInlineMessage() {
-        const alertBox = this._q('#snsAvatarAlert');
+        const alertBox = this._q('#snsAdvancedAlert');
         if (!alertBox) {
             return;
         }
@@ -42,7 +42,7 @@ export class SNSAvatarDialog {
     }
 
     showInlineMessage(message, type = 'error', options = {}) {
-        const alertBox = this._q('#snsAvatarAlert');
+        const alertBox = this._q('#snsAdvancedAlert');
         if (!alertBox) {
             return;
         }
@@ -185,7 +185,7 @@ export class SNSAvatarDialog {
     }
 
     async show() {
-        const existing = document.getElementById('snsAvatarDialog');
+        const existing = document.getElementById('snsAdvancedDialog');
         if (existing) {
             try {
                 existing.remove();
@@ -195,11 +195,11 @@ export class SNSAvatarDialog {
 
         // Create dialog HTML
         const dialogHTML = `
-            <div class="modal-overlay" id="snsAvatarDialog">
+            <div class="modal-overlay" id="snsAdvancedDialog">
                 <div class="modal-dialog" style="max-width: 600px;">
                     <div class="modal-header">
-                        <h3>User Configuration</h3>
-                        <button class="modal-close" onclick="document.getElementById('snsAvatarDialog').remove()">&times;</button>
+                        <h3>Advanced Configuration</h3>
+                        <button class="modal-close" onclick="document.getElementById('snsAdvancedDialog').remove()">&times;</button>
                     </div>
                     <div class="modal-tabs">
                         <button class="modal-tab active" data-tab="avatar">Avatar Settings</button>
@@ -318,11 +318,11 @@ export class SNSAvatarDialog {
                             </div>
                         </div>
 
-                        <div class="dialog-inline-alert" id="snsAvatarAlert" style="display: none;"></div>
+                        <div class="dialog-inline-alert" id="snsAdvancedAlert" style="display: none;"></div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="document.getElementById('snsAvatarDialog').remove()">Cancel</button>
-                        <button class="btn btn-primary" id="saveAvatarBtn">Save</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('snsAdvancedDialog').remove()">Cancel</button>
+                        <button class="btn btn-primary" id="saveAdvancedBtn">Save</button>
                     </div>
                 </div>
             </div>
@@ -330,7 +330,7 @@ export class SNSAvatarDialog {
 
         // Add to DOM
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
-        this.dialog = document.getElementById('snsAvatarDialog');
+        this.dialog = document.getElementById('snsAdvancedDialog');
 
         if (!this._isDialogAlive()) return;
 
@@ -603,7 +603,7 @@ export class SNSAvatarDialog {
         }
 
         // Save button
-        const saveBtn = this._q('#saveAvatarBtn');
+        const saveBtn = this._q('#saveAdvancedBtn');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 this.saveConfiguration();
@@ -870,7 +870,7 @@ export class SNSAvatarDialog {
                     }
                 }
             } catch (e) {
-                console.warn('[SNSAvatarDialog] Failed to resolve agent a2a endpoint:', e);
+                console.warn('[SNSAdvancedDialog] Failed to resolve agent a2a endpoint:', e);
             }
 
             try {
@@ -1036,7 +1036,7 @@ export class SNSAvatarDialog {
                 this._a2aCommands = (savedConfigCommands || []).map(cmd => ({ ...cmd }));
             }
         } catch (e) {
-            console.warn('[SNSAvatarDialog] Failed to load merged A2A commands, falling back:', e);
+            console.warn('[SNSAdvancedDialog] Failed to load merged A2A commands, falling back:', e);
             this._a2aCommands = (savedConfigCommands || []).map(cmd => ({ ...cmd }));
         }
         this._renderA2ACommandList();
@@ -1150,7 +1150,7 @@ export class SNSAvatarDialog {
                             });
                         }
                     } catch (err) {
-                        console.error('[SNSAvatarDialog] Failed to show confirm dialog:', err);
+                        console.error('[SNSAdvancedDialog] Failed to show confirm dialog:', err);
                     }
                     return false;
                 })();

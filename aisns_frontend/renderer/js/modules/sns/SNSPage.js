@@ -34,22 +34,21 @@ export default {
                         <!-- State 1: Default toolbar (menubar001 style) -->
                         <div class="action-bar-state-1" id="actionBarState1">
                             <div class="action-bar-left">
-                                <button class="action-btn" data-action="square">
+                                <button class="action-btn" data-action="square" title="The place to get information about AI">
                                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                                         <polyline points="9 22 9 12 15 12 15 22"/>
                                     </svg>
                                     <span>Square</span>
                                 </button>
-                                <button class="action-btn" data-action="ai">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-                                        <path d="M19 10H5a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2z"/>
-                                        <path d="M12 15v4M8 22h8"/>
-                                    </svg>
-                                    <span>AI</span>
+                                <button class="action-btn" data-action="ai" title="My Character">
+
+                                    <svg height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+<path d="M480-40 360-160H200q-33 0-56.5-23.5T120-240v-560q0-33 23.5-56.5T200-880h560q33 0 56.5 23.5T840-800v560q0 33-23.5 56.5T760-160H600L480-40ZM200-286q54-53 125.5-83.5T480-400q83 0 154.5 30.5T760-286v-514H200v514Zm379-235q41-41 41-99t-41-99q-41-41-99-41t-99 41q-41 41-41 99t41 99q41 41 99 41t99-41ZM280-240h400v-10q-42-35-93-52.5T480-320q-56 0-107 17.5T280-250v10Zm157.5-337.5Q420-595 420-620t17.5-42.5Q455-680 480-680t42.5 17.5Q540-645 540-620t-17.5 42.5Q505-560 480-560t-42.5-17.5ZM480-543Z"/>
+</svg>
+                                    <span>MC</span>
                                 </button>
-                                <button class="action-btn" data-action="move">
+                                <button class="action-btn" data-action="move" title="Move the character to a point on the map">
                                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(-45deg)">
                                         <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                                     </svg>
@@ -65,7 +64,7 @@ export default {
                                 </button>
                             </div>
                             <div class="action-bar-right">
-                                <button class="action-btn" data-action="control" id="controlBtn">
+                                <button class="action-btn" data-action="control" id="controlBtn" title="Human control">
                                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                         <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                                         <line x1="8" y1="21" x2="16" y2="21"/>
@@ -73,13 +72,13 @@ export default {
                                     </svg>
                                     <span>Control</span>
                                 </button>
-                                <button class="action-btn" data-action="plugin">
+                                <button class="action-btn" data-action="plugin" title="Load plugin">
                                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M19.439 7.85c.157-.24.245-.525.245-.814V3a1 1 0 0 0-1-1h-3.95c-.289 0-.574.088-.814.245a2.5 2.5 0 1 1-3.84 0A1.5 1.5 0 0 0 9.266 2H5.316a1 1 0 0 0-1 1v3.95c0 .289-.088.574-.245.814a2.5 2.5 0 1 1 0 3.84c.157.24.245.525.245.814V20a1 1 0 0 0 1 1h3.95c.289 0 .574-.088.814-.245a2.5 2.5 0 1 1 3.84 0c.24.157.525.245.814.245h3.95a1 1 0 0 0 1-1v-3.95c0-.289.088-.574.245-.814a2.5 2.5 0 1 1 0-3.84Z"/>
                                     </svg>
                                     <span>Plugin</span>
                                 </button>
-                                <button class="action-btn" data-action="help">
+                                <button class="action-btn" data-action="help" title="Get help">
                                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/>
                                         <path d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 3-3 3"/>
@@ -103,22 +102,20 @@ export default {
                                         </svg>
                                     </button>
                                     <div class="control-dropdown" id="appsDropdown" style="display: none;">
-                                        <button class="dropdown-item" data-action="square">
+                                        <button class="dropdown-item" data-action="square" title="The place to get information about AI">
                                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                                                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
                                                 <polyline points="9 22 9 12 15 12 15 22"/>
                                             </svg>
                                             <span>Square</span>
                                         </button>
-                                        <button class="dropdown-item" data-action="ai">
-                                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-                                                <path d="M19 10H5a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2z"/>
-                                                <path d="M12 15v4M8 22h8"/>
-                                            </svg>
-                                            <span>AI</span>
+                                        <button class="dropdown-item" data-action="ai" title="My Character">
+<svg height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+<path d="M480-40 360-160H200q-33 0-56.5-23.5T120-240v-560q0-33 23.5-56.5T200-880h560q33 0 56.5 23.5T840-800v560q0 33-23.5 56.5T760-160H600L480-40ZM200-286q54-53 125.5-83.5T480-400q83 0 154.5 30.5T760-286v-514H200v514Zm379-235q41-41 41-99t-41-99q-41-41-99-41t-99 41q-41 41-41 99t41 99q41 41 99 41t99-41ZM280-240h400v-10q-42-35-93-52.5T480-320q-56 0-107 17.5T280-250v10Zm157.5-337.5Q420-595 420-620t17.5-42.5Q455-680 480-680t42.5 17.5Q540-645 540-620t-17.5 42.5Q505-560 480-560t-42.5-17.5ZM480-543Z"/>
+</svg>
+                                            <span>MC</span>
                                         </button>
-                                        <button class="dropdown-item" data-action="move">                                            
+                                        <button class="dropdown-item" data-action="move" title="Move the character to a point on the map">                                            
                                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="transform: rotate(45deg)">
                                                 <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                                             </svg>
@@ -127,7 +124,7 @@ export default {
                                     </div>
                                 </div>
                                 <div class="control-center-input">
-                                    <button class="control-computer-btn" id="computerBtn">
+                                    <button class="control-computer-btn" id="computerBtn" title="End human control">
                                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <!-- Monitor frame -->
     <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
@@ -142,8 +139,8 @@ export default {
                                         <div class="control-toggle-group">
                                             <span class="control-label">Talk to</span>
                                             <div class="control-toggle-buttons">
-                                                <button class="toggle-btn active" data-mode="ai">My AI</button>
-                                                <button class="toggle-btn" data-mode="friends">Target</button>
+                                                <button class="toggle-btn active" data-mode="ai" title="My Character">MC</button>
+                                                <button class="toggle-btn" data-mode="friends" title="Target Character">TC</button>
                                             </div>
                                         </div>
                                         <div class="control-input-wrapper">
@@ -166,7 +163,7 @@ export default {
                                         </svg>
                                     </button>
                                     <div class="control-dropdown control-dropdown-right" id="mapDropdown" style="display: none;">
-                                        <button class="dropdown-item" data-action="help">
+                                        <button class="dropdown-item" data-action="help" title="Get help">
                                             <span>Help</span>
                                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                                                 <circle cx="12" cy="12" r="10"/>
@@ -174,7 +171,7 @@ export default {
                                                 <line x1="12" y1="17" x2="12.01" y2="17"/>
                                             </svg>
                                         </button>
-                                        <button class="dropdown-item" data-action="plugin">
+                                        <button class="dropdown-item" data-action="plugin" title="Load plugin">
                                             <span>Plugin</span>
                                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M19.439 7.85c.157-.24.245-.525.245-.814V3a1 1 0 0 0-1-1h-3.95c-.289 0-.574.088-.814.245a2.5 2.5 0 1 1-3.84 0A1.5 1.5 0 0 0 9.266 2H5.316a1 1 0 0 0-1 1v3.95c0 .289-.088.574-.245.814a2.5 2.5 0 1 1 0 3.84c.157.24.245.525.245.814V20a1 1 0 0 0 1 1h3.95c.289 0 .574-.088.814-.245a2.5 2.5 0 1 1 3.84 0c.24.157.525.245.814.245h3.95a1 1 0 0 0 1-1v-3.95c0-.289.088-.574.245-.814a2.5 2.5 0 1 1 0-3.84Z"/>

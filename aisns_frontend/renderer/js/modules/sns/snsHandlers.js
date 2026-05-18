@@ -4,7 +4,7 @@
  */
 
 import snsApi from './snsApi.js';
-import { SNSAvatarDialog } from './SNSAvatarDialog.js';
+import { SNSAdvancedDialog } from './SNSAdvancedDialog.js';
 import { SNSProfessionDialog } from './SNSProfessionDialog.js';
 import { SNSSocialRoleDialog } from './SNSSocialRoleDialog.js';
 import { SNSMapConfigDialog } from './SNSMapConfigDialog.js';
@@ -841,11 +841,11 @@ export default {
      * Initialize configuration buttons
      */
     initConfigButtons() {
-        // Avatar configuration button
-        const avatarBtn = document.getElementById('snsAvatarConfigBtn');
-        if (avatarBtn) {
-            this._bindClickOnce(avatarBtn, async () => {
-                const dialog = new SNSAvatarDialog();
+        // Advanced configuration button
+        const advancedBtn = document.getElementById('snsAvatarConfigBtn');
+        if (advancedBtn) {
+            this._bindClickOnce(advancedBtn, async () => {
+                const dialog = new SNSAdvancedDialog();
                 await dialog.show();
             });
         }
@@ -3983,7 +3983,7 @@ export default {
             let dialog;
             switch (dialogType) {
                 case 'avatar':
-                    dialog = new SNSAvatarDialog();
+                    dialog = new SNSAdvancedDialog();
                     break;
                 case 'profession':
                     dialog = new SNSProfessionDialog();

@@ -8687,7 +8687,7 @@ body.theme-dark .toggle-btn:hover:not(.active) {
 
 .control-input-wrapper {
     flex: 1;
-    min-width: 0;
+    min-width: 280px;
     display: flex;
     align-items: center;
     gap: 6px;

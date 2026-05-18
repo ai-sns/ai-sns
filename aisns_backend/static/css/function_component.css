@@ -345,6 +345,20 @@ input[readonly]:focus {
     box-shadow: 0 2px 6px 0 rgba(27, 142, 236, 0.5);
     border-radius: 7px;
     z-index: 1111;
+    /* Disable text selection on the info panel by default */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Allow text selection only inside the list items */
+#info_list, #info_list_chat,
+#info_list *, #info_list_chat * {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 /* 信息框标题的样式 */
