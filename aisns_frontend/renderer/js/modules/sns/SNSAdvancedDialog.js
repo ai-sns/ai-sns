@@ -219,9 +219,7 @@ export class SNSAdvancedDialog {
                                         <div class="avatar-preview" id="avatarPreview" role="button" tabindex="0" aria-label="Upload avatar preview">
                                             <img id="avatarPreviewImg" class="avatar-preview-img" src="" alt="Avatar preview">
                                             <div id="avatarPlaceholder" class="avatar-placeholder">
-                                                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" style="opacity: 0.6">
-                                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                                </svg>
+
                                                 <span class="avatar-placeholder-title">Upload</span>
                                             </div>
                                         </div>
