@@ -338,11 +338,9 @@ const InitializationWizard = {
     renderLlmStep() {
         const llmOptions = [
             'OpenAI',
-            'DeepSeek',
             'Claude',
             'Gemini',
-            'OpenAI Compatible Provider',
-            'DeepSeek Compatible Provider'
+            'OpenAI Compatible'
         ];
 
         return `
@@ -578,11 +576,9 @@ const InitializationWizard = {
 
                     const providerMap = {
                         'OpenAI': 'openai',
-                        'DeepSeek': 'custom',
                         'Claude': 'claude',
                         'Gemini': 'gemini',
-                        'OpenAI Compatible Provider': 'custom',
-                        'DeepSeek Compatible Provider': 'custom'
+                        'OpenAI Compatible': 'custom'
                     };
 
                     const modelCandidatesMap = {
@@ -792,12 +788,12 @@ const InitializationWizard = {
                 const llm = llmSelect.value;
                 const urlMap = {
                     'OpenAI': 'https://api.openai.com/v1/chat/completions',
-                    'DeepSeek': 'https://api.deepseek.com/v1/chat/completions',
                     'Claude': 'https://api.anthropic.com/v1/messages',
-                    'Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+                    'Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+                    'OpenAI Compatible': ''
                 };
                 const serverInput = root.querySelector('#initLlmServer');
-                if (serverInput && urlMap[llm]) {
+                if (serverInput && Object.prototype.hasOwnProperty.call(urlMap, llm)) {
                     serverInput.value = urlMap[llm];
                 }
             });

@@ -3,6 +3,7 @@
 System module - Service layer
 """
 import logging
+import json
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
@@ -23,7 +24,7 @@ from runtime.modules.map.file_replace import (
     BAIDU_MAP_ID_SENTINEL,
     replace_map_config_in_files,
 )
-from db.repositories import WebMngRepository, SystemInitRepository, AISnsCfgRepository, LLMConfigRepository
+from db.repositories import WebMngRepository, SystemInitRepository, AISnsCfgRepository, LLMConfigRepository, AgentCfgRepository
 from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_anthropic_base_url
 from db.models.web import WebMng
 
@@ -393,28 +394,29 @@ class SystemInitWizardService:
         ]
 
     @staticmethod
-    def _sync_llm_config_from_wizard(record) -> None:
-        """Sync LLM settings from wizard draft to the matching llm_config record."""
+    def _sync_llm_config_from_wizard(record) -> Optional[str]:
+        """Sync LLM settings from wizard draft to the matching llm_config record.
+
+        Returns the matched llm_config.config_id if any, else None.
+        """
         llm_label = (getattr(record, 'llm', None) or '').strip()
         llm_server = (getattr(record, 'llm_server', None) or '').strip()
         api_key = (getattr(record, 'api_key', None) or '').strip()
 
         if not llm_label or not api_key:
-            return
+            return None
 
-        # Map wizard LLM label to provider value used in llm_config table
+        # Map wizard LLM label to provider value used in llm_config table.
         provider_map = {
             'OpenAI': 'openai',
-            'DeepSeek': 'custom',
             'Claude': 'claude',
             'Gemini': 'gemini',
-            'OpenAI Compatible Provider': 'custom',
-            'DeepSeek Compatible Provider': 'custom',
+            'OpenAI Compatible': 'custom',
         }
         provider = provider_map.get(llm_label)
         if not provider:
             logger.warning("Unknown LLM label from wizard: %s", llm_label)
-            return
+            return None
 
         # Normalize the endpoint URL to match the format stored in llm_config
         if provider == 'claude':
@@ -424,14 +426,57 @@ class SystemInitWizardService:
 
         repo = LLMConfigRepository()
         existing = repo.get_one(provider=provider, is_delete=False)
-        if existing:
-            update_fields = {"api_key": api_key}
-            if api_endpoint:
-                update_fields["api_endpoint"] = api_endpoint
-            repo.update(existing.id, **update_fields)
-            logger.info("Updated llm_config (provider=%s) with wizard settings", provider)
-        else:
+        if not existing:
             logger.warning("No llm_config record found for provider=%s; skipping LLM sync", provider)
+            return None
+
+        update_fields = {"api_key": api_key}
+        if api_endpoint:
+            update_fields["api_endpoint"] = api_endpoint
+        repo.update(existing.id, **update_fields)
+        logger.info("Updated llm_config (provider=%s) with wizard settings", provider)
+        return getattr(existing, 'config_id', None)
+
+    @staticmethod
+    def _find_first_agent_id_for_llm(config_id: str) -> Optional[int]:
+        """Return the first agent.id whose defaultmodel == config_id, or whose
+        memo JSON has model_config_id == config_id. Returns None if no match.
+        """
+        if not config_id:
+            return None
+        try:
+            agents = AgentCfgRepository().get_all_ordered(is_delete=False)
+        except Exception as e:
+            logger.warning("Failed to query agents for LLM binding: %s", e)
+            return None
+
+        for agent in agents:
+            if (getattr(agent, 'defaultmodel', None) or '').strip() == config_id:
+                return agent.id
+            memo = getattr(agent, 'memo', None)
+            if memo:
+                try:
+                    parsed = json.loads(memo)
+                    if isinstance(parsed, dict) and parsed.get('model_config_id') == config_id:
+                        return agent.id
+                except Exception:
+                    continue
+        return None
+
+    @staticmethod
+    def _avatar3d_filename(value: Optional[str]) -> str:
+        """Extract just the filename from a possibly-full URL/path avatar3d value."""
+        raw = (value or '').strip()
+        if not raw:
+            return ''
+        # Strip query/fragment then take the basename
+        for sep in ('?', '#'):
+            idx = raw.find(sep)
+            if idx >= 0:
+                raw = raw[:idx]
+        # Normalize separators
+        raw = raw.replace('\\', '/').rstrip('/')
+        return raw.rsplit('/', 1)[-1]
 
     @staticmethod
     def _save_uploaded_avatar(file_bytes: bytes, filename: str) -> str:
@@ -835,16 +880,21 @@ class SystemInitWizardService:
         map_type_value = "0" if map_type_text == "Google" else "1"
         combined = self._combine_map_values(map_type_text, draft.get("map_api_key") or "", draft.get("map_id") or "")
 
+        avatar3d_filename = self._avatar3d_filename(getattr(record, 'avatar3d', None))
+
+        # cfg_id tracks the aisns_cfg record ID for later agent_id binding.
+        cfg_id = None
         if sns_record:
+            cfg_id = sns_record.id
             self.aisns_cfg_repo.update(
-                sns_record.id,
+                cfg_id,
                 nationid=nation_id,
                 avatar=record.avatar,
                 name=record.name,
                 nickname=record.name,
                 nationpassword=record.password,
                 sign=record.profile,
-                avatar3d=record.avatar3d,
+                avatar3d=avatar3d_filename,
                 account=record.account,
                 password=record.account_password,
                 sns_url=record.sns_url,
@@ -853,14 +903,14 @@ class SystemInitWizardService:
                 map_id=combined["map_id"],
             )
         else:
-            self.aisns_cfg_repo.create_with_id(
+            cfg_id = self.aisns_cfg_repo.create_with_id(
                 nationid=nation_id,
                 avatar=record.avatar,
                 name=record.name,
                 nickname=record.name,
                 nationpassword=record.password,
                 sign=record.profile,
-                avatar3d=record.avatar3d,
+                avatar3d=avatar3d_filename,
                 account=record.account,
                 password=record.account_password,
                 sns_url=record.sns_url,
@@ -869,11 +919,28 @@ class SystemInitWizardService:
                 map_id=combined["map_id"],
             )
 
-        # Sync LLM configuration to llm_config table
+        # Sync LLM configuration to llm_config table, then bind aisns_cfg.agent_id
+        # to the first agent that uses this LLM config.
         try:
-            self._sync_llm_config_from_wizard(record)
+            matched_config_id = self._sync_llm_config_from_wizard(record)
+            if matched_config_id:
+                agent_id = self._find_first_agent_id_for_llm(matched_config_id)
+                if agent_id is not None:
+                    if cfg_id:
+                        self.aisns_cfg_repo.update(cfg_id, agent_id=agent_id)
+                        logger.info(
+                            "Bound aisns_cfg.agent_id=%s for llm_config=%s",
+                            agent_id, matched_config_id,
+                        )
+                    else:
+                        logger.warning("aisns_cfg record not found when binding agent_id")
+                else:
+                    logger.info(
+                        "No agent uses llm_config=%s; aisns_cfg.agent_id unchanged",
+                        matched_config_id,
+                    )
         except Exception as e:
-            logger.error("Failed to sync LLM config from init wizard: %s", e)
+            logger.error("Failed to sync LLM config / bind agent from init wizard: %s", e)
 
         try:
             new_api_keys = combined.get("map_api_key", "").split(',') if combined.get("map_api_key") else ['', '']
