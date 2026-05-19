@@ -918,7 +918,7 @@ const InitializationWizard = {
         if (this.step === 0) {
             if (!this.state.name || !this.state.avatar || !this.state.password || !this.state.confirm_password || !this.state.profile) {
                 if (typeof Notification !== 'undefined') {
-                    Notification.error('All fields are required except the SNS homepage.');
+                    Notification.error('All fields and avatar are required except your social links.');
                 }
                 return false;
             }
