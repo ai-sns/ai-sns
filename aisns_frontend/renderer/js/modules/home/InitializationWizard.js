@@ -220,16 +220,16 @@ const InitializationWizard = {
             if (draftRes && draftRes.success && draftRes.data) {
                 this.state = { ...this.state, ...draftRes.data };
             }
-            // Ensure LLM Server has a sensible default that matches the
-            // currently-selected LLM provider. The backend draft may store
-            // null/empty llm_server before the user reaches the LLM step.
-            // Only fill the default when no explicit value is present so we
-            // don't overwrite a user-edited custom endpoint.
-            if (!String(this.state.llm_server || '').trim()) {
-                this.state.llm_server = this.defaultServerForLlm(this.state.llm) || '';
-            }
         } catch (e) {
             console.warn('Failed to load init draft:', e);
+        }
+
+        // Ensure LLM Server has a sensible default that matches the
+        // currently-selected LLM provider. The backend draft may store
+        // null/empty llm_server before the user reaches the LLM step, and the
+        // draft request itself may fail on first launch.
+        if (!String(this.state.llm_server || '').trim()) {
+            this.state.llm_server = this.defaultServerForLlm(this.state.llm) || '';
         }
 
         try {

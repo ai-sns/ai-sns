@@ -7,7 +7,7 @@ requires:
   always: true
 runner:
   kind: node_file
-  target: static/run.js
+  target: scripts/run.js
 ---
 
 # Get Guangzhou Weather
