@@ -881,6 +881,9 @@ const InitializationWizard = {
                 item.addEventListener('click', async () => {
                     this._avatar3dScrollLeft = avatarGrid.scrollLeft;
                     const glbUrl = item.dataset.glbUrl;
+                    // Preserve other inputs the user has typed on this step
+                    // (Map API Key / Map ID / Map Type) before we re-render.
+                    this.collectFormValues();
                     this.state.avatar3d = glbUrl;
                     const hidden = root.querySelector('#initAvatar3d');
                     if (hidden) {
