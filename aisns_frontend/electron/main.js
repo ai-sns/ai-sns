@@ -823,7 +823,12 @@ function createTray() {
 
     const iconPath = path.join(__dirname, '../images/aisnsiconv2.png');
 
-    tray = new Tray(iconPath);
+    let trayIcon = nativeImage.createFromPath(iconPath);
+    if (process.platform === 'darwin' && trayIcon && !trayIcon.isEmpty()) {
+        trayIcon = trayIcon.resize({ width: 18, height: 18 });
+        trayIcon.setTemplateImage(true);
+    }
+    tray = new Tray((trayIcon && !trayIcon.isEmpty()) ? trayIcon : iconPath);
 
     const trayMenuIcons = {
         show: _createMenuItemIcon({

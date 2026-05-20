@@ -685,6 +685,32 @@ class SystemInitWizardService:
                 if not self._done_future.done():
                     self._done_future.set_result(payload)
 
+            def _schedule_fail(self, message: str, delay: float = 3.0) -> None:
+                """Schedule a delayed failure resolution.
+
+                slixmpp may transiently emit failure-like events (failed_auth /
+                disconnected / connection_failed) on platforms where the first
+                SASL mechanism is rejected before another one succeeds (observed
+                on macOS where SCRAM channel binding can fail before PLAIN
+                succeeds). We therefore never resolve a failure synchronously;
+                session_start cancels the pending fail task if auth eventually
+                succeeds.
+                """
+                if self._fail_task and not self._fail_task.done():
+                    return
+                async def _delayed_fail():
+                    try:
+                        await asyncio.sleep(delay)
+                        if not self._done_future.done():
+                            await self._resolve({"success": False, "message": message})
+                            try:
+                                self.disconnect(wait=False)
+                            except Exception:
+                                pass
+                    except asyncio.CancelledError:
+                        return
+                self._fail_task = asyncio.create_task(_delayed_fail())
+
             async def _on_session_start(self, _event):
                 try:
                     self.send_presence()
@@ -700,7 +726,7 @@ class SystemInitWizardService:
                     self.boundjid,
                     self.requested_jid,
                 )
-                if self._fail_task:
+                if self._fail_task and not self._fail_task.done():
                     self._fail_task.cancel()
                 await self._resolve({"success": True, "message": msg})
                 self.disconnect(wait=False)
@@ -710,18 +736,9 @@ class SystemInitWizardService:
                     "[InitWizard][XMPP Test] failed_auth | requested_jid=%s",
                     getattr(self, "requested_jid", None),
                 )
-                # Do not immediately abort; allow a short window for a second mechanism to succeed (as seen in SNS client)
-                if self._fail_task:
-                    self._fail_task.cancel()
-                async def _delayed_fail():
-                    try:
-                        await asyncio.sleep(3)
-                        if not self._done_future.done():
-                            await self._resolve({"success": False, "message": "XMPP authentication failed (invalid account or password)"})
-                            self.disconnect(wait=False)
-                    except asyncio.CancelledError:
-                        return
-                self._fail_task = asyncio.create_task(_delayed_fail())
+                self._schedule_fail(
+                    "XMPP authentication failed (invalid account or password)"
+                )
 
             async def _on_connection_failed(self, event):
                 detail = (str(event) or "").strip()
@@ -730,7 +747,7 @@ class SystemInitWizardService:
                     msg = f"{msg}({self._connected_target})"
                 if detail:
                     msg = f"{msg}: {detail}"
-                await self._resolve({"success": False, "message": msg})
+                self._schedule_fail(msg)
 
             async def _on_socket_error(self, event):
                 detail = (str(event) or "").strip()
@@ -739,14 +756,17 @@ class SystemInitWizardService:
                     msg = f"{msg}({self._connected_target})"
                 if detail:
                     msg = f"{msg}: {detail}"
-                await self._resolve({"success": False, "message": msg})
+                self._schedule_fail(msg)
 
             async def _on_disconnected(self, _event):
-                if not self._done_future.done():
-                    msg = "XMPP disconnected"
-                    if self._connected_target:
-                        msg = f"{msg}({self._connected_target})"
-                    self._done_future.set_result({"success": False, "message": msg})
+                # slixmpp may emit transient disconnect events between SASL
+                # mechanism attempts on some platforms (e.g. macOS). Defer the
+                # final failure via the same grace window so that a follow-up
+                # session_start can still mark the test as success.
+                msg = "XMPP disconnected"
+                if self._connected_target:
+                    msg = f"{msg}({self._connected_target})"
+                self._schedule_fail(msg)
 
             async def _on_stream_features(self, _event):
                 try:

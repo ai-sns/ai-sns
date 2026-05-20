@@ -328,10 +328,6 @@ function __snsDisposeThreeObject(obj) {
 
 async function __snsSetActivePlaceModel(url3d, placePosition) {
     const nextUrl = (url3d && typeof url3d === 'string') ? url3d.trim() : '';
-    if (nextUrl === __sns_active_place_model_url) {
-        return;
-    }
-
     const modelParams = (typeof parseModelParamsFromWebUrl === 'function')
         ? (parseModelParamsFromWebUrl(nextUrl) || {
             rotationX: 0,
@@ -350,10 +346,56 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
             animationIndex: 0
         };
 
+    let centerLat = null;
+    let centerLng = null;
+    try {
+        const rawPos = (placePosition && placePosition.place_position) ? placePosition.place_position : placePosition;
+        if (Array.isArray(rawPos) && rawPos.length >= 2) {
+            centerLng = rawPos[0];
+            centerLat = rawPos[1];
+        } else if (rawPos && typeof rawPos === 'object') {
+            centerLng = (rawPos.lng !== undefined) ? rawPos.lng : ((rawPos.lon !== undefined) ? rawPos.lon : null);
+            centerLat = (rawPos.lat !== undefined) ? rawPos.lat : null;
+        }
+    } catch (e) {
+    }
+
+    if (!Number.isFinite(Number(centerLat)) || !Number.isFinite(Number(centerLng))) {
+        try {
+            const c = map && typeof map.getCenter === 'function' ? map.getCenter() : null;
+            centerLat = c ? ((typeof c.lat === 'function') ? c.lat() : c.lat) : null;
+            centerLng = c ? ((typeof c.lng === 'function') ? c.lng() : c.lng) : null;
+        } catch (e) {
+        }
+    }
+
+    const geo = (Number.isFinite(Number(centerLat)) && Number.isFinite(Number(centerLng))) ? {
+        lat: Number(centerLat),
+        lng: Number(centerLng),
+        altitude: (modelParams && Number.isFinite(Number(modelParams.altitude))) ? Number(modelParams.altitude) : 0
+    } : null;
+
+    if (nextUrl === __sns_active_place_model_url) {
+        if (__sns_active_place_model && geo && typeof overlay !== 'undefined' && overlay && typeof overlay.latLngAltitudeToVector3 === 'function') {
+            try {
+                __sns_active_place_model.userData = __sns_active_place_model.userData || {};
+                __sns_active_place_model.userData.geo = { lat: geo.lat, lng: geo.lng, altitude: geo.altitude };
+                geoBoundObjects.add(__sns_active_place_model);
+                overlay.latLngAltitudeToVector3(geo, __sns_active_place_model.position);
+                if (typeof overlay.requestRedraw === 'function') {
+                    overlay.requestRedraw();
+                }
+            } catch (e) {
+            }
+        }
+        return;
+    }
+
     // Remove previous model
     try {
         if (__sns_active_place_model && typeof overlay !== 'undefined' && overlay && overlay.scene) {
             overlay.scene.remove(__sns_active_place_model);
+            try { geoBoundObjects.delete(__sns_active_place_model); } catch (e) {}
             __snsDisposeThreeObject(__sns_active_place_model);
         }
     } catch (e) {
@@ -385,31 +427,7 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
             return;
         }
 
-        // Place the model at the place coordinates (fallback to current map center)
-        let centerLat = null;
-        let centerLng = null;
-        try {
-            const rawPos = (placePosition && placePosition.place_position) ? placePosition.place_position : placePosition;
-            if (Array.isArray(rawPos) && rawPos.length >= 2) {
-                centerLng = rawPos[0];
-                centerLat = rawPos[1];
-            } else if (rawPos && typeof rawPos === 'object') {
-                centerLng = (rawPos.lng !== undefined) ? rawPos.lng : ((rawPos.lon !== undefined) ? rawPos.lon : null);
-                centerLat = (rawPos.lat !== undefined) ? rawPos.lat : null;
-            }
-        } catch (e) {
-        }
-
-        if (!Number.isFinite(Number(centerLat)) || !Number.isFinite(Number(centerLng))) {
-            try {
-                const c = map && typeof map.getCenter === 'function' ? map.getCenter() : null;
-                centerLat = c ? ((typeof c.lat === 'function') ? c.lat() : c.lat) : null;
-                centerLng = c ? ((typeof c.lng === 'function') ? c.lng() : c.lng) : null;
-            } catch (e) {
-            }
-        }
-
-        if (!Number.isFinite(Number(centerLat)) || !Number.isFinite(Number(centerLng))) {
+        if (!geo) {
             console.warn('[snsPlaceModel] map center not available; skip positioning');
             return;
         }
@@ -445,11 +463,6 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
         } catch (e) {
         }
 
-        const geo = {
-            lat: Number(centerLat),
-            lng: Number(centerLng),
-            altitude: (modelParams && Number.isFinite(Number(modelParams.altitude))) ? Number(modelParams.altitude) : 0
-        };
         try {
             overlay.latLngAltitudeToVector3(geo, model.position);
         } catch (e) {
@@ -457,6 +470,11 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
 
         model.name = 'snsPlaceModel';
         overlay.scene.add(model);
+        try {
+            model.userData = model.userData || {};
+            model.userData.geo = { lat: geo.lat, lng: geo.lng, altitude: geo.altitude };
+            geoBoundObjects.add(model);
+        } catch (e) {}
         __sns_active_place_model = model;
         __sns_active_place_model_url = nextUrl;
 

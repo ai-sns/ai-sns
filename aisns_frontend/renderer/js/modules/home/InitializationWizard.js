@@ -202,11 +202,31 @@ const InitializationWizard = {
         });
     },
 
+    // Map an LLM dropdown label to its default API endpoint URL. Returns ''
+    // for providers that require user-supplied endpoints (OpenAI Compatible).
+    defaultServerForLlm(llm) {
+        const urlMap = {
+            'OpenAI': 'https://api.openai.com/v1/chat/completions',
+            'Claude': 'https://api.anthropic.com/v1/messages',
+            'Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+            'OpenAI Compatible': ''
+        };
+        return Object.prototype.hasOwnProperty.call(urlMap, llm) ? urlMap[llm] : '';
+    },
+
     async loadInitialData() {
         try {
             const draftRes = await window.api.get('/api/system/init-wizard/draft');
             if (draftRes && draftRes.success && draftRes.data) {
                 this.state = { ...this.state, ...draftRes.data };
+            }
+            // Ensure LLM Server has a sensible default that matches the
+            // currently-selected LLM provider. The backend draft may store
+            // null/empty llm_server before the user reaches the LLM step.
+            // Only fill the default when no explicit value is present so we
+            // don't overwrite a user-edited custom endpoint.
+            if (!String(this.state.llm_server || '').trim()) {
+                this.state.llm_server = this.defaultServerForLlm(this.state.llm) || '';
             }
         } catch (e) {
             console.warn('Failed to load init draft:', e);
@@ -786,15 +806,9 @@ const InitializationWizard = {
         if (llmSelect) {
             llmSelect.addEventListener('change', () => {
                 const llm = llmSelect.value;
-                const urlMap = {
-                    'OpenAI': 'https://api.openai.com/v1/chat/completions',
-                    'Claude': 'https://api.anthropic.com/v1/messages',
-                    'Gemini': 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-                    'OpenAI Compatible': ''
-                };
                 const serverInput = root.querySelector('#initLlmServer');
-                if (serverInput && Object.prototype.hasOwnProperty.call(urlMap, llm)) {
-                    serverInput.value = urlMap[llm];
+                if (serverInput) {
+                    serverInput.value = this.defaultServerForLlm(llm);
                 }
             });
         }

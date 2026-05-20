@@ -9,6 +9,7 @@ sse-starlette
 # Database
 sqlalchemy
 aiosqlite
+greenlet
 
 # Data Validation
 pydantic

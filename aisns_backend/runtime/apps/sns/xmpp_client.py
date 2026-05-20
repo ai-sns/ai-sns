@@ -20,6 +20,7 @@ class XMPPClient(slixmpp.ClientXMPP):
         super().__init__(jid, password)
         self.db = db_session
         self.jid_str = jid
+        self.auth_mechanisms = {"PLAIN"}
 
         # Register event handlers
         self.add_event_handler("session_start", self.on_session_start)
