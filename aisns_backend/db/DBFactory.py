@@ -19,6 +19,7 @@ from db.models.km import KeyValue, KMCfg, KMData, NoteMng
 from db.models.tools import PluginMng, FunctionMng, McpMng, SkillMng
 from db.models.web import WebMng
 from db.models.system import SystemCfg, SystemInit
+from runtime.shared import debug_info
 DBPath = os.path.join(Path(__file__).resolve().parent, "db.sqlite")
 print("DBPath", DBPath)
 SQL_DATABASE_URL = fr"sqlite:///{DBPath}"

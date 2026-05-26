@@ -13,6 +13,7 @@ import os
 import json
 import logging
 from runtime.globals import global_env
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

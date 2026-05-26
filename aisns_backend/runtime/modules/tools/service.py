@@ -23,6 +23,7 @@ from .schemas import (
     SkillCreate, SkillUpdate, SkillResponse
 )
 from .tool_executor import get_tool_executor
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

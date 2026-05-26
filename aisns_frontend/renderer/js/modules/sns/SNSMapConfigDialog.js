@@ -188,7 +188,7 @@ export class SNSMapConfigDialog {
             helpLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const url = 'https://guide.ai-sns.org/map.html';
+                const url = 'https://guide.ai-sns.org/docs.html#map';
                 try {
                     if (window.electronAPI && typeof window.electronAPI.openUrl === 'function') {
                         window.electronAPI.openUrl(url);

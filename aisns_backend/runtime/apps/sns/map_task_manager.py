@@ -7,6 +7,7 @@ from runtime.shared.utils import generate_random_id
 import logging
 from runtime.shared.utils import robust_json_loads
 import re
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -262,8 +263,6 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
         self.process_list.append(new_process)
         self.current_process = new_process  # Update current_process to the newly added process
-        self.parent.ability_list[2]["status"] = "enabled"
-        self.parent.ability_list[0]["status"] = "enabled"
 
         return new_process
 
@@ -593,7 +592,7 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
             # Run tool check before review if enabled (only once per message)
             if (not tool_check_done) and bool(getattr(self.parent, "tool_check_before_review_enabled", False)):
-                asyncio.create_task(self._run_tool_check_then_review(
+                asyncio.create_task(self._run_tool_check_before_review(
                     talk_history_str=talk_history_str,
                     effective_talk_type=effective_talk_type,
                 ))
@@ -849,6 +848,8 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     "[XMPP-A2A][DIAG] inspect_command_forms: node=%s failed: %s",
                     node, e,
                 )
+                cmd["unavailable"] = True
+                cmd["unavailable_reason"] = f"inspect_exception:{e}"
                 return
             if isinstance(res, dict) and res.get("ok") and isinstance(res.get("form"), dict):
                 cmd["form"] = res["form"]
@@ -856,10 +857,28 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     "[XMPP-A2A][DIAG] inspect_command_forms: node=%s fields=%d",
                     node, len(res["form"].get("fields") or []),
                 )
+                return
+            # Non-ok or no form -> peer doesn't expose this node as an XMPP
+            # ad-hoc command. Mark unavailable so it's dropped from the
+            # whitelist + prompt and the LLM cannot invoke a phantom node.
+            err = ""
+            if isinstance(res, dict):
+                err = str(res.get("error") or "")
+            cmd["unavailable"] = True
+            cmd["unavailable_reason"] = f"inspect_not_ok:{err or 'unknown'}"
+            logger.warning(
+                "[XMPP-A2A] inspect_command_forms: node=%s marked unavailable (reason=%s)",
+                node, cmd["unavailable_reason"],
+            )
 
         await asyncio.gather(*(_one(c) for c in commands), return_exceptions=True)
 
-    def _build_a2a_tool_guidance(self, card_json: str, discovered_commands: list = None) -> str:
+    def _build_a2a_tool_guidance(
+        self,
+        card_json: str,
+        discovered_commands: list = None,
+        xmpp_unreachable: bool = False,
+    ) -> str:
         """Build an A2A tool usage guidance section for the LLM prompt.
 
         Dynamically lists discovered ad-hoc commands and shows the single
@@ -868,6 +887,12 @@ I am participating in a virtual social game based on Google Maps. Players role-p
         Args:
             card_json: The agent card JSON string
             discovered_commands: List from discover_peer_adhoc_commands (optional)
+            xmpp_unreachable: When True, the peer's XMPP ad-hoc surface was
+                probed and every node failed (e.g. feature-not-implemented /
+                item-not-found from a generic XMPP client like Gajim sharing
+                the JID). In this state the Option B section is REPLACED by
+                a strong "do not call a2a_xmpp_adhoc" notice, while Option A
+                (HTTP) and Option C (HTTP JSON-RPC) remain usable.
 
         Returns:
             A guidance string, or empty string if no transport available
@@ -891,12 +916,24 @@ I am participating in a virtual social game based on Google Maps. Players role-p
         if not a2a_url and not has_jid:
             return ""
 
+        if xmpp_unreachable:
+            top_instruction = (
+                "If the peer's most recent message asks you to invoke a peer skill "
+                "(e.g. exchange business card, send a greeting), call it via Option A "
+                "(run_doc_skill / a2a_call over HTTP) or Option C (a2a_jsonrpc_call). "
+                "DO NOT call a2a_xmpp_adhoc — the peer's XMPP ad-hoc surface was probed "
+                "and is currently unreachable. DO NOT call unrelated tools (such as get_system_info)."
+            )
+        else:
+            top_instruction = (
+                "If the peer's most recent message asks you to use an A2A / XMPP ad-hoc command "
+                "(e.g. exchange business card, invoke a discovered skill), you MUST call the "
+                "a2a_xmpp_adhoc tool below with the matching command_node — DO NOT reply with text "
+                "and DO NOT call unrelated tools (such as get_system_info)."
+            )
         parts = [
             "\n--- A2A Tool Available (HIGH PRIORITY) ---",
-            "If the peer's most recent message asks you to use an A2A / XMPP ad-hoc command "
-            "(e.g. exchange business card, invoke a discovered skill), you MUST call the "
-            "a2a_xmpp_adhoc tool below with the matching command_node — DO NOT reply with text "
-            "and DO NOT call unrelated tools (such as get_system_info).",
+            top_instruction,
         ]
 
         # HTTP transport (run_doc_skill)
@@ -957,7 +994,20 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                         pass
 
         # XMPP transport — generic ad-hoc commands
-        if has_jid:
+        if has_jid and xmpp_unreachable:
+            # Peer's XMPP ad-hoc surface was probed and every node failed.
+            # Tell the LLM in no uncertain terms NOT to invoke a2a_xmpp_adhoc.
+            parts.append(
+                "Option B — XMPP Ad-hoc Commands: UNAVAILABLE.\n"
+                f"The peer ({peer_jid}) has NO working XMPP ad-hoc command right now "
+                "(every probed node returned feature-not-implemented / item-not-found, "
+                "typically because only a generic XMPP client like Gajim is currently "
+                "online under this JID, not the A2A peer process).\n"
+                "DO NOT call a2a_xmpp_adhoc — every call will fail. "
+                "If the peer asks to invoke a skill, use Option A (run_doc_skill / a2a_call "
+                "over HTTP) or Option C (a2a_jsonrpc_call) instead."
+            )
+        elif has_jid:
             parts.append(
                 f"Option B — XMPP Ad-hoc Commands (peer_jid: {peer_jid}):\n"
                 "Use a2a_xmpp_adhoc to invoke any ad-hoc command on the peer.\n"
@@ -1008,29 +1058,69 @@ I am participating in a virtual social game based on Google Maps. Players role-p
     async def _fetch_peer_agent_card(self) -> str:
         """Fetch the agent card JSON from the peer.
 
-        Priority:
-          1. HTTP GET via the fetch_agent_card skill (uses a2a_endpoint)
-          2. XMPP PEP fallback — read the peer's urn:xmpp:a2a:agentcard node
+        Strategy — merge both sources:
+          1. If a2a_endpoint is set, fetch the HTTP agent card as the primary.
+          2. Always attempt XMPP PEP to get the peer's published card (which
+             includes ad-hoc command skills merged by their XMPP layer).
+          3. Merge PEP skills into the HTTP card (de-duplicated by skill id/node).
+             If HTTP card is unavailable, fall back to PEP card alone.
+
+        Field-source decision when both sources succeed:
+          - Top-level fields (name, description, url, version, capabilities, ...)
+            come from the HTTP card. Rationale: HTTP is treated as the
+            authoritative "service contract" maintained by the peer's
+            a2aserver; PEP is treated as the "live runtime catalog" whose
+            primary value-add is its skills[] (ad-hoc commands registered
+            by the peer's XMPP layer).
+          - skills[] is the UNION of HTTP skills + PEP skills, de-duplicated
+            by id / command_node / node, preserving HTTP entries first.
         """
         active = getattr(self.parent, "active_conversation", None) or {}
+        http_card_dict: Optional[Dict[str, Any]] = None
+        pep_card_dict: Optional[Dict[str, Any]] = None
 
-        # ── Attempt 1: HTTP via a2a_endpoint ────────────────────────────────
+        # ── Source 1: HTTP via a2a_endpoint ────────────────────────────────
         endpoint = (active.get("a2a_endpoint") or "").strip()
+        logger.info("_fetch_peer_agent_card: HTTP attempt endpoint=%r", endpoint or "<empty>")
+        if not endpoint:
+            logger.warning("_fetch_peer_agent_card: HTTP skipped — a2a_endpoint is empty in active_conversation")
         if endpoint:
             try:
                 from runtime.modules.skills_registry.service import get_docskills_service
                 svc = get_docskills_service()
                 result = await svc.run_skill("fetch_agent_card", {"url": endpoint})
 
+                # ── DIAG: dump the full run_skill envelope so nothing can hide ──
+                _diag_success = bool(result and result.get("success"))
+                _diag_result_keys = list(result.keys()) if isinstance(result, dict) else type(result).__name__
+                _diag_inner = (result.get("result") if isinstance(result, dict) else None) or {}
+                _diag_inner_keys = list(_diag_inner.keys()) if isinstance(_diag_inner, dict) else type(_diag_inner).__name__
+                _diag_parsed = _diag_inner.get("parsed") if isinstance(_diag_inner, dict) else None
+                _diag_stdout = (_diag_inner.get("stdout") if isinstance(_diag_inner, dict) else "") or ""
+                _diag_stderr = (_diag_inner.get("stderr") if isinstance(_diag_inner, dict) else "") or ""
+                logger.info(
+                    "_fetch_peer_agent_card: run_skill envelope success=%s result_keys=%s inner_keys=%s "
+                    "parsed_type=%s parsed_keys=%s stdout_len=%d stderr_len=%d",
+                    _diag_success,
+                    _diag_result_keys,
+                    _diag_inner_keys,
+                    type(_diag_parsed).__name__,
+                    list(_diag_parsed.keys()) if isinstance(_diag_parsed, dict) else None,
+                    len(_diag_stdout),
+                    len(_diag_stderr),
+                )
+                if _diag_stdout:
+                    logger.info("_fetch_peer_agent_card: stdout (full) = %s", _diag_stdout)
+                if _diag_stderr:
+                    logger.warning("_fetch_peer_agent_card: stderr (full) = %s", _diag_stderr)
+
                 if not result or not result.get("success"):
                     error_msg = result.get("error", "unknown") if result else "no result"
-                    logger.debug("fetch_agent_card skill failed: %s", error_msg)
+                    logger.warning("fetch_agent_card skill failed: %s", error_msg)
                 else:
-                    # The python_file runner puts parsed stdout JSON into result.result.parsed
                     inner = result.get("result") or {}
                     parsed = inner.get("parsed") or {}
                     if not isinstance(parsed, dict):
-                        # Fallback: try parsing stdout directly
                         stdout = (inner.get("stdout") or "").strip()
                         if stdout:
                             try:
@@ -1038,20 +1128,40 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                             except Exception:
                                 parsed = {}
 
-                    if parsed.get("ok"):
-                        card = (parsed.get("card") or "").strip()
-                        source = parsed.get("source", "")
-                        if card:
-                            logger.debug("Agent card fetched via HTTP skill (source=%s, %d chars)", source, len(card))
-                            return card
+                    if not parsed:
+                        logger.warning(
+                            "_fetch_peer_agent_card: parsed is empty after stdout-recovery; "
+                            "this is why HTTP card is silently dropped. inner=%r", _diag_inner,
+                        )
 
+                    if parsed.get("ok"):
+                        card_str = (parsed.get("card") or "").strip()
+                        if card_str:
+                            try:
+                                http_card_dict = json.loads(card_str)
+                            except Exception as parse_err:
+                                http_card_dict = None
+                                logger.warning(
+                                    "_fetch_peer_agent_card: HTTP card JSON parse failed "
+                                    "(likely truncated or malformed): %s; len=%d, head=%s, tail=%s",
+                                    parse_err,
+                                    len(card_str),
+                                    card_str[:200],
+                                    card_str[-200:],
+                                )
+                            if http_card_dict:
+                                logger.info(
+                                    "Agent card fetched via HTTP (source=%s, %d chars)",
+                                    parsed.get("source", ""), len(card_str),
+                                )
+                                debug_info(f"The http jsonrpc a2a agent card:\n{card_str}",1,"Get Agent Card.")
                     skill_error = parsed.get("error", "")
                     if skill_error:
-                        logger.debug("fetch_agent_card skill returned error: %s", skill_error)
+                        logger.warning("fetch_agent_card skill returned error: %s", skill_error)
             except Exception as e:
                 logger.warning("_fetch_peer_agent_card HTTP skill error: %s", e)
 
-        # ── Attempt 2: XMPP PEP fallback ───────────────────────────────────
+        # ── Source 2: XMPP PEP ────────────────────────────────────────────
         peer_jid = (active.get("account") or "").strip()
         if peer_jid and "@" in peer_jid:
             try:
@@ -1060,23 +1170,70 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                 if client and client.is_client_connected():
                     a2a_mgr = getattr(client, "_a2a_manager", None)
                     if a2a_mgr is not None:
-                        card_dict = await a2a_mgr.fetch_peer_agent_card_pep(peer_jid)
-                        if card_dict and isinstance(card_dict, dict):
-                            card_str = json.dumps(card_dict, ensure_ascii=False)
+                        pep_card_dict = await a2a_mgr.fetch_peer_agent_card_pep(peer_jid)
+                        if pep_card_dict:
                             logger.info(
-                                "Agent card fetched via XMPP PEP from %s (%d chars)",
+                                "Agent card fetched via XMPP PEP from %s",
                                 peer_jid,
-                                len(card_str),
                             )
-                            return card_str
+                            debug_info(f"Agent card fetched via XMPP PEP:\n{json.dumps(pep_card_dict, ensure_ascii=False)}", 2, "Get Agent Card.")
                     else:
-                        logger.debug("XMPP A2A manager not initialized, skipping PEP fallback")
+                        logger.warning("XMPP A2A manager not initialized, skipping PEP")
                 else:
-                    logger.debug("XMPP client not connected, skipping PEP fallback")
+                    logger.warning("XMPP client not connected, skipping PEP")
             except Exception as e:
-                logger.warning("_fetch_peer_agent_card XMPP PEP fallback error: %s", e)
+                logger.warning("_fetch_peer_agent_card XMPP PEP error: %s", e)
 
-        return ""
+        # ── Merge ─────────────────────────────────────────────────────────
+        if http_card_dict and pep_card_dict:
+            # Merge PEP skills into HTTP card (de-duplicate by id/command_node)
+            http_skills = http_card_dict.get("skills") or []
+            pep_skills = pep_card_dict.get("skills") or []
+            if pep_skills:
+                existing_ids = set()
+                for s in http_skills:
+                    if isinstance(s, dict):
+                        for key in ("id", "command_node", "node"):
+                            v = s.get(key)
+                            if v:
+                                existing_ids.add(v)
+                merged_count = 0
+                for ps in pep_skills:
+                    if not isinstance(ps, dict):
+                        continue
+                    ps_id = ps.get("id") or ps.get("command_node") or ps.get("node") or ""
+                    if ps_id and ps_id not in existing_ids:
+                        http_skills.append(ps)
+                        existing_ids.add(ps_id)
+                        merged_count += 1
+                if merged_count > 0:
+                    http_card_dict["skills"] = http_skills
+                    logger.info(
+                        "Merged %d PEP skills into HTTP agent card (total skills=%d)",
+                        merged_count, len(http_skills),
+                    )
+            final_card = http_card_dict
+            source_label = "HTTP+PEP"
+        elif http_card_dict:
+            final_card = http_card_dict
+            source_label = "HTTP"
+        elif pep_card_dict:
+            final_card = pep_card_dict
+            source_label = "PEP"
+        else:
+            logger.info("_fetch_peer_agent_card: no agent card available (HTTP and PEP both unavailable)")
+            return ""
+
+        skills_count = len(final_card.get("skills") or [])
+        logger.info(
+            "_fetch_peer_agent_card: final card source=%s name=%s skills=%d",
+            source_label,
+            final_card.get("name", "(unknown)"),
+            skills_count,
+        )
+
+
+        return json.dumps(final_card, ensure_ascii=False)
 
     @staticmethod
     def _extract_a2a_call_json(raw_response: str):
@@ -1449,14 +1606,35 @@ I am participating in a virtual social game based on Google Maps. Players role-p
         cleaned = (raw_response[:start] + raw_response[end:]).strip()
         return (adhoc_text, cleaned)
 
-    async def _run_tool_check_then_review(self, *, talk_history_str: str, effective_talk_type: str):
+    async def _run_tool_check_before_review(self, *, talk_history_str: str, effective_talk_type: str):
         """Run tool check before conversation review using chat_with_agent(use_tools=True).
         Runs outside the _process_lock. On completion, re-dispatches conversation_message_received
         with the enriched talk_history_str so the review proceeds normally."""
         logger.info("[XMPP-A2A][DIAG] tool_check_review: ENTER talk_type=%s history_len=%d", effective_talk_type, len(talk_history_str or ""))
+
+        # === STEP 1: function entry ==========================================
+        # Triggered by process_task(event="conversation_message_received") when
+        # tool_check_before_review_enabled=True and the message has not yet
+        # been processed by tool-check. We run OUTSIDE _process_lock and will
+        # eventually re-dispatch the same event with _tool_check_done=True.
+        debug_info(
+            "STEP 1 - ENTER _run_tool_check_before_review\n"
+            f"effective_talk_type = {effective_talk_type!r}  (sell|buy|communication|'')\n"
+            f"talk_history_str.len = {len(talk_history_str or '')}\n"
+            f"talk_history_str =\n{(talk_history_str or '')!r}",
+            sep=1, tag="RunToolBeforeReview",
+        )
+
         # Safety: skip if no active conversation account (nothing meaningful to check)
         active = getattr(self.parent, "active_conversation", None) or {}
         if not (active.get("account") or "").strip():
+            # === STEP 2a: early-exit branch (no active peer) =================
+            debug_info(
+                "STEP 2a - EARLY EXIT: no active_conversation.account\n"
+                "Nothing meaningful to check; re-dispatch the review event\n"
+                "with _tool_check_done=True and an unchanged talk_history.",
+                sep=2, tag="RunToolBeforeReview",
+            )
             logger.info("[XMPP-A2A] tool_check_review: no active conversation account, skipping tool check")
             asyncio.create_task(self.process_task(
                 event="conversation_message_received",
@@ -1466,6 +1644,75 @@ I am participating in a virtual social game based on Google Maps. Players role-p
             return
         logger.info("[XMPP-A2A][DIAG] tool_check_review: active_conversation account=%s a2a_endpoint=%s", active.get("account"), active.get("a2a_endpoint"))
 
+        # === STEP 2: active_conversation snapshot ===========================
+        debug_info(
+            "STEP 2 - ACTIVE CONVERSATION SNAPSHOT\n"
+            f"peer account (XMPP bare JID) = {active.get('account')!r}\n"
+            f"a2a_endpoint (HTTP A2A url)   = {active.get('a2a_endpoint')!r}\n"
+            f"talk_type (from active_conv)  = {active.get('talk_type')!r}\n"
+            f"nickname                      = {active.get('nick_name')!r}",
+            sep=2, tag="RunToolBeforeReview",
+        )
+
+        # === STEP 3: RAW peer person_data lookup ============================
+        # active_conversation only stores a SUBSET of the peer's data
+        # (account, nation_id, nick_name, a2a_endpoint, talk_type, objective,
+        # started_at). To see the full raw record we look the peer up in
+        # get_people_list() via _get_people_by_account(account). Result:
+        #   - raw_person_data: full dict from people list, or None
+        #     (None => peer is not in our current people_list snapshot)
+        #   - We also flag which keys look like agent-card metadata so
+        #     you can spot whether the people list already carries any
+        #     of the A2A discovery info that STEP 7 will later re-fetch
+        #     from PEP/HTTP.
+        _peer_account_for_lookup = (active.get("account") or "").strip()
+        _raw_person_data = None
+        _people_list_size = -1
+        try:
+            _people_list = self.parent.get_people_list() if hasattr(self.parent, "get_people_list") else []
+            _people_list_size = len(_people_list or [])
+        except Exception:
+            _people_list_size = -1
+        try:
+            if hasattr(self.parent, "_get_people_by_account"):
+                _raw_person_data = self.parent._get_people_by_account(_peer_account_for_lookup)
+        except Exception as _lookup_err:
+            logger.info("[RunToolBeforeReview] STEP 3 person lookup failed: %s", _lookup_err, exc_info=True)
+
+        _agent_card_like_keys = []
+        try:
+            if isinstance(_raw_person_data, dict):
+                _agent_card_marker_substrings = ("agent_card", "a2a", "skill", "card", "capabilit")
+                for _k in _raw_person_data.keys():
+                    _kl = str(_k).lower()
+                    if any(_m in _kl for _m in _agent_card_marker_substrings):
+                        _agent_card_like_keys.append(_k)
+        except Exception:
+            _agent_card_like_keys = []
+
+        try:
+            _raw_person_json = (
+                json.dumps(_raw_person_data, ensure_ascii=False, indent=2, default=str)
+                if _raw_person_data is not None else "null"
+            )
+        except Exception as _enc_err:
+            _raw_person_json = f"<json.dumps failed: {_enc_err!r}; repr={_raw_person_data!r}>"
+
+        debug_info(
+            "STEP 3 - PEER PERSON_DATA (raw record from people list)\n"
+            f"chatting_with.account           = {_peer_account_for_lookup!r}   # XMPP bare JID we are currently talking to\n"
+            f"chatting_with.nation_id         = {(active.get('nation_id') or '')!r}\n"
+            f"chatting_with.nick_name         = {(active.get('nick_name') or '')!r}\n"
+            f"people_list.size                = {_people_list_size}\n"
+            f"retrieved_from_people_list      = {_raw_person_data is not None}\n"
+            f"person_data.keys                = {list(_raw_person_data.keys()) if isinstance(_raw_person_data, dict) else None}\n"
+            f"agent_card_like_keys_present    = {_agent_card_like_keys}\n"
+            "--- RAW person_data JSON (full) ---\n"
+            f"{_raw_person_json}\n"
+            "--- END RAW person_data ---",
+            sep=3, tag="RunToolBeforeReview",
+        )
+
         tool_context = ""
         # Hoist key variables so they are always accessible in result processing
         discovered_commands: list = []
@@ -1474,9 +1721,42 @@ I am participating in a virtual social game based on Google Maps. Players role-p
         a2a_mgr = None
         is_remote: bool = self.parent.is_current_agent_remote()
 
+        # === STEP 4: hoisted state + agent_type ============================
+        # agent_type drives two things downstream:
+        #   - is_remote=True  -> use_tools=False on chat_with_agent (the remote
+        #     LLM cannot directly invoke local tools); we instead inject
+        #     remote-agent JSON protocols so it can ASK the local side to
+        #     execute A2A ad-hoc or JSON-RPC calls, and we parse+execute them
+        #     ourselves in _execute_remote_* helpers.
+        #   - is_remote=False -> use_tools=True; the local agent runs tools
+        #     itself in the same chat round.
+        debug_info(
+            "STEP 4 - HOISTED STATE + AGENT TYPE\n"
+            f"peer_jid              = {peer_jid!r}\n"
+            f"is_remote (agent_type)= {is_remote}   # True=remote agent, False=local agent\n"
+            f"discovered_commands   = {discovered_commands}  (filled if should_discover)\n"
+            f"jsonrpc_skills        = {jsonrpc_skills}       (filled if card has http_jsonrpc)\n"
+            f"a2a_mgr               = {a2a_mgr}    (set later if XMPP client is connected)",
+            sep=4, tag="RunToolBeforeReview",
+        )
+
         try:
             tool_prompt = (get_prompt_by_title("__tool_check_before_review__") or "").strip()
             logger.info("[XMPP-A2A][DIAG] tool_check_review: prompt_template loaded len=%d", len(tool_prompt))
+
+            # === STEP 5: load base prompt template ==========================
+            # This is the SYSTEM-LEVEL instruction telling the LLM how to
+            # behave during "tool check before review". It is stored as a
+            # prompt row (title=__tool_check_before_review__) in the DB and
+            # is the FIRST section of the final LLM question.
+            debug_info(
+                "STEP 5 - LOAD BASE PROMPT TEMPLATE (__tool_check_before_review__)\n"
+                f"tool_prompt.len = {len(tool_prompt)}\n"
+                f"tool_prompt =\n{tool_prompt}\n"
+                "BRANCH: empty -> skip LLM call entirely, just re-dispatch.",
+                sep=5, tag="RunToolBeforeReview",
+            )
+
             if not tool_prompt:
                 logger.warning("Tool check prompt __tool_check_before_review__ not found, skipping")
                 # Fall through to re-dispatch
@@ -1485,8 +1765,35 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                 agent_card_section = ""
                 agent_card_enabled = bool(getattr(self.parent, "agent_card_before_review_enabled", False))
                 logger.info("[XMPP-A2A][DIAG] tool_check_review: agent_card_before_review_enabled=%s", agent_card_enabled)
-                # Discovery gating: always discover for remote agents (whitelist is security-critical)
-                should_discover = agent_card_enabled or is_remote
+                # Discovery is driven SOLELY by the user-facing toggle
+                # "agent_card_before_review_enabled". Remote agents are
+                # trusted, so no forced discovery is needed for them.
+                should_discover = agent_card_enabled
+
+                # === STEP 6: discovery gating ==============================
+                # When agent_card_before_review_enabled is False, we
+                # completely skip:
+                #   - peer agent card fetching (HTTP + XMPP PEP)
+                #   - peer ad-hoc command discovery
+                #   - injection of agent-card / A2A-tool-guidance into the
+                #     prompt (so the LLM never learns about peer skills)
+                #   - injection of a2a_call / jsonrpc_call protocols into
+                #     the remote-agent prompt (discovered_commands and
+                #     jsonrpc_skills both stay [], cascading the gate)
+                # In other words, this single flag is the master switch
+                # for "do we interact with the peer's A2A surface at all".
+                debug_info(
+                    "STEP 6 - DISCOVERY GATING\n"
+                    f"agent_card_before_review_enabled = {agent_card_enabled}\n"
+                    f"is_remote                        = {is_remote}\n"
+                    f"=> should_discover               = {should_discover}\n"
+                    "If False -> skip peer card fetch / command discovery /\n"
+                    "             A2A tool-guidance injection / remote\n"
+                    "             a2a_call & jsonrpc_call protocols. The\n"
+                    "             LLM only sees the base prompt + history.",
+                    sep=6, tag="RunToolBeforeReview",
+                )
+
                 if should_discover:
                     logger.info("[XMPP-A2A] tool_check_review: fetching peer agent card before review")
                     try:
@@ -1494,6 +1801,23 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                         _t_fetch = _diag_time.monotonic()
                         card_json = await self._fetch_peer_agent_card()
                         logger.info("[XMPP-A2A][DIAG] tool_check_review: _fetch_peer_agent_card returned len=%d elapsed=%.2fs", len(card_json or ""), _diag_time.monotonic() - _t_fetch)
+
+                        # === STEP 7: peer agent card fetched ===============
+                        # _fetch_peer_agent_card merges TWO sources:
+                        #   HTTP via active_conversation.a2a_endpoint (uses
+                        #     the fetch_agent_card doc skill) -> authoritative
+                        #     top-level fields + base skills.
+                        #   XMPP PEP node urn:xmpp:a2a:agentcard            ->
+                        #     live runtime skills (peer's ad-hoc commands).
+                        # Result is a JSON string of the merged card, or "" if
+                        # both sources failed. The card drives both the LLM
+                        # context AND the security whitelist downstream.
+                        debug_info(
+                            "STEP 7 - FETCH PEER AGENT CARD\n"
+                            f"card_json.len = {len(card_json or '')}\n"
+                            f"card_json =\n{(card_json or '')}",
+                            sep=7, tag="RunToolBeforeReview",
+                        )
                         # Optionally render the agent card section
                         if card_json:
                             agent_card_section = (
@@ -1504,6 +1828,17 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                             logger.info("[XMPP-A2A] tool_check_review: peer agent card fetched (%d chars)", len(card_json))
                         else:
                             logger.info("[XMPP-A2A] tool_check_review: no peer agent card available")
+
+                        # === STEP 8: agent_card_section assembled ==========
+                        # This is the first sub-section appended after the
+                        # base prompt. It hands the LLM a structured view
+                        # of who the peer is and what skills they expose.
+                        debug_info(
+                            "STEP 8 - AGENT CARD SECTION (LLM prompt fragment #1)\n"
+                            f"agent_card_section.len = {len(agent_card_section)}\n"
+                            f"agent_card_section =\n{agent_card_section}",
+                            sep=8, tag="RunToolBeforeReview",
+                        )
 
                         # Discover peer ad-hoc commands even if agent card is unavailable
                         try:
@@ -1522,6 +1857,33 @@ I am participating in a virtual social game based on Google Maps. Players role-p
 
                         logger.info("[XMPP-A2A][DIAG] tool_check_review: discovered_commands count=%d nodes=%s", len(discovered_commands), [c.get("node") for c in discovered_commands])
 
+                        # === STEP 9: peer ad-hoc commands discovered =======
+                        # discover_peer_adhoc_commands merges:
+                        #   1) agent_card.skills[]              (declared)
+                        #   2) XEP-0030 disco#items on the commands node
+                        #   3) XEP-0128 extended info per command (descriptions)
+                        # Each entry: {node, name, description, source}.
+                        # This list is also the WHITELIST validated against
+                        # later when the remote agent issues a2a_call JSON.
+                        try:
+                            _cmd_summary = [
+                                {
+                                    "node": c.get("node"),
+                                    "name": c.get("name"),
+                                    "source": c.get("source"),
+                                    "description": c.get("description") or "",
+                                }
+                                for c in (discovered_commands or [])
+                            ]
+                        except Exception:
+                            _cmd_summary = discovered_commands
+                        debug_info(
+                            "STEP 9 - DISCOVERED AD-HOC COMMANDS (security whitelist)\n"
+                            f"count = {len(discovered_commands)}\n"
+                            f"summary =\n{json.dumps(_cmd_summary, ensure_ascii=False, indent=2)}",
+                            sep=9, tag="RunToolBeforeReview",
+                        )
+
                         # Extract jsonrpc skills from agent card for remote hybrid channel
                         try:
                             card_dict_for_skills = json.loads(card_json) if card_json else {}
@@ -1534,6 +1896,31 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                         if jsonrpc_skills:
                             logger.info("[A2A-JSONRPC][DIAG] tool_check_review: found %d jsonrpc skills in card", len(jsonrpc_skills))
 
+                        # === STEP 10: JSON-RPC skills extracted =============
+                        # Subset of agent_card.skills[] where transport ==
+                        # "http_jsonrpc". These are direct HTTP JSON-RPC 2.0
+                        # endpoints. For remote-agent flows we let the LLM
+                        # request them via a jsonrpc_call JSON block, and
+                        # we execute them ourselves in step 21.
+                        try:
+                            _rpc_summary = [
+                                {
+                                    "id": s.get("id"),
+                                    "endpoint": s.get("endpoint"),
+                                    "method": s.get("method"),
+                                    "params_schema": s.get("params_schema"),
+                                }
+                                for s in (jsonrpc_skills or [])
+                            ]
+                        except Exception:
+                            _rpc_summary = jsonrpc_skills
+                        debug_info(
+                            "STEP 10 - HTTP JSON-RPC SKILLS EXTRACTED FROM CARD\n"
+                            f"count = {len(jsonrpc_skills)}\n"
+                            f"summary =\n{json.dumps(_rpc_summary, ensure_ascii=False, indent=2)}",
+                            sep=10, tag="RunToolBeforeReview",
+                        )
+
                         # Inspect each discovered command's form schema so the LLM
                         # knows exactly which fields are required/optional.
                         try:
@@ -1542,8 +1929,107 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                         except Exception as insp_err:
                             logger.info("[XMPP-A2A][DIAG] tool_check_review: command form inspection failed: %s", insp_err, exc_info=True)
 
+                        # Drop any node that inspection proved unreachable
+                        # (e.g. item-not-found / feature-not-implemented):
+                        # peer doesn't actually expose it as an XMPP ad-hoc
+                        # command right now. Keeping it in the list would
+                        # mislead the LLM into invoking a phantom node.
+                        xmpp_unreachable = False
+                        if discovered_commands:
+                            _before = len(discovered_commands)
+                            _dropped = [c.get("node") for c in discovered_commands if c.get("unavailable")]
+                            discovered_commands = [c for c in discovered_commands if not c.get("unavailable")]
+                            if _dropped:
+                                logger.warning(
+                                    "[XMPP-A2A] tool_check_review: dropped %d unavailable command(s) from whitelist: %s (kept %d/%d)",
+                                    len(_dropped), _dropped, len(discovered_commands), _before,
+                                )
+                            # If we PROBED at least one node and EVERY node
+                            # failed, the peer's XMPP ad-hoc surface is
+                            # unreachable (typical case: only a non-A2A
+                            # client like Gajim is online under this JID).
+                            # Tell the LLM explicitly NOT to call
+                            # a2a_xmpp_adhoc and also sanitize the card so
+                            # phantom command_node/form_fields don't leak in
+                            # via the agent card JSON.
+                            if _before > 0 and len(discovered_commands) == 0:
+                                xmpp_unreachable = True
+                                logger.warning(
+                                    "[XMPP-A2A] tool_check_review: peer XMPP ad-hoc surface is unreachable "
+                                    "(all %d probed nodes failed); will instruct LLM to avoid a2a_xmpp_adhoc.",
+                                    _before,
+                                )
+                                # Sanitize card_json: drop XMPP-only skills
+                                # and strip command_node/form_fields from any
+                                # remaining ones, leaving HTTP / JSON-RPC
+                                # transports usable.
+                                try:
+                                    _card_obj = json.loads(card_json) if card_json else {}
+                                    if isinstance(_card_obj, dict):
+                                        _orig_skills = _card_obj.get("skills") or []
+                                        _kept = []
+                                        for _sk in _orig_skills:
+                                            if not isinstance(_sk, dict):
+                                                continue
+                                            _sid = str(_sk.get("id") or "")
+                                            _transport = str(_sk.get("transport") or "").lower()
+                                            _has_xmpp_node = bool(_sk.get("command_node") or _sk.get("xmpp_adhoc_node") or _sk.get("adhoc_node"))
+                                            _is_xmpp_only = (
+                                                _sid.startswith("urn:xmpp:")
+                                                or _transport in ("xmpp", "xmpp_adhoc", "adhoc")
+                                                or (_has_xmpp_node and not _transport)
+                                            )
+                                            if _is_xmpp_only:
+                                                continue
+                                            _clean = {k: v for k, v in _sk.items() if k not in ("command_node", "xmpp_adhoc_node", "adhoc_node", "form_fields")}
+                                            _kept.append(_clean)
+                                        _card_obj["skills"] = _kept
+                                        card_json = json.dumps(_card_obj, ensure_ascii=False)
+                                        # Rebuild the displayed agent_card_section so STEP 8 / final prompt
+                                        # reflect the sanitized card (otherwise the LLM still sees the original
+                                        # XMPP nodes in the card JSON and may try to call them).
+                                        if agent_card_section:
+                                            agent_card_section = (
+                                                "\n--- Peer Agent Card ---\n"
+                                                + card_json
+                                                + "\n--- End Peer Agent Card ---\n"
+                                            )
+                                        logger.warning(
+                                            "[XMPP-A2A] tool_check_review: sanitized card_json: kept %d non-XMPP skill(s) of %d",
+                                            len(_kept), len(_orig_skills),
+                                        )
+                                except Exception as _sani_err:
+                                    logger.warning("[XMPP-A2A] tool_check_review: card sanitization failed: %s", _sani_err)
+
+                        # === STEP 11: form schemas attached ================
+                        # _inspect_command_forms mutates each cmd dict with
+                        # cmd["form"] = {title, fields:[{var,type,label,
+                        # required,value}]} when XEP-0004 inspection succeeds.
+                        # The LLM uses this to fill form_data correctly
+                        # without trial-and-error.
+                        try:
+                            _form_summary = [
+                                {
+                                    "node": c.get("node"),
+                                    "has_form": isinstance(c.get("form"), dict),
+                                    "field_count": len(((c.get("form") or {}).get("fields") or [])),
+                                }
+                                for c in (discovered_commands or [])
+                            ]
+                        except Exception:
+                            _form_summary = []
+                        debug_info(
+                            "STEP 11 - COMMAND FORM SCHEMAS PROBED (XEP-0004)\n"
+                            f"per-command form availability =\n{json.dumps(_form_summary, ensure_ascii=False, indent=2)}",
+                            sep=11, tag="RunToolBeforeReview",
+                        )
+
                         # Build A2A tool guidance; inject whether or not card_json exists
-                        a2a_tool_section = self._build_a2a_tool_guidance(card_json or "", discovered_commands)
+                        a2a_tool_section = self._build_a2a_tool_guidance(
+                            card_json or "",
+                            discovered_commands,
+                            xmpp_unreachable=xmpp_unreachable,
+                        )
                         logger.info("[XMPP-A2A][DIAG] tool_check_review: a2a_tool_section_len=%d", len(a2a_tool_section or ""))
                         if a2a_tool_section:
                             if agent_card_section:
@@ -1551,6 +2037,21 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                             else:
                                 agent_card_section = a2a_tool_section
                             logger.info("[XMPP-A2A] tool_check_review: A2A tool guidance injected into prompt")
+
+                        # === STEP 12: A2A tool guidance built ==============
+                        # _build_a2a_tool_guidance crafts a markdown section
+                        # telling the (LOCAL) LLM how to call:
+                        #   Option A: HTTP a2a/tasks-send via run_doc_skill
+                        #   Option B: XMPP ad-hoc via a2a_xmpp_adhoc tool
+                        #   Option C: HTTP JSON-RPC via a2a_jsonrpc_call tool
+                        # It also lists discovered commands with their
+                        # required/optional form_data fields.
+                        debug_info(
+                            "STEP 12 - A2A TOOL GUIDANCE (LLM prompt fragment #2)\n"
+                            f"a2a_tool_section.len = {len(a2a_tool_section or '')}\n"
+                            f"a2a_tool_section =\n{(a2a_tool_section or '')}",
+                            sep=12, tag="RunToolBeforeReview",
+                        )
                     except Exception as ac_err:
                         logger.warning("[XMPP-A2A] tool_check_review: failed during discovery/prompt preparation: %s", ac_err, exc_info=True)
 
@@ -1564,6 +2065,21 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     talk_history_str or "(empty)",
                 ])
 
+                # === STEP 13: base prompt assembled (pre is_remote branch) =
+                # Composition so far:
+                #   [base tool_prompt]
+                #   [optional agent_card_section + a2a_tool_section]
+                #   [conversation history]
+                # For LOCAL agent, this is essentially the final prompt; for
+                # REMOTE agent we add several more sections below.
+                debug_info(
+                    "STEP 13 - BASE PROMPT ASSEMBLED (before is_remote suffix)\n"
+                    f"context_parts count = {len(context_parts)}\n"
+                    f"agent_card_section_attached = {bool(agent_card_section)}\n"
+                    f"history_attached_len = {len(talk_history_str or '')}",
+                    sep=13, tag="RunToolBeforeReview",
+                )
+
                 if is_remote:
                     # Remote agent: append task-oriented instructions; do not use local tools
                     remote_instr = (get_prompt_by_title("__remote_agent_tool_check_review__") or "").strip()
@@ -1575,6 +2091,17 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                             "If no tool call is needed, respond with NO_TOOL_NEEDED."
                         )
                     context_parts.append("\n" + remote_instr)
+
+                    # === STEP 14: remote instruction appended ==============
+                    # Loaded from __remote_agent_tool_check_review__ prompt
+                    # (with a hard-coded fallback). Tells the remote LLM the
+                    # high-level objective and NO_TOOL_NEEDED sentinel.
+                    debug_info(
+                        "STEP 14 - REMOTE-AGENT INSTRUCTION APPENDED\n"
+                        f"remote_instr.len = {len(remote_instr)}\n"
+                        f"remote_instr =\n{remote_instr}",
+                        sep=14, tag="RunToolBeforeReview",
+                    )
 
                     # Hybrid mode: tell remote agent how to request local ad-hoc execution
                     if discovered_commands:
@@ -1594,6 +2121,19 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                             '- Keep your own tool results in the same response; do NOT remove them.\n'
                             '- The local system will execute and merge the ad-hoc result with your response.\n'
                             '- If no ad-hoc call is needed, do NOT include a JSON block.'
+                        )
+
+                        # === STEP 15: remote a2a_call protocol appended ====
+                        # Tells remote LLM: "if you want a discovered ad-hoc
+                        # command invoked, embed {\"a2a_call\":{...}} JSON.
+                        # The local system will parse, whitelist-check
+                        # against discovered_commands and execute it for you.
+                        debug_info(
+                            "STEP 15 - REMOTE a2a_call PROTOCOL APPENDED\n"
+                            f"discovered_commands count = {len(discovered_commands)}\n"
+                            "Remote LLM may now embed {a2a_call|a2a_calls} JSON\n"
+                            "which we will parse + whitelist + execute locally.",
+                            sep=15, tag="RunToolBeforeReview",
                         )
 
                     # Hybrid mode: tell remote agent how to request local JSON-RPC execution
@@ -1634,11 +2174,40 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                             '- If no JSON-RPC call is needed, do NOT include a jsonrpc_call JSON block.'
                         )
 
+                        # === STEP 16: remote jsonrpc_call protocol added ===
+                        debug_info(
+                            "STEP 16 - REMOTE jsonrpc_call PROTOCOL APPENDED\n"
+                            f"jsonrpc_skills count = {len(jsonrpc_skills)}\n"
+                            "Remote LLM may now embed {jsonrpc_call|jsonrpc_calls}\n"
+                            "JSON which we will POST against the declared\n"
+                            "endpoint/method server-side.",
+                            sep=16, tag="RunToolBeforeReview",
+                        )
+
                 question = "\n".join(context_parts)
                 logger.info(
-                    "[XMPP-A2A][DIAG] tool_check_review: FINAL question (len=%d, is_remote=%s):\n=== BEGIN QUESTION ===\n%s\n=== END QUESTION ===",
+                    "[XMPP-A2A][DIAG] tool_check_review: FINAL question (len=%d, is_remote=%s):\n=== BEGIN FINAL PROMPTS ===\n%s\n=== END FINAL PROMPTS ===",
                     len(question), is_remote, question,
                 )
+
+                # === STEP 17: FINAL prompt sent to LLM =====================
+                # This is the EXACT user-message handed to chat_with_agent.
+                # For local agent it may also be supplemented by tools the
+                # LLM decides to call inside the same chat round.
+                debug_info(
+                    "STEP 17 - FINAL LLM PROMPTS (prompt sent to chat_with_agent)\n"
+                    f"is_remote                = {is_remote}\n"
+                    f"question.len             = {len(question)}\n"
+                    f"conversation_suffix      = 'tool_check_review'\n"
+                    f"use_tools                = {not is_remote}\n"
+                    f"use_memory               = False\n"
+                    f"use_knowledge_base       = False\n"
+                    "=== BEGIN FINAL PROMPTS ===\n"
+                    f"{question}\n"
+                    "=== END FINAL PROMPTS ===",
+                    sep=17, tag="RunToolBeforeReview",
+                )
+
                 self.show_status_on_map("using-tool")
                 self.js_task_manager.show_information(lt(
                     "<b>✨Message Received.Using tools before reply.</b>",
@@ -1662,12 +2231,42 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                 self.show_status_on_map("talking")
 
                 tool_result = (tool_result or "").strip()
-                logger.info("[XMPP-A2A][DIAG] tool_check_review: raw_tool_result[:500]=%r", tool_result[:500] if tool_result else "")
+                logger.info("[XMPP-A2A][DIAG] tool_check_review: raw_tool_result=%r", tool_result if tool_result else "")
+
+                # === STEP 18: raw LLM response =============================
+                # The first response from the LLM. For LOCAL agents the
+                # tools (if any) have already been executed inside the
+                # adapter and folded into this text. For REMOTE agents this
+                # text may still contain a2a_call / jsonrpc_call JSON
+                # blocks that the local side must execute.
+                debug_info(
+                    "STEP 18 - RAW LLM RESPONSE (chat_with_agent return value)\n"
+                    f"elapsed_seconds = {_diag_time2.monotonic() - _t_chat:.2f}\n"
+                    f"tool_result.len = {len(tool_result)}\n"
+                    f"tool_result =\n{tool_result}",
+                    sep=18, tag="RunToolBeforeReview",
+                )
 
                 # Hybrid merge: remote agent may embed a2a_call / jsonrpc_call JSON alongside its own tool results
                 adhoc_text = None
                 jsonrpc_text = None
                 remote_text = tool_result
+
+                # === STEP 19: hybrid execution decision ====================
+                # Only attempted for REMOTE agents, where the LLM cannot run
+                # local tools itself and instead emits JSON requests.
+                _will_run_a2a = bool(is_remote and tool_result and discovered_commands and a2a_mgr and peer_jid)
+                _will_run_rpc = bool(is_remote and jsonrpc_skills)
+                debug_info(
+                    "STEP 19 - HYBRID EXECUTION DECISION (remote-agent only)\n"
+                    f"is_remote                              = {is_remote}\n"
+                    f"will_execute_remote_a2a_requests       = {_will_run_a2a}\n"
+                    f"will_execute_remote_jsonrpc_requests   = {_will_run_rpc}\n"
+                    "Local-agent paths skip both blocks; the LLM has already\n"
+                    "invoked tools internally during chat_with_agent.",
+                    sep=19, tag="RunToolBeforeReview",
+                )
+
                 if is_remote and tool_result and discovered_commands and a2a_mgr and peer_jid:
                     try:
                         adhoc_text, remote_text = await self._execute_remote_a2a_requests(
@@ -1675,6 +2274,22 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                         )
                     except Exception as hybrid_err:
                         logger.warning("[XMPP-A2A] tool_check_review: remote a2a execution failed: %s", hybrid_err, exc_info=True)
+
+                    # === STEP 20: remote a2a_call locally executed =========
+                    # Parsed {a2a_call|a2a_calls} JSON from remote_text,
+                    # validated peer_jid + command_node against the discovered
+                    # whitelist, executed each via a2a_mgr.call_adhoc_command
+                    # in parallel and formatted results. remote_text has had
+                    # the JSON block stripped.
+                    debug_info(
+                        "STEP 20 - LOCAL EXECUTION OF REMOTE a2a_call REQUESTS\n"
+                        f"adhoc_text is None        = {adhoc_text is None}\n"
+                        f"adhoc_text.len            = {len(adhoc_text or '')}\n"
+                        f"adhoc_text                =\n{(adhoc_text or '')}\n"
+                        f"remote_text(after strip).len = {len(remote_text or '')}",
+                        sep=20, tag="RunToolBeforeReview",
+                    )
+
                 if is_remote and remote_text and jsonrpc_skills:
                     try:
                         jsonrpc_text, remote_text = await self._execute_remote_jsonrpc_requests(
@@ -1683,9 +2298,29 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     except Exception as jsonrpc_err:
                         logger.warning("[A2A-JSONRPC] tool_check_review: remote jsonrpc execution failed: %s", jsonrpc_err, exc_info=True)
 
+                    # === STEP 21: remote jsonrpc_call locally executed =====
+                    debug_info(
+                        "STEP 21 - LOCAL EXECUTION OF REMOTE jsonrpc_call REQUESTS\n"
+                        f"jsonrpc_text is None      = {jsonrpc_text is None}\n"
+                        f"jsonrpc_text.len          = {len(jsonrpc_text or '')}\n"
+                        f"jsonrpc_text              =\n{(jsonrpc_text or '')}\n"
+                        f"remote_text(after strip).len = {len(remote_text or '')}",
+                        sep=21, tag="RunToolBeforeReview",
+                    )
+
                 # Merge remote text, local ad-hoc result, and local jsonrpc result
                 merge_parts = [p for p in (remote_text, adhoc_text, jsonrpc_text) if p]
                 tool_result = "\n\n".join(merge_parts) if merge_parts else remote_text
+
+                # === STEP 22: merged tool_result ===========================
+                debug_info(
+                    "STEP 22 - MERGED tool_result (remote_text + adhoc + jsonrpc)\n"
+                    f"parts_merged = {len(merge_parts)} "
+                    f"(remote={bool(remote_text)}, adhoc={bool(adhoc_text)}, jsonrpc={bool(jsonrpc_text)})\n"
+                    f"tool_result.len = {len(tool_result or '')}\n"
+                    f"tool_result =\n{(tool_result or '')}",
+                    sep=22, tag="RunToolBeforeReview",
+                )
 
                 # Determine if result is useful.
                 # If local ad-hoc was executed, always treat as useful even when
@@ -1700,12 +2335,35 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     "all connection attempts failed",
                     "exception:",
                     "traceback",
+                    # XMPP stanza errors (XEP-0086 / RFC 6120) — bubbled up
+                    # from ad-hoc / disco calls. These mean the peer doesn't
+                    # expose the requested node, is offline, or refused the
+                    # request, NOT useful tool output.
+                    "item-not-found",
+                    "service-unavailable",
+                    "feature-not-implemented",
+                    "forbidden",
+                    "not-allowed",
+                    "recipient-unavailable",
+                    "remote-server-not-found",
+                    "remote-server-timeout",
+                    'result: error "',
                 )
                 is_plain_error = bool(tool_result) and any(
                     marker in result_lower[:500]
                     for marker in error_markers
                 )
-                has_useful_result = bool(adhoc_text) or bool(jsonrpc_text) or (
+                # Local ad-hoc / jsonrpc paths still flag usefulness via their
+                # own text channels, but only when they actually returned
+                # successful content. A pure error string must not promote
+                # the result to "useful".
+                adhoc_useful = bool(adhoc_text) and not any(
+                    marker in adhoc_text.lower()[:500] for marker in error_markers
+                )
+                jsonrpc_useful = bool(jsonrpc_text) and not any(
+                    marker in jsonrpc_text.lower()[:500] for marker in error_markers
+                )
+                has_useful_result = adhoc_useful or jsonrpc_useful or (
                     bool(tool_result)
                     and "NO_TOOL_NEEDED" not in result_upper
                     and not is_plain_error
@@ -1717,6 +2375,25 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                     logger.info("[XMPP-A2A] tool_check_review: tool check returned a non-useful error, skipping injection")
                 else:
                     logger.info("[XMPP-A2A] tool_check_review: no tool invocation needed")
+
+                # === STEP 23: usefulness classification ====================
+                # Three outcomes:
+                #   has_useful_result  -> tool_context = tool_result; will be
+                #                         appended to the review history
+                #   is_plain_error     -> drop; review proceeds without tool
+                #                         context
+                #   neither            -> LLM said NO_TOOL_NEEDED; same as
+                #                         above but for benign reasons
+                debug_info(
+                    "STEP 23 - USEFULNESS CLASSIFICATION\n"
+                    f"NO_TOOL_NEEDED_present = {'NO_TOOL_NEEDED' in result_upper}\n"
+                    f"is_plain_error         = {is_plain_error}\n"
+                    f"adhoc_text_present     = {bool(adhoc_text)}\n"
+                    f"jsonrpc_text_present   = {bool(jsonrpc_text)}\n"
+                    f"=> has_useful_result   = {has_useful_result}\n"
+                    f"=> tool_context populated = {bool(tool_context)} (len={len(tool_context or '')})",
+                    sep=23, tag="RunToolBeforeReview",
+                )
         except Exception as e:
             logger.warning("Tool check before review failed: %s", e, exc_info=True)
 
@@ -1728,6 +2405,38 @@ I am participating in a virtual social game based on Google Maps. Players role-p
                 f"[Tool Check Result Before Review]\n{tool_context}"
             )
         logger.info("[XMPP-A2A][DIAG] tool_check_review: EXIT, re-dispatching review with tool_context_len=%d enriched_len=%d", len(tool_context or ""), len(enriched_history or ""))
+
+        # === STEP 24: enriched_history built ===============================
+        # talk_history_str optionally suffixed with a [Tool Check Result
+        # Before Review] block. This is the SAME slot the original review
+        # would have used; the review LLM call (sell/buy/communication) will
+        # see this enriched text instead of the raw conversation.
+        debug_info(
+            "STEP 24 - ENRICHED HISTORY FOR REVIEW STEP\n"
+            f"tool_context_attached = {bool(tool_context)}\n"
+            f"enriched_history.len  = {len(enriched_history or '')}\n"
+            f"enriched_history =\n{(enriched_history or '')}",
+            sep=24, tag="RunToolBeforeReview",
+        )
+
+        # === STEP 25: re-dispatch review ===================================
+        # Hands control back to _process_task_impl with _tool_check_done=True
+        # so the inner branch will skip tool-check this time and run the
+        # appropriate review path:
+        #   effective_talk_type == 'sell'         -> ask_agent_to_review_conversation_sell
+        #   effective_talk_type == 'buy'          -> ask_agent_to_review_conversation_buy
+        #   '' / 'communication' / other         -> ask_agent_to_review_conversation
+        debug_info(
+            "STEP 25 - RE-DISPATCH conversation_message_received (tool-check done)\n"
+            f"effective_talk_type    = {effective_talk_type!r}\n"
+            f"_tool_check_done       = True\n"
+            "Next review path picked by _process_task_impl branch:\n"
+            "  'sell' -> ask_agent_to_review_conversation_sell\n"
+            "  'buy'  -> ask_agent_to_review_conversation_buy\n"
+            "  else   -> ask_agent_to_review_conversation",
+            sep=25, tag="RunToolBeforeReview",
+        )
+
         asyncio.create_task(self.process_task(
             event="conversation_message_received",
             talk_history_str=enriched_history,

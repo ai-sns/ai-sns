@@ -4,6 +4,7 @@ KM module - Pydantic schemas
 """
 from typing import Optional
 from pydantic import BaseModel
+from runtime.shared import debug_info
 
 
 class KMConfig(BaseModel):

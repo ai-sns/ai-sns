@@ -23,10 +23,73 @@ def _get_conn() -> sqlite3.Connection:
     return conn
 
 
+# Default agent card values (used on first init)
+_DEFAULT_AGENT_CARD = {
+    "name": "AI-SNS Business Card Exchange Agent",
+    "description": "An agent that exchanges business cards via the A2A protocol.",
+    "url": "http://localhost:8789/a2a/",
+    "version": "1.0.0",
+    "protocol_version": "0.3",
+    "capabilities_streaming": 0,
+    "capabilities_push_notifications": 0,
+    "capabilities_state_history": 0,
+    "default_input_modes": json.dumps(["application/json"]),
+    "default_output_modes": json.dumps(["application/json"]),
+    "provider_organization": "AI-SNS Platform",
+    "provider_url": "https://ai-sns.com",
+    "skills": json.dumps([
+        {
+            "id": "exchange_business_card",
+            "name": "Exchange Business Card",
+            "description": "Exchange business cards between agents. Send your card and receive theirs.",
+            "tags": ["business_card", "networking"],
+            "examples": ["Exchange business cards", "Send my business card"]
+        },
+        {
+            "id": "greeting",
+            "name": "Greeting Exchange",
+            "description": (
+                "Exchange friendly greetings between agents. "
+                "Supports: handshake, hug, bow, high_five, fist_bump, nod, wave. "
+                "Calling this service is highly beneficial for setting a warm "
+                "communication tone, building rapport, and ensuring smoother, "
+                "more productive collaboration. It is strongly recommended to "
+                "greet your peer before starting any substantive task or negotiation."
+            ),
+            "tags": ["greeting", "social", "rapport", "icebreaker"],
+            "examples": [
+                "Send a greeting to the other agent",
+                "Greet with a handshake",
+                "Wave hello before we start",
+                "Fist bump to break the ice"
+            ]
+        }
+    ], ensure_ascii=False),
+}
+
+
 def init_db():
     """Create tables if they don't exist."""
     conn = _get_conn()
     conn.executescript("""
+        CREATE TABLE IF NOT EXISTS agent_card (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            name TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            url TEXT NOT NULL DEFAULT '',
+            version TEXT NOT NULL DEFAULT '1.0.0',
+            protocol_version TEXT NOT NULL DEFAULT '0.3',
+            capabilities_streaming INTEGER NOT NULL DEFAULT 0,
+            capabilities_push_notifications INTEGER NOT NULL DEFAULT 0,
+            capabilities_state_history INTEGER NOT NULL DEFAULT 0,
+            default_input_modes TEXT NOT NULL DEFAULT '["application/json"]',
+            default_output_modes TEXT NOT NULL DEFAULT '["application/json"]',
+            provider_organization TEXT NOT NULL DEFAULT '',
+            provider_url TEXT NOT NULL DEFAULT '',
+            skills TEXT NOT NULL DEFAULT '[]',
+            updated_at TEXT NOT NULL DEFAULT ''
+        );
+
         CREATE TABLE IF NOT EXISTS my_card (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             name TEXT NOT NULL DEFAULT '',
@@ -66,7 +129,128 @@ def init_db():
             created_at TEXT NOT NULL DEFAULT ''
         );
     """)
+    # Insert default agent card if not exists
+    existing = conn.execute("SELECT id FROM agent_card WHERE id = 1").fetchone()
+    if not existing:
+        d = _DEFAULT_AGENT_CARD
+        conn.execute("""
+            INSERT INTO agent_card
+                (id, name, description, url, version, protocol_version,
+                 capabilities_streaming, capabilities_push_notifications,
+                 capabilities_state_history, default_input_modes,
+                 default_output_modes, provider_organization, provider_url,
+                 skills, updated_at)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            d["name"], d["description"], d["url"], d["version"],
+            d["protocol_version"], d["capabilities_streaming"],
+            d["capabilities_push_notifications"], d["capabilities_state_history"],
+            d["default_input_modes"], d["default_output_modes"],
+            d["provider_organization"], d["provider_url"], d["skills"],
+            datetime.now().isoformat(timespec="seconds"),
+        ))
+        conn.commit()
     conn.close()
+
+
+def get_agent_card() -> dict:
+    """Get the agent card configuration from DB."""
+    conn = _get_conn()
+    row = conn.execute("SELECT * FROM agent_card WHERE id = 1").fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    # Fallback to defaults
+    d = dict(_DEFAULT_AGENT_CARD)
+    d["id"] = 1
+    d["updated_at"] = ""
+    return d
+
+
+def save_agent_card(data: dict) -> dict:
+    """Save the agent card configuration to DB."""
+    conn = _get_conn()
+    now = datetime.now().isoformat(timespec="seconds")
+
+    # Normalize JSON fields
+    skills = data.get("skills", "[]")
+    if isinstance(skills, (list, dict)):
+        skills = json.dumps(skills, ensure_ascii=False)
+    dim = data.get("default_input_modes", '["application/json"]')
+    if isinstance(dim, list):
+        dim = json.dumps(dim, ensure_ascii=False)
+    dom = data.get("default_output_modes", '["application/json"]')
+    if isinstance(dom, list):
+        dom = json.dumps(dom, ensure_ascii=False)
+
+    conn.execute("""
+        UPDATE agent_card SET
+            name = ?, description = ?, url = ?, version = ?,
+            protocol_version = ?,
+            capabilities_streaming = ?,
+            capabilities_push_notifications = ?,
+            capabilities_state_history = ?,
+            default_input_modes = ?, default_output_modes = ?,
+            provider_organization = ?, provider_url = ?,
+            skills = ?, updated_at = ?
+        WHERE id = 1
+    """, (
+        data.get("name", ""),
+        data.get("description", ""),
+        data.get("url", ""),
+        data.get("version", "1.0.0"),
+        data.get("protocol_version", "0.3"),
+        int(bool(data.get("capabilities_streaming", False))),
+        int(bool(data.get("capabilities_push_notifications", False))),
+        int(bool(data.get("capabilities_state_history", False))),
+        dim, dom,
+        data.get("provider_organization", ""),
+        data.get("provider_url", ""),
+        skills, now,
+    ))
+    conn.commit()
+    conn.close()
+    return get_agent_card()
+
+
+def get_agent_card_as_a2a() -> dict:
+    """Return the agent card in standard A2A protocol format."""
+    row = get_agent_card()
+    skills_raw = row.get("skills", "[]")
+    try:
+        skills = json.loads(skills_raw) if isinstance(skills_raw, str) else skills_raw
+    except (json.JSONDecodeError, TypeError):
+        skills = []
+    dim_raw = row.get("default_input_modes", '["application/json"]')
+    try:
+        dim = json.loads(dim_raw) if isinstance(dim_raw, str) else dim_raw
+    except (json.JSONDecodeError, TypeError):
+        dim = ["application/json"]
+    dom_raw = row.get("default_output_modes", '["application/json"]')
+    try:
+        dom = json.loads(dom_raw) if isinstance(dom_raw, str) else dom_raw
+    except (json.JSONDecodeError, TypeError):
+        dom = ["application/json"]
+
+    return {
+        "name": row.get("name", ""),
+        "description": row.get("description", ""),
+        "url": row.get("url", ""),
+        "version": row.get("version", "1.0.0"),
+        "protocolVersion": row.get("protocol_version", "0.3"),
+        "capabilities": {
+            "streaming": bool(row.get("capabilities_streaming", 0)),
+            "pushNotifications": bool(row.get("capabilities_push_notifications", 0)),
+            "stateTransitionHistory": bool(row.get("capabilities_state_history", 0)),
+        },
+        "skills": skills if isinstance(skills, list) else [],
+        "defaultInputModes": dim if isinstance(dim, list) else ["application/json"],
+        "defaultOutputModes": dom if isinstance(dom, list) else ["application/json"],
+        "provider": {
+            "organization": row.get("provider_organization", ""),
+            "url": row.get("provider_url", ""),
+        },
+    }
 
 
 def get_my_card() -> dict:

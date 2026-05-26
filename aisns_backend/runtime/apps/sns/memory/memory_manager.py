@@ -20,6 +20,7 @@ from runtime.apps.sns.memory.memory_prompt import (
 )
 from runtime.apps.sns.memory.memory_index import get_default_memory_index
 from runtime.apps.sns.memory.memory_vector_index import get_default_memory_vector_index
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

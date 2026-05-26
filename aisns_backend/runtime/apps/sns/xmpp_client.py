@@ -9,6 +9,7 @@ from db.models.aisns import AISnsCfg, AIFriend, AIChatMessages
 from db.models.system import SystemCfg
 from runtime.apps.sns.message_formatter import format_internal_xmpp_message_for_storage
 from runtime.shared.log_cleanup import cleanup_old_backend_logs_async
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class XMPPClient(slixmpp.ClientXMPP):
 
     async def on_session_start(self, event):
         """Handle session start"""
+
         logger.info(f"XMPP session started for {self.jid_str}")
         self.send_presence()
         await self.get_roster()

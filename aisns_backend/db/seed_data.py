@@ -4,6 +4,7 @@ This module contains seed data extracted directly from the reference database.
 When a new database is created, this data is used to populate the tables.
 
 """
+from runtime.shared import debug_info
 
 # Seed data for agent_cfg table (count=8)
 AGENT_CFG_SEED = [{'user_id': '001',
@@ -594,7 +595,8 @@ SYSTEM_CFG_SEED = [{'autorun': 1,
   'tool_check_before_review_enabled': 1,
   'agent_card_before_review_enabled': 1,
   'language': 'en',
-  'a2a_server_enabled': 1}]
+  'a2a_server_enabled': 1,
+  'debug_mode': ''}]
 
 # Seed data for prompts table (rows whose tags contain 'SNS') (count=26)
 PROMPTS_SEED = [{'title': '__main_control__',
@@ -1565,7 +1567,7 @@ PROMPTS_SEED = [{'title': '__main_control__',
   'tags': 'SNS',
   'model_name': '',
   'position': None},
-{'title': '__ask_agent_use_service_question__',
+ {'title': '__ask_agent_use_service_question__',
  'caption': 'Service Invocation-Context Factors',
  'content': 'The current objective is: __objective__. Based on the task requirements, select the appropriate '
             'services. If no suitable service is available, return an empty list.',
@@ -1859,7 +1861,6 @@ PROMPTS_SEED = [{'title': '__main_control__',
              'If the peer explicitly asks you to use an A2A / XMPP ad-hoc command (e.g. exchange business card, invoke '
              'a peer skill), you MUST call the a2a_xmpp_adhoc tool with the matching command_node listed in the '
              '"Discovered commands on this peer" section, instead of replying with text.\n'
-             'You must call the greeting skill  in Peer Agent Card,it is an a2a service.\n'
              'If you find a useful tool, call it now and return the result.\n'
              'If no tool is needed, simply reply with the single phrase: NO_TOOL_NEEDED\n'
              '\n'

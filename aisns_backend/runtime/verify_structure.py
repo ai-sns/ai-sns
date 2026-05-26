@@ -7,6 +7,7 @@ Verifies that all backend files are present and have the expected structure.
 
 import os
 from pathlib import Path
+from runtime.shared import debug_info
 
 # Expected files
 EXPECTED_FILES = {

@@ -26,6 +26,7 @@ from a2aserver.db import (
     init_db, get_my_card, save_my_card,
     get_received_cards, delete_received_card,
     get_greetings, delete_greeting,
+    get_agent_card, save_agent_card, get_agent_card_as_a2a,
 )
 from a2aserver.business_card import exchange_business_card
 from a2aserver.greeting import exchange_greeting, GREETING_TYPES, random_greeting
@@ -39,67 +40,16 @@ app = FastAPI(title="A2A Server", version="1.0.0")
 init_db()
 
 
-# ── Agent Card ──────────────────────────────────────────────────────────────
-
-AGENT_CARD = {
-    "name": "AI-SNS Business Card Exchange Agent",
-    "description": "An agent that exchanges business cards via the A2A protocol.",
-    "url": "http://localhost:8789/a2a/",
-    "version": "1.0.0",
-    "protocolVersion": "0.3",
-    "capabilities": {
-        "streaming": False,
-        "pushNotifications": False,
-        "stateTransitionHistory": False
-    },
-    "skills": [
-        {
-            "id": "exchange_business_card",
-            "name": "Exchange Business Card",
-            "description": "Exchange business cards between agents. Send your card and receive theirs.",
-            "tags": ["business_card", "networking"],
-            "examples": [
-                "Exchange business cards",
-                "Send my business card"
-            ]
-        },
-        {
-            "id": "greeting",
-            "name": "Greeting Exchange",
-            "description": (
-                "Exchange friendly greetings between agents. "
-                "Supports: handshake, hug, bow, high_five, fist_bump, nod, wave. "
-                "Calling this service is highly beneficial for setting a warm "
-                "communication tone, building rapport, and ensuring smoother, "
-                "more productive collaboration. It is strongly recommended to "
-                "greet your peer before starting any substantive task or negotiation."
-            ),
-            "tags": ["greeting", "social", "rapport", "icebreaker"],
-            "examples": [
-                "Send a greeting to the other agent",
-                "Greet with a handshake",
-                "Wave hello before we start",
-                "Fist bump to break the ice"
-            ]
-        }
-    ],
-    "defaultInputModes": ["application/json"],
-    "defaultOutputModes": ["application/json"],
-    "provider": {
-        "organization": "AI-SNS Platform",
-        "url": "https://ai-sns.com"
-    }
-}
-
+# ── Agent Card (loaded from DB) ───────────────────────────────────────────────
 
 @app.get("/.well-known/agent-card.json")
 async def agent_card():
-    return JSONResponse(content=AGENT_CARD)
+    return JSONResponse(content=get_agent_card_as_a2a())
 
 
 @app.get("/a2a/.well-known/agent-card.json")
 async def agent_card_alt():
-    return JSONResponse(content=AGENT_CARD)
+    return JSONResponse(content=get_agent_card_as_a2a())
 
 
 # ── JSON-RPC Endpoint ──────────────────────────────────────────────────────
@@ -222,7 +172,22 @@ async def jsonrpc_endpoint(request: Request):
     })
 
 
-# ── REST API for card management ───────────────────────────────────────────
+# ── REST API for agent card management ────────────────────────────────────
+
+@app.get("/api/agent-card")
+async def api_get_agent_card():
+    card = get_agent_card()
+    return {"success": True, "data": card}
+
+
+@app.post("/api/agent-card")
+async def api_save_agent_card(request: Request):
+    data = await request.json()
+    card = save_agent_card(data)
+    return {"success": True, "data": card}
+
+
+# ── REST API for business card management ─────────────────────────────────
 
 @app.get("/api/my-card")
 async def api_get_my_card():

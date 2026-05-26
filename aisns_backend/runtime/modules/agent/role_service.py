@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db_session as get_session
 from db.models.agent import RoleConfig
 from .role_schemas import RoleConfigCreate, RoleConfigUpdate
+from runtime.shared import debug_info
 
 
 class RoleConfigService:

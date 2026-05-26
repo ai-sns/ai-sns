@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from db.DBFactory import get_prompt_by_title
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

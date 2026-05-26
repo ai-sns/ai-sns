@@ -4,6 +4,7 @@ Map module - Dependencies
 """
 from .service import MapService
 from .websocket import ConnectionManager, manager
+from runtime.shared import debug_info
 
 
 def get_map_service() -> MapService:

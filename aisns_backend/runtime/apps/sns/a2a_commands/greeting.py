@@ -12,6 +12,7 @@ import os
 from typing import Dict, Any
 
 from runtime.apps.sns.a2a_commands.base import AdhocCommand, CommandContext
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

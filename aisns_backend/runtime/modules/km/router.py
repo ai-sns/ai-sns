@@ -14,6 +14,7 @@ from .dependencies import get_km_service
 from .note_router import router as note_router
 from .vector_service import EmbeddingConfigError
 from db.DBFactory import Session, KMCfg
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

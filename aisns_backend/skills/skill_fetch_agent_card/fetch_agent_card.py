@@ -5,9 +5,10 @@ Input (stdin JSON):
 
 Output (stdout JSON):
     ok     - True if a card was fetched successfully.
-    card   - The raw agent card JSON text (max 2000 chars).
-    source - "direct" or "well_known".
-    error  - Error description when both attempts fail.
+    card   - The raw agent card JSON text (full body, no truncation).
+    source - "direct", "well_known_card" (A2A 0.3+ /.well-known/agent-card.json),
+             or "well_known_legacy" (legacy /.well-known/agent.json).
+    error  - Error description when all attempts fail.
 """
 
 import json
@@ -20,12 +21,16 @@ try:
 except ImportError:
     pass
 
-MAX_CARD_LENGTH = 2000
 TIMEOUT_SECONDS = 10
 
 
 def _try_get(url: str) -> str:
-    """GET a URL and return the response body if it looks like JSON."""
+    """GET a URL and return the FULL response body if it looks like JSON.
+
+    NOTE: We deliberately do NOT truncate the body. Agent cards are consumed
+    by downstream JSON parsers; any truncation produces invalid JSON and
+    causes the caller to silently fall back to other sources (e.g. PEP).
+    """
     ctx = ssl.create_default_context()
     req = urllib.request.Request(url, method="GET", headers={
         "Accept": "application/json",
@@ -34,7 +39,7 @@ def _try_get(url: str) -> str:
     with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS, context=ctx) as resp:
         body = resp.read().decode("utf-8", errors="replace").strip()
         if body and (body.startswith("{") or body.startswith("[")):
-            return body[:MAX_CARD_LENGTH]
+            return body
     return ""
 
 
@@ -59,23 +64,35 @@ def main():
     except Exception as e1:
         pass  # fall through to well-known
 
-    # Attempt 2: fallback to /.well-known/agent.json
+    # Attempt 2: fallback to A2A 0.3+ standard path /.well-known/agent-card.json
     try:
         parsed = urlparse(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
-        well_known = f"{origin}/.well-known/agent.json"
-        card = _try_get(well_known)
+        well_known_card = f"{origin}/.well-known/agent-card.json"
+        card = _try_get(well_known_card)
         if card:
-            print(json.dumps({"ok": True, "card": card, "source": "well_known", "error": ""}, ensure_ascii=False))
+            print(json.dumps({"ok": True, "card": card, "source": "well_known_card", "error": ""}, ensure_ascii=False))
             return
     except Exception as e2:
+        pass
+
+    # Attempt 3: legacy fallback /.well-known/agent.json (pre-0.3 A2A)
+    try:
+        parsed = urlparse(url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        well_known_legacy = f"{origin}/.well-known/agent.json"
+        card = _try_get(well_known_legacy)
+        if card:
+            print(json.dumps({"ok": True, "card": card, "source": "well_known_legacy", "error": ""}, ensure_ascii=False))
+            return
+    except Exception as e3:
         pass
 
     print(json.dumps({
         "ok": False,
         "card": "",
         "source": "",
-        "error": f"Both direct and well-known fetch failed for: {url}"
+        "error": f"All fetch attempts failed (direct, /.well-known/agent-card.json, /.well-known/agent.json) for: {url}"
     }, ensure_ascii=False))
 
 

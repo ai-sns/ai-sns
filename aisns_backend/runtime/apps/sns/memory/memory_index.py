@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

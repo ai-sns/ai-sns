@@ -11,6 +11,7 @@ import logging
 
 from db.database import get_db
 from runtime.config.settings import get_settings as get_app_settings
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

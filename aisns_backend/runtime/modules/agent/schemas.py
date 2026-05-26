@@ -4,6 +4,7 @@ Agent module - Pydantic schemas
 """
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
+from runtime.shared import debug_info
 
 
 class AgentConfig(BaseModel):

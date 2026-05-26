@@ -10,6 +10,7 @@ from runtime.apps.sns.memory.memory_config import MemoryConfig
 from runtime.apps.sns.memory.memory_manager import MemoryManager
 
 from runtime.apps.sns.memory.memory_index import MemoryIndex, get_default_memory_index
+from runtime.shared import debug_info
 
 __all__ = [
     "MemoryType",

@@ -1,6 +1,7 @@
 from typing import Any
 
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
+from runtime.shared import debug_info
 
 
 @as_declarative()

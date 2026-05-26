@@ -27,6 +27,7 @@ from runtime.shared.llm_log_writer import (
     log_llm_stream_chunk,
     log_llm_error,
 )
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

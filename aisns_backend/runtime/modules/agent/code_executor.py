@@ -9,6 +9,7 @@ import tempfile
 import os
 from typing import Dict, Any, Optional
 from pathlib import Path
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

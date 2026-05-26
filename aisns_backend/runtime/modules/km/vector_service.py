@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from runtime.modules.agent.llm_service import LLMConfigService
 from runtime.shared.llm_endpoints import normalize_openai_base_url
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 from runtime.apps.sns.a2a_commands.base import AdhocCommand, TemplateCommand
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

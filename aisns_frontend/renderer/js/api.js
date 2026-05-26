@@ -382,12 +382,6 @@ class APIClient {
         return this.put('/api/system/config', configData);
     }
 
-    // ==================== Plugins API ====================
-
-    async getPlugins() {
-        return this.get('/api/plugins');
-    }
-
     // ==================== Health Check ====================
 
     async healthCheck() {

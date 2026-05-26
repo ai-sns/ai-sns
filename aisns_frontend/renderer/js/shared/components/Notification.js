@@ -14,9 +14,10 @@ class Notification {
     }
 
     static show(message, type = 'info', duration = this.timeout) {
+        const safeMessage = this.sanitizeMessage(message);
         try {
             if (typeof window !== 'undefined' && window.Toast && typeof window.Toast.show === 'function') {
-                return window.Toast.show(String(message), type, duration);
+                return window.Toast.show(safeMessage, type, duration);
             }
         } catch (e) {
         }
@@ -27,7 +28,7 @@ class Notification {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.innerHTML = `
-            <span class="notification-message">${message}</span>
+            <span class="notification-message">${this.escapeHtml(safeMessage)}</span>
             <button class="notification-close">&times;</button>
         `;
 
@@ -46,6 +47,24 @@ class Notification {
         }
 
         return notification;
+    }
+
+    static sanitizeMessage(message, maxLength = 420) {
+        if (typeof window !== 'undefined' && window.Toast && typeof window.Toast.sanitizeMessage === 'function') {
+            return window.Toast.sanitizeMessage(message, maxLength);
+        }
+        let text = String(message ?? '').trim();
+        text = text.replace(/\bsk-proj-[A-Za-z0-9_\-*]{12,}\b/g, (v) => `${v.slice(0, 6)}...${v.slice(-4)}`);
+        text = text.replace(/\bsk-svcac[A-Za-z0-9_\-*]{12,}\b/g, (v) => `${v.slice(0, 6)}...${v.slice(-4)}`);
+        text = text.replace(/\bsk-[A-Za-z0-9_\-*]{12,}\b/g, (v) => `${v.slice(0, 6)}...${v.slice(-4)}`);
+        text = text.replace(/[ \t\r\n]+/g, ' ').trim();
+        return text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text;
+    }
+
+    static escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = String(text ?? '');
+        return div.innerHTML;
     }
 
     static remove(notification) {

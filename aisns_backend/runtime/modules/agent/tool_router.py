@@ -10,6 +10,7 @@ Handles plugin, MCP, function, and skill tool execution.
 import logging
 from typing import Dict, Any, Optional
 from .tool_converter import ToolConverter
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 
 from runtime.modules.skills_registry.service import DocSkillsService, get_docskills_service
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

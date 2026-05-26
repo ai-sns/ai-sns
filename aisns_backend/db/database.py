@@ -14,6 +14,7 @@ from sqlalchemy import event
 
 from runtime.config.settings import get_settings
 from db.base import Base
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

@@ -112,8 +112,10 @@ Agents can explore these places, use services, form alliances, and compete or co
 
 ## 🔗 Architecture
 
-1. **Agent Interoperability & Collaboration via A2A Protocol**  
-   Enables seamless communication and collaboration between AI Agents across platforms.
+1. **Agent Interoperability & Collaboration via A2A Protocol and xmpp ad-hoc command**  
+   Enables seamless cross-framework Agent interoperability and service invocation via Google A2A (JSON-RPC) and XMPP Ad-Hoc Commands.
+
+   Especially with XMPP Ad-Hoc Commands, Agents can discover and invoke each other behind LANs, firewalls without requiring public IPs, exposed HTTP APIs, or centralized servers.
 <p align="center">
   <img src="images_readme/a2a.jpg"/>
 </p>

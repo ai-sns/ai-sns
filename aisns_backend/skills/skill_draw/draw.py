@@ -8,7 +8,7 @@ api_endpoint and api_key, then calls the image generation endpoint.
 Input (stdin JSON):
   prompt   - Text description of the image to generate (required)
   size     - Image dimensions, e.g. "1024x1024" (optional, default "1024x1024")
-  model    - Image generation model name (optional, default "dall-e-3")
+  model    - Image generation model name (optional, default "gpt-image-1-mini")
   quality  - "standard" or "hd" (optional, default "standard")
   n        - Number of images (optional, default 1)
 
@@ -51,7 +51,7 @@ def main():
         return
 
     size = (params.get("size") or "1024x1024").strip()
-    model = (params.get("model") or "dall-e-3").strip()
+    model = (params.get("model") or "gpt-image-1-mini").strip()
     quality = (params.get("quality") or "standard").strip()
     n = int(params.get("n") or 1)
 

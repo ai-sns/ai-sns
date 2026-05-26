@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from .role_schemas import RoleConfigCreate, RoleConfigUpdate, RoleConfigResponse
 from .role_service import RoleConfigService
+from runtime.shared import debug_info
 
 router = APIRouter(prefix="/role-configs", tags=["Role Configuration"])
 

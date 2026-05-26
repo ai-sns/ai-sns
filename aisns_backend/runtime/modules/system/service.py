@@ -16,6 +16,7 @@ import httpx
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 from db.DBFactory import query_SystemCfg, update_SystemCfg, Session, SystemCfg as DBSystemCfg
+from runtime.shared.error_sanitizer import sanitize_user_error
 from runtime.config.settings import get_settings
 from runtime.modules.map.file_replace import (
     GOOGLE_KEY_PLACEHOLDER,
@@ -27,6 +28,7 @@ from runtime.modules.map.file_replace import (
 from db.repositories import WebMngRepository, SystemInitRepository, AISnsCfgRepository, LLMConfigRepository, AgentCfgRepository
 from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_anthropic_base_url
 from db.models.web import WebMng
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,7 @@ class SystemService:
             "tool_check_before_review_enabled": bool(getattr(config, 'tool_check_before_review_enabled', False)),
             "agent_card_before_review_enabled": bool(getattr(config, 'agent_card_before_review_enabled', False)),
             "a2a_server_enabled": bool(getattr(config, 'a2a_server_enabled', False)),
+            "debug_mode": getattr(config, 'debug_mode', '') or '',
             "tools": {
                 "page_size": settings.tools.page_size
             }
@@ -93,6 +96,7 @@ class SystemService:
             "tool_check_before_review_enabled",
             "agent_card_before_review_enabled",
             "a2a_server_enabled",
+            "debug_mode",
         }
 
         payload = {k: v for k, v in kwargs.items() if k in allowed_keys}
@@ -154,6 +158,19 @@ class SystemService:
                 payload["a2a_server_enabled"] = bool(payload["a2a_server_enabled"])
             except Exception:
                 payload.pop("a2a_server_enabled", None)
+
+        if "debug_mode" in payload:
+            try:
+                payload["debug_mode"] = '' if payload["debug_mode"] is None else str(payload["debug_mode"]).strip()
+            except Exception:
+                payload.pop("debug_mode", None)
+            # Apply immediately to the in-process debug filter so it takes
+            # effect without a backend restart.
+            try:
+                from runtime.shared.utils import set_debug_mode
+                set_debug_mode(payload.get("debug_mode", ""))
+            except Exception:
+                pass
 
         # Update global language setting at runtime
         if "language" in payload and payload["language"]:
@@ -607,9 +624,9 @@ class SystemInitWizardService:
                     return {"success": True, "message": f"LLM Server is reachable (HTTP {fallback.status_code}), but API Key or model list could not be verified", "data": {"status": fallback.status_code}}
                 return {"success": False, "message": f"LLM Server returned an unexpected response (HTTP {fallback.status_code})", "data": {"status": fallback.status_code}}
         except httpx.RequestError as e:
-            return {"success": False, "message": f"Failed to connect to LLM Server: {str(e)}"}
+            return {"success": False, "message": f"Failed to connect to LLM Server: {sanitize_user_error(e)}"}
         except Exception as e:
-            return {"success": False, "message": str(e) or "LLM test failed"}
+            return {"success": False, "message": sanitize_user_error(e) or "LLM test failed"}
 
     async def test_xmpp(self, account: str, account_password: str) -> Dict[str, Any]:
         account = (account or "").strip()

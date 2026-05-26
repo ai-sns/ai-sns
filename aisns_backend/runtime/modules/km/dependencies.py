@@ -3,6 +3,7 @@
 KM module - Dependencies
 """
 from .service import KMService
+from runtime.shared import debug_info
 
 
 def get_km_service() -> KMService:

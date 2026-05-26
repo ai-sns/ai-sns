@@ -7,7 +7,7 @@ import logging
 import httpx
 from typing import AsyncGenerator, Optional
 
-from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_provider
+from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_provider, is_openai_reasoning_model
 from runtime.shared.claude_client import ClaudeClient
 
 from db.DBFactory import add_AIChatMessages, query_AIChatMessages_All
@@ -18,6 +18,7 @@ from runtime.shared.llm_log_writer import (
     log_llm_stream_chunk,
     log_llm_error,
 )
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -126,13 +127,24 @@ class StreamingService:
                 base_url = normalize_openai_base_url(str(ai_config.get('api_base') or ''))
                 api_url = f"{base_url.rstrip('/')}/chat/completions"
 
+                # OpenAI reasoning models (o1/o3/o4/gpt-5 families) require
+                # `max_completion_tokens` and reject `max_tokens`/non-default
+                # temperature. Detect by provider+model name prefix.
+                is_openai_reasoning = (
+                    provider == 'openai'
+                    and is_openai_reasoning_model(model)
+                )
+
                 request_data = {
                     "model": model,
                     "messages": messages,
                     "stream": True,
-                    "temperature": temperature,
-                    "max_tokens": max_tokens
                 }
+                if is_openai_reasoning:
+                    request_data["max_completion_tokens"] = max_tokens
+                else:
+                    request_data["temperature"] = temperature
+                    request_data["max_tokens"] = max_tokens
 
                 try:
                     log_llm_request(

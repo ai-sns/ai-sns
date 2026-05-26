@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Dict
 from fastapi import WebSocket
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

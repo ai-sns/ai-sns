@@ -5,6 +5,7 @@ SNS AI Service - Provides AI chat service for the SNS module
 import logging
 from typing import Optional
 from runtime.apps.sns.adapter.agent_adapter import AgentAdapter
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

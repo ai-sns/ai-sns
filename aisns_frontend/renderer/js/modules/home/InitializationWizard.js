@@ -26,6 +26,18 @@ const InitializationWizard = {
         map_id: ''
     },
 
+    sanitizeTestMessage(message) {
+        if (window.Toast && typeof window.Toast.sanitizeMessage === 'function') {
+            return window.Toast.sanitizeMessage(message);
+        }
+        let text = (message || '').toString().trim();
+        text = text.replace(/\bsk-proj-[A-Za-z0-9_\-*]{12,}\b/g, (v) => `${v.slice(0, 6)}...${v.slice(-4)}`);
+        text = text.replace(/\bsk-svcac[A-Za-z0-9_\-*]{12,}\b/g, (v) => `${v.slice(0, 6)}...${v.slice(-4)}`);
+        text = text.replace(/\bsk-[A-Za-z0-9_\-*]{12,}\b/g, (v) => `${v.slice(0, 6)}...${v.slice(-4)}`);
+        text = text.replace(/[ \t\r\n]+/g, ' ').trim();
+        return text.length > 420 ? `${text.slice(0, 420).trim()}...` : text;
+    },
+
     setInlineTestResult(type, message) {
         if (!this.modal || !this.modal.element) {
             return;
@@ -38,7 +50,7 @@ const InitializationWizard = {
         if (!el) {
             return;
         }
-        const text = (message || '').toString();
+        const text = this.sanitizeTestMessage(message);
         if (!text) {
             el.style.display = 'none';
             el.textContent = '';
@@ -46,6 +58,9 @@ const InitializationWizard = {
         }
         el.style.display = 'block';
         el.textContent = text;
+        el.style.maxWidth = '100%';
+        el.style.overflowWrap = 'anywhere';
+        el.style.whiteSpace = 'pre-wrap';
 
         const ok = type === 'success';
         el.style.borderColor = ok ? 'rgba(46, 204, 113, 0.65)' : 'rgba(231, 76, 60, 0.65)';
@@ -735,7 +750,7 @@ const InitializationWizard = {
             snsRegisterLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                openUrlInDefaultBrowser('https://guide.ai-sns.org/xmpp.html');
+                openUrlInDefaultBrowser('https://guide.ai-sns.org/docs.html#xmpp');
             });
         }
 
@@ -757,7 +772,7 @@ const InitializationWizard = {
             mapRegisterLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                openUrlInDefaultBrowser('https://guide.ai-sns.org/map.html');
+                openUrlInDefaultBrowser('https://guide.ai-sns.org/docs.html#map');
             });
         }
 

@@ -3,6 +3,7 @@
 System module - Dependencies
 """
 from .service import SystemService, SystemInitWizardService
+from runtime.shared import debug_info
 
 
 def get_system_service() -> SystemService:

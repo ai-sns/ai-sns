@@ -9,6 +9,7 @@ import json
 import hashlib
 import uuid
 import re
+import inspect
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
@@ -19,6 +20,134 @@ logger = logging.getLogger(__name__)
 
 import random
 import string
+
+
+# ---------------------------------------------------------------------------
+# Debug filter state
+# ---------------------------------------------------------------------------
+# ``_debug_filter`` semantics:
+#   None         -> debug_info is disabled
+#   True         -> debug_info emits for any tag ("*" mode)
+#   frozenset{}  -> debug_info emits only when the tag matches one of these
+_debug_filter = None
+_debug_filter_initialized = False
+
+
+def set_debug_mode(raw: Any) -> None:
+    """
+    Configure the in-process debug filter from a raw config value.
+
+    - empty / None -> disabled
+    - "*"          -> enable all tags
+    - comma-separated tag list -> enable only the listed tags
+    """
+    global _debug_filter, _debug_filter_initialized
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        _debug_filter = None
+    elif text == "*":
+        _debug_filter = True
+    else:
+        tags = frozenset(t.strip() for t in text.split(",") if t.strip())
+        _debug_filter = tags if tags else None
+    _debug_filter_initialized = True
+
+
+def _ensure_debug_filter_loaded() -> None:
+    """Lazy-load the debug filter from system_cfg on first use."""
+    global _debug_filter_initialized
+    if _debug_filter_initialized:
+        return
+    try:
+        from db.DBFactory import query_SystemCfg
+        cfg = query_SystemCfg(is_delete=False)
+        set_debug_mode(getattr(cfg, "debug_mode", "") if cfg else "")
+    except Exception:
+        # Mark as initialized to avoid repeated failures; leave filter disabled.
+        _debug_filter = None
+        _debug_filter_initialized = True
+
+
+def _debug_tag_allowed(tag: Any) -> bool:
+    _ensure_debug_filter_loaded()
+    if _debug_filter is None:
+        return False
+    if _debug_filter is True:
+        return True
+    tag_text = "" if tag is None else str(tag).strip()
+    return tag_text in _debug_filter
+
+
+def _build_debug_separator(marker: str, sep: Any = "", total_length: int = 60,
+                           tag: Any = "") -> str:
+    """
+    Build a separator of the form ``<pattern><tag_text>`` where ``<pattern>``
+    is exactly ``total_length`` characters of ``marker``+``sep`` repeated.
+    The tag is NOT counted toward ``total_length``.
+
+    ``sep`` and ``tag`` are coerced to ``str`` so callers may pass numbers.
+    A non-empty tag is auto-wrapped in square brackets unless it already is.
+    """
+    tag_text = "" if tag is None else str(tag)
+    if tag_text and not (tag_text.startswith("[") and tag_text.endswith("]")):
+        tag_text = f"[{tag_text}]"
+    sep_text = "" if sep is None else str(sep)
+    unit = f"{marker}{sep_text}"
+    if not unit:
+        unit = marker
+    pattern = (unit * ((total_length // len(unit)) + 1))[:total_length]
+    return pattern + tag_text
+
+
+def _resolve_caller_location():
+    """
+    Walk back the call stack to the first frame outside this utils module
+    and return ``(logger_name, display_path, lineno)``. Falls back to this
+    module's own logger name when the caller cannot be resolved.
+    """
+    try:
+        this_file = os.path.normcase(os.path.abspath(__file__))
+        frame = inspect.currentframe()
+        caller = frame.f_back if frame else None
+        while caller is not None:
+            caller_file = os.path.normcase(os.path.abspath(caller.f_code.co_filename))
+            if caller_file != this_file:
+                break
+            caller = caller.f_back
+        if caller is None:
+            return __name__, "<unknown>", 0
+        name = caller.f_globals.get("__name__", __name__)
+        filename = caller.f_code.co_filename
+        try:
+            display_path = os.path.relpath(filename)
+        except ValueError:
+            # On Windows, relpath fails across drives; fall back to basename.
+            display_path = os.path.basename(filename)
+        return name, display_path, caller.f_lineno
+    except Exception:
+        return __name__, "<unknown>", 0
+
+
+def debug_info(info: Any, sep: Any = "", tag: Any = "") -> None:
+    """
+    Emit a 3-line debug block via the caller's logger:
+
+    - start separator: ``<tag>`` + ``"*"`` + ``sep`` repeated, total length 60,
+      followed by ``[<relative_path>:<lineno>]`` of the call site
+    - the payload ``info``
+    - end separator: ``<tag>`` + ``"-"`` + ``sep`` repeated, total length 60
+
+    ``sep`` and ``tag`` default to empty strings and accept numbers as well.
+    """
+    if not _debug_tag_allowed(tag):
+        return
+    caller_name, caller_path, caller_line = _resolve_caller_location()
+    caller_logger = logging.getLogger(caller_name)
+    location = f"[Line:{caller_line}]"
+    caller_logger.info(location + _build_debug_separator("*", sep, tag=tag))
+    caller_logger.info(info)
+    caller_logger.info(location + _build_debug_separator("-", sep, tag=tag))
+
 
 def generate_random_id():
 

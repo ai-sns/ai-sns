@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

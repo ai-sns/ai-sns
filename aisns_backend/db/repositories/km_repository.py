@@ -6,6 +6,7 @@ from .base import BaseRepository
 from db.models.km import KeyValue, KMCfg, KMData, NoteMng
 from db.database import get_db_session as get_session
 from db.write_queue import db_write
+from runtime.shared import debug_info
 
 
 # ==================== Key Value ====================

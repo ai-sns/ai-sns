@@ -565,6 +565,124 @@ class TestA2APeer(slixmpp.ClientXMPP):
     def get_local_disco_features(self) -> Dict[str, Any]:
         return {"jid": self.boundjid.full, "features": list(self._registered_features)}
 
+    def _query_local_disco_stanza(self, kind: str, node: Optional[str]):
+        """
+        Best-effort lookup into the slixmpp static disco store for the given
+        node. Returns the raw DiscoInfo/DiscoItems stanza or None. Tries the
+        likely (jid, node) key combinations that slixmpp may have used when
+        we registered our features/items.
+        """
+        try:
+            disco = self["xep_0030"]
+            static_api = getattr(disco, "static", None)
+            if static_api is None:
+                return None
+            fn = getattr(static_api, f"get_{kind}", None)
+            if fn is None:
+                return None
+        except Exception:
+            return None
+        bare = self.boundjid.bare
+        full = self.boundjid.full
+        candidates = [None, bare, full, self.boundjid]
+        for jid_key in candidates:
+            try:
+                stanza = fn(jid_key, node, None, {})
+            except Exception:
+                continue
+            if stanza is not None:
+                return stanza
+        return None
+
+    async def get_local_disco_info(self, node: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Local mirror of get_disco_info(). When `node` is None, returns the
+        root-node info (identities + features registered against the bare
+        JID). When `node` is a command node, returns the per-node identity
+        and the XEP-0128 metadata we attached at registration time.
+        """
+        identities: List[tuple] = []
+        features: List[str] = []
+        xep0128: Dict[str, Any] = {"description": "", "source": "", "form_fields": []}
+
+        # Try the slixmpp static store first to surface anything plugins added
+        info_stanza = self._query_local_disco_stanza("info", node)
+        if info_stanza is not None:
+            try:
+                identities = [tuple(identity) for identity in info_stanza.get("identities", [])]
+            except Exception:
+                identities = []
+            try:
+                features = sorted(list(info_stanza.get("features", [])))
+            except Exception:
+                features = []
+            try:
+                # Reuse the XEP-0128 extractor against the stanza directly.
+                # _extract_xep0128_meta normally takes an Iq and dereferences
+                # ['disco_info']; provide a thin shim object so it works for
+                # both Iq and the raw DiscoInfo stanza returned locally.
+                shim = type("_S", (), {"__getitem__": lambda _s, _k: info_stanza})()
+                xep0128 = self._extract_xep0128_meta(shim)
+            except Exception:
+                pass
+
+        # Fallback / authoritative overlay from our in-memory registrations
+        if node is None or node == "":
+            if not features:
+                features = sorted(list(self._registered_features))
+        elif node in self._registered_commands:
+            cmd = self._registered_commands[node]
+            if not identities:
+                identities = [("automation", "command-node", cmd.get("name", ""))]
+            if not xep0128.get("description"):
+                xep0128 = {
+                    "description": cmd.get("description", "") or "",
+                    "source": cmd.get("source", "") or "",
+                    "form_fields": cmd.get("form_fields", []) or [],
+                }
+
+        return {
+            "ok": True,
+            "jid": self.boundjid.full,
+            "node": node or "",
+            "identities": identities,
+            "features": features,
+            "xep0128": xep0128,
+        }
+
+    async def get_local_disco_items(self, node: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Local mirror of get_disco_items(). When `node` is None, returns the
+        root-node items. When `node == A2A_COMMANDS_NODE`, returns one item
+        per registered ad-hoc command.
+        """
+        items: List[Dict[str, Any]] = []
+
+        items_stanza = self._query_local_disco_stanza("items", node)
+        if items_stanza is not None:
+            try:
+                for item in items_stanza["items"]:
+                    items.append({"jid": item[0], "node": item[1], "name": item[2] or ""})
+            except Exception:
+                pass
+
+        # Authoritative overlay from our in-memory registrations: the static
+        # store may be keyed differently from how we registered, so make
+        # sure the commands node always lists what we actually exposed.
+        if node == A2A_COMMANDS_NODE:
+            seen = {(it["jid"], it["node"]) for it in items}
+            for cmd in self._registered_commands.values():
+                key = (self.boundjid.full, cmd.get("node"))
+                if key in seen:
+                    continue
+                items.append({
+                    "jid": self.boundjid.full,
+                    "node": cmd.get("node"),
+                    "name": cmd.get("name", "") or "",
+                })
+
+        return {"ok": True, "jid": self.boundjid.full, "node": node or "", "items": items}
+
     def get_local_adhoc_commands(self) -> List[Dict[str, Any]]:
         return list(self._registered_commands.values())
 
@@ -995,9 +1113,9 @@ Available commands (type and press Enter):
   greet <target_jid> [greeting_type]         Call peer's Greeting Exchange command
   adhoc <target_jid> <node> [json_form_data] Call any ad-hoc command
   inspect <target_jid> <node>                Inspect a command form
-  localdisco                                 Show local registered disco features
-  localitems                                 Show local registered ad-hoc commands
-  localcommands                              Show local ad-hoc command metadata
+  localdisco [node]                          Local disco#info (root node if omitted)
+  localitems [node]                          Local disco#items (root node if omitted)
+  localcommands                              Show full local ad-hoc command metadata (with form fields)
   localagentcard                             Show local Agent Card payload
   publishcard [json_agent_card]              Publish local Agent Card to PEP
   discoinfo <target_jid> [node]              Query peer disco#info
@@ -1046,8 +1164,36 @@ def _start_input_thread(peer: TestA2APeer, loop: asyncio.AbstractEventLoop) -> N
             elif cmd == "card":
                 print(json.dumps(peer.my_card, indent=2, ensure_ascii=False))
             elif cmd == "localdisco":
-                print(json.dumps(peer.get_local_disco_features(), indent=2, ensure_ascii=False))
-            elif cmd in ("localitems", "localcommands"):
+                # Mirror discoinfo against our own slixmpp disco store.
+                # Optional [node]; defaults to the root node.
+                rest_parts = raw.split(None, 1)
+                node = rest_parts[1].strip() if len(rest_parts) > 1 else None
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.get_local_disco_info(node), loop
+                )
+                try:
+                    result = future.result(timeout=15)
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+            elif cmd == "localitems":
+                # Mirror discoitems against our own slixmpp disco store.
+                # Optional [node]; defaults to the root node. Use
+                # `localcommands` for full ad-hoc command metadata
+                # (description + form fields).
+                rest_parts = raw.split(None, 1)
+                node = rest_parts[1].strip() if len(rest_parts) > 1 else None
+                future = asyncio.run_coroutine_threadsafe(
+                    peer.get_local_disco_items(node), loop
+                )
+                try:
+                    result = future.result(timeout=15)
+                    print(json.dumps(result, indent=2, ensure_ascii=False))
+                except Exception as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+            elif cmd == "localcommands":
+                # XEP-0050 style: full ad-hoc command metadata, including
+                # description and form fields.
                 print(json.dumps({"ok": True, "commands": peer.get_local_adhoc_commands()}, indent=2, ensure_ascii=False))
             elif cmd == "localagentcard":
                 print(json.dumps({"ok": True, "agent_card": peer.get_local_agent_card()}, indent=2, ensure_ascii=False))
@@ -1111,6 +1257,31 @@ def _start_input_thread(peer: TestA2APeer, loop: asyncio.AbstractEventLoop) -> N
                 try:
                     result = future.result(timeout=30)
                     print(json.dumps(result, indent=2, ensure_ascii=False))
+                    # XEP-0050 ad-hoc commands are advertised under the
+                    # dedicated commands node, NOT the root disco#items.
+                    # When the root node is queried and comes back empty,
+                    # auto-retry the commands node so testers see something
+                    # useful without having to memorise the magic URI.
+                    if (
+                        node is None
+                        and isinstance(result, dict)
+                        and result.get("ok")
+                        and not result.get("items")
+                    ):
+                        commands_node = "http://jabber.org/protocol/commands"
+                        print(
+                            f"\n[hint] Root disco#items is empty. Retrying "
+                            f"with node={commands_node} (XEP-0050 ad-hoc "
+                            f"commands)..."
+                        )
+                        retry_future = asyncio.run_coroutine_threadsafe(
+                            peer.get_disco_items(target, commands_node), loop
+                        )
+                        try:
+                            retry_result = retry_future.result(timeout=30)
+                            print(json.dumps(retry_result, indent=2, ensure_ascii=False))
+                        except Exception as retry_exc:
+                            print(json.dumps({"ok": False, "error": str(retry_exc)}, indent=2, ensure_ascii=False))
                 except Exception as exc:
                     print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
             elif cmd == "peercommands":

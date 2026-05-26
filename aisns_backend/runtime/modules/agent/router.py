@@ -13,6 +13,7 @@ from .dependencies import get_agent_service
 from .agent_manager import AgentManager
 from .code_executor import CodeExecutor
 from db.DBFactory import Session, AgentCfg
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

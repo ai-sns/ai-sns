@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from db.base import Base
 from db.DBFactory import Session as SessionLocal, engine
 from db.models.km import NoteMng
+from runtime.shared import debug_info
 
 
 def _create_all_tables():

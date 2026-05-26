@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 import shutil
 from typing import Dict, List
+from runtime.shared import debug_info
 
 
 GOOGLE_KEY_PLACEHOLDER = "your_api_key"

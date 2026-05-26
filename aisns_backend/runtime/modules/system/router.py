@@ -13,6 +13,7 @@ import httpx
 from .schemas import SystemConfig, WebMngReorderItem, SystemInitDraft, SystemInitSubmit, SystemInitTestLLM, SystemInitTestXMPP, SystemInitTestMap
 from .service import SystemService, SystemInitWizardService
 from .dependencies import get_system_service, get_system_init_wizard_service
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

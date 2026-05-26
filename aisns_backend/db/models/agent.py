@@ -2,6 +2,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Float
 from db.base import Base
+from runtime.shared import debug_info
 
 
 class AgentCfg(Base):

@@ -10,6 +10,7 @@ from db.models.aisns import (
 )
 from db.database import get_db_session as get_session
 from db.write_queue import db_write
+from runtime.shared import debug_info
 
 
 # ==================== AI Chat Messages ====================

@@ -11,6 +11,7 @@ Run once after pulling the matching seed_data.py changes:
 
 from db.DBFactory import Session
 from db.models.agent import Prompt
+from runtime.shared import debug_info
 
 
 NEW_BEFORE_ACTIVITY = (

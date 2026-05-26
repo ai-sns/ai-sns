@@ -1,6 +1,7 @@
 """Configuration for the AI SNS Engine memory system."""
 
 import logging
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

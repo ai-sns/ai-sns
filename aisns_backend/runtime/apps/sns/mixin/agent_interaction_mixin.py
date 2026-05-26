@@ -9,6 +9,7 @@ import re
 from typing import List, Dict, Optional
 from db.DBFactory import get_prompt_by_title
 from runtime.apps.sns.adapter.agent_adapter import AgentAdapter
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

@@ -10,6 +10,7 @@ from docx import Document
 from pptx import Presentation
 import openpyxl
 import os
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

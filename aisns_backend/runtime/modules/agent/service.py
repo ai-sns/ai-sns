@@ -21,6 +21,7 @@ from db.repositories import (
     SkillMngRepository,
 )
 from db.database import get_db_session
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

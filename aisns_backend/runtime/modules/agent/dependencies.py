@@ -3,6 +3,7 @@
 Agent module - Dependencies
 """
 from .service import AgentService
+from runtime.shared import debug_info
 
 
 def get_agent_service() -> AgentService:

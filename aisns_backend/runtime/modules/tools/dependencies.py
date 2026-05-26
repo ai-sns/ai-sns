@@ -3,6 +3,7 @@
 Tools module - FastAPI dependencies
 """
 from .service import ToolsService
+from runtime.shared import debug_info
 
 
 def get_tools_service() -> ToolsService:

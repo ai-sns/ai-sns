@@ -8,6 +8,7 @@ import importlib
 import inspect
 from typing import Dict, Any, Optional, List
 from pathlib import Path
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

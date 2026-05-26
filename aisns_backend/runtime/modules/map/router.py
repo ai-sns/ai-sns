@@ -18,6 +18,7 @@ from .service import MapService
 from .websocket import manager, handle_websocket_message
 from .dependencies import get_map_service, get_connection_manager
 from db.database import get_db_sync
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

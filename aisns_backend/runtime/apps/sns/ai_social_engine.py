@@ -19,6 +19,7 @@ import uuid
 import logging
 
 import re
+from runtime.shared import debug_info
 
 log = logging.getLogger(__name__)
 from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_title, query_function_mng,
@@ -76,7 +77,6 @@ class AISocialEngine(
         self.map_task_status = ""
         self.current_place = None
         self.process_list = []
-        self.ability_list = []
         self.task_runner = None
         self._background_tasks = set()
         self.taskmng_js = JsTaskManager(self)
@@ -115,7 +115,7 @@ class AISocialEngine(
         # self.messageEdit.setFocus()
         # self.messageEdit.installEventFilter(self)
 
-        self.personList = ["My_Agent", "wangwang"]
+        self.personList = ["My_Agent", "Fridend"]
 
         self.agent = None
         self.kmselectedList = []
@@ -143,23 +143,6 @@ class AISocialEngine(
         self.target_place = ""
         self.move_by_route_flag = False
         self.route_position_list = []
-        self.ability_list = [
-            {
-                "function_name": "【activity_find_people_from_list_to_talk】",
-                "function_description": "Find a suitable person from the people list to communicate with. Use this when you need help or guidance. Do not filter people in multiple steps.",
-                "status": "enabled"
-            },
-            {
-                "function_name": "【activity_find_place_from_list_to_move】",
-                "function_description": "Find a suitable destination from the place list. Use this when you need to go somewhere. Do not filter places in multiple steps.",
-                "status": "enabled"
-            },
-            {
-                "function_name": "【activity_find_tool_from_list_to_use】",
-                "function_description": "Find an appropriate tool from the tool list to call system services or AI skills to solve problems that other functions cannot. Do not filter tools in multiple steps.",
-                "status": "enabled"
-            }
-        ]
         self.skill_list = []
         self.started_flag = False
 
@@ -355,23 +338,6 @@ class AISocialEngine(
                 self.taskmng.add_process(current_place=self.current_place, current_position=self.aisns_cfg_record.current_position)
 
                 self.taskmng.current_situation = f"Preparing to start the task"
-                self.ability_list = [
-                    {
-                        "function_name": "【activity_find_people_from_list_to_talk】",
-                        "function_description": "Find a suitable person from the people list to communicate with. Use this when you need help or guidance. Do not filter people in multiple steps.",
-                        "status": "enabled"
-                    },
-                    {
-                        "function_name": "【activity_find_place_from_list_to_move】",
-                        "function_description": "Find a suitable destination from the place list. Use this when you need to go somewhere. Do not filter places in multiple steps.",
-                        "status": "enabled"
-                    },
-                    {
-                        "function_name": "【activity_find_tool_from_list_to_use】",
-                        "function_description": "Find an appropriate tool from the tool list to call system services or AI skills to solve problems that other functions cannot. Do not filter tools in multiple steps.",
-                        "status": "enabled"
-                    }
-                ]
                 # Preload recent memories into cache on engine start
                 try:
                     if MemoryConfig.ENABLED:
@@ -394,7 +360,6 @@ class AISocialEngine(
 
             logger.info("AI Social Engine started successfully")
             logger.info(f"Map task status: {self.map_task_status}")
-            logger.info(f"Abilities enabled: {len(self.ability_list)}")
 
         except Exception as e:
             logger.error(f"Error in start(): {e}", exc_info=True)
@@ -614,7 +579,6 @@ class AISocialEngine(
         return {
             "started": self.started_flag,
             "task_status": self.map_task_status,
-            "abilities_count": len(self.ability_list),
             "current_place": self.current_place
         }
 

@@ -1,4 +1,5 @@
 import re
+from runtime.shared import debug_info
 
 
 _INQUIRY_PREFIX = "[AISNS_INT_003_INQUIRY]"

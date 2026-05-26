@@ -16,6 +16,7 @@ from .vector_service import get_vector_service, EmbeddingConfigError
 
 from .note_schemas import NoteCreate, NoteUpdate, NoteResponse
 from .note_service import NoteService
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

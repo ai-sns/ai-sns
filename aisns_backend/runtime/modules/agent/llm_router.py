@@ -11,6 +11,8 @@ from .llm_service import LLMConfigService
 from .agent_manager import AgentManager
 from db.DBFactory import Session
 from db.models.agent import AgentCfg
+from runtime.shared import debug_info
+from runtime.shared.error_sanitizer import sanitize_user_error
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +177,7 @@ async def test_llm_connection(test_data: LlmTestRequest):
         result = await service.test_connection(test_data)
         return {"success": True, "data": result}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": sanitize_user_error(e)}
 
 
 @router.post("/import", response_model=dict)

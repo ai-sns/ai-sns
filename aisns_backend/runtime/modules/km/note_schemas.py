@@ -5,6 +5,7 @@ KM Note schemas - Data models for notes
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
+from runtime.shared import debug_info
 
 
 class NoteCreate(BaseModel):

@@ -16,6 +16,7 @@ from .schemas import (
     SkillCreate, SkillUpdate, SkillResponse
 )
 from .service import ToolsService
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

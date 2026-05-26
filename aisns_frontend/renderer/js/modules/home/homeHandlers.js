@@ -179,6 +179,9 @@ const homeHandlers = {
                 const a2aServerEnabledValue = (remoteCfg && remoteCfg.a2a_server_enabled !== undefined && remoteCfg.a2a_server_enabled !== null)
                     ? Boolean(remoteCfg.a2a_server_enabled)
                     : false;
+                const debugModeValue = (remoteCfg && remoteCfg.debug_mode !== undefined && remoteCfg.debug_mode !== null)
+                    ? String(remoteCfg.debug_mode)
+                    : '';
 
                 const agentInput = modal.element?.querySelector('#homeCfgAgentServer');
                 const snsInput = modal.element?.querySelector('#homeCfgAiSnsServer');
@@ -244,6 +247,10 @@ const homeHandlers = {
                 if (a2aServerEnabledInput) {
                     a2aServerEnabledInput.checked = !!a2aServerEnabledValue;
                 }
+                const debugModeInput = modal.element?.querySelector('#homeCfgDebugMode');
+                if (debugModeInput) {
+                    debugModeInput.value = debugModeValue;
+                }
 
                 savedOriginals.language = languageValue;
                 savedOriginals.a2aServerEnabled = !!a2aServerEnabledValue;
@@ -259,11 +266,11 @@ const homeHandlers = {
             content: `
                 <div class="settings-modal">
                     <div class="setting-group">
-                        <label>Agent Server <a href="#" id="homeCfgAgentHelp" style="font-size:12px;">Learn more</a></label>
+                        <label>Backend Server</label>
                         <input type="text" class="setting-input" id="homeCfgAgentServer" value="" placeholder="http://..." />
                     </div>
                     <div class="setting-group">
-                        <label>AI-SNS Server <a href="#" id="homeCfgAiSnsHelp" style="font-size:12px;">Learn more</a></label>
+                        <label>AI-SNS Server</label>
                         <input type="text" class="setting-input" id="homeCfgAiSnsServer" value="" placeholder="http://..." />
                     </div>
                     <div class="setting-group">
@@ -291,6 +298,10 @@ const homeHandlers = {
                         <input type="number" min="0" max="100000" step="1" class="setting-input" id="homeCfgToolCheckEveryN" value="" placeholder="0" />
                     </div>
                     <div class="setting-group">
+                        <label>Debug Mode</label>
+                        <input type="text" class="setting-input" id="homeCfgDebugMode" value="" placeholder="Empty=off, * = all tags, or comma-separated tags (e.g. xmpp_session_start,km)" />
+                    </div>
+                    <div class="setting-group">
                         <label class="setting-checkbox">
                             <input type="checkbox" id="homeCfgToolCheckBeforeReviewEnabled" />
                             <span>Run Tool Before Conversation Review</span>
@@ -315,17 +326,20 @@ const homeHandlers = {
                         </label>
                     </div>
                     <div class="setting-group">
+                        <label class="setting-checkbox">
+                            <input type="checkbox" id="homeCfgA2aServerEnabled" />
+                            <span>Enable A2A Server (port 8789)</span>
+                        </label>
+                    </div>
+                    <div class="setting-group">
                         <label>Language</label>
                         <select class="setting-input" id="homeCfgLanguage">
                             <option value="en">English</option>
                             <option value="zh">中文</option>
                         </select>
-                    </div>
-                    <div class="setting-group">
-                        <label class="setting-checkbox">
-                            <input type="checkbox" id="homeCfgA2aServerEnabled" />
-                            <span>Enable A2A Server (port 8789)</span>
-                        </label>
+                        <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+                            <a href="#" id="homeCfgAgentHelp" style="font-size:12px;">Help</a>
+                        </div>
                     </div>
                 </div>
             `,
@@ -339,16 +353,7 @@ const homeHandlers = {
                     agentHelp.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        const url = 'https://guide.ai-sns.org/docs.html#agentserver';
-                        openUrlInDefaultBrowser(url);
-                    });
-                }
-                const snsHelp = modal.element?.querySelector('#homeCfgAiSnsHelp');
-                if (snsHelp) {
-                    snsHelp.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const url = 'https://guide.ai-sns.org/docs.html#aisnsserver';
+                        const url = 'https://guide.ai-sns.org/docs.html';
                         openUrlInDefaultBrowser(url);
                     });
                 }
@@ -447,6 +452,7 @@ const homeHandlers = {
 
                     const language = (modal.element?.querySelector('#homeCfgLanguage')?.value || 'en').trim();
                     const a2a_server_enabled = !!(modal.element?.querySelector('#homeCfgA2aServerEnabled')?.checked);
+                    const debug_mode = (modal.element?.querySelector('#homeCfgDebugMode')?.value || '').trim();
 
                     const localRes = await window.electronAPI.writeConfigJson({
                         agent_server,
@@ -477,6 +483,7 @@ const homeHandlers = {
                                 memory_embedding_enabled,
                                 language,
                                 a2a_server_enabled,
+                                debug_mode,
                                 log_retention_days: logRetentionRaw ? log_retention_days : null,
                             });
                             remoteOk = !!(remoteRes && remoteRes.success);

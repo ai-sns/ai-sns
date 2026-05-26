@@ -1,7 +1,7 @@
 ---
 name: Draw Image
 skill_key: draw_image
-description: Generate an image from a text prompt using the default OpenAI-like LLM config (DALL-E or compatible image generation API). Saves the image locally and returns both the local path and the remote URL.
+description: Generate an image from a text prompt using the default OpenAI-like LLM config (gpt-image-1-mini or compatible image generation API). Saves the image locally and returns both the local path and the remote URL.
 instructions: Call by agent when user asks to draw, paint, generate, or create an image.
 requires:
   always: true
@@ -26,7 +26,7 @@ This skill accepts a JSON object as input params.
   - Common values: `256x256`, `512x512`, `1024x1024`, `1792x1024`, `1024x1792`
 
 - `model` (string, optional)
-  - The image generation model name. Default: `dall-e-3`
+  - The image generation model name. Default: `gpt-image-1-mini`
 
 - `quality` (string, optional)
   - Image quality. Values: `standard`, `hd`. Default: `standard`

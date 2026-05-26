@@ -4,6 +4,7 @@ Chat module - Pydantic schemas
 """
 from typing import Optional, List, Dict
 from pydantic import BaseModel
+from runtime.shared import debug_info
 
 
 class ChatMessage(BaseModel):

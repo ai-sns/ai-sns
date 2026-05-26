@@ -4,6 +4,7 @@ Create test data for Tools module with executable code
 """
 import sys
 import os
+from runtime.shared import debug_info
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -30,6 +30,7 @@ from runtime.modules.map.file_replace import (
 )
 from db.database import get_db_sync
 from runtime.shared.websocket_manager import manager as websocket_manager
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -1622,8 +1623,8 @@ class SNSService:
                     # Lightweight reload — no reconnect
                     client = xmpp_mgr.get_client()
                     a2a = getattr(client, '_a2a_manager', None) if client else None
-                    if a2a is not None and hasattr(a2a, 'reload_a2a'):
-                        asyncio.create_task(a2a.reload_a2a())
+                    if a2a is not None and hasattr(a2a, 'reload_xmpp_a2a'):
+                        asyncio.create_task(a2a.reload_xmpp_a2a())
                         logger.info("XMPP A2A in-place reload scheduled")
                     else:
                         # Fallback to full restart if a2a manager is unavailable

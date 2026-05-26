@@ -29,6 +29,7 @@ from db.DBFactory import (
     update_map_visit,
     delete_map_visit
 )
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

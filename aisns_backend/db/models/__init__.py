@@ -11,6 +11,7 @@ from .km import KeyValue, KMCfg, KMData, NoteMng
 from .tools import PluginMng, FunctionMng, McpMng, SkillMng
 from .web import WebMng
 from .system import SystemCfg, SystemInit
+from runtime.shared import debug_info
 
 __all__ = [
     # Agent models

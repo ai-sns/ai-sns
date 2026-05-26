@@ -13,8 +13,9 @@ import openai
 from openai import AsyncOpenAI
 import httpx
 
-from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_provider
+from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_provider, is_openai_reasoning_model
 from runtime.shared.claude_client import ClaudeClient, build_tool_result_block
+from runtime.shared.error_sanitizer import sanitize_user_error
 
 from .tool_executor import tool_executor
 from .code_executor import CodeExecutor
@@ -28,6 +29,7 @@ from runtime.shared.llm_log_writer import (
     log_llm_stream_chunk,
     log_llm_error,
 )
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -406,7 +408,7 @@ class AgentInstance:
             return reply
         except Exception as e:
             logger.error(f"Claude chat failed: {e}", exc_info=True)
-            return f"Error: {str(e)}"
+            return f"Error: {sanitize_user_error(e)}"
 
     async def _claude_chat_stream(
         self,
@@ -634,7 +636,7 @@ class AgentInstance:
                 pass
         except Exception as e:
             logger.error(f"Claude streaming chat failed: {e}", exc_info=True)
-            yield f"Error: {str(e)}"
+            yield f"Error: {sanitize_user_error(e)}"
             return
 
     def get_system_prompt(self) -> str:
@@ -754,15 +756,7 @@ IMPORTANT Tool Usage Guidelines:
         translate the rejection into 503. We therefore restrict the parameter
         to known reasoning-capable model families.
         """
-        m = str(model_name or '').strip().lower()
-        if not m:
-            return False
-        # Known OpenAI reasoning model prefixes
-        reasoning_prefixes = ('o1', 'o3', 'o4', 'gpt-5')
-        for p in reasoning_prefixes:
-            if m == p or m.startswith(p + '-') or m.startswith(p + '.'):
-                return True
-        return False
+        return is_openai_reasoning_model(model_name)
 
     def _is_claude_adaptive_model(self, model_name: Optional[str]) -> bool:
         m = str(model_name or '').strip().lower()
@@ -797,27 +791,49 @@ IMPORTANT Tool Usage Guidelines:
             }
 
     def _build_llm_kwargs(self, *, stream: bool, show_token_usage: bool = False) -> Dict[str, Any]:
+        model_name = self.get_model_name()
+        # OpenAI reasoning models (o1/o3/o4/gpt-5 families) reject the legacy
+        # `max_tokens` parameter and require `max_completion_tokens` instead.
+        use_max_completion_tokens = (
+            self._provider == 'openai'
+            and self._is_openai_reasoning_model(model_name)
+        )
         kwargs: Dict[str, Any] = {
-            'model': self.get_model_name(),
-            'temperature': self.get_temperature(),
-            'max_tokens': self.get_max_tokens(),
+            'model': model_name,
         }
+        # OpenAI reasoning models only accept the default temperature (1) and
+        # reject sampling params like top_p/frequency_penalty/presence_penalty.
+        if not use_max_completion_tokens:
+            kwargs['temperature'] = self.get_temperature()
 
-        top_p = self.get_top_p()
-        if top_p is not None:
-            kwargs['top_p'] = top_p
-        fp = self.get_frequency_penalty()
-        if fp is not None:
-            kwargs['frequency_penalty'] = fp
-        pp = self.get_presence_penalty()
-        if pp is not None:
-            kwargs['presence_penalty'] = pp
+        if use_max_completion_tokens:
+            kwargs['max_completion_tokens'] = self.get_max_tokens()
+        else:
+            kwargs['max_tokens'] = self.get_max_tokens()
+
+        if not use_max_completion_tokens:
+            top_p = self.get_top_p()
+            if top_p is not None:
+                kwargs['top_p'] = top_p
+            fp = self.get_frequency_penalty()
+            if fp is not None:
+                kwargs['frequency_penalty'] = fp
+            pp = self.get_presence_penalty()
+            if pp is not None:
+                kwargs['presence_penalty'] = pp
 
         custom = self.get_custom_params()
         if custom:
             for k, v in custom.items():
                 if k not in kwargs:
                     kwargs[k] = v
+
+        if use_max_completion_tokens:
+            kwargs.pop('temperature', None)
+            kwargs.pop('max_tokens', None)
+            kwargs.pop('top_p', None)
+            kwargs.pop('frequency_penalty', None)
+            kwargs.pop('presence_penalty', None)
 
         if stream:
             kwargs['stream'] = True
@@ -1588,7 +1604,7 @@ IMPORTANT Tool Usage Guidelines:
             except Exception:
                 pass
             logger.error(f"Agent chat failed: {e}", exc_info=True)
-            return f"Error: {str(e)}"
+            return f"Error: {sanitize_user_error(e)}"
 
     async def chat_stream(
         self,
@@ -2125,7 +2141,7 @@ IMPORTANT Tool Usage Guidelines:
             except Exception:
                 pass
             logger.error(f"Agent streaming chat failed: {e}", exc_info=True)
-            yield f"Error: {str(e)}"
+            yield f"Error: {sanitize_user_error(e)}"
 
     def _format_tool_result(self, tool_result: Any) -> str:
         """

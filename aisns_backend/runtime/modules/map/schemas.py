@@ -4,6 +4,7 @@ Map module - Pydantic schemas
 """
 from typing import Optional, Dict, Any
 from pydantic import BaseModel
+from runtime.shared import debug_info
 
 
 class MapConfig(BaseModel):

@@ -4,6 +4,7 @@ Chat module - Dependencies
 """
 from .service import ChatService
 from .streaming import StreamingService
+from runtime.shared import debug_info
 
 
 def get_chat_service() -> ChatService:

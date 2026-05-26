@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import traceback
 from contextlib import AsyncExitStack
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@ import time
 import logging
 
 import re
+from runtime.shared import debug_info
 
 log = logging.getLogger(__name__)
 from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_title, query_function_mng,
@@ -89,7 +90,7 @@ class XmppMixin:
 
             # Check map_mode; only process in org mode
             if self.map_mode != 'org':
-                logger.debug(f"Skipping message processing, map_mode is '{self.map_mode}' (not 'org')")
+                logger.warning(f"Skipping message processing, map_mode is '{self.map_mode}' (not 'org') — incoming XMPP message dropped")
                 return
 
             # Extract account info
@@ -495,7 +496,7 @@ class XmppMixin:
             content: Message content
         """
         if self.map_mode != 'org':
-            logger.debug(f"Skipping UI update, map_mode is '{self.map_mode}' (not 'org')")
+            logger.info(f"Skipping UI update, map_mode is '{self.map_mode}' (not 'org')")
             return
 
         try:

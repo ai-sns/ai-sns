@@ -2,16 +2,21 @@
 XMPP A2A Integration Module
 
 Provides A2A (Agent-to-Agent) capabilities over XMPP:
-- Fetches agent card from inline config or agent_cfg.memo.agent_card_url
+- Builds a default agent card from aisns_cfg (nickname, sign)
 - Publishes agent card via XEP-0163 PEP
 - Advertises A2A capabilities via XEP-0030 Service Discovery
 - Dynamically registers ad-hoc commands from plugin registry + DB config
 - Discovers and invokes peer A2A capabilities
 
-Data flow:
-  aisns_cfg.memo.a2a_config.agent_card (inline) OR
-  aisns_cfg.agent_id -> agent_cfg -> memo JSON -> agent_card_url
+Self agent card flow:
+  aisns_cfg.nickname -> card.name
+  aisns_cfg.sign     -> card.description
+  registered ad-hoc commands -> card.skills[]   (merged by _merge_commands_into_agent_card)
   -> publish via XMPP Disco + PEP
+
+Note: The HTTP agent card served by a2aserver (a2a.sqlite) is a separate
+data source intended for HTTP-based A2A peers; it is NOT used for the
+XMPP-published card.
 
 Ad-hoc commands are loaded from:
   1. Built-in plugins (a2a_commands/*.py)
@@ -27,6 +32,7 @@ from typing import Optional, Dict, Any, List
 
 from runtime.apps.sns.a2a_commands import discover_commands, build_config_commands
 from runtime.apps.sns.a2a_commands.base import AdhocCommand, CommandContext
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
@@ -60,102 +66,53 @@ class XMPPA2AManager:
         self._command_instances: Dict[str, AdhocCommand] = {}
         self._command_context: Optional[CommandContext] = None
 
-    # ── Agent Card Fetching ────────────────────────────────────────────────
+    # ── Agent Card Building ──────────────────────────────────────────────
 
-    def _get_agent_card_url(self) -> Optional[str]:
-        """
-        Resolve agent_card_url from aisns_cfg -> agent_cfg -> memo JSON.
-        Returns the URL string or None.
+    async def fetch_agent_card(self) -> Optional[Dict[str, Any]]:
+        """Build a default agent card from aisns_cfg (nickname, sign).
+
+        Skills are left empty here; registered ad-hoc commands will be
+        merged in later via _merge_commands_into_agent_card().
         """
         try:
             from db.database import get_db_sync
             from db.models.aisns import AISnsCfg
-            from db.models.agent import AgentCfg
 
             db = get_db_sync()
-            config = db.query(AISnsCfg).filter(
-                AISnsCfg.is_delete == False
-            ).first()
-
-            if not config or not getattr(config, 'agent_id', None):
+            try:
+                config = db.query(AISnsCfg).filter(
+                    AISnsCfg.is_delete == False
+                ).first()
+                nickname = ""
+                sign = ""
+                if config:
+                    nickname = (getattr(config, 'nickname', '') or '').strip()
+                    sign = (getattr(config, 'sign', '') or '').strip()
+            finally:
                 db.close()
-                return None
 
-            agent = db.query(AgentCfg).filter_by(id=config.agent_id).first()
-            db.close()
-
-            if not agent or not agent.memo:
-                return None
-
-            extra_data = json.loads(agent.memo)
-            url = extra_data.get('agent_card_url', '').strip()
-            return url if url else None
+            card = {
+                "name": nickname or "AI-SNS Agent",
+                "description": sign or "An AI-SNS agent.",
+                "url": "",
+                "version": "1.0.0",
+                "protocolVersion": "0.3",
+                "capabilities": {
+                    "streaming": False,
+                    "pushNotifications": False,
+                    "stateTransitionHistory": False,
+                },
+                "defaultInputModes": ["application/json"],
+                "defaultOutputModes": ["application/json"],
+                "skills": [],
+            }
+            self._agent_card = card
+            logger.info("Built default agent card: name=%s", card["name"])
+            return card
 
         except Exception as e:
-            logger.error("Failed to resolve agent_card_url: %s", e)
+            logger.error("Failed to build agent card from aisns_cfg: %s", e)
             return None
-
-    @staticmethod
-    def _sync_http_get(url: str) -> Dict[str, Any]:
-        """Synchronous HTTP GET that runs in a thread executor.
-
-        Uses urllib to avoid event-loop interaction issues between
-        httpx.AsyncClient and slixmpp's asyncio loop on Windows.
-        Also forces 127.0.0.1 to avoid IPv6 localhost resolution issues.
-        """
-        import urllib.request
-        # Replace localhost with 127.0.0.1 to avoid IPv6 resolution issues on Windows
-        fetch_url = url.replace("://localhost", "://127.0.0.1")
-        req = urllib.request.Request(fetch_url, headers={"Host": "localhost"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = resp.read().decode("utf-8")
-            return json.loads(data)
-
-    async def fetch_agent_card(self) -> Optional[Dict[str, Any]]:
-        """Fetch the agent card from the configured URL."""
-        url = self._get_agent_card_url()
-        if not url:
-            logger.info("No agent_card_url configured, skipping agent card fetch")
-            return None
-
-        last_error: Optional[Exception] = None
-        loop = asyncio.get_event_loop()
-
-        # Retry to avoid race: XMPP session can start before A2A server is ready.
-        for attempt in range(1, 6):
-            try:
-                # Run synchronous HTTP in thread executor to avoid
-                # asyncio event-loop conflicts with slixmpp on Windows
-                card = await loop.run_in_executor(
-                    None, self._sync_http_get, url
-                )
-                self._agent_card = card
-                logger.info(
-                    "Fetched agent card from %s: name=%s",
-                    url,
-                    card.get("name", "unknown"),
-                )
-                return card
-            except Exception as e:
-                last_error = e
-                logger.warning(
-                    "Failed to fetch agent card (attempt=%d/5) url=%s error_type=%s error=%r",
-                    attempt,
-                    url,
-                    type(e).__name__,
-                    e,
-                )
-                try:
-                    await asyncio.sleep(min(attempt, 3))
-                except Exception:
-                    pass
-
-        logger.error(
-            "Failed to fetch agent card from %s after retries: %s",
-            url,
-            repr(last_error) if last_error else "unknown error",
-        )
-        return None
 
     def _load_my_business_card(self) -> Dict[str, Any]:
         """Load own business card from A2A server database."""
@@ -235,7 +192,7 @@ class XMPPA2AManager:
                     logger.info("Published agent card to PEP node %s", A2A_PEP_NODE)
                     published = True
             except Exception:
-                pass
+                logger.info("PEP publish not supported,will publish agent card by pubsub.")
 
             if not published:
                 try:
@@ -250,7 +207,7 @@ class XMPPA2AManager:
                         logger.info("Published agent card to PubSub node %s", A2A_PEP_NODE)
                         published = True
                 except Exception:
-                    pass
+                    logger.info("Pubsub publish not supported.")
 
             if not published:
                 logger.warning("Neither xep_0163 nor xep_0060 available for PEP publishing")
@@ -444,7 +401,7 @@ class XMPPA2AManager:
             except Exception:
                 pass
         except Exception as e:
-            logger.debug(
+            logger.warning(
                 "[XMPP-A2A] xep0128: form build failed for %s: %s",
                 getattr(cmd, 'node', '?'), e,
             )
@@ -456,18 +413,18 @@ class XMPPA2AManager:
                 continue
             try:
                 setter(node=cmd.node, data=form)
-                logger.debug(
+                logger.info(
                     "[XMPP-A2A] xep0128: published meta for %s via %s",
                     cmd.node, setter_name,
                 )
                 return
             except Exception as e:
-                logger.debug(
+                logger.warning(
                     "[XMPP-A2A] xep0128: %s failed for %s: %s",
                     setter_name, cmd.node, e,
                 )
 
-        logger.debug(
+        logger.warning(
             "[XMPP-A2A] xep0128: no compatible disco extended-info API for %s",
             cmd.node,
         )
@@ -477,12 +434,15 @@ class XMPPA2AManager:
         card so that peers receive each command's description (and form
         fields) in a single PEP read, with zero extra IQ round-trips.
 
-        - If the card already declares a skill referencing a command node,
-          we keep the user-defined entry as-is.
-        - If self._agent_card is None (no agent_card_url configured), we
-          synthesize a minimal card so the command catalog can still be
-          published. This is intentional: the command catalog itself has
-          value even without a full A2A agent card URL.
+        - The self-card built by fetch_agent_card() has an empty skills[]
+          by design; all skills are populated here from the live command
+          registry.
+        - As a safety net, if self._agent_card is unexpectedly None
+          (e.g. DB failure during build), we synthesize an empty card so
+          the command catalog can still be published.
+        - Existing skill entries referencing a command node are preserved
+          and not duplicated (de-dup keys: xmpp_adhoc_node / adhoc_node /
+          command_node / node / id).
         """
         if not isinstance(self._agent_card, dict):
             self._agent_card = {}
@@ -757,11 +717,15 @@ class XMPPA2AManager:
                         resolved_jid, command_node, cond,
                     )
                     last_error = {"ok": False, "error": cond, "detail": str(e)}
-                    # Retry on service-unavailable (resource might not support commands)
-                    if cond == "service-unavailable" and idx < len(candidates) - 1:
+                    # Retry on conditions that mean "this resource can't handle
+                    # XEP-0050 ad-hoc, try the next one". Both service-unavailable
+                    # and feature-not-implemented are returned by generic XMPP
+                    # clients (e.g. Gajim) that share a bare JID with the A2A
+                    # peer process but don't themselves implement ad-hoc.
+                    if cond in ("service-unavailable", "feature-not-implemented") and idx < len(candidates) - 1:
                         logger.info(
-                            "[XMPP-A2A] call_adhoc: resource %s does not support commands, trying next resource",
-                            resolved_jid,
+                            "[XMPP-A2A] call_adhoc: resource %s does not support commands (cond=%s), trying next resource",
+                            resolved_jid, cond,
                         )
                         continue
                     break
@@ -879,11 +843,15 @@ class XMPPA2AManager:
             return
 
         fields = form.get_fields() if hasattr(form, 'get_fields') else {}
-        matching_values = {
-            key: val
-            for key, val in form_data.items()
-            if key in fields
-        }
+
+        # Build case-insensitive lookup: lowercase → actual field var name
+        lower_to_var = {var.lower(): var for var in fields}
+
+        matching_values = {}
+        for key, val in form_data.items():
+            actual_var = lower_to_var.get(key.lower())
+            if actual_var is not None:
+                matching_values[actual_var] = val
 
         if not matching_values:
             return
@@ -897,9 +865,9 @@ class XMPPA2AManager:
 
         # Fallback: directly mutate field values
         if fields:
-            for key, val in form_data.items():
-                if key in fields:
-                    fields[key]['value'] = val
+            for var, val in matching_values.items():
+                if var in fields:
+                    fields[var]['value'] = val
 
     @staticmethod
     def _form_to_dict(form) -> Dict[str, Any]:
@@ -926,27 +894,40 @@ class XMPPA2AManager:
     def _derive_adhoc_node_from_skill(skill: dict) -> Optional[str]:
         """Derive command node URI from an agent card skill entry.
 
-        Returns None if the skill is explicitly advertised over a non-XMPP
-        transport (e.g. transport='http_jsonrpc' / 'http' / 'https'). Such
-        skills must NOT be exposed to peers as XMPP ad-hoc commands —
-        otherwise an LLM would try to invoke them via XEP-0050 and the peer
-        would reply with item-not-found.
+        Only returns a node when the skill carries an EXPLICIT XMPP ad-hoc
+        indicator:
+          - field ``command_node`` / ``xmpp_adhoc_node`` / ``adhoc_node``
+          - field ``transport`` in {'xmpp', 'xmpp_adhoc', 'adhoc'}
+          - skill ``id`` already prefixed with ``urn:xmpp:``
+
+        Bare skill ids from the HTTP agent card (e.g. ``id="greeting"``,
+        ``id="exchange_business_card"``) are NOT auto-prefixed with
+        ``urn:xmpp:a2a:cmd:``; doing so would synthesize a phantom XMPP
+        command_node that the peer doesn't actually expose, leading the LLM
+        to call it and get ``item-not-found``. PEP-merged skills supply the
+        real XMPP node via ``command_node``; HTTP-only skills are reachable
+        via Option A (run_doc_skill a2a_call) or Option C (a2a_jsonrpc_call)
+        and must not appear in the XMPP ad-hoc whitelist.
         """
         transport = (skill.get('transport') or '').strip().lower()
         if transport and transport not in ('xmpp', 'xmpp_adhoc', 'adhoc'):
             return None
-        # Check explicit node fields
+        # Check explicit node fields (authoritative XMPP indicator)
         for key in ('xmpp_adhoc_node', 'adhoc_node', 'command_node', 'node'):
             val = skill.get(key)
             if val and isinstance(val, str):
                 return val.strip()
-        # Derive from skill ID if not a URI
+        # Accept skill id only when it already declares an XMPP URN
         skill_id = (skill.get('id') or '').strip()
-        if not skill_id:
-            return None
-        if skill_id.startswith('urn:') or '://' in skill_id:
+        if skill_id.startswith('urn:xmpp:'):
             return skill_id
-        return f"urn:xmpp:a2a:cmd:{skill_id}"
+        # Accept any skill id when transport is explicitly XMPP
+        if transport in ('xmpp', 'xmpp_adhoc', 'adhoc') and skill_id:
+            if skill_id.startswith('urn:') or '://' in skill_id:
+                return skill_id
+            return f"urn:xmpp:a2a:cmd:{skill_id}"
+        # Otherwise: HTTP-only / unknown — do not synthesize an XMPP node
+        return None
 
     # ── Outbound: Discover Peer Ad-hoc Commands ───────────────────────────
 
@@ -1009,12 +990,12 @@ class XMPPA2AManager:
                 disco_info_jid = candidate_jid
                 break  # success on this resource, no need to try others
             except Exception as e:
-                logger.debug(
+                logger.warning(
                     "[XMPP-A2A] discover_commands: disco#items failed for %s: %s (trying next resource)",
                     candidate_jid, e,
                 )
         if not disco_success:
-            logger.debug("[XMPP-A2A] discover_commands: disco#items failed on all resources for %s", peer_jid)
+            logger.warning("[XMPP-A2A] discover_commands: disco#items failed on all resources for %s", peer_jid)
 
         # Source 3: For commands still missing a description, fetch XEP-0128
         # extended info from the command node via disco#info. This is the
@@ -1044,7 +1025,7 @@ class XMPPA2AManager:
                     if meta.get("form_fields") and "form_fields" not in cmd:
                         cmd["form_fields"] = meta["form_fields"]
                 except Exception as e:
-                    logger.debug(
+                    logger.warning(
                         "[XMPP-A2A] discover_commands: disco#info meta-fetch for %s failed: %s",
                         cmd.get("node"), e,
                     )
@@ -1139,12 +1120,12 @@ class XMPPA2AManager:
             )
             return [f"{target_jid}/{r}" for r, _ in sorted_res]
         except Exception as e:
-            logger.debug("_get_all_resources: failed for %s: %s", target_jid, e)
+            logger.warning("_get_all_resources: failed for %s: %s", target_jid, e)
         return []
 
     # ── Initialization ─────────────────────────────────────────────────────
 
-    async def reload_a2a(self):
+    async def reload_xmpp_a2a(self):
         """
         Lightweight hot-reload: re-read DB config and re-register A2A pieces
         without dropping the XMPP session.
@@ -1153,7 +1134,7 @@ class XMPPA2AManager:
         UI and we want changes to take effect quickly. Falls back gracefully
         if any sub-step fails.
         """
-        logger.info("[XMPP-A2A] reload_a2a: starting in-place reload")
+        logger.info("[XMPP-A2A] reload_xmpp_a2a: starting in-place reload")
 
         # Reset cached card so the next initialize() picks up the latest value
         self._agent_card = None
@@ -1174,7 +1155,7 @@ class XMPPA2AManager:
                     for k in keys_to_drop:
                         adhoc.commands.pop(k, None)
         except Exception as e:
-            logger.warning("[XMPP-A2A] reload_a2a: failed to clear old commands: %s", e)
+            logger.warning("[XMPP-A2A] reload_xmpp_a2a: failed to clear old commands: %s", e)
 
         self._registered_commands = []
         self._command_instances = {}
@@ -1183,9 +1164,9 @@ class XMPPA2AManager:
         try:
             await self.initialize()
         except Exception as e:
-            logger.error("[XMPP-A2A] reload_a2a: initialize() failed: %s", e)
+            logger.error("[XMPP-A2A] reload_xmpp_a2a: initialize() failed: %s", e)
 
-        logger.info("[XMPP-A2A] reload_a2a: complete (%d commands registered)",
+        logger.info("[XMPP-A2A] reload_xmpp_a2a: complete (%d commands registered)",
                     len(self._registered_commands))
 
     async def initialize(self):
@@ -1193,8 +1174,7 @@ class XMPPA2AManager:
         Full initialization sequence, called after XMPP session starts.
 
         Order matters:
-        1. Fetch the agent card via HTTP (AgentCfg.memo.agent_card_url).
-           Inline agent cards in a2a_config are no longer supported.
+        1. Build default agent card from aisns_cfg (nickname, sign).
         2. Register XEP-0030 disco features.
         3. Register ad-hoc commands and publish XEP-0128 metadata per command.
         4. Merge registered commands into agent_card.skills[] so peers can
@@ -1203,7 +1183,7 @@ class XMPPA2AManager:
         """
         logger.info("Initializing XMPP A2A integration...")
 
-        # 1. Fetch agent card via HTTP only
+        # 1. Build agent card from DB config
         await self.fetch_agent_card()
 
         # 2. Register Service Discovery features

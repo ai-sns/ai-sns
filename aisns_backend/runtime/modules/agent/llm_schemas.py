@@ -2,6 +2,7 @@
 """LLM configuration request/response schemas."""
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
+from runtime.shared import debug_info
 
 
 class LLMConfigBase(BaseModel):

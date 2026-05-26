@@ -36,6 +36,7 @@ const Toast = {
      */
     show(message, type = 'info', duration = 3000) {
         this.init();
+        const safeMessage = this.sanitizeMessage(message);
 
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -45,7 +46,7 @@ const Toast = {
 
         toast.innerHTML = `
             <div class="toast-icon">${config.icon}</div>
-            <div class="toast-message">${this.escapeHtml(message)}</div>
+            <div class="toast-message">${this.escapeHtml(safeMessage)}</div>
             <button class="toast-close" onclick="this.parentElement.remove()">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -59,7 +60,7 @@ const Toast = {
             align-items: center;
             gap: 12px;
             min-width: 300px;
-            max-width: 500px;
+            max-width: min(500px, calc(100vw - 40px));
             padding: 16px 20px;
             background: var(--bg-content, #fff);
             border-left: 4px solid ${config.color};
@@ -113,6 +114,8 @@ const Toast = {
                     color: var(--text-primary, #333);
                     line-height: 1.5;
                     word-wrap: break-word;
+                    overflow-wrap: anywhere;
+                    white-space: pre-wrap;
                 }
                 .toast-close {
                     flex-shrink: 0;
@@ -145,6 +148,31 @@ const Toast = {
         }
 
         return toast;
+    },
+
+    sanitizeMessage(message, maxLength = 420) {
+        let text = String(message ?? '').trim();
+        if (!text) {
+            return '';
+        }
+        const patterns = [
+            /\bsk-proj-[A-Za-z0-9_\-*]{12,}\b/g,
+            /\bsk-svcac[A-Za-z0-9_\-*]{12,}\b/g,
+            /\bsk-[A-Za-z0-9_\-*]{12,}\b/g
+        ];
+        patterns.forEach((pattern) => {
+            text = text.replace(pattern, (value) => {
+                if (value.length <= 12) {
+                    return '[redacted]';
+                }
+                return `${value.slice(0, 6)}...${value.slice(-4)}`;
+            });
+        });
+        text = text.replace(/[ \t\r\n]+/g, ' ').trim();
+        if (text.length > maxLength) {
+            text = `${text.slice(0, maxLength).trim()}...`;
+        }
+        return text;
     },
 
     /**

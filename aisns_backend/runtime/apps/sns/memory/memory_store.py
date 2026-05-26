@@ -15,6 +15,7 @@ from sqlalchemy import desc, or_
 from sqlalchemy import text as _text
 from db.models.agent import AgentMemory
 from db.DBFactory import Session, _commit_with_retry
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

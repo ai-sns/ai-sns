@@ -1,6 +1,7 @@
 """Memory type definitions for the AI SNS Engine memory system."""
 
 from enum import Enum
+from runtime.shared import debug_info
 
 
 class MemoryType(str, Enum):

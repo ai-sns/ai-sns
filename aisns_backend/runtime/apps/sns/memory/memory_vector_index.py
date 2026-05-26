@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from runtime.apps.sns.memory.memory_config import MemoryConfig
 from runtime.apps.sns.memory.memory_index import MemoryIndex
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

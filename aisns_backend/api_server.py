@@ -9,6 +9,7 @@ import os
 import sys
 from pathlib import Path
 from datetime import datetime
+from runtime.shared import debug_info
 
 if os.environ.get("PYCHARM_HOSTED"):
     os.environ["OMP_NUM_THREADS"] = "1"
@@ -95,7 +96,6 @@ chat_router = None
 map_router = None
 km_router = None
 system_router = None
-plugins_router = None
 sns_router = None
 a2a_router = None
 
@@ -126,11 +126,6 @@ try:
     from runtime.modules.system.router import router as system_router
 except Exception as e:
     logger.warning(f"⚠ System module not available: {e}")
-
-try:
-    from runtime.modules.plugins.router import router as plugins_router
-except Exception as e:
-    logger.warning(f"⚠ Plugins module not available: {e}")
 
 try:
     from runtime.apps.sns.router import router as sns_router
@@ -223,10 +218,6 @@ if km_router:
 if system_router:
     app.include_router(system_router, prefix="/api/system", tags=["System"])
     logger.info("✓ System Module registered")
-
-if plugins_router:
-    app.include_router(plugins_router, prefix="/api/plugins", tags=["Plugins"])
-    logger.info("✓ Plugins Module registered")
 
 if sns_router:
     app.include_router(sns_router, prefix="/api/sns", tags=["SNS"])
@@ -820,7 +811,6 @@ async def root():
             "map_settings": "GET /api/map/settings - Map settings",
             "knowledge_base": "GET /api/km - Knowledge management",
             "system_config": "GET /api/system/config - System configuration",
-            "plugins": "GET /api/plugins - Plugin management",
             "tools": "GET /api/tools/plugins - Tools management (Plugins, MCP, Functions, Skills)",
             "websocket": "WS /ws/{client_id} - WebSocket connection",
             "jsonrpc": "POST /jsonrpc - JSON-RPC 2.0 interface (legacy compatibility)"
@@ -843,6 +833,7 @@ async def startup_event():
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Server: {settings.server.host}:{settings.server.port}")
     logger.info("="*60)
+
 
     # Initialize the database
     try:
@@ -871,6 +862,14 @@ async def startup_event():
             global_env["lang"] = lang
             logger.info("Language set to: %s", lang)
             logger.info(lt("home.config.title", "Configuration"))
+
+            try:
+                from runtime.shared.utils import set_debug_mode
+                debug_mode_value = getattr(sys_cfg, 'debug_mode', '') or ''
+                set_debug_mode(debug_mode_value)
+                logger.info("Debug mode: %s", debug_mode_value or '(off)')
+            except Exception as _e:
+                logger.warning("Failed to apply debug mode: %s", _e)
 
             a2a_enabled = getattr(sys_cfg, 'a2a_server_enabled', False)
             logger.info("A2A server enabled: %s", a2a_enabled)

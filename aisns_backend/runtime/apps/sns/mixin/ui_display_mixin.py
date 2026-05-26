@@ -19,6 +19,7 @@ import time
 import logging
 
 import re
+from runtime.shared import debug_info
 
 log = logging.getLogger(__name__)
 from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_title, query_function_mng,

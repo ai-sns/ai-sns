@@ -22,6 +22,7 @@ from .streaming import StreamingService
 from .dependencies import get_chat_service, get_streaming_service
 
 from db.DBFactory import query_AIChatMessages_All as query_AIChatMessages
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

@@ -2,6 +2,7 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text
 from db.base import Base
+from runtime.shared import debug_info
 
 
 class SystemCfg(Base):
@@ -33,6 +34,7 @@ class SystemCfg(Base):
     agent_card_before_review_enabled = Column(Boolean, default=False, doc="Agent card before review enabled")
     language = Column(String(10), default='en', doc="Language")
     a2a_server_enabled = Column(Boolean, default=False, doc="A2A server enabled")
+    debug_mode = Column(Text, default='', doc="Debug mode filter: empty=off, '*'=all, or comma-separated tag list")
     is_delete = Column(Boolean, default=False, doc="Soft delete")
     create_time = Column(DateTime, default=datetime.now, doc="Create time")
 

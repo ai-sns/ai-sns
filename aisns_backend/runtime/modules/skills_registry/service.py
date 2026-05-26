@@ -13,6 +13,7 @@ from db.models.agent import AgentDocSkill
 from db.models.tools import SkillMng
 from runtime.modules.skills_registry.registry import DocSkill, get_docskill_registry
 from runtime.modules.tools.tool_executor import get_tool_executor
+from runtime.shared import debug_info
 
 
 class DocSkillsService:

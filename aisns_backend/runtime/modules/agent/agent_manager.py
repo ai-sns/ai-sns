@@ -12,6 +12,7 @@ from db.database import get_db_session as get_session
 from db.models.agent import AgentCfg
 from db.models.agent import LLMConfig, RoleConfig
 from db.DBFactory import query_KMCfg, query_function_mng, query_PluginMng_All_Tool
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

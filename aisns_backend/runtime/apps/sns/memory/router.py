@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Any, Dict, List, Optional
 
 from runtime.apps.sns.memory.memory_manager import MemoryManager
+from runtime.shared import debug_info
 
 
 router = APIRouter()

@@ -28,6 +28,7 @@ from runtime.apps.sns.schemas import (
 )
 
 from runtime.apps.sns.memory.router import router as memory_router
+from runtime.shared import debug_info
 
 router = APIRouter()
 
@@ -608,6 +609,43 @@ async def end_active_conversation(
 
 # ── XMPP A2A Debug Endpoints ──────────────────────────────────────────────
 # These endpoints let you verify the A2A setup without a third-party XMPP client.
+
+@router.post("/xmpp-a2a/reload")
+async def xmpp_a2a_reload():
+    """Manually trigger XMPP A2A in-place reload.
+
+    Re-fetches the agent card via HTTP, re-registers ad-hoc commands, and
+    republishes the agent card via PEP — without dropping the XMPP session.
+    Useful after editing the agent card on the a2aserver UI, since the XMPP
+    layer caches the card in memory and otherwise only reloads when the
+    a2a_config (commands) changes.
+    """
+    try:
+        from runtime.apps.sns.xmpp_client import XMPPClientManager
+        manager = XMPPClientManager.get_instance()
+        client = manager.get_client()
+        if client is None:
+            return {"success": False, "message": "XMPP client not started"}
+
+        a2a = getattr(client, "_a2a_manager", None)
+        if a2a is None:
+            return {"success": False, "message": "A2A manager not initialized"}
+
+        if not hasattr(a2a, "reload_xmpp_a2a"):
+            return {"success": False, "message": "reload_xmpp_a2a not supported by current A2A manager"}
+
+        await a2a.reload_xmpp_a2a()
+        return {
+            "success": True,
+            "message": "A2A reload completed",
+            "data": {
+                "agent_card_name": (a2a._agent_card or {}).get("name", ""),
+                "registered_commands": list(getattr(a2a, "_registered_commands", []) or []),
+            },
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error: {e}"}
+
 
 @router.get("/xmpp-a2a/debug/status")
 async def xmpp_a2a_debug_status():

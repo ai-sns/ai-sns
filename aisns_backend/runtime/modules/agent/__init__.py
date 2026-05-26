@@ -9,6 +9,7 @@ from .tool_executor import ToolExecutor, tool_executor
 from .code_executor import CodeExecutor
 from .service import AgentService
 from .schemas import AgentConfig, AgentResponse
+from runtime.shared import debug_info
 
 __all__ = [
     'AgentInstance',

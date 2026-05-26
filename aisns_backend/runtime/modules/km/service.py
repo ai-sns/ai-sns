@@ -15,6 +15,7 @@ from db.DBFactory import (
 )
 from .vector_service import get_vector_service, EmbeddingConfigError
 from .document_loader import DocumentLoader
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

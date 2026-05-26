@@ -4,6 +4,7 @@ System module - Pydantic schemas
 """
 from typing import Optional, List
 from pydantic import BaseModel
+from runtime.shared import debug_info
 
 
 class SystemConfig(BaseModel):
@@ -24,6 +25,7 @@ class SystemConfig(BaseModel):
     tool_check_before_review_enabled: Optional[bool] = None
     agent_card_before_review_enabled: Optional[bool] = None
     a2a_server_enabled: Optional[bool] = False
+    debug_mode: Optional[str] = None
 
 
 class WebMngReorderItem(BaseModel):

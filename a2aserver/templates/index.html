@@ -49,12 +49,85 @@
         td.col-actions, th.col-actions { white-space: nowrap; word-break: normal; }
         .empty-msg { color: #64748b; text-align: center; padding: 24px; }
         .badge { display: inline-block; padding: 2px 8px; background: #1e293b; border-radius: 4px; font-size: 11px; color: #94a3b8; }
+        .chk-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #94a3b8; cursor: pointer; }
+        .chk-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>A2A Business Card Exchange</h1>
-        <p class="subtitle">Manage your business card and view received cards</p>
+        <h1>A2A Server Management</h1>
+        <p class="subtitle">Manage your agent card, business card, and view exchange history</p>
+
+        <h2>Agent Card</h2>
+        <div class="card" id="agentCardForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Agent Name</label>
+                    <input type="text" id="acName" placeholder="Agent name">
+                </div>
+                <div class="form-group">
+                    <label>Version</label>
+                    <input type="text" id="acVersion" placeholder="1.0.0">
+                </div>
+                <div class="form-group">
+                    <label>Protocol Version</label>
+                    <input type="text" id="acProtocolVersion" placeholder="0.3">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="acDescription" placeholder="Agent description" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Endpoint URL</label>
+                    <input type="text" id="acUrl" placeholder="http://localhost:8789/a2a/">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Provider Organization</label>
+                    <input type="text" id="acProviderOrg" placeholder="Organization name">
+                </div>
+                <div class="form-group">
+                    <label>Provider URL</label>
+                    <input type="text" id="acProviderUrl" placeholder="https://...">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Default Input Modes</label>
+                    <input type="text" id="acInputModes" placeholder="application/json">
+                </div>
+                <div class="form-group">
+                    <label>Default Output Modes</label>
+                    <input type="text" id="acOutputModes" placeholder="application/json">
+                </div>
+            </div>
+            <div class="form-row" style="align-items: center; gap: 24px;">
+                <label class="chk-label"><input type="checkbox" id="acStreaming"> Streaming</label>
+                <label class="chk-label"><input type="checkbox" id="acPushNotifications"> Push Notifications</label>
+                <label class="chk-label"><input type="checkbox" id="acStateHistory"> State Transition History</label>
+            </div>
+            <div class="form-row" style="margin-top: 8px;">
+                <div class="form-group">
+                    <label>Skills <span style="color:#64748b;font-size:11px;">(JSON array — editable)</span></label>
+                    <textarea id="acSkills" placeholder="[]" rows="30" style="font-family: monospace; font-size: 12px;"></textarea>
+                </div>
+            </div>
+            <div class="actions" style="justify-content: space-between; align-items: center;">
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-primary" onclick="saveAgentCard()">Save Agent Card</button>
+                    <button class="btn" style="background:#334155;color:#e2e8f0;" onclick="previewAgentCard()">Preview JSON</button>
+                </div>
+                <span id="acUpdatedAt" style="font-size:12px;color:#64748b;"></span>
+            </div>
+        </div>
+        <div id="agentCardPreview" class="card" style="display:none; margin-top:-8px;">
+            <pre id="acPreviewContent" style="white-space:pre-wrap;word-break:break-all;font-size:12px;color:#94a3b8;max-height:300px;overflow-y:auto;"></pre>
+        </div>
 
         <h2>My Business Card</h2>
         <div class="card" id="myCardForm">
@@ -310,7 +383,119 @@
             }
         }
 
+        // ── Agent Card functions ──────────────────────────────
+
+        async function loadAgentCard() {
+            try {
+                const res = await fetch('/api/agent-card');
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const c = data.data;
+                    document.getElementById('acName').value = c.name || '';
+                    document.getElementById('acDescription').value = c.description || '';
+                    document.getElementById('acUrl').value = c.url || '';
+                    document.getElementById('acVersion').value = c.version || '1.0.0';
+                    document.getElementById('acProtocolVersion').value = c.protocol_version || '0.3';
+                    document.getElementById('acStreaming').checked = !!c.capabilities_streaming;
+                    document.getElementById('acPushNotifications').checked = !!c.capabilities_push_notifications;
+                    document.getElementById('acStateHistory').checked = !!c.capabilities_state_history;
+                    document.getElementById('acProviderOrg').value = c.provider_organization || '';
+                    document.getElementById('acProviderUrl').value = c.provider_url || '';
+
+                    // Parse JSON fields for display
+                    let dim = c.default_input_modes || '["application/json"]';
+                    try { dim = JSON.parse(dim); } catch(e) {}
+                    document.getElementById('acInputModes').value = Array.isArray(dim) ? dim.join(', ') : String(dim);
+
+                    let dom = c.default_output_modes || '["application/json"]';
+                    try { dom = JSON.parse(dom); } catch(e) {}
+                    document.getElementById('acOutputModes').value = Array.isArray(dom) ? dom.join(', ') : String(dom);
+
+                    let skills = c.skills || '[]';
+                    try { skills = typeof skills === 'string' ? JSON.parse(skills) : skills; } catch(e) {}
+                    document.getElementById('acSkills').value = JSON.stringify(skills, null, 2);
+
+                    if (c.updated_at) {
+                        document.getElementById('acUpdatedAt').textContent = 'Last saved: ' + formatTime(c.updated_at);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load agent card:', e);
+            }
+        }
+
+        function parseModes(str) {
+            // Parse comma-separated modes string into JSON array
+            const trimmed = (str || '').trim();
+            if (!trimmed) return ['application/json'];
+            return trimmed.split(',').map(s => s.trim()).filter(s => s);
+        }
+
+        async function saveAgentCard() {
+            // Validate skills JSON
+            let skills;
+            try {
+                skills = JSON.parse(document.getElementById('acSkills').value || '[]');
+            } catch(e) {
+                showToast('Skills JSON is invalid: ' + e.message, 'error');
+                return;
+            }
+
+            const card = {
+                name: document.getElementById('acName').value.trim(),
+                description: document.getElementById('acDescription').value.trim(),
+                url: document.getElementById('acUrl').value.trim(),
+                version: document.getElementById('acVersion').value.trim() || '1.0.0',
+                protocol_version: document.getElementById('acProtocolVersion').value.trim() || '0.3',
+                capabilities_streaming: document.getElementById('acStreaming').checked,
+                capabilities_push_notifications: document.getElementById('acPushNotifications').checked,
+                capabilities_state_history: document.getElementById('acStateHistory').checked,
+                provider_organization: document.getElementById('acProviderOrg').value.trim(),
+                provider_url: document.getElementById('acProviderUrl').value.trim(),
+                default_input_modes: parseModes(document.getElementById('acInputModes').value),
+                default_output_modes: parseModes(document.getElementById('acOutputModes').value),
+                skills: skills,
+            };
+            try {
+                const res = await fetch('/api/agent-card', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(card)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Saved successfully.Please reload agent card in AI-SNS.', 'success');
+                    if (data.data && data.data.updated_at) {
+                        document.getElementById('acUpdatedAt').textContent = 'Last saved: ' + formatTime(data.data.updated_at);
+                    }
+                } else {
+                    showToast('Failed to save agent card', 'error');
+                }
+            } catch (e) {
+                showToast('Error saving agent card: ' + e.message, 'error');
+            }
+        }
+
+        async function previewAgentCard() {
+            const preview = document.getElementById('agentCardPreview');
+            const content = document.getElementById('acPreviewContent');
+            if (preview.style.display !== 'none') {
+                preview.style.display = 'none';
+                return;
+            }
+            try {
+                const res = await fetch('/a2a/.well-known/agent-card.json');
+                const data = await res.json();
+                content.textContent = JSON.stringify(data, null, 2);
+                preview.style.display = 'block';
+            } catch (e) {
+                content.textContent = 'Failed to fetch agent card: ' + e.message;
+                preview.style.display = 'block';
+            }
+        }
+
         // Initialize
+        loadAgentCard();
         loadMyCard();
         loadReceivedCards();
         loadGreetings();

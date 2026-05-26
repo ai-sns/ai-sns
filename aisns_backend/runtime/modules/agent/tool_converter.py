@@ -10,6 +10,7 @@ This allows agents to use any tool type through a unified interface.
 import json
 import logging
 from typing import Dict, List, Any, Optional, Tuple
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 

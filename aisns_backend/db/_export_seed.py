@@ -12,6 +12,7 @@ import os
 import pprint
 import sqlite3
 import sys
+from runtime.shared import debug_info
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "db.sqlite")
 OUT_PATH = os.path.join(os.path.dirname(__file__), "seed_data.py")

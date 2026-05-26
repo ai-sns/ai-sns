@@ -30,6 +30,7 @@ from .tools_repository import (
 )
 from .web_repository import WebMngRepository
 from .system_repository import SystemCfgRepository, SystemInitRepository
+from runtime.shared import debug_info
 
 # Backward compatibility aliases
 AISnsCfgRepository = AISnsCfgRepository

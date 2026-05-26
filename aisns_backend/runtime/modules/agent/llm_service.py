@@ -13,8 +13,9 @@ from db.models.agent import LLMConfig
 from .llm_schemas import LLMConfigCreate, LLMConfigUpdate, LlmTestRequest
 from openai import AsyncOpenAI
 
-from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_provider
+from runtime.shared.llm_endpoints import normalize_openai_base_url, normalize_provider, is_openai_reasoning_model
 from runtime.shared.claude_client import ClaudeClient
+from runtime.shared import debug_info
 
 
 class LLMConfigService:
@@ -180,14 +181,25 @@ class LLMConfigService:
 
         t0 = time.perf_counter()
         messages = [{"role": "user", "content": "hello"}]
+        # OpenAI reasoning models (o1/o3/o4/gpt-5 families) require
+        # `max_completion_tokens` and reject `max_tokens`/non-default
+        # temperature. Detect by model name prefix and adjust accordingly.
+        is_openai_reasoning = (
+            provider == 'openai'
+            and is_openai_reasoning_model(test_data.model_name)
+        )
+        create_kwargs: Dict[str, Any] = {
+            'model': test_data.model_name,
+            'messages': messages,
+        }
+        if is_openai_reasoning:
+            create_kwargs['max_completion_tokens'] = 512
+        else:
+            create_kwargs['temperature'] = 0
+            create_kwargs['max_tokens'] = 512
         try:
             resp = await asyncio.wait_for(
-                client.chat.completions.create(
-                    model=test_data.model_name,
-                    messages=messages,
-                    temperature=0,
-                    max_tokens=512,
-                ),
+                client.chat.completions.create(**create_kwargs),
                 timeout=15.0,
             )
         except asyncio.TimeoutError as e:

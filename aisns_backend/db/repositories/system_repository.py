@@ -1,6 +1,7 @@
 """System repository with specialized CRUD operations."""
 from .base import BaseRepository
 from db.models.system import SystemCfg, SystemInit
+from runtime.shared import debug_info
 
 
 class SystemCfgRepository(BaseRepository[SystemCfg]):

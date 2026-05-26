@@ -7,6 +7,7 @@ CommandContext provides access to shared services without tight coupling.
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+from runtime.shared import debug_info
 
 logger = logging.getLogger(__name__)
 
