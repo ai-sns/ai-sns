@@ -180,6 +180,14 @@ img {
     background: var(--gray-400);
 }
 
+textarea::-webkit-scrollbar,
+textarea::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-corner {
+    cursor: default !important;
+}
+
 /* ========== App Layout ========== */
 #app {
     display: flex;

@@ -21,7 +21,11 @@ export class SNSProfessionDialog {
         this.goodsOrServicePrice = '';
         this.serviceFieldsDirty = false;
         this.professionServiceDefaults = new Map();
+        this.isRemoteAgent = false;
     }
+
+    static REMOTE_DELIVERY_TOOL_VALUE = 'remote:remote_agent_delivery_tool';
+    static REMOTE_DELIVERY_TOOL_LABEL = 'Remote Agent Delivery Tool';
 
     applyServiceDefaultsIfNeeded() {
         if (this.serviceFieldsDirty) {
@@ -313,6 +317,18 @@ export class SNSProfessionDialog {
             console.error('Error loading current config:', error);
             this.currentMoney = 0;
         }
+
+        // Detect agent_type early so loadTools can branch for remote agents
+        try {
+            const resp = await fetch(this.resolve('/api/sns/user-info'));
+            const result = await resp.json();
+            const agentType = result && result.success && result.data
+                ? String(result.data.agent_type || 'local').trim().toLowerCase()
+                : 'local';
+            this.isRemoteAgent = (agentType === 'remote');
+        } catch (e) {
+            this.isRemoteAgent = false;
+        }
     }
 
     async loadExistingUserConfig() {
@@ -398,30 +414,61 @@ export class SNSProfessionDialog {
                     }
                 } else if (option === 'tool') {
                     const raw = data.handle_content || '';
-                    // Backward compatible: old data might store only id (e.g. PLxxxx)
-                    this.selectedTool = raw.includes(':') ? raw : raw;
                     const toolEl = this._q('#toolSelect');
                     const mcpToolEl = this._q('#mcpToolSelect');
+                    // Helper: check if an option value exists in the toolSelect dropdown
+                    const hasToolOption = (val) => !!(toolEl && val && Array.from(toolEl.options).some(opt => opt.value === val));
+                    // Reset to default ("Select a tool...") and clear in-memory selection
+                    const resetToolSelection = async () => {
+                        this.selectedTool = '';
+                        this.selectedMcpToolName = '';
+                        this._pendingMcpToolName = '';
+                        if (toolEl) {
+                            toolEl.value = '';
+                        }
+                        await this.onToolSelectionChange('');
+                    };
+
                     if (toolEl) {
                         if (raw.includes(':')) {
                             if (raw.startsWith('mcp:')) {
                                 const parts = raw.split(':');
                                 const mcpId = parts[1] || '';
                                 const toolName = parts[2] || '';
-                                toolEl.value = mcpId ? `mcp:${mcpId}` : '';
-                                this.selectedMcpToolName = '';
-                                this._pendingMcpToolName = toolName;
-                                await this.onToolSelectionChange(toolEl.value);
-                                if (mcpToolEl && toolName) {
-                                    mcpToolEl.value = toolName;
-                                    this.selectedMcpToolName = toolName;
-                                    this.updateSelectedToolValue();
+                                const mcpOptionValue = mcpId ? `mcp:${mcpId}` : '';
+                                if (mcpOptionValue && hasToolOption(mcpOptionValue)) {
+                                    this.selectedTool = raw;
+                                    toolEl.value = mcpOptionValue;
+                                    this.selectedMcpToolName = '';
+                                    this._pendingMcpToolName = toolName;
+                                    await this.onToolSelectionChange(mcpOptionValue);
+                                    if (mcpToolEl && toolName) {
+                                        const mcpToolExists = Array.from(mcpToolEl.options).some(opt => opt.value === toolName);
+                                        if (mcpToolExists) {
+                                            mcpToolEl.value = toolName;
+                                            this.selectedMcpToolName = toolName;
+                                            this.updateSelectedToolValue();
+                                        } else {
+                                            // Saved MCP internal tool no longer exists; clear sub-selection
+                                            mcpToolEl.value = '';
+                                            this.selectedMcpToolName = '';
+                                            this.updateSelectedToolValue();
+                                        }
+                                    }
+                                } else {
+                                    await resetToolSelection();
                                 }
                             } else {
-                                toolEl.value = raw;
-                                await this.onToolSelectionChange(raw);
+                                if (hasToolOption(raw)) {
+                                    this.selectedTool = raw;
+                                    toolEl.value = raw;
+                                    await this.onToolSelectionChange(raw);
+                                } else {
+                                    await resetToolSelection();
+                                }
                             }
                         } else {
+                            // Backward compatible: old data might store only id (e.g. PLxxxx)
                             // Try to match any option with suffix :<id>
                             const match = Array.from(toolEl.options).find(opt => opt.value && opt.value.endsWith(`:${raw}`));
                             if (match) {
@@ -429,8 +476,7 @@ export class SNSProfessionDialog {
                                 this.selectedTool = match.value;
                                 await this.onToolSelectionChange(match.value);
                             } else {
-                                toolEl.value = '';
-                                await this.onToolSelectionChange('');
+                                await resetToolSelection();
                             }
                         }
                     }
@@ -644,34 +690,29 @@ export class SNSProfessionDialog {
             return;
         }
 
-        try {
-            const resp = await fetch(this.resolve(`/api/tools/mcp/${encodeURIComponent(mcpId)}/execute`), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
-            });
-            const data = await resp.json();
-            const tools = this.extractMcpToolsFromExecuteResponse(data);
-            this.mcpToolsCache.set(mcpId, tools);
-            this.populateMcpToolSelect(tools);
-        } catch (e) {
-            console.error('Error loading MCP tools:', e);
-            this.populateMcpToolSelect([]);
-        }
+        // Read tool names directly from the MCP record's `detail` field
+        // (populated via the "Load Tools" button on the MCP edit dialog).
+        // No live probing of the MCP server is performed here.
+        const mcpRecord = (this.availableTools || []).find(
+            t => t && t.type === 'mcp' && String(t.id) === String(mcpId)
+        );
+        const tools = this.parseMcpDetailField(mcpRecord && mcpRecord.detail);
+        this.mcpToolsCache.set(mcpId, tools);
+        this.populateMcpToolSelect(tools);
     }
 
-    extractMcpToolsFromExecuteResponse(data) {
-        try {
-            // Expected: { success: true, result: { connection: { tools: [...] } } }
-            const result = data && data.result ? data.result : null;
-            const connection = result && result.connection ? result.connection : null;
-            const tools = connection && Array.isArray(connection.tools) ? connection.tools : [];
-            return tools
-                .map(t => ({ name: t && t.name ? String(t.name) : '', description: t && t.description ? String(t.description) : '' }))
-                .filter(t => t.name);
-        } catch {
-            return [];
-        }
+    /**
+     * Parse the MCP `detail` field into a list of tool descriptors.
+     * The field is expected to be a comma-separated list of tool names,
+     * e.g. "get_weather, get_current_time". Returns an array of {name}.
+     */
+    parseMcpDetailField(detail) {
+        if (!detail || typeof detail !== 'string') return [];
+        return detail
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+            .map(name => ({ name, description: '' }));
     }
 
     populateMcpToolSelect(tools) {
@@ -681,7 +722,8 @@ export class SNSProfessionDialog {
         (tools || []).forEach(t => {
             const opt = document.createElement('option');
             opt.value = t.name;
-            opt.textContent = t.description ? `${t.name} - ${t.description}` : t.name;
+            // Show only the tool name; description is intentionally omitted to keep the list compact
+            opt.textContent = t.name;
             mcpSelect.appendChild(opt);
         });
     }
@@ -818,6 +860,14 @@ export class SNSProfessionDialog {
     }
 
     async loadTools() {
+        // Remote agents are restricted to a single fixed delivery tool.
+        // Skip fetching MCP/Skill lists in that case.
+        if (this.isRemoteAgent) {
+            this.availableTools = [];
+            this.populateToolSelect();
+            return;
+        }
+
         try {
             // Fetch MCP tools and DocSkills (same source as Agent module)
             const [mcpsResponse, docSkillsResponse] = await Promise.all([
@@ -844,6 +894,22 @@ export class SNSProfessionDialog {
         const toolSelect = this._q('#toolSelect');
         if (!toolSelect) return;
 
+        // Remote agent: only one fixed option is available
+        if (this.isRemoteAgent) {
+            toolSelect.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_VALUE;
+            option.textContent = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_LABEL;
+            toolSelect.appendChild(option);
+            // Auto-select since there is only one option
+            toolSelect.value = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_VALUE;
+            this.selectedTool = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_VALUE;
+            // Hide the MCP sub-selection container if present
+            const mcpContainer = this._q('#mcpToolSelectionContainer');
+            if (mcpContainer) mcpContainer.style.display = 'none';
+            return;
+        }
+
         // Clear existing options except the first one
         toolSelect.innerHTML = '<option value="">Select a tool...</option>';
 
@@ -853,7 +919,7 @@ export class SNSProfessionDialog {
             'Skill tools': this.availableTools.filter(tool => tool.type === 'skill')
         };
 
-        // Create option groups
+        // Create option groups. Show only the tool name (description omitted to keep the list compact)
         Object.entries(toolsByType).forEach(([typeName, tools]) => {
             if (tools.length > 0) {
                 const optgroup = document.createElement('optgroup');
@@ -862,7 +928,7 @@ export class SNSProfessionDialog {
                 tools.forEach(tool => {
                     const option = document.createElement('option');
                     option.value = `${tool.type}:${tool.id}`;
-                    option.textContent = `${tool.name} - ${tool.description || 'No description'}`;
+                    option.textContent = tool.name || tool.id || '';
                     optgroup.appendChild(option);
                 });
 

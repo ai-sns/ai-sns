@@ -496,7 +496,7 @@ class ToolsMixin:
         if tool_type == "mcp" and not mcp_tool_name:
             raise ValueError(f"invalid mcp tool_name format (expected mcp:mcp_id:tool_name): {tool_name}")
 
-        if tool_type not in {"plugin", "function", "skill", "mcp"}:
+        if tool_type not in {"plugin", "function", "skill", "mcp", "remote"}:
             raise ValueError(f"unsupported tool type: {tool_type}")
 
         agent = None
@@ -514,7 +514,7 @@ class ToolsMixin:
 
         if is_remote:
             prompt = (
-                "Generate the requested content using your own tools and capabilities.\n"
+                f"Generate the requested content using your tool named '{tool_id}'.\n"
                 "Output only the final content; do not include extra explanations.\n\n"
                 f"Context:\n{what_to_do}"
             )

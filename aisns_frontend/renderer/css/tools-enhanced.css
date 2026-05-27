@@ -1359,6 +1359,32 @@ body.theme-dark .tool-edit-form .form-check-label {
     color: #f3f4f6;
 }
 
+/*
+ * Fix I-beam cursor over scrollbar inside multi-line editors.
+ * Chromium applies the textarea's `cursor: text` to the whole client area,
+ * including the native scrollbar region. We explicitly override the cursor
+ * on the webkit scrollbar pseudo-elements so hovering the scrollbar shows
+ * the default arrow instead of the I-beam.
+ */
+.tool-edit-form textarea::-webkit-scrollbar,
+.tool-edit-form textarea::-webkit-scrollbar-track,
+.tool-edit-form textarea::-webkit-scrollbar-thumb,
+.tool-edit-form textarea::-webkit-scrollbar-corner,
+#docSkillMarkdownEditor::-webkit-scrollbar,
+#docSkillMarkdownEditor::-webkit-scrollbar-track,
+#docSkillMarkdownEditor::-webkit-scrollbar-thumb,
+#docSkillMarkdownEditor::-webkit-scrollbar-corner,
+#mcpJsonImportEditor::-webkit-scrollbar,
+#mcpJsonImportEditor::-webkit-scrollbar-track,
+#mcpJsonImportEditor::-webkit-scrollbar-thumb,
+#mcpJsonImportEditor::-webkit-scrollbar-corner,
+#docSkillRunParamsEditor::-webkit-scrollbar,
+#docSkillRunParamsEditor::-webkit-scrollbar-track,
+#docSkillRunParamsEditor::-webkit-scrollbar-thumb,
+#docSkillRunParamsEditor::-webkit-scrollbar-corner {
+    cursor: default;
+}
+
 /* Toast Styles */
 .toast {
     position: fixed;

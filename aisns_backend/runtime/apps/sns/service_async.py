@@ -2190,6 +2190,25 @@ class SNSService:
             except Exception:
                 level_value = 0
 
+            # Resolve agent_type from the AgentCfg memo for the configured agent_id
+            agent_type_value = 'local'
+            try:
+                agent_id = getattr(config, 'agent_id', None)
+                if agent_id is not None:
+                    from db.models.agent import AgentCfg
+                    agent_result = await self.db.execute(
+                        select(AgentCfg).where(AgentCfg.id == agent_id)
+                    )
+                    agent_cfg = agent_result.scalar_one_or_none()
+                    if agent_cfg and getattr(agent_cfg, 'memo', None):
+                        try:
+                            memo_data = json.loads(agent_cfg.memo)
+                            agent_type_value = (str(memo_data.get('agent_type') or 'local').strip().lower() or 'local')
+                        except Exception:
+                            agent_type_value = 'local'
+            except Exception:
+                agent_type_value = 'local'
+
             return {
                 "success": True,
                 "data": {
@@ -2200,6 +2219,7 @@ class SNSService:
                     "membership": membership_value,
                     "level": level_value,
                     "agent_id": getattr(config, 'agent_id', None),
+                    "agent_type": agent_type_value,
                     "profession": getattr(config, 'profession', None),
                     "handle_after_trade": getattr(config, 'handle_after_trade', None),
                     "handle_content": getattr(config, 'handle_content', None),

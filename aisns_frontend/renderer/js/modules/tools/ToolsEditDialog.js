@@ -80,6 +80,85 @@ class ToolsEditDialog {
         if (isEdit) {
             this.fillFormData(tool);
         }
+
+        // Wire up MCP-specific behaviors (Load Tools button)
+        if (category === 'mcp') {
+            this.bindLoadMcpToolsButton();
+        }
+    }
+
+    /**
+     * Bind the "Load Tools" button next to the Tools textarea in the MCP form.
+     * - In edit mode (existing mcp_id): probes the MCP server via the same
+     *   /api/tools/mcp/{id}/execute endpoint that powers the MCP List "Test"
+     *   button, then writes the comma-joined tool name list into the textarea.
+     * - In create mode (no mcp_id yet): button is disabled and a hint is shown
+     *   asking the user to save first; the textarea remains manually editable.
+     */
+    bindLoadMcpToolsButton() {
+        const btn = document.getElementById('loadMcpToolsBtn');
+        const hint = document.getElementById('loadMcpToolsHint');
+        const detailEl = document.getElementById('mcpDetail');
+        if (!btn || !detailEl) return;
+
+        const mcpId = this.currentTool && this.currentTool.mcp_id;
+        if (!mcpId) {
+            btn.disabled = true;
+            if (hint) {
+                hint.textContent = 'Save the MCP first, then reopen Edit to load tools.';
+            }
+            return;
+        }
+
+        btn.addEventListener('click', async () => {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-small"></span> Loading...';
+            btn.disabled = true;
+            if (hint) hint.textContent = '';
+
+            try {
+                const response = await fetch(`${this.apiBaseUrl}/mcp/${encodeURIComponent(mcpId)}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                const tools = this.extractMcpToolNames(data);
+                if (!tools.length) {
+                    if (hint) hint.textContent = 'No tools reported by the MCP server.';
+                    return;
+                }
+                detailEl.value = tools.join(', ');
+                if (hint) hint.textContent = `Loaded ${tools.length} tool(s).`;
+            } catch (error) {
+                console.error('Load MCP tools error:', error);
+                this.showMessage('Failed to load tools: ' + error.message, 'error');
+                if (hint) hint.textContent = 'Failed to load tools.';
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
+
+    /**
+     * Extract tool names from the /mcp/{id}/execute response.
+     * Expected shape: { success, result: { connection: { tools: [{ name, description }, ...] } } }
+     */
+    extractMcpToolNames(data) {
+        try {
+            const result = data && data.result ? data.result : null;
+            const connection = result && result.connection ? result.connection : null;
+            const tools = connection && Array.isArray(connection.tools) ? connection.tools : [];
+            return tools
+                .map(t => (t && t.name ? String(t.name).trim() : ''))
+                .filter(Boolean);
+        } catch (e) {
+            return [];
+        }
     }
 
     renderFormFields(category, tool) {
@@ -141,6 +220,14 @@ class ToolsEditDialog {
                     <div class="form-group">
                         <label for="requirement">Requirements</label>
                         <textarea id="requirement" name="requirement" class="form-control" rows="2" placeholder="mcp==1.0.0&#10;other-package==2.0.0"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="mcpDetail">Tools</label>
+                        <textarea id="mcpDetail" name="detail" class="form-control" rows="2" placeholder="MCP tool list (comma-separated). Click 'Load Tools' to auto-fill."></textarea>
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                            <button type="button" id="loadMcpToolsBtn" class="btn btn-secondary">Load Tools</button>
+                            <small id="loadMcpToolsHint" class="form-text" style="margin: 0;"></small>
+                        </div>
                     </div>
                 `;
                 break;
