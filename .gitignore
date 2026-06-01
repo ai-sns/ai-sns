@@ -124,17 +124,14 @@ $RECYCLE.BIN/
 # Backend
 
 aisns_backend/db/db.sqlite*
-aisns_backend/km/*
 aisns_backend/km/
-aisns_backend/km/*/
-!aisns_backend/km/.gitkeep
-aisns_backend/uploads/*
-!aisns_backend/uploads/.gitkeep
-aisns_backend/images/avatars/*
-!aisns_backend/images/avatars/.gitkeep
-aisns_backend/runtime/logs/*
-!aisns_backend/runtime/logs/.gitkeep
+aisns_backend/uploads/
+aisns_backend/images/avatars/
+aisns_backend/runtime/logs/
 aisns_backend/**/__pycache__/
+aisns_backend/static/googlemap3d.html
+aisns_backend/static/map.html
+aisns_backend/static/js/google/map_common.js
 
 # A2A Server
 a2aserver/__pycache__/
@@ -147,7 +144,6 @@ adapters/**/__pycache__/
 adapters/**/*.pyc
 
 # Frontend
-dis
 aisns_frontend/node_modules/
 aisns_frontend/dist/
 aisns_frontend/config.local.json

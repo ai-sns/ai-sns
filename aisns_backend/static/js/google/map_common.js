@@ -2595,33 +2595,29 @@ function parseModelFilename(filename) {
 
 
 
-    // Match: starts with letters, followed by underscore-separated numbers
+    // Split the filename into underscore-separated tokens. The model name may
 
-    const match = nameWithoutExt.match(/^[a-zA-Z]+(.*)$/);
+    // itself contain underscores (e.g. "lobster_animation"), so we always take
 
-    if (!match || !match[1]) {
+    // the LAST 6 tokens as the numeric parameters and treat everything before
 
-        return null;
+    // them as the model name. This avoids mis-parsing names with underscores.
 
-    }
-
-
-
-    // Parse underscore-separated numeric params after the letter prefix
-
-    const paramString = match[1];
-
-    const params = paramString.split('_').filter(s => s !== '');
+    const allTokens = nameWithoutExt.split('_').filter(s => s !== '');
 
 
 
-    if (params.length < 6) {
+    if (allTokens.length < 6) {
 
-        console.warn(`Filename has fewer than 6 params: ${filename}. Found ${params.length} params`);
+        console.warn(`Filename has fewer than 6 params: ${filename}. Found ${allTokens.length} tokens`);
 
         return null;
 
     }
+
+
+
+    const params = allTokens.slice(allTokens.length - 6);
 
 
 
@@ -3561,6 +3557,20 @@ function loadModel(persondata) {
             // Compute model size and scale
 
             const box = new THREE.Box3().setFromObject(model);
+
+            // Skinned avatars: Box3.setFromObject ignores skeletal skinning and
+
+            // only measures bind-pose geometry, which for some models (e.g.
+
+            // ctgirlschool) is much shorter than the real standing height. Expand
+
+            // the box by bone world positions so the height reflects the skeleton.
+
+            model.updateMatrixWorld(true);
+
+            const __bonePos = new THREE.Vector3();
+
+            model.traverse((o) => { if (o.isBone) { o.getWorldPosition(__bonePos); box.expandByPoint(__bonePos); } });
 
             const size = box.getSize(new THREE.Vector3());
 
@@ -5341,9 +5351,9 @@ async function toggleNavigate() {
         if (__snsIsEngineActiveForLandmark(status)) {
             try {
                 if (typeof showAlert === 'function') {
-                    showAlert('Landmark animation is only available when the engine is stopped. Please stop the engine first.', true);
+                    showAlert('Landmark animation can only be run before the engine starts. Please reload the map and try again before starting the engine.', true);
                 } else {
-                    alert('Landmark animation is only available when the engine is stopped. Please stop the engine first.');
+                    alert('Landmark animation can only be run before the engine starts. Please reload the map and try again before starting the engine.');
                 }
             } catch (e) {
             }
@@ -5422,7 +5432,7 @@ function autoNavigate() {
 
         loader = new THREE.GLTFLoader();
 
-        const source = "cbot.glb";
+        const source = "assets/cbot.glb";
 
         loader.load(source, function (gltf) {
 

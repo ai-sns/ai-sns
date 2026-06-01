@@ -154,8 +154,9 @@ export default {
     },
 
     createChatMessageHTML(message) {
+        const idAttr = (message.id !== undefined && message.id !== null) ? ` data-message-id="${message.id}"` : '';
         return `
-            <div class="chat-message ${message.flag === 0 ? 'sent' : 'received'}">
+            <div class="chat-message ${message.flag === 0 ? 'sent' : 'received'}"${idAttr}>
                 <div class="message-content">${this.renderStoredMessageContent(message.content)}</div>
                 <div class="message-time">${new Date(message.create_time).toLocaleString()}</div>
             </div>
@@ -1213,7 +1214,7 @@ export default {
      * Handle newly received message
      */
     handleNewMessage(messageData) {
-        const { from_account, content, flag, create_time, contact } = messageData;
+        const { id, from_account, content, flag, create_time, contact } = messageData;
 
         if (contact) {
             this.upsertContact(contact);
@@ -1231,9 +1232,16 @@ export default {
         if (isCurrentChat) {
             // Chat window is open: display message and suppress red dot
             const chatMessages = document.getElementById('chatMessages');
-            if (chatMessages) {
+            // Skip if this message id was already rendered (avoid duplicates when
+            // the chat history is also reloaded from DB for the same message).
+            const alreadyRendered = chatMessages && id !== undefined && id !== null &&
+                chatMessages.querySelector(`.chat-message[data-message-id="${id}"]`);
+            if (chatMessages && !alreadyRendered) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `chat-message ${flag === 0 ? 'sent' : 'received'}`;
+                if (id !== undefined && id !== null) {
+                    messageDiv.dataset.messageId = String(id);
+                }
                 messageDiv.innerHTML = `
                     <div class="message-content">${this.renderMessageContent(content)}</div>
                     <div class="message-time">${new Date(create_time).toLocaleString()}</div>

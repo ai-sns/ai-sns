@@ -411,10 +411,6 @@ const ModelManagementPage = {
                                 <input type="checkbox" name="is_default" ${model?.is_default ? 'checked' : ''}>
                                 Set as default
                             </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="is_active" ${model?.is_active !== false ? 'checked' : ''}>
-                                Enable this configuration
-                            </label>
                         </div>
                     </div>
                 </div>
@@ -428,12 +424,15 @@ const ModelManagementPage = {
         const data = {};
 
         for (const [key, value] of formData.entries()) {
-            if (key === 'is_default' || key === 'is_active') {
+            if (key === 'is_default') {
                 data[key] = form.querySelector(`[name="${key}"]`).checked;
             } else {
                 data[key] = value;
             }
         }
+
+        // is_active is no longer user-editable; configurations are always enabled.
+        data.is_active = true;
 
         return data;
     },

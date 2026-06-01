@@ -25,8 +25,8 @@
             "label": "OpenAIChatCompletionClient",
             "config": {
               "model": "gpt-4o-mini",
-              "base_url": "https://api.chatanywhere.tech/v1",
-              "api_key": "sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26"
+              "base_url": "https://api.openai.com/v1",
+              "api_key": "your_api_key"
             }
           },
           "workbench": {

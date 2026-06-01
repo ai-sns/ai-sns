@@ -197,6 +197,13 @@
             try {
                 // Compute bounding box of person model
                 const box = new THREE.Box3().setFromObject(personModel);
+                // Skinned models: Box3.setFromObject ignores skeletal skinning, so
+                // for some avatars (e.g. ctgirlschool) the bind-pose geometry box is
+                // far shorter than the real height and the head anchor lands at the
+                // chest. Expand by bone world positions so the top reflects the
+                // skeleton; well-formed models have bones inside the box (no change).
+                const __bp = new THREE.Vector3();
+                personModel.traverse((o) => { if (o.isBone) { o.getWorldPosition(__bp); box.expandByPoint(__bp); } });
                 if (!box || (typeof box.isEmpty === 'function' && box.isEmpty())) {
                     return;
                 }

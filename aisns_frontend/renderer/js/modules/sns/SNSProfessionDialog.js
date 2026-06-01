@@ -11,21 +11,13 @@ export class SNSProfessionDialog {
         this.currentMoney = 0;
         this.selectedTradeOption = null;
         this.messageContent = '';
-        this.selectedTool = null;
-        this.selectedMcpToolName = '';
-        this.mcpToolsCache = new Map();
-        this._pendingMcpToolName = '';
-        this.availableTools = [];
+        this.agentPrompt = '';
         this.autoCloseTimer = null;
         this.goodsOrServiceDescription = '';
         this.goodsOrServicePrice = '';
         this.serviceFieldsDirty = false;
         this.professionServiceDefaults = new Map();
-        this.isRemoteAgent = false;
     }
-
-    static REMOTE_DELIVERY_TOOL_VALUE = 'remote:remote_agent_delivery_tool';
-    static REMOTE_DELIVERY_TOOL_LABEL = 'Remote Agent Delivery Tool';
 
     applyServiceDefaultsIfNeeded() {
         if (this.serviceFieldsDirty) {
@@ -210,31 +202,31 @@ export class SNSProfessionDialog {
                                 <div class="other-profession-helper" id="otherProfessionHelper" aria-live="polite"></div>
                             </div>
 
-                            <!-- Service Details -->
+                            <!-- Service Offering -->
                             <div class="profession-section">
-                                <h4>Service Details</h4>
+                                <h4>Service Offering</h4>
                                 <div class="form-group">
-                                    <label for="goodsOrServiceDescription">Goods or service description</label>
-                                    <textarea id="goodsOrServiceDescription" class="form-control" placeholder="Describe the goods or service you provide..." rows="3"></textarea>
+                                    <label for="goodsOrServiceDescription">Description</label>
+                                    <textarea id="goodsOrServiceDescription" class="form-control" placeholder="Describe the service you provide..." rows="3"></textarea>
                                 </div>
 
                                 <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="goodsOrServicePrice">Goods or service price</label>
+                                    <label for="goodsOrServicePrice">Pricing</label>
                                     <input type="text" id="goodsOrServicePrice" class="form-control" placeholder="Enter a price" />
                                 </div>
                             </div>
 
                             <!-- Trade Handling Section -->
                             <div class="profession-section">
-                                <h4>Sender in trade</h4>
+                                <h4>Delivery Type</h4>
                                 <div class="trade-options">
                                     <label class="profession-label">
                                         <input type="radio" name="tradeOption" value="message">
-                                        <span>Send message</span>
+                                        <span>Fixed Message</span>
                                     </label>
                                     <label class="profession-label">
-                                        <input type="radio" name="tradeOption" value="tool">
-                                        <span>Call tool</span>
+                                        <input type="radio" name="tradeOption" value="agent">
+                                        <span>Agent Response</span>
                                     </label>
                                 </div>
                                 
@@ -246,22 +238,11 @@ export class SNSProfessionDialog {
                                     </div>
                                 </div>
                                 
-                                <!-- Tool Selection (shown when 'call tool' is selected) -->
-                                <div class="tool-selection-container" id="toolSelectionContainer" style="display: none;">
-                                    <div class="form-group">
-                                        <label for="toolSelect">Select tool</label>
-                                        <select id="toolSelect" class="form-control">
-                                            <option value="">Select a tool...</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="mcp-tool-selection-container" id="mcpToolSelectionContainer" style="display: none;">
-                                        <div class="form-group" style="margin-bottom: 0;">
-                                            <label for="mcpToolSelect">Select MCP internal tool</label>
-                                            <select id="mcpToolSelect" class="form-control">
-                                                <option value="">Select an MCP tool...</option>
-                                            </select>
-                                        </div>
+                                <!-- Agent Prompt Input (shown when 'send by agent' is selected) -->
+                                <div class="message-input-container" id="agentPromptInputContainer" style="display: none;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label for="agentPrompt">Prompt<span class="required-asterisk">*</span></label>
+                                        <textarea id="agentPrompt" class="form-control" placeholder="Enter the prompt for llm" rows="3"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -291,13 +272,8 @@ export class SNSProfessionDialog {
 
         if (!this._isDialogAlive()) return;
 
-        // Setup event listeners early so profession changes are responsive even if tools are still loading
+        // Setup event listeners
         this.setupEventListeners();
-
-        // Load available tools
-        await this.loadTools();
-
-        if (!this._isDialogAlive()) return;
 
         // Load existing saved user config and apply to UI
         await this.loadExistingUserConfig();
@@ -316,18 +292,6 @@ export class SNSProfessionDialog {
         } catch (error) {
             console.error('Error loading current config:', error);
             this.currentMoney = 0;
-        }
-
-        // Detect agent_type early so loadTools can branch for remote agents
-        try {
-            const resp = await fetch(this.resolve('/api/sns/user-info'));
-            const result = await resp.json();
-            const agentType = result && result.success && result.data
-                ? String(result.data.agent_type || 'local').trim().toLowerCase()
-                : 'local';
-            this.isRemoteAgent = (agentType === 'remote');
-        } catch (e) {
-            this.isRemoteAgent = false;
         }
     }
 
@@ -412,76 +376,20 @@ export class SNSProfessionDialog {
                     if (messageEl) {
                         messageEl.value = this.messageContent;
                     }
-                } else if (option === 'tool') {
-                    const raw = data.handle_content || '';
-                    const toolEl = this._q('#toolSelect');
-                    const mcpToolEl = this._q('#mcpToolSelect');
-                    // Helper: check if an option value exists in the toolSelect dropdown
-                    const hasToolOption = (val) => !!(toolEl && val && Array.from(toolEl.options).some(opt => opt.value === val));
-                    // Reset to default ("Select a tool...") and clear in-memory selection
-                    const resetToolSelection = async () => {
-                        this.selectedTool = '';
-                        this.selectedMcpToolName = '';
-                        this._pendingMcpToolName = '';
-                        if (toolEl) {
-                            toolEl.value = '';
-                        }
-                        await this.onToolSelectionChange('');
-                    };
-
-                    if (toolEl) {
-                        if (raw.includes(':')) {
-                            if (raw.startsWith('mcp:')) {
-                                const parts = raw.split(':');
-                                const mcpId = parts[1] || '';
-                                const toolName = parts[2] || '';
-                                const mcpOptionValue = mcpId ? `mcp:${mcpId}` : '';
-                                if (mcpOptionValue && hasToolOption(mcpOptionValue)) {
-                                    this.selectedTool = raw;
-                                    toolEl.value = mcpOptionValue;
-                                    this.selectedMcpToolName = '';
-                                    this._pendingMcpToolName = toolName;
-                                    await this.onToolSelectionChange(mcpOptionValue);
-                                    if (mcpToolEl && toolName) {
-                                        const mcpToolExists = Array.from(mcpToolEl.options).some(opt => opt.value === toolName);
-                                        if (mcpToolExists) {
-                                            mcpToolEl.value = toolName;
-                                            this.selectedMcpToolName = toolName;
-                                            this.updateSelectedToolValue();
-                                        } else {
-                                            // Saved MCP internal tool no longer exists; clear sub-selection
-                                            mcpToolEl.value = '';
-                                            this.selectedMcpToolName = '';
-                                            this.updateSelectedToolValue();
-                                        }
-                                    }
-                                } else {
-                                    await resetToolSelection();
-                                }
-                            } else {
-                                if (hasToolOption(raw)) {
-                                    this.selectedTool = raw;
-                                    toolEl.value = raw;
-                                    await this.onToolSelectionChange(raw);
-                                } else {
-                                    await resetToolSelection();
-                                }
-                            }
-                        } else {
-                            // Backward compatible: old data might store only id (e.g. PLxxxx)
-                            // Try to match any option with suffix :<id>
-                            const match = Array.from(toolEl.options).find(opt => opt.value && opt.value.endsWith(`:${raw}`));
-                            if (match) {
-                                toolEl.value = match.value;
-                                this.selectedTool = match.value;
-                                await this.onToolSelectionChange(match.value);
-                            } else {
-                                await resetToolSelection();
-                            }
-                        }
+                } else if (option === 'agent') {
+                    this.agentPrompt = data.handle_content || '';
+                    const promptEl = this._q('#agentPrompt');
+                    if (promptEl) {
+                        promptEl.value = this.agentPrompt;
                     }
                 }
             }
+
+            // After hydrating UI from saved data, enforce the fixed-payload
+            // lock for professions whose delivery is hard-coded. This must
+            // run last so the lock supersedes any saved handle_after_trade
+            // / handle_content for those professions.
+            this.applyTradeLockForProfession();
         } catch (error) {
             console.error('Error loading existing user config:', error);
         }
@@ -562,6 +470,7 @@ export class SNSProfessionDialog {
                 }
                 this.updateOtherProfessionUI();
                 this.applyServiceDefaultsIfNeeded();
+                this.applyTradeLockForProfession();
                 this.clearInlineMessage();
             });
         });
@@ -610,122 +519,14 @@ export class SNSProfessionDialog {
             });
         }
 
-        // Tool selection change
-        const toolSelect = this._q('#toolSelect');
-        if (toolSelect) {
-            toolSelect.addEventListener('change', (e) => {
-                this.onToolSelectionChange(e.target.value);
+        // Agent prompt change
+        const agentPrompt = this._q('#agentPrompt');
+        if (agentPrompt) {
+            agentPrompt.addEventListener('input', (e) => {
+                this.agentPrompt = e.target.value;
                 this.clearInlineMessage();
             });
         }
-
-        const mcpToolSelect = this._q('#mcpToolSelect');
-        if (mcpToolSelect) {
-            mcpToolSelect.addEventListener('change', (e) => {
-                this.selectedMcpToolName = e.target.value;
-                this.updateSelectedToolValue();
-                this.clearInlineMessage();
-            });
-        }
-    }
-
-    async onToolSelectionChange(value) {
-        const mcpContainer = this._q('#mcpToolSelectionContainer');
-        const mcpSelect = this._q('#mcpToolSelect');
-
-        this.selectedMcpToolName = '';
-
-        if (mcpContainer) {
-            mcpContainer.style.display = 'none';
-        }
-
-        if (mcpSelect) {
-            mcpSelect.innerHTML = '<option value="">Select an MCP tool...</option>';
-        }
-
-        if (value && value.startsWith('mcp:')) {
-            const parts = value.split(':');
-            const mcpId = parts[1] || '';
-            if (mcpId) {
-                if (mcpContainer) {
-                    mcpContainer.style.display = 'block';
-                }
-                await this.loadMcpToolsIntoSelect(mcpId);
-                if (mcpSelect && this._pendingMcpToolName) {
-                    const pending = this._pendingMcpToolName;
-                    this._pendingMcpToolName = '';
-                    const exists = Array.from(mcpSelect.options).some(opt => opt.value === pending);
-                    if (exists) {
-                        mcpSelect.value = pending;
-                        this.selectedMcpToolName = pending;
-                    }
-                }
-            }
-        }
-
-        this.selectedTool = value || '';
-        this.updateSelectedToolValue();
-    }
-
-    updateSelectedToolValue() {
-        const base = this.selectedTool || '';
-        if (base.startsWith('mcp:')) {
-            const parts = base.split(':');
-            const mcpId = parts[1] || '';
-            if (mcpId && this.selectedMcpToolName) {
-                this.selectedTool = `mcp:${mcpId}:${this.selectedMcpToolName}`;
-                return;
-            }
-            this.selectedTool = base;
-        }
-    }
-
-    async loadMcpToolsIntoSelect(mcpId) {
-        const mcpSelect = this._q('#mcpToolSelect');
-        if (!mcpSelect) return;
-
-        if (this.mcpToolsCache.has(mcpId)) {
-            const cached = this.mcpToolsCache.get(mcpId);
-            this.populateMcpToolSelect(cached);
-            return;
-        }
-
-        // Read tool names directly from the MCP record's `detail` field
-        // (populated via the "Load Tools" button on the MCP edit dialog).
-        // No live probing of the MCP server is performed here.
-        const mcpRecord = (this.availableTools || []).find(
-            t => t && t.type === 'mcp' && String(t.id) === String(mcpId)
-        );
-        const tools = this.parseMcpDetailField(mcpRecord && mcpRecord.detail);
-        this.mcpToolsCache.set(mcpId, tools);
-        this.populateMcpToolSelect(tools);
-    }
-
-    /**
-     * Parse the MCP `detail` field into a list of tool descriptors.
-     * The field is expected to be a comma-separated list of tool names,
-     * e.g. "get_weather, get_current_time". Returns an array of {name}.
-     */
-    parseMcpDetailField(detail) {
-        if (!detail || typeof detail !== 'string') return [];
-        return detail
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean)
-            .map(name => ({ name, description: '' }));
-    }
-
-    populateMcpToolSelect(tools) {
-        const mcpSelect = this._q('#mcpToolSelect');
-        if (!mcpSelect) return;
-        mcpSelect.innerHTML = '<option value="">Select an MCP tool...</option>';
-        (tools || []).forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t.name;
-            // Show only the tool name; description is intentionally omitted to keep the list compact
-            opt.textContent = t.name;
-            mcpSelect.appendChild(opt);
-        });
     }
 
     async saveConfiguration() {
@@ -759,37 +560,29 @@ export class SNSProfessionDialog {
             return;
         }
 
-        if (this.selectedTradeOption === 'tool' && !this.selectedTool) {
-            this.showInlineMessage('Please select a tool.');
+        if (this.selectedTradeOption === 'agent' && !this.agentPrompt.trim()) {
+            this.showInlineMessage('Please enter the prompt.');
             return;
-        }
-
-        if (this.selectedTradeOption === 'tool' && this.selectedTool && !this.selectedTool.includes(':')) {
-            this.showInlineMessage('Invalid tool configuration. Please re-select a tool.');
-            return;
-        }
-
-        if (
-            this.selectedTradeOption === 'tool' &&
-            this.selectedTool &&
-            this.selectedTool.startsWith('mcp:')
-        ) {
-            const parts = this.selectedTool.split(':');
-            if (parts.length < 3) {
-                this.showInlineMessage('Please select an MCP internal tool.');
-                return;
-            }
         }
 
         try {
             const professionToSave = this.selectedProfession === 'Other'
                 ? (this.otherProfession || '').trim()
                 : this.selectedProfession;
+            const fixedDeliveryProfessions = new Set(['Doctor', 'Restaurateur']);
+            const fixedDeliveryMessage = 'Service Or Goods Is Provided.';
+            const isFixedDeliveryProfession = fixedDeliveryProfessions.has(professionToSave);
+            const handleAfterTrade = isFixedDeliveryProfession
+                ? 'message'
+                : this.selectedTradeOption || '';
+            const handleContent = isFixedDeliveryProfession
+                ? fixedDeliveryMessage
+                : (this.selectedTradeOption === 'message' ? this.messageContent : this.agentPrompt || '');
 
             const configData = {
                 profession: professionToSave,
-                handle_after_trade: this.selectedTradeOption || '',
-                handle_content: this.selectedTradeOption === 'message' ? this.messageContent : this.selectedTool || '',
+                handle_after_trade: handleAfterTrade,
+                handle_content: handleContent,
                 goods_or_service_description: (this.goodsOrServiceDescription || '').trim(),
                 goods_or_service_price: (this.goodsOrServicePrice || '').trim()
             };
@@ -847,93 +640,96 @@ export class SNSProfessionDialog {
 
         // Hide both containers first
         const messageContainer = this._q('#messageInputContainer');
-        const toolContainer = this._q('#toolSelectionContainer');
+        const agentPromptContainer = this._q('#agentPromptInputContainer');
         if (messageContainer) messageContainer.style.display = 'none';
-        if (toolContainer) toolContainer.style.display = 'none';
+        if (agentPromptContainer) agentPromptContainer.style.display = 'none';
 
         // Show relevant container
         if (option === 'message') {
             if (messageContainer) messageContainer.style.display = 'block';
-        } else if (option === 'tool') {
-            if (toolContainer) toolContainer.style.display = 'block';
+        } else if (option === 'agent') {
+            if (agentPromptContainer) agentPromptContainer.style.display = 'block';
         }
     }
 
-    async loadTools() {
-        // Remote agents are restricted to a single fixed delivery tool.
-        // Skip fetching MCP/Skill lists in that case.
-        if (this.isRemoteAgent) {
-            this.availableTools = [];
-            this.populateToolSelect();
-            return;
-        }
+    /**
+     * For professions whose delivery payload is fixed (Doctor / Restaurateur),
+     * lock the "Delivery Type" section: force "Fixed Message" with a fixed
+     * acknowledgement content, and make the whole region read-only.
+     * Called whenever the selected profession changes.
+     */
+    applyTradeLockForProfession() {
+        const FIXED_MESSAGE = 'Service Or Goods Is Provided.';
+        const lockedProfessions = new Set(['Doctor', 'Restaurateur']);
+        const isLocked = lockedProfessions.has(this.selectedProfession);
 
-        try {
-            // Fetch MCP tools and DocSkills (same source as Agent module)
-            const [mcpsResponse, docSkillsResponse] = await Promise.all([
-                fetch(this.resolve('/api/tools/mcp')),
-                fetch(this.resolve('/api/skills/list'))
-            ]);
+        const messageRadio = this._q('input[name="tradeOption"][value="message"]');
+        const agentRadio = this._q('input[name="tradeOption"][value="agent"]');
+        const messageEl = this._q('#messageContent');
+        const agentPromptContainer = this._q('#agentPromptInputContainer');
 
-            const mcps = await mcpsResponse.json();
-            const docSkillsPayload = await docSkillsResponse.json();
-            const docSkills = docSkillsPayload?.data || [];
-
-            this.availableTools = [
-                ...mcps.map(tool => ({ ...tool, type: 'mcp', id: tool.mcp_id })),
-                ...docSkills.map(tool => ({ ...tool, type: 'skill', id: tool.skill_key }))
-            ];
-
-            this.populateToolSelect();
-        } catch (error) {
-            console.error('Error loading tools:', error);
-        }
-    }
-
-    populateToolSelect() {
-        const toolSelect = this._q('#toolSelect');
-        if (!toolSelect) return;
-
-        // Remote agent: only one fixed option is available
-        if (this.isRemoteAgent) {
-            toolSelect.innerHTML = '';
-            const option = document.createElement('option');
-            option.value = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_VALUE;
-            option.textContent = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_LABEL;
-            toolSelect.appendChild(option);
-            // Auto-select since there is only one option
-            toolSelect.value = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_VALUE;
-            this.selectedTool = SNSProfessionDialog.REMOTE_DELIVERY_TOOL_VALUE;
-            // Hide the MCP sub-selection container if present
-            const mcpContainer = this._q('#mcpToolSelectionContainer');
-            if (mcpContainer) mcpContainer.style.display = 'none';
-            return;
-        }
-
-        // Clear existing options except the first one
-        toolSelect.innerHTML = '<option value="">Select a tool...</option>';
-
-        // Group tools by type (MCP and Skill only)
-        const toolsByType = {
-            'MCP tools': this.availableTools.filter(tool => tool.type === 'mcp'),
-            'Skill tools': this.availableTools.filter(tool => tool.type === 'skill')
-        };
-
-        // Create option groups. Show only the tool name (description omitted to keep the list compact)
-        Object.entries(toolsByType).forEach(([typeName, tools]) => {
-            if (tools.length > 0) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = typeName;
-
-                tools.forEach(tool => {
-                    const option = document.createElement('option');
-                    option.value = `${tool.type}:${tool.id}`;
-                    option.textContent = tool.name || tool.id || '';
-                    optgroup.appendChild(option);
-                });
-
-                toolSelect.appendChild(optgroup);
+        if (isLocked) {
+            // Force selection to "message" using the native radio state
+            // machine. Some browsers ignore programmatic `.checked = true`
+            // on a radio that is about to be disabled (or that is part of
+            // a group with another currently-checked element). Calling
+            // `.click()` on a fully-enabled radio is the most reliable
+            // way to flip the group's checked state, then we disable both
+            // radios to make the choice read-only.
+            if (agentRadio) {
+                agentRadio.disabled = false;
+                agentRadio.checked = false;
             }
-        });
+            if (messageRadio) {
+                messageRadio.disabled = false;
+                if (!messageRadio.checked) {
+                    messageRadio.click();
+                }
+                // Defensive: ensure checked even if click() was no-op
+                // (e.g. element not in layout for some reason).
+                messageRadio.checked = true;
+            }
+            // Disable AFTER the checked state has been committed so the
+            // browser preserves it visually on the disabled control.
+            if (messageRadio) messageRadio.disabled = true;
+            if (agentRadio) agentRadio.disabled = true;
+
+            this.selectedTradeOption = 'message';
+            this.messageContent = FIXED_MESSAGE;
+            if (messageEl) {
+                messageEl.value = FIXED_MESSAGE;
+                messageEl.readOnly = true;
+                messageEl.setAttribute('aria-disabled', 'true');
+            }
+            // Make sure UI shows the message container and hides the agent prompt
+            this.onTradeOptionChange('message');
+            if (agentPromptContainer) {
+                agentPromptContainer.style.display = 'none';
+            }
+            // Clear any stale agent prompt while locked so it is not saved.
+            this.agentPrompt = '';
+            const promptElLocked = this._q('#agentPrompt');
+            if (promptElLocked) {
+                promptElLocked.value = '';
+            }
+        } else {
+            // Unlock: restore editability for non-fixed professions
+            if (messageRadio) messageRadio.disabled = false;
+            if (agentRadio) agentRadio.disabled = false;
+            if (messageEl) {
+                if (messageEl.readOnly) {
+                    messageEl.readOnly = false;
+                    messageEl.removeAttribute('aria-disabled');
+                    // If the message field still holds the fixed acknowledgement
+                    // (auto-filled while previously locked), clear it so the
+                    // user can type a new one.
+                    if (messageEl.value === FIXED_MESSAGE) {
+                        messageEl.value = '';
+                        this.messageContent = '';
+                    }
+                }
+            }
+        }
     }
+
 }

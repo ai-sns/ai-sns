@@ -360,10 +360,6 @@ const RoleManagementPage = {
                             <input type="checkbox" name="is_default" ${role?.is_default ? 'checked' : ''}>
                             Set as default
                         </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="is_active" ${role?.is_active !== false ? 'checked' : ''}>
-                            Enable this role
-                        </label>
                     </div>
                 </div>
             </form>
@@ -376,12 +372,15 @@ const RoleManagementPage = {
         const data = {};
 
         for (const [key, value] of formData.entries()) {
-            if (key === 'is_default' || key === 'is_active') {
+            if (key === 'is_default') {
                 data[key] = form.querySelector(`[name="${key}"]`).checked;
             } else {
                 data[key] = value;
             }
         }
+
+        // is_active is no longer user-editable; roles are always enabled.
+        data.is_active = true;
 
         return data;
     },

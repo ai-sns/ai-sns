@@ -387,18 +387,20 @@ class XMPPClient(slixmpp.ClientXMPP):
             try:
                 from runtime.apps.sns import service_async as _svc
 
-                # Auto-start engine if not yet started so incoming XMPP messages
-                # always trigger the conversation review flow (mirrors the
-                # auto-start behavior used for human-initiated messages).
+                # Incoming XMPP messages must NOT auto-start or resume the
+                # engine. If the engine is running it processes the message; if
+                # it is paused/stopped, handle_receiveMessage simply enqueues
+                # the message to the inbox (active-peer replies are deferred).
+                # When no instance exists yet we create one WITHOUT starting it
+                # so the message can still be enqueued for later processing.
                 engine = _svc._social_engine_instance
-                started_flag = bool(getattr(engine, "started_flag", False)) if engine else False
-                if engine is None or not started_flag:
+                if engine is None:
                     logger.info(
-                        "XMPP message from %s received but engine not started, auto-starting",
+                        "XMPP message from %s received but engine not initialized; "
+                        "creating instance without starting (inbox enqueue only)",
                         from_jid,
                     )
-                    await _svc.ensure_social_engine_started()
-                    engine = _svc._social_engine_instance
+                    engine = await _svc.ensure_social_engine_instance()
 
                 if engine is not None:
                     event = {

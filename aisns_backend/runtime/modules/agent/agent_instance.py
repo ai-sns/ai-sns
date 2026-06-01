@@ -738,11 +738,23 @@ IMPORTANT Tool Usage Guidelines:
             # third-party gateways). The user explicitly opts into custom and
             # is responsible for backend compatibility, so we honor their
             # Thinking effort toggle and forward reasoning_effort verbatim.
-            if l in {'minimal', 'low'}:
+            #
+            # For OpenAI provider with a GPT-5 model that supports it, the
+            # `minimal` level can be passed through natively.
+            # For other OpenAI reasoning families (o1/o3/o4) and for `custom`
+            # gateways that may not understand `minimal`, fall back to `low`.
+            if l == 'minimal':
+                if p == 'openai' and model.startswith('gpt-5') and not model.startswith('gpt-5-codex'):
+                    return 'minimal'
+                return 'low'
+            if l == 'low':
                 return 'low'
             if l == 'medium':
                 return 'medium'
             if l in {'high', 'max'}:
+                # `xhigh` is only available on the newest models
+                # (gpt-5.1-codex-max etc.), so we cap `max` at `high` for
+                # broad compatibility (gpt-5-mini supports up to `high`).
                 return 'high'
             return None
 
@@ -807,7 +819,26 @@ IMPORTANT Tool Usage Guidelines:
             kwargs['temperature'] = self.get_temperature()
 
         if use_max_completion_tokens:
-            kwargs['max_completion_tokens'] = self.get_max_tokens()
+            # OpenAI reasoning models count `reasoning_tokens` against
+            # `max_completion_tokens`. With high effort, internal reasoning
+            # alone can exhaust a small budget (e.g. the default 2048),
+            # producing finish_reason='length' with empty visible content.
+            # Enforce a sane lower bound based on the configured effort
+            # level to leave room for the actual answer.
+            base_budget = self.get_max_tokens()
+            effort_for_budget = None
+            if self.get_thinking_effort_enabled():
+                effort_for_budget = self._map_effort_level(
+                    self.get_thinking_effort_level(), self._provider, model_name
+                )
+            min_budget_by_effort = {
+                'minimal': 2048,
+                'low': 4096,
+                'medium': 8192,
+                'high': 25000,
+            }
+            floor = min_budget_by_effort.get(effort_for_budget or 'medium', 8192)
+            kwargs['max_completion_tokens'] = max(int(base_budget or 0), floor)
         else:
             kwargs['max_tokens'] = self.get_max_tokens()
 
@@ -1189,6 +1220,13 @@ IMPORTANT Tool Usage Guidelines:
                     params = (tool_args or {}).get('params')
                     if not isinstance(params, dict):
                         params = {}
+                    # Some LLMs ignore the generic `params` wrapper and put
+                    # skill-specific fields directly on the run_doc_skill
+                    # tool call (e.g. payer/payee/content/amount). Preserve
+                    # those fields by merging them into runner params.
+                    for k, v in (tool_args or {}).items():
+                        if k not in {'skill_key', 'params'} and k not in params:
+                            params[k] = v
                     if not skill_key:
                         return json.dumps({"success": False, "error": "skill_key is required"}, ensure_ascii=False)
 
@@ -1492,6 +1530,30 @@ IMPORTANT Tool Usage Guidelines:
 
             # Handle tool calls
             reply = assistant_message.content or ""
+
+            # Diagnose empty content from reasoning models: when reasoning
+            # tokens exhaust `max_completion_tokens`, the API returns no
+            # visible content with finish_reason='length'. Surface a clear
+            # warning so the cause is obvious in logs.
+            try:
+                if not reply and not getattr(assistant_message, 'tool_calls', None):
+                    finish_reason = getattr(response.choices[0], 'finish_reason', None)
+                    if finish_reason == 'length':
+                        usage = getattr(response, 'usage', None)
+                        details = getattr(usage, 'completion_tokens_details', None) if usage else None
+                        reasoning_tokens = getattr(details, 'reasoning_tokens', None) if details else None
+                        logger.warning(
+                            "Empty content with finish_reason=length on model=%s "
+                            "(provider=%s, reasoning_effort=%s, max_completion_tokens=%s, "
+                            "reasoning_tokens=%s). Increase max_tokens or lower the "
+                            "thinking effort level.",
+                            self.get_model_name(), self._provider,
+                            kwargs.get('extra_body', {}).get('reasoning_effort'),
+                            kwargs.get('max_completion_tokens'),
+                            reasoning_tokens,
+                        )
+            except Exception:
+                pass
             if effective_use_tools and assistant_message.tool_calls:
                 # allow multi-round tool chaining (e.g. read_skill -> run_doc_skill)
                 max_rounds = 5
@@ -2013,6 +2075,12 @@ IMPORTANT Tool Usage Guidelines:
                         if not chunk.choices:
                             continue
                         delta = chunk.choices[0].delta
+                        # Some providers (and the final stop chunk on
+                        # OpenAI-compatible APIs) emit a choice with no
+                        # delta payload. Skip those instead of crashing
+                        # on `None.content`.
+                        if delta is None:
+                            continue
                         if delta.content:
                             content = delta.content
                             full_reply += content

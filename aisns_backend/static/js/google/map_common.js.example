@@ -328,10 +328,6 @@ function __snsDisposeThreeObject(obj) {
 
 async function __snsSetActivePlaceModel(url3d, placePosition) {
     const nextUrl = (url3d && typeof url3d === 'string') ? url3d.trim() : '';
-    if (nextUrl === __sns_active_place_model_url) {
-        return;
-    }
-
     const modelParams = (typeof parseModelParamsFromWebUrl === 'function')
         ? (parseModelParamsFromWebUrl(nextUrl) || {
             rotationX: 0,
@@ -350,10 +346,56 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
             animationIndex: 0
         };
 
+    let centerLat = null;
+    let centerLng = null;
+    try {
+        const rawPos = (placePosition && placePosition.place_position) ? placePosition.place_position : placePosition;
+        if (Array.isArray(rawPos) && rawPos.length >= 2) {
+            centerLng = rawPos[0];
+            centerLat = rawPos[1];
+        } else if (rawPos && typeof rawPos === 'object') {
+            centerLng = (rawPos.lng !== undefined) ? rawPos.lng : ((rawPos.lon !== undefined) ? rawPos.lon : null);
+            centerLat = (rawPos.lat !== undefined) ? rawPos.lat : null;
+        }
+    } catch (e) {
+    }
+
+    if (!Number.isFinite(Number(centerLat)) || !Number.isFinite(Number(centerLng))) {
+        try {
+            const c = map && typeof map.getCenter === 'function' ? map.getCenter() : null;
+            centerLat = c ? ((typeof c.lat === 'function') ? c.lat() : c.lat) : null;
+            centerLng = c ? ((typeof c.lng === 'function') ? c.lng() : c.lng) : null;
+        } catch (e) {
+        }
+    }
+
+    const geo = (Number.isFinite(Number(centerLat)) && Number.isFinite(Number(centerLng))) ? {
+        lat: Number(centerLat),
+        lng: Number(centerLng),
+        altitude: (modelParams && Number.isFinite(Number(modelParams.altitude))) ? Number(modelParams.altitude) : 0
+    } : null;
+
+    if (nextUrl === __sns_active_place_model_url) {
+        if (__sns_active_place_model && geo && typeof overlay !== 'undefined' && overlay && typeof overlay.latLngAltitudeToVector3 === 'function') {
+            try {
+                __sns_active_place_model.userData = __sns_active_place_model.userData || {};
+                __sns_active_place_model.userData.geo = { lat: geo.lat, lng: geo.lng, altitude: geo.altitude };
+                geoBoundObjects.add(__sns_active_place_model);
+                overlay.latLngAltitudeToVector3(geo, __sns_active_place_model.position);
+                if (typeof overlay.requestRedraw === 'function') {
+                    overlay.requestRedraw();
+                }
+            } catch (e) {
+            }
+        }
+        return;
+    }
+
     // Remove previous model
     try {
         if (__sns_active_place_model && typeof overlay !== 'undefined' && overlay && overlay.scene) {
             overlay.scene.remove(__sns_active_place_model);
+            try { geoBoundObjects.delete(__sns_active_place_model); } catch (e) {}
             __snsDisposeThreeObject(__sns_active_place_model);
         }
     } catch (e) {
@@ -385,31 +427,7 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
             return;
         }
 
-        // Place the model at the place coordinates (fallback to current map center)
-        let centerLat = null;
-        let centerLng = null;
-        try {
-            const rawPos = (placePosition && placePosition.place_position) ? placePosition.place_position : placePosition;
-            if (Array.isArray(rawPos) && rawPos.length >= 2) {
-                centerLng = rawPos[0];
-                centerLat = rawPos[1];
-            } else if (rawPos && typeof rawPos === 'object') {
-                centerLng = (rawPos.lng !== undefined) ? rawPos.lng : ((rawPos.lon !== undefined) ? rawPos.lon : null);
-                centerLat = (rawPos.lat !== undefined) ? rawPos.lat : null;
-            }
-        } catch (e) {
-        }
-
-        if (!Number.isFinite(Number(centerLat)) || !Number.isFinite(Number(centerLng))) {
-            try {
-                const c = map && typeof map.getCenter === 'function' ? map.getCenter() : null;
-                centerLat = c ? ((typeof c.lat === 'function') ? c.lat() : c.lat) : null;
-                centerLng = c ? ((typeof c.lng === 'function') ? c.lng() : c.lng) : null;
-            } catch (e) {
-            }
-        }
-
-        if (!Number.isFinite(Number(centerLat)) || !Number.isFinite(Number(centerLng))) {
+        if (!geo) {
             console.warn('[snsPlaceModel] map center not available; skip positioning');
             return;
         }
@@ -445,11 +463,6 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
         } catch (e) {
         }
 
-        const geo = {
-            lat: Number(centerLat),
-            lng: Number(centerLng),
-            altitude: (modelParams && Number.isFinite(Number(modelParams.altitude))) ? Number(modelParams.altitude) : 0
-        };
         try {
             overlay.latLngAltitudeToVector3(geo, model.position);
         } catch (e) {
@@ -457,6 +470,11 @@ async function __snsSetActivePlaceModel(url3d, placePosition) {
 
         model.name = 'snsPlaceModel';
         overlay.scene.add(model);
+        try {
+            model.userData = model.userData || {};
+            model.userData.geo = { lat: geo.lat, lng: geo.lng, altitude: geo.altitude };
+            geoBoundObjects.add(model);
+        } catch (e) {}
         __sns_active_place_model = model;
         __sns_active_place_model_url = nextUrl;
 
@@ -633,7 +651,7 @@ function initMap() {
 
         center,
 
-        mapId: "your_map_id",
+        mapId: "b8fc4b5a8471b933",
 
         // renderingType: google.maps.RenderingType.VECTOR,
 
@@ -2577,33 +2595,29 @@ function parseModelFilename(filename) {
 
 
 
-    // Match: starts with letters, followed by underscore-separated numbers
+    // Split the filename into underscore-separated tokens. The model name may
 
-    const match = nameWithoutExt.match(/^[a-zA-Z]+(.*)$/);
+    // itself contain underscores (e.g. "lobster_animation"), so we always take
 
-    if (!match || !match[1]) {
+    // the LAST 6 tokens as the numeric parameters and treat everything before
 
-        return null;
+    // them as the model name. This avoids mis-parsing names with underscores.
 
-    }
-
-
-
-    // Parse underscore-separated numeric params after the letter prefix
-
-    const paramString = match[1];
-
-    const params = paramString.split('_').filter(s => s !== '');
+    const allTokens = nameWithoutExt.split('_').filter(s => s !== '');
 
 
 
-    if (params.length < 6) {
+    if (allTokens.length < 6) {
 
-        console.warn(`Filename has fewer than 6 params: ${filename}. Found ${params.length} params`);
+        console.warn(`Filename has fewer than 6 params: ${filename}. Found ${allTokens.length} tokens`);
 
         return null;
 
     }
+
+
+
+    const params = allTokens.slice(allTokens.length - 6);
 
 
 
@@ -3043,6 +3057,171 @@ function resetMyModelRotationAfterTalk(options = {}) {
 
 
 
+/**
+ * Rotate any person's 3D model to face north (rotation.y = PI).
+ * Generic version of rotateMyModel180AfterTalkMove, parameterized by nation_id.
+ */
+function rotateModelToFaceNorthByNationId(nationId, options) {
+    options = options || {};
+    var targetId = String(nationId || '').trim();
+    if (!targetId) return;
+
+    var maxRetries = (options.maxRetries !== undefined) ? Number(options.maxRetries) : 40;
+    var retryDelayMs = (options.retryDelayMs !== undefined) ? Number(options.retryDelayMs) : 200;
+
+    var model = null;
+    try {
+        model = (model_loaded_list && model_loaded_list[targetId]) ? model_loaded_list[targetId] : null;
+    } catch (e) {
+        model = null;
+    }
+    if (!model) {
+        try {
+            if (typeof overlay !== 'undefined' && overlay && overlay.scene && typeof overlay.scene.getObjectByName === 'function') {
+                model = overlay.scene.getObjectByName(targetId);
+            }
+        } catch (e) {
+            model = null;
+        }
+    }
+    if (!model) {
+        if (maxRetries > 0) {
+            setTimeout(function () { rotateModelToFaceNorthByNationId(targetId, { maxRetries: maxRetries - 1, retryDelayMs: retryDelayMs }); }, retryDelayMs);
+        }
+        return;
+    }
+
+    try {
+        if (!model.userData) model.userData = {};
+        if (model.userData.__talk_original_rotation_y === undefined || model.userData.__talk_original_rotation_y === null) {
+            model.userData.__talk_original_rotation_y = (model.rotation && typeof model.rotation.y === 'number') ? model.rotation.y : 0;
+        }
+        model.userData.__talk_face_target_last_nation_id = (typeof nation_id_me !== 'undefined') ? String(nation_id_me) : '';
+        model.userData.__talk_is_active = true;
+    } catch (e) {}
+
+    try {
+        var desiredY = Math.PI;
+        var currentY = (model.rotation && typeof model.rotation.y === 'number') ? model.rotation.y : 0;
+        if (Math.abs(currentY - desiredY) > 1e-6) {
+            model.rotation.y = desiredY;
+        }
+    } catch (e) {
+        console.warn('Failed to rotate model to face north for', targetId, e);
+        return;
+    }
+
+    try {
+        if (typeof overlay !== 'undefined' && overlay && typeof overlay.requestRedraw === 'function') {
+            overlay.requestRedraw();
+        }
+    } catch (e) {}
+}
+
+
+/**
+ * Handle an incoming talk request: move the SENDER's avatar to the south of ME,
+ * then adjust camera to focus on my position. This is the reverse of start_talk_to_it.
+ */
+function incoming_talk_to_me(nation_id) {
+    var __nationId = (typeof __snsNormalizeNationId === 'function')
+        ? __snsNormalizeNationId(nation_id)
+        : String(nation_id || '').trim();
+
+    // Stop any previous active talk
+    try {
+        var prev = (typeof window !== 'undefined') ? window.__active_talk_nation_id : undefined;
+        if (prev && String(prev) !== String(__nationId) && typeof stop_talk_to_it === 'function') {
+            stop_talk_to_it(prev, { skipTerminate: true });
+        }
+    } catch (e) {
+        console.warn('incoming_talk_to_me pre-stop failed:', e);
+    }
+    try {
+        if (typeof window !== 'undefined') {
+            window.__active_talk_nation_id = String(__nationId);
+        }
+    } catch (e) {}
+
+    // Hide sender's marker
+    var marker = hiddenMarkers[__nationId];
+    try {
+        if (typeof hideMarker === 'function') {
+            hideMarker(marker, __nationId);
+        }
+    } catch (e) {
+        console.warn('[sns][marker] incoming_talk_to_me hideMarker failed:', e);
+    }
+
+    // Get my position and sender's data
+    var my_point = getPersonPointByNationId(nation_id_me);
+    person_data_me = getPersonDataByNationId(nation_id_me);
+    var person_sender = getPersonDataByNationId(__nationId);
+
+    // Track sender account for stop_talk_to_it
+    try {
+        var senderAccount = (person_sender && person_sender["account"]) ? String(person_sender["account"]).trim() : '';
+        if (typeof window !== 'undefined' && senderAccount) {
+            if (!window.__talk_target_account_by_nation_id || typeof window.__talk_target_account_by_nation_id !== 'object') {
+                window.__talk_target_account_by_nation_id = {};
+            }
+            window.__talk_target_account_by_nation_id[String(__nationId)] = senderAccount;
+        }
+    } catch (e) {}
+
+    // Center camera on my position (with same offset pattern as start_talk_to_it)
+    setTimeout(function () {
+        var targetLat = my_point.lat() - 0.0025;
+        var targetLng = my_point.lng() - 0.0025;
+        var currentCenter = map.getCenter();
+        if (!currentCenter || Math.abs(currentCenter.lat() - targetLat) > 0.0001 || Math.abs(currentCenter.lng() - targetLng) > 0.0001) {
+            showAlert("Incoming conversation.");
+        }
+        map.setCenter(new google.maps.LatLng(targetLat, targetLng));
+    }, 100);
+
+    setTimeout(function () {
+        map.setZoom(16.9);
+    }, 2000);
+
+    setTimeout(function () {
+        map.setTilt(90);
+    }, 2500);
+
+    setTimeout(function () {
+        map.setHeading(270);
+    }, 2800);
+
+    // Move sender's avatar to south of me (my_lat - 0.005)
+    var sender_new_point = new google.maps.LatLng(my_point.lat() - 0.005, my_point.lng());
+    setPersonPointByNationId(__nationId, sender_new_point.lng(), sender_new_point.lat());
+
+    // Load sender's 3D model after updating data position, then move it when ready.
+    loadModel(person_sender);
+
+    (function __moveIncomingSenderModelWhenReady(retriesLeft) {
+        try {
+            if (model_loaded_list && model_loaded_list[__nationId]) {
+                setPersonModelPointByNationId(__nationId, sender_new_point);
+                rotateModelToFaceNorthByNationId(__nationId);
+                return;
+            }
+        } catch (e) {
+            console.warn('incoming_talk_to_me model move retry failed:', e);
+        }
+        if (retriesLeft > 0) {
+            setTimeout(function () {
+                __moveIncomingSenderModelWhenReady(retriesLeft - 1);
+            }, 200);
+        }
+    })(40);
+
+    // Rotate sender's model to face north (toward me), with its own retry loop.
+    rotateModelToFaceNorthByNationId(__nationId);
+}
+
+
+
 // Rotate the person model to face a given geographic bearing after movement.
 // bearingDeg: geographic bearing in degrees (0=N, 90=E, 180=S, 270=W).
 // Google Maps 3D overlay: Y is the up-axis; yaw rotation is around Y.
@@ -3378,6 +3557,20 @@ function loadModel(persondata) {
             // Compute model size and scale
 
             const box = new THREE.Box3().setFromObject(model);
+
+            // Skinned avatars: Box3.setFromObject ignores skeletal skinning and
+
+            // only measures bind-pose geometry, which for some models (e.g.
+
+            // ctgirlschool) is much shorter than the real standing height. Expand
+
+            // the box by bone world positions so the height reflects the skeleton.
+
+            model.updateMatrixWorld(true);
+
+            const __bonePos = new THREE.Vector3();
+
+            model.traverse((o) => { if (o.isBone) { o.getWorldPosition(__bonePos); box.expandByPoint(__bonePos); } });
 
             const size = box.getSize(new THREE.Vector3());
 
@@ -5158,9 +5351,9 @@ async function toggleNavigate() {
         if (__snsIsEngineActiveForLandmark(status)) {
             try {
                 if (typeof showAlert === 'function') {
-                    showAlert('Landmark animation is only available when the engine is stopped. Please stop the engine first.', true);
+                    showAlert('Landmark animation can only be run before the engine starts. Please reload the map and try again before starting the engine.', true);
                 } else {
-                    alert('Landmark animation is only available when the engine is stopped. Please stop the engine first.');
+                    alert('Landmark animation can only be run before the engine starts. Please reload the map and try again before starting the engine.');
                 }
             } catch (e) {
             }
@@ -5239,7 +5432,7 @@ function autoNavigate() {
 
         loader = new THREE.GLTFLoader();
 
-        const source = "cbot.glb";
+        const source = "assets/cbot.glb";
 
         loader.load(source, function (gltf) {
 

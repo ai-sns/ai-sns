@@ -302,8 +302,10 @@ class ToolsEditDialog {
             </div>
         `;
 
-        // Plugin editor is intentionally minimal.
-        if (category === 'tools-plugin') {
+        // Plugin and MCP editors are intentionally minimal.
+        // MCP: the "Confirmation required before execution" option is omitted
+        // because confirm_needed is not enforced at execution time for MCP.
+        if (category === 'tools-plugin' || category === 'mcp') {
             return baseFields + configSection;
         }
 

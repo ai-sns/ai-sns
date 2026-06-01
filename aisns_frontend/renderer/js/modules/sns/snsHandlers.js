@@ -2111,11 +2111,35 @@ export default {
             }
         };
 
+        const getSelectedTextFromActiveElement = () => {
+            try {
+                const el = document.activeElement;
+                if (!el) return '';
+                const tag = String(el.tagName || '').toLowerCase();
+                if (tag !== 'textarea' && tag !== 'input') return '';
+                if (tag === 'input' && el.type && String(el.type).toLowerCase() !== 'text') return '';
+                if (typeof el.selectionStart !== 'number' || typeof el.selectionEnd !== 'number') return '';
+                const start = el.selectionStart;
+                const end = el.selectionEnd;
+                if (end <= start) return '';
+                return String(el.value || '').slice(start, end);
+            } catch (e) {
+                return '';
+            }
+        };
+
+        // Text captured at right-click time; clicking the menu button moves focus
+        // away and clears the live selection, so we cannot read it on click.
+        let currentSelectedText = '';
+
         if (!tabContent || !contextMenu) return;
 
         // Prevent default context menu
         tabContent.addEventListener('contextmenu', (e) => {
             e.preventDefault();
+
+            const liveSelected = window.getSelection ? window.getSelection().toString() : '';
+            currentSelectedText = liveSelected || getSelectedTextFromActiveElement();
 
             // Show custom context menu
             contextMenu.style.display = 'block';
@@ -2158,8 +2182,9 @@ export default {
 
             switch (action) {
                 case 'copy':
-                    // Copy selected text
-                    const selectedText = window.getSelection().toString();
+                    // Use the text captured at right-click time, because clicking the
+                    // menu button moves focus away and clears the live selection.
+                    const selectedText = currentSelectedText || (window.getSelection ? window.getSelection().toString() : '') || getSelectedTextFromActiveElement();
                     if (selectedText) {
                         copyTextToClipboard(selectedText).then((r) => {
                             if (r && r.success) {
@@ -2335,13 +2360,19 @@ export default {
                     blockIndex += 1;
 
                     if (!el) continue;
-
-                    let text = '';
-                    try {
-                        text = String(el.textContent || '');
-                    } catch (e) {
-                        text = '';
+                    if (!isElementVisible(el)) {
+                        const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                        if (nowMs - startMs > 10) break;
+                        continue;
                     }
+
+                    let textInfo = null;
+                    try {
+                        textInfo = buildVisibleTextMap(el);
+                    } catch (e) {
+                        textInfo = { text: '', map: [] };
+                    }
+                    const text = textInfo.text;
 
                     if (!text) {
                         const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -2354,7 +2385,7 @@ export default {
                     while (fromIndex < lower.length) {
                         const found = lower.indexOf(query, fromIndex);
                         if (found === -1) break;
-                        currentMatches.push({ el, start: found });
+                        currentMatches.push({ el, start: found, map: textInfo.map });
                         if (currentMatches.length >= maxMatches) break;
                         fromIndex = found + query.length;
                     }
@@ -2406,29 +2437,80 @@ export default {
             clearSelectionHighlight();
         };
 
-        const createRangeFromTextOffsets = (root, start, end) => {
-            if (!root || start < 0 || end <= start) return null;
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+        const isElementVisible = (el) => {
+            if (!el) return false;
+            try {
+                const style = window.getComputedStyle(el);
+                if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                    return false;
+                }
+            } catch (e) {
+            }
+            return true;
+        };
+
+        // Build the visible text of an element and a map from text offsets back to
+        // DOM text nodes. Hidden subtrees (display:none / visibility:hidden) and
+        // non-content controls (select/option) are skipped, so search only matches
+        // what the user can actually see.
+        const buildVisibleTextMap = (root) => {
+            const map = [];
+            let text = '';
+            if (!root) return { text, map };
+
+            let walker = null;
+            try {
+                walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+                    acceptNode(node) {
+                        if (node.nodeType === 1) {
+                            const tag = String(node.tagName || '').toLowerCase();
+                            if (tag === 'select' || tag === 'option' || tag === 'script' || tag === 'style') {
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                            let style = null;
+                            try { style = window.getComputedStyle(node); } catch (e) { style = null; }
+                            if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                            return NodeFilter.FILTER_SKIP;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
+                    }
+                });
+            } catch (e) {
+                const t = String(root.textContent || '');
+                return { text: t, map: t ? [{ textStart: 0, node: root, length: t.length }] : [] };
+            }
+
             let node = null;
-            let pos = 0;
+            while ((node = walker.nextNode())) {
+                const value = node.nodeValue || '';
+                if (!value) continue;
+                map.push({ textStart: text.length, node, length: value.length });
+                text += value;
+            }
+            return { text, map };
+        };
+
+        const createRangeFromMap = (map, start, end) => {
+            if (!map || !map.length || start < 0 || end <= start) return null;
             let startNode = null;
             let startOffset = 0;
             let endNode = null;
             let endOffset = 0;
 
-            while ((node = walker.nextNode())) {
-                const value = node.nodeValue || '';
-                const len = value.length;
-                if (!startNode && pos + len >= start) {
-                    startNode = node;
-                    startOffset = Math.max(0, start - pos);
+            for (let i = 0; i < map.length; i++) {
+                const seg = map[i];
+                const segEnd = seg.textStart + seg.length;
+                if (!startNode && segEnd > start) {
+                    startNode = seg.node;
+                    startOffset = Math.max(0, start - seg.textStart);
                 }
-                if (pos + len >= end) {
-                    endNode = node;
-                    endOffset = Math.max(0, end - pos);
+                if (segEnd >= end) {
+                    endNode = seg.node;
+                    endOffset = Math.max(0, end - seg.textStart);
                     break;
                 }
-                pos += len;
             }
 
             if (!startNode || !endNode) return null;
@@ -2453,7 +2535,7 @@ export default {
                 if (!Number.isFinite(start) || start < 0) return;
 
                 clearSelectionHighlight();
-                const range = createRangeFromTextOffsets(match.el, start, end);
+                const range = createRangeFromMap(match.map, start, end);
                 if (!range) return;
 
                 const sel = window.getSelection();
@@ -2476,7 +2558,7 @@ export default {
             const start = Number(match.start);
             const end = start + q.length;
             const range = (q && Number.isFinite(start) && start >= 0)
-                ? createRangeFromTextOffsets(el, start, end)
+                ? createRangeFromMap(match.map, start, end)
                 : null;
 
             if (range) {

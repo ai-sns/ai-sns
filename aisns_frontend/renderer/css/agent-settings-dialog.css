@@ -36,6 +36,25 @@
     font-weight: 500;
 }
 
+/* Initialization Wizard: disable hover background and motion on tabs */
+#initWizard .settings-tab-btn {
+    transition: none !important;
+    background: transparent !important;
+    cursor: default !important;
+}
+
+/* Pin hover color to the button's own non-hover color so it never changes
+   on mouse-over. Two rules cover the inactive and active states. */
+#initWizard .settings-tab-btn:hover {
+    background: transparent !important;
+    color: var(--text-secondary, #666) !important;
+}
+
+#initWizard .settings-tab-btn.active,
+#initWizard .settings-tab-btn.active:hover {
+    color: var(--primary-color, #1a73e8) !important;
+}
+
 /* Tab content */
 .settings-tab-pane {
     display: none;

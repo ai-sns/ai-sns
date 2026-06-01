@@ -6,14 +6,6 @@ from runtime.apps.sns.xmpp_client import XMPPClientManager
 from runtime.modules.agent.agent_manager import agent_manager
 from runtime.shared.websocket_manager import manager as websocket_manager
 
-from db.repositories import (
-    PluginMngRepository,
-    FunctionMngRepository,
-    McpMngRepository,
-    SkillMngRepository,
-)
-from runtime.modules.agent.tool_converter import ToolConverter
-
 # *********
 import os
 import math
@@ -36,7 +28,6 @@ from db.DBFactory import (query_AgentCfg, add_AIChatMessages, get_prompt_by_titl
 
 from runtime.i18n import lt
 from enum import Enum
-from typing import List, Dict, Optional
 import json
 import logging
 import requests
@@ -421,40 +412,122 @@ class ToolsMixin:
             print(f"Error calling service: {e}")
             return None
 
-    def run_configured_tool_text_generation_sync(
+    def run_agent_delivery_prompt_sync(
         self,
-        tool_name: str,
-        what_to_do: str,
+        user_prompt: str,
+        chat_history_str: str,
         *,
-        conversation_suffix: str = "configured_tool",
-        force_tool_call: bool = False,
+        conversation_suffix: str = "trade_delivery",
     ):
+        """Schedule generate_text_with_agent_prompt as an async task; return the Task."""
         try:
             return asyncio.create_task(
-                self.generate_text_with_configured_tool(
-                    tool_name,
-                    what_to_do,
+                self.generate_text_with_agent_prompt(
+                    user_prompt,
+                    chat_history_str,
                     conversation_suffix=conversation_suffix,
-                    force_tool_call=force_tool_call,
                 )
             )
         except RuntimeError:
             loop = asyncio.new_event_loop()
             try:
                 return loop.run_until_complete(
-                    self.generate_text_with_configured_tool(
-                        tool_name,
-                        what_to_do,
+                    self.generate_text_with_agent_prompt(
+                        user_prompt,
+                        chat_history_str,
                         conversation_suffix=conversation_suffix,
-                        force_tool_call=force_tool_call,
                     )
                 )
             finally:
                 loop.close()
 
+    # Friendly notice returned to the buyer when delivery cannot be completed.
+    DELIVERY_FALLBACK_MESSAGE = "Delivery encountered an issue. Please wait for follow-up handling."
 
-    def _load_tool_def_for_agent(self, tool_type: str, tool_id: str, *, mcp_tool_name: str = "") -> Optional[dict]:
-        return self.load_openai_tool_def_for_agent(tool_type, tool_id, mcp_tool_name=mcp_tool_name)
+    # Neutral system prompt used ONLY for the post-payment delivery turn. This
+    # deliberately overrides the SNS "select communication target -> JSON"
+    # persona so the agent fulfils the seller's delivery instruction instead of
+    # leaking a candidate-selection JSON when a tool/skill fails.
+    _DELIVERY_SYSTEM_PROMPT = (
+        "You are fulfilling a post-payment delivery task on behalf of the seller. "
+        "The buyer has already paid, so you must deliver what the seller promised. "
+        "Follow the seller's delivery instruction below exactly and reply with ONLY "
+        "the delivered content (for example: the generated image URL, the requested "
+        "text, or a file link). Do NOT output candidate-selection JSON, sales pitches, "
+        "role/persona JSON, or any extra commentary. "
+        "If you cannot complete the delivery (for example a tool or skill fails), reply "
+        "with exactly this sentence and nothing else: " + DELIVERY_FALLBACK_MESSAGE
+    )
+
+    async def generate_text_with_agent_prompt(
+        self,
+        user_prompt: str,
+        chat_history_str: str,
+        *,
+        conversation_suffix: str = "trade_delivery",
+    ) -> str:
+        """Send user prompt + chat history to the agent LLM and return the reply.
+
+        For local agents, use_tools=True allows the LLM to invoke any
+        configured tool based on the prompt. For remote agents, the
+        prompt is forwarded via the remote RPC path automatically by
+        AgentAdapter.chat.
+
+        Delivery is best-effort and must never break or hang the engine: any
+        failure (missing agent, LLM/RPC error, empty output) is converted into a
+        friendly fallback notice so the buyer always receives a reply.
+        """
+        try:
+            agent = self.get_agent_for_current_chat()
+        except Exception as e:
+            log.error("trade delivery: failed to resolve agent: %s", e, exc_info=True)
+            return self.DELIVERY_FALLBACK_MESSAGE
+
+        if agent is None:
+            log.error("trade delivery: agent not configured for current user")
+            return self.DELIVERY_FALLBACK_MESSAGE
+
+        prompt = f"{user_prompt}\n\n## Chat history\n{chat_history_str}"
+
+        # Temporarily force a neutral delivery system prompt. Both local agents
+        # (AgentInstance.get_system_prompt) and remote agents
+        # (AgentAdapter._remote_send_message) read role_config['system_prompt'],
+        # so this single override covers both agent types.
+        role_config = getattr(agent, "role_config", None)
+        overrode_prompt = False
+        original_system_prompt = None
+        if isinstance(role_config, dict):
+            original_system_prompt = role_config.get("system_prompt")
+            role_config["system_prompt"] = self._DELIVERY_SYSTEM_PROMPT
+            overrode_prompt = True
+
+        try:
+            reply = await self.chat_with_agent(
+                prompt,
+                conversation_suffix=conversation_suffix,
+                use_tools=True,
+                use_memory=False,
+                use_knowledge_base=False,
+                agent=agent,
+            )
+        except Exception as e:
+            log.error("trade delivery: agent chat failed: %s", e, exc_info=True)
+            return self.DELIVERY_FALLBACK_MESSAGE
+        finally:
+            if overrode_prompt:
+                try:
+                    if original_system_prompt is None:
+                        role_config.pop("system_prompt", None)
+                    else:
+                        role_config["system_prompt"] = original_system_prompt
+                except Exception:
+                    pass
+
+        reply_text = (reply or "").strip()
+        if not reply_text:
+            log.warning("trade delivery: agent returned empty reply, using fallback notice")
+            return self.DELIVERY_FALLBACK_MESSAGE
+        return reply_text
 
     def handle_service_called_result(self, response_text):
         action_result = response_text
@@ -471,352 +544,3 @@ class ToolsMixin:
         except Exception:
             pass
 
-    async def generate_text_with_configured_tool(
-        self,
-        tool_name: str,
-        what_to_do: str,
-        *,
-        conversation_suffix: str = "configured_tool",
-        force_tool_call: bool = False,
-    ) -> str:
-        if not tool_name:
-            raise ValueError("tool_name is empty")
-
-        parts = tool_name.split(":")
-        if len(parts) < 2:
-            raise ValueError(f"invalid tool_name format: {tool_name}")
-
-        tool_type = (parts[0] or "").strip().lower()
-        tool_id = (parts[1] or "").strip()
-        mcp_tool_name = (parts[2] or "").strip() if len(parts) >= 3 else ""
-
-        if not tool_type or not tool_id:
-            raise ValueError(f"invalid tool_name format: {tool_name}")
-
-        if tool_type == "mcp" and not mcp_tool_name:
-            raise ValueError(f"invalid mcp tool_name format (expected mcp:mcp_id:tool_name): {tool_name}")
-
-        if tool_type not in {"plugin", "function", "skill", "mcp", "remote"}:
-            raise ValueError(f"unsupported tool type: {tool_type}")
-
-        agent = None
-        if hasattr(self, "get_agent_for_current_chat"):
-            agent = self.get_agent_for_current_chat()
-        if agent is None:
-            raise RuntimeError("agent not configured for current user")
-
-        # Remote agent path: skip local tool loading and send a task-oriented prompt
-        is_remote = False
-        try:
-            is_remote = self.is_current_agent_remote()
-        except Exception:
-            is_remote = False
-
-        if is_remote:
-            prompt = (
-                f"Generate the requested content using your tool named '{tool_id}'.\n"
-                "Output only the final content; do not include extra explanations.\n\n"
-                f"Context:\n{what_to_do}"
-            )
-            reply = await self.chat_with_agent(
-                prompt,
-                conversation_suffix=conversation_suffix,
-                use_tools=False,
-                use_memory=False,
-                use_knowledge_base=False,
-                agent=agent,
-            )
-            reply = (reply or "").strip()
-            return reply if reply else "(No content generated)"
-
-        # Local agent path: load tool definition and use function calling
-        tool_def = self.load_openai_tool_def_for_agent(tool_type, tool_id, mcp_tool_name=mcp_tool_name)
-        if tool_def is None:
-            if tool_type == "mcp":
-                raise ValueError(f"tool not found: {tool_type}:{tool_id}:{mcp_tool_name}")
-            raise ValueError(f"tool not found: {tool_type}:{tool_id}")
-
-        tool_choice = None
-        if force_tool_call:
-            tool_fn = tool_def.get("function") if isinstance(tool_def, dict) else None
-            tool_fn_name = (tool_fn or {}).get("name") if isinstance(tool_fn, dict) else None
-            if isinstance(tool_fn_name, str) and tool_fn_name:
-                tool_choice = {"type": "function", "function": {"name": tool_fn_name}}
-            else:
-                logger.warning("force_tool_call is enabled but tool function name is missing")
-
-        original_db_tools = getattr(agent, "db_tools", None)
-        original_tools = getattr(agent, "tools", None)
-        original_tools_loaded = getattr(agent, "tools_loaded", None)
-
-        # Detect if the tool is a DocSkill (run_doc_skill)
-        is_doc_skill = False
-        doc_skill_key = ""
-        try:
-            fn_name = (tool_def.get("function") or {}).get("name") or ""
-            if fn_name == "run_doc_skill":
-                is_doc_skill = True
-                props = ((tool_def.get("function") or {}).get("parameters") or {}).get("properties") or {}
-                sk_enum = (props.get("skill_key") or {}).get("enum") or []
-                doc_skill_key = sk_enum[0] if sk_enum else tool_id
-        except Exception:
-            pass
-
-        # DocSkill direct-execution path: bypass the agent tool-calling pipeline
-        # because the skill may not be in the agent's enabled-skills list and
-        # the generic run_doc_skill schema lacks skill-specific parameter hints.
-        if is_doc_skill:
-            return await self._execute_doc_skill_for_trade(
-                agent, doc_skill_key, what_to_do, conversation_suffix,
-            )
-
-        try:
-            agent.db_tools = [tool_def]
-            agent.tools = []
-            agent.tools_loaded = True
-
-            prompt = (
-                "You may only use the provided tool to generate content.\n"
-                "You may choose to call the tool or not.\n"
-                "Regardless of tool usage, output only the final text without extra explanations.\n\n"
-                f"Context: \n{what_to_do}"
-            )
-
-            reply = await self.chat_with_agent(
-                prompt,
-                conversation_suffix=conversation_suffix,
-                use_tools=True,
-                use_memory=False,
-                use_knowledge_base=False,
-                tool_choice=tool_choice,
-                agent=agent,
-            )
-
-            reply = (reply or "").strip()
-            if reply:
-                return reply
-            return "(No content generated)"
-        finally:
-            agent.db_tools = original_db_tools
-            agent.tools = original_tools
-            agent.tools_loaded = original_tools_loaded
-
-    async def _execute_doc_skill_for_trade(
-        self,
-        agent,
-        skill_key: str,
-        what_to_do: str,
-        conversation_suffix: str,
-    ) -> str:
-        """Execute a DocSkill directly, bypassing the agent tool-calling pipeline.
-
-        1. Read the SKILL.md so the LLM knows the parameter schema.
-        2. Ask the LLM (without tools) to produce the JSON params.
-        3. Run the skill via DocSkillsService.run_skill().
-        4. Return a text representation of the result.
-        """
-        from runtime.modules.skills_registry.service import get_docskills_service
-
-        service = get_docskills_service()
-        skill_md = service.registry.read_skill_markdown(skill_key) or ""
-
-        # Step 1: Ask LLM to generate the skill parameters
-        param_prompt = (
-            f"You need to call a skill named '{skill_key}'.\n"
-            "Read the skill documentation below and generate ONLY a valid JSON object "
-            "with the parameters required by this skill. No explanation, no markdown fences.\n\n"
-            f"## Skill Documentation\n{skill_md}\n\n"
-            f"## Context\n{what_to_do}"
-        )
-
-        params_text = await self.chat_with_agent(
-            param_prompt,
-            conversation_suffix=conversation_suffix,
-            use_tools=False,
-            use_memory=False,
-            use_knowledge_base=False,
-            agent=agent,
-        )
-
-        # Step 2: Parse the JSON params
-        params: dict = {}
-        if params_text:
-            raw = params_text.strip()
-            # Strip markdown code fences if the LLM wrapped the JSON
-            if raw.startswith("```"):
-                lines = raw.split("\n")
-                lines = [l for l in lines if not l.strip().startswith("```")]
-                raw = "\n".join(lines).strip()
-            try:
-                parsed = json.loads(raw)
-                if isinstance(parsed, dict):
-                    params = parsed
-            except json.JSONDecodeError:
-                logger.warning(
-                    "Failed to parse LLM params for DocSkill '%s': %.200s",
-                    skill_key, raw,
-                )
-
-        logger.info("Executing DocSkill '%s' with params: %s", skill_key, params)
-
-        # Step 3: Execute the skill directly
-        result = await service.run_skill(skill_key, params)
-
-        # Step 4: Format the result
-        if not isinstance(result, dict):
-            return str(result) if result else "(No content generated)"
-
-        if result.get("success") is False:
-            error_msg = result.get("error", "Unknown error")
-            logger.error("DocSkill '%s' execution failed: %s", skill_key, error_msg)
-            return f"Skill execution failed: {error_msg}"
-
-        # Return a concise representation; prefer local_url / image_url for images
-        local_url = result.get("local_url") or ""
-        image_url = result.get("image_url") or ""
-        if local_url or image_url:
-            url = local_url or image_url
-            revised = result.get("revised_prompt") or ""
-            parts = [url]
-            if revised:
-                parts.append(revised)
-            return "\n".join(parts)
-
-        return json.dumps(result, ensure_ascii=False)
-
-    def load_openai_tool_def_for_agent(self, tool_type: str, tool_id: str, *, mcp_tool_name: str = "") -> Optional[dict]:
-        try:
-            if tool_type == "plugin":
-                repo = PluginMngRepository()
-                obj = repo.get_one(plugin_id=tool_id)
-                if not obj:
-                    return None
-                tool_dict = {
-                    "tool_type": "plugin",
-                    "plugin_id": getattr(obj, "plugin_id", tool_id),
-                    "name": getattr(obj, "name", ""),
-                    "description": getattr(obj, "description", ""),
-                    "instruction": getattr(obj, "instruction", ""),
-                    "parameter": getattr(obj, "parameter", "{}"),
-                }
-                return ToolConverter.plugin_to_openai(tool_dict)
-
-            if tool_type == "function":
-                repo = FunctionMngRepository()
-                obj = repo.get_one(function_id=tool_id)
-                if not obj:
-                    return None
-                tool_dict = {
-                    "tool_type": "function",
-                    "function_id": getattr(obj, "function_id", tool_id),
-                    "name": getattr(obj, "name", ""),
-                    "description": getattr(obj, "description", ""),
-                    "instruction": getattr(obj, "instruction", ""),
-                    "parameter": getattr(obj, "parameter", "{}"),
-                }
-                return ToolConverter.function_to_openai(tool_dict)
-
-            if tool_type == "skill":
-                repo = SkillMngRepository()
-                obj = repo.get_one(skill_id=tool_id)
-                if not obj:
-                    # Fallback: check doc skill registry (SKILL.md-based skills)
-                    try:
-                        from runtime.modules.skills_registry.service import get_docskills_service
-                        doc_skill = get_docskills_service().registry.get(tool_id)
-                        if doc_skill:
-                            logger.info("Skill '%s' not in DB, resolved as DocSkill", tool_id)
-                            return {
-                                "type": "function",
-                                "function": {
-                                    "name": "run_doc_skill",
-                                    "description": (
-                                        f"Run DocSkill '{doc_skill.skill_key}': "
-                                        f"{doc_skill.description or doc_skill.name}"
-                                    )[:1024],
-                                    "parameters": {
-                                        "type": "object",
-                                        "properties": {
-                                            "skill_key": {
-                                                "type": "string",
-                                                "description": "DocSkill skill_key",
-                                                "enum": [doc_skill.skill_key],
-                                            },
-                                            "params": {
-                                                "type": "object",
-                                                "description": "Parameters passed to the skill runner",
-                                                "additionalProperties": True,
-                                            },
-                                        },
-                                        "required": ["skill_key"],
-                                    },
-                                },
-                            }
-                    except Exception as ds_err:
-                        logger.warning("DocSkill fallback lookup failed for '%s': %s", tool_id, ds_err)
-                    return None
-                tool_dict = {
-                    "tool_type": "skill",
-                    "skill_id": getattr(obj, "skill_id", tool_id),
-                    "name": getattr(obj, "name", ""),
-                    "description": getattr(obj, "description", ""),
-                    "instruction": getattr(obj, "instruction", ""),
-                    "parameter": getattr(obj, "parameter", "{}"),
-                }
-                return ToolConverter.skill_to_openai(tool_dict)
-
-            if tool_type == "mcp":
-                if not mcp_tool_name:
-                    return None
-
-                repo = McpMngRepository()
-                obj = repo.get_one(mcp_id=tool_id)
-                if not obj:
-                    return None
-
-                mcp_dict = {
-                    "tool_type": "mcp",
-                    "mcp_id": getattr(obj, "mcp_id", tool_id),
-                    "name": getattr(obj, "name", ""),
-                    "description": getattr(obj, "description", ""),
-                }
-
-                tool_schema = None
-                parameter = getattr(obj, "parameter", None)
-                if parameter:
-                    try:
-                        param_data = json.loads(parameter) if isinstance(parameter, str) else parameter
-                        if isinstance(param_data, dict):
-                            tools_list = param_data.get("tools")
-                            if isinstance(tools_list, list):
-                                for t in tools_list:
-                                    if not isinstance(t, dict):
-                                        continue
-                                    if (t.get("name") or "").strip() == mcp_tool_name:
-                                        tool_schema = t
-                                        break
-                    except Exception as parse_error:
-                        logger.warning(f"Failed to parse MCP parameters: {parse_error}")
-
-                input_schema = None
-                if isinstance(tool_schema, dict):
-                    input_schema = tool_schema.get("inputSchema") or tool_schema.get("parameters")
-
-                tool_dict = {
-                    "name": mcp_tool_name,
-                    "description": (tool_schema or {}).get("description") if isinstance(tool_schema, dict) else f"Execute MCP tool '{mcp_tool_name}'",
-                    "inputSchema": input_schema
-                    if isinstance(input_schema, dict)
-                    else {
-                        "type": "object",
-                        "properties": {},
-                    },
-                }
-
-                return ToolConverter.mcp_to_openai(mcp_dict, tool_dict)
-
-        except Exception as e:
-            logger.error(f"load tool def failed: {tool_type}:{tool_id}: {e}", exc_info=True)
-            return None
-
-        return None

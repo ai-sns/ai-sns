@@ -30,20 +30,6 @@ let browserViewLoadSeq = 0;
 
 
 
-// Azure OpenAI config has been moved to the backend API Server (api_server.py)
-
-// Config is loaded from the database or environment variables
-
-// const AZURE_OPENAI_CONFIG = {
-
-//     baseUrl: 'https://api.chatanywhere.tech/v1',
-
-//     apiKey: 'sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26',
-
-//     model: 'gpt-4o-mini'
-
-// };
-
 let tray = null;
 
 let pythonProcess = null;

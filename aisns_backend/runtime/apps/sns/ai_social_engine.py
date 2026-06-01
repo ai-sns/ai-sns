@@ -231,7 +231,23 @@ class AISocialEngine(
         self.conversation_inbox = {}
         self.conversation_timeout_seconds = 300
         self._conversation_last_activity_ts = 0.0
+        # Timestamp at which we started waiting for the active peer's reply.
+        # 0.0 means we are not currently waiting (no timeout pending).
+        self._awaiting_reply_since = 0.0
         self._conversation_timeout_task = None
+        # Map chat bubbles received from the active peer while the engine is
+        # paused. They are flushed (shown on the map) only after resume.
+        self._pending_map_bubbles = []
+        # Delay between consecutive deferred bubbles when flushed on resume, so
+        # multiple replies are seen as separate bubbles rather than one.
+        self._pending_bubble_interval_s = 3.0
+        # Active-peer messages whose downstream routing (TERMINATE / pay / goods
+        # / buy inquiry / review) was deferred because the engine was paused.
+        # They are replayed in order on resume.
+        self._pending_active_peer_messages = []
+        # Mutex guarding the deferred-message replay so a rapid pause/resume
+        # cycle cannot spawn two concurrent replay tasks.
+        self._replaying_active_peer_messages = False
 
         self.contact_cooldown_seconds = 300
         self.contact_recent_limit = 3
@@ -402,6 +418,28 @@ class AISocialEngine(
             # Set running state
             self.map_task_status = "started"
 
+            # Flush map chat bubbles that arrived while paused. Display them with
+            # a delay between each so several replies are seen as distinct bubbles
+            # (the map only renders the latest bubble, so back-to-back sends would
+            # otherwise look like a single message). Run in the background so the
+            # resume response is not blocked.
+            try:
+                pending = getattr(self, "_pending_map_bubbles", None)
+                if isinstance(pending, list) and pending:
+                    asyncio.create_task(self._flush_pending_map_bubbles())
+            except Exception as e:
+                logger.error(f"Failed to schedule deferred map bubble flush: {e}")
+
+            # Replay any active-peer messages whose routing (TERMINATE / pay /
+            # goods / buy / review) was deferred while paused. This runs the
+            # trade and review logic now that the engine is running again.
+            try:
+                pending_msgs = getattr(self, "_pending_active_peer_messages", None)
+                if isinstance(pending_msgs, list) and pending_msgs:
+                    asyncio.create_task(self._replay_pending_active_peer_messages())
+            except Exception as e:
+                logger.error(f"Failed to schedule deferred message replay: {e}")
+
             logger.info("AI Social Engine resumed successfully")
             return {
                 "success": True,
@@ -416,6 +454,69 @@ class AISocialEngine(
                 "message": f"Failed to resume AI Social Engine: {str(e)}",
                 "status": "error"
             }
+
+    async def _flush_pending_map_bubbles(self):
+        """Display deferred map bubbles one by one with a delay between them.
+
+        Single-worker drain loop: one flush task processes the queue from head
+        to tail, taking one item per iteration so anything queued mid-flush is
+        picked up in original order without spawning a second flush task. If
+        the engine is paused again mid-flush, the queue is left intact for the
+        next resume. If the conversation ends, the remaining items are dropped.
+        """
+        # Mutex: only one flush task at a time. A second resume during an
+        # ongoing flush is a no-op; the running flush will keep draining.
+        if getattr(self, "_flushing_bubbles", False):
+            return
+        self._flushing_bubbles = True
+        try:
+            interval_s = float(getattr(self, "_pending_bubble_interval_s", 3.0) or 0.0)
+            first = True
+
+            while True:
+                # Pre-iteration state check.
+                active = getattr(self, "active_conversation", None)
+                if not active:
+                    # Conversation ended: drop any queued bubbles.
+                    self._pending_map_bubbles = []
+                    return
+                status = (getattr(self, "map_task_status", "") or "").strip()
+                if status != "started":
+                    # Re-paused/stopped: keep queue intact for next resume.
+                    return
+
+                queue = getattr(self, "_pending_map_bubbles", None) or []
+                if not queue:
+                    return  # Queue drained
+
+                # Throttle between consecutive bubbles. Re-check state after
+                # the sleep so a pause during sleep is honoured.
+                if not first and interval_s > 0:
+                    await asyncio.sleep(interval_s)
+                    active = getattr(self, "active_conversation", None)
+                    if not active:
+                        self._pending_map_bubbles = []
+                        return
+                    status = (getattr(self, "map_task_status", "") or "").strip()
+                    if status != "started":
+                        return
+                    queue = getattr(self, "_pending_map_bubbles", None) or []
+                    if not queue:
+                        return
+                first = False
+
+                # Pop head and send.
+                item = queue[0]
+                self._pending_map_bubbles = queue[1:]
+                try:
+                    fromuser, touser, content = item
+                    self.send_talk_message(fromuser, touser, content)
+                except Exception as e:
+                    logger.error(f"Failed to flush deferred map bubble: {e}")
+        except Exception as e:
+            logger.error(f"Failed to flush deferred map bubbles: {e}")
+        finally:
+            self._flushing_bubbles = False
 
     def stop_AI_process_finished(self):
         try:
@@ -479,6 +580,12 @@ class AISocialEngine(
             self.human_take_over = False
             self.map_task_status = "stopped"
             self.command_status = ""
+
+            try:
+                self._pending_map_bubbles = []
+                self._pending_active_peer_messages = []
+            except Exception:
+                pass
 
             try:
                 self.current_ongoing_content = ""

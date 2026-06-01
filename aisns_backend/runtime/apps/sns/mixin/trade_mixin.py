@@ -1048,6 +1048,13 @@ class TradeMixin:
         talk_history_str = json.dumps(self.current_talk_history, ensure_ascii=False)
         trade_id, trade_price = self._parse_trade_payment(price_str)
 
+        # Snapshot the live conversation peer up front. Async agent delivery
+        # callbacks may run after the conversation has ended and
+        # self.current_talk_people has been cleared to None, so we pass this
+        # snapshot into handle_send_goods to keep targeting the buyer.
+        talk_people = self.current_talk_people
+        talk_people = dict(talk_people) if isinstance(talk_people, dict) else None
+
         try:
             self.current_trade_price = float(trade_price or 0)
         except Exception:
@@ -1059,72 +1066,92 @@ class TradeMixin:
             handle_after_trade = record.handle_after_trade
             handle_content = record.handle_content
 
-            force_tool_call = str(handle_after_trade or "").strip().lower() == "tool"
             logger.info(
-                "handle_pay_received: profession=%s, handle_after_trade=%s, force_tool_call=%s, handle_content=%s",
+                "handle_pay_received: profession=%s, handle_after_trade=%s, handle_content=%s",
                 profession,
                 handle_after_trade,
-                force_tool_call,
                 handle_content,
             )
 
-            if profession in {"Doctor", "Restaurateur"} and not force_tool_call:
-                self.handle_send_goods(handle_content, trade_id)
+            # Doctor / Restaurateur deliver a fixed acknowledgement payload
+            # regardless of handle_after_trade. Skip LLM invocation
+            # entirely to save tokens.
+            profession_key = str(profession or "").strip().lower()
+            if profession_key in {"doctor", "restaurateur"}:
+                self.handle_send_goods("Service Or Goods Is Provided.", trade_id, talk_people=talk_people)
                 return
 
             if handle_after_trade == "message":
-                self.handle_send_goods(handle_content, trade_id)
+                self.handle_send_goods(handle_content, trade_id, talk_people=talk_people)
                 return
 
-            tool_name = handle_content
-            send_goods_service_prompt = get_prompt_by_title("__send_goods_service__") or ""
-            what_to_do = f"""
-            {send_goods_service_prompt}
+            if handle_after_trade == "agent":
+                fallback_notice = getattr(
+                    self,
+                    "DELIVERY_FALLBACK_MESSAGE",
+                    "Delivery encountered an issue. Please wait for follow-up handling.",
+                )
 
-            ## Chat history
-            {talk_history_str}
-            """.strip()
+                # Send the user-authored prompt + chat history to the agent LLM
+                try:
+                    agent_task = self.run_agent_delivery_prompt_sync(
+                        handle_content or "",
+                        talk_history_str,
+                        conversation_suffix="trade_delivery",
+                    )
+                except Exception as e:
+                    logger.error("Failed to schedule agent delivery: %s", e, exc_info=True)
+                    self.handle_send_goods(fallback_notice, trade_id, talk_people=talk_people)
+                    return
 
-            tool_task = self.run_configured_tool_text_generation_sync(
-                tool_name,
-                what_to_do,
-                conversation_suffix="trade_delivery",
-                force_tool_call=force_tool_call,
+                if isinstance(agent_task, asyncio.Task):
+                    def _on_agent_done(t: asyncio.Task):
+                        try:
+                            result_text = t.result()
+                        except Exception as e:
+                            logger.error("Agent delivery prompt failed: %s", e, exc_info=True)
+                            result_text = fallback_notice
+                        if not isinstance(result_text, str) or not result_text.strip():
+                            result_text = fallback_notice
+                        try:
+                            self.handle_send_goods(result_text, trade_id, talk_people=talk_people)
+                        except Exception as e:
+                            logger.error("handle_send_goods failed after agent delivery: %s", e, exc_info=True)
+
+                    agent_task.add_done_callback(_on_agent_done)
+                else:
+                    if not isinstance(agent_task, str) or not agent_task.strip():
+                        agent_task = fallback_notice
+                    self.handle_send_goods(agent_task, trade_id, talk_people=talk_people)
+                return
+
+            # Fallback: unknown / unconfigured handle_after_trade value.
+            # Deliver a generic acknowledgement so the buyer is not left waiting.
+            logger.warning(
+                "handle_pay_received: unknown handle_after_trade=%r, falling back to default acknowledgement",
+                handle_after_trade,
             )
-
-            if isinstance(tool_task, asyncio.Task):
-                def _on_tool_done(t: asyncio.Task):
-                    try:
-                        result_text = t.result()
-                    except Exception as e:
-                        logger.error(f"ask agent to run tool before send goods failed: {e}", exc_info=True)
-                        result_text = f"Tool execution failed: {str(e)}"
-                    if isinstance(result_text, str):
-                        normalized = result_text.strip()
-                        if (
-                            not normalized
-                            or "Could not find the required information in the current conversation" in normalized
-                            or "Please provide the conversation history" in normalized
-                        ):
-                            result_text = "Payment received. Delivery details will be sent shortly."
-                    try:
-                        self.handle_send_goods(result_text, trade_id)
-                    except Exception as e:
-                        logger.error(f"handle_send_goods failed after tool execution: {e}", exc_info=True)
-
-                tool_task.add_done_callback(_on_tool_done)
-            else:
-                self.handle_send_goods(tool_task, trade_id)
+            self.handle_send_goods(handle_content or "Payment received.", trade_id, talk_people=talk_people)
 
         except Exception as e:
-            print(f"Tool trade sell error: {str(e)}")
+            logger.error("handle_pay_received error: %s", e, exc_info=True)
 
-    def handle_send_goods(self, good_str, trade_id):
+    def handle_send_goods(self, good_str, trade_id, talk_people=None):
         try:
             self.command_status = ""
         except Exception:
             pass
-        current_talk_people = self.current_talk_people
+        # Prefer the captured talk_people snapshot when provided. Async agent
+        # delivery callbacks can fire after the live conversation state has
+        # been cleared (self.current_talk_people becomes None), so relying on
+        # the live state would raise a TypeError on subscript access.
+        current_talk_people = talk_people if talk_people is not None else self.current_talk_people
+        if not isinstance(current_talk_people, dict):
+            logger.error(
+                "handle_send_goods: no talk_people context available (trade_id=%s); skipping delivery",
+                trade_id,
+            )
+            return
         nation_id = current_talk_people["nation_id"]
         account = current_talk_people["account"]
         nick_name = current_talk_people["nick_name"]
@@ -1147,10 +1174,10 @@ class TradeMixin:
 
             # Avoid the first-round 5s delay in talk_to_a_people for trade delivery.
             try:
-                if isinstance(self.current_talk_people, dict):
-                    round_value = int(self.current_talk_people.get("talk_round", 0) or 0)
+                if isinstance(current_talk_people, dict):
+                    round_value = int(current_talk_people.get("talk_round", 0) or 0)
                     if round_value < 1:
-                        self.current_talk_people["talk_round"] = 1
+                        current_talk_people["talk_round"] = 1
             except Exception:
                 pass
 

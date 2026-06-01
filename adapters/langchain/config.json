@@ -6,13 +6,13 @@
     "publicUrl": null
   },
   "langchain": {
-    "baseUrl": "https://api.chatanywhere.tech/v1",
-    "apiKey": "sk-SVCuk9EAqrgUEvvh31PKxVIr1fZhwt5boDB2Hexw8vs2Bl26",
+    "baseUrl": "https://api.openai.com/v1",
+    "apiKey": "your_api_key",
     "apiKeyEnv": [
       "LANGCHAIN_API_KEY"
     ],
-    "model": "openai:gpt-4o",
-    "backendRootDir": "C:/Users/IDD/Documents",
+    "model": "openai:gpt-4o-mini",
+    "backendRootDir": "<YOUR_BACKEND_ROOT_DIR>",
     "virtualMode": true,
     "timeoutSeconds": 600
   }

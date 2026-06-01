@@ -112,12 +112,26 @@ class XmppMixin:
             self.talk_history[account].append("Friend:" + content)
 
             is_active_peer = bool(active_account) and active_account == account
+            _engine_paused = (getattr(self, "map_task_status", "") or "").strip() == "paused"
             if is_active_peer:
-                # Show chat bubble immediately for active peer (avatar already positioned)
-                try:
-                    self.send_talk_message(account, self.aisns_cfg.account, content)
-                except Exception as e:
-                    logger.error(f"Failed to send talk message to UI: {e}")
+                # Show chat bubble for active peer (avatar already positioned).
+                # While the engine is paused, defer the map bubble: queue it and
+                # flush it only after the engine is resumed.
+                if _engine_paused:
+                    try:
+                        queue = getattr(self, "_pending_map_bubbles", None)
+                        if not isinstance(queue, list):
+                            queue = []
+                            self._pending_map_bubbles = queue
+                        queue.append((account, self.aisns_cfg.account, content))
+                        logger.info("Engine paused: deferring map bubble from %s until resume", account)
+                    except Exception as e:
+                        logger.error(f"Failed to queue deferred map bubble: {e}")
+                else:
+                    try:
+                        self.send_talk_message(account, self.aisns_cfg.account, content)
+                    except Exception as e:
+                        logger.error(f"Failed to send talk message to UI: {e}")
 
                 self.current_talk_history.append("Friend:" + content)
                 try:
@@ -125,6 +139,34 @@ class XmppMixin:
                         self._touch_conversation_activity(account)
                 except Exception as e:
                     logger.error(f"Failed to touch conversation activity: {e}")
+                # Peer replied: clear the reply-wait timeout. It is re-armed only
+                # when we send the next message to this peer.
+                try:
+                    if hasattr(self, "_disarm_reply_timeout"):
+                        self._disarm_reply_timeout(account)
+                except Exception as e:
+                    logger.error(f"Failed to disarm reply timeout: {e}")
+
+                # While paused, defer ALL downstream routing (TERMINATE, pay,
+                # goods, buy inquiry, conversation review). Otherwise actions
+                # such as goods delivery, trade UI updates, outgoing XMPP sends
+                # and auto-ending the conversation would run during pause. The
+                # message is queued and replayed in order on resume.
+                if _engine_paused:
+                    try:
+                        pend = getattr(self, "_pending_active_peer_messages", None)
+                        if not isinstance(pend, list):
+                            pend = []
+                            self._pending_active_peer_messages = pend
+                        pend.append({"content": content, "account": account})
+                        logger.info(
+                            "Engine paused: deferring message routing from active peer %s until resume",
+                            account,
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to queue deferred active-peer message: {e}")
+                    self.current_received_msg = content
+                    return
             else:
                 try:
                     if hasattr(self, "enqueue_inbox_message"):
@@ -134,112 +176,7 @@ class XmppMixin:
 
             logger.debug(f"Updated talk history for {account}, total messages: {len(self.talk_history[account])}")
 
-            # Terminate short-circuit: if the peer sends a terminate command,
-            # end the conversation immediately without tool check or review.
-            is_terminate = str(content or "").strip().lower() == "terminate"
-            if is_terminate:
-                if is_active_peer:
-                    logger.info(
-                        "Received TERMINATE from active peer %s, ending conversation immediately (no tool check / no review)",
-                        account,
-                    )
-                    try:
-                        self.end_active_conversation(
-                            reason="peer_terminate",
-                            message="Peer requested conversation termination.",
-                            resume_activity=True,
-                            resume_ask_content="",
-                        )
-                    except Exception as e:
-                        logger.error("Failed to end active conversation on peer TERMINATE: %s", e, exc_info=True)
-                else:
-                    logger.info(
-                        "Received TERMINATE from non-active peer %s, removing from inbox",
-                        account,
-                    )
-                    try:
-                        inbox = getattr(self, "conversation_inbox", None)
-                        if isinstance(inbox, dict):
-                            inbox.pop(account, None)
-                    except Exception as e:
-                        logger.error("Failed to remove %s from inbox on TERMINATE: %s", account, e)
-
-                self.current_received_msg = content
-                logger.info("TERMINATE handling completed for %s", account)
-                return
-
-            # Message type routing - use walrus operator for conditional checks
-            message_handled = False
-
-            if (pay_received_str := self.check_pay_in_received(content)):
-                logger.info(f"Detected payment received from {account}")
-                self.handle_pay_received(pay_received_str)
-                message_handled = True
-
-            elif (good_received_str := self.check_good_in_received(content)):
-                logger.info(f"Detected goods received from {account}")
-                self.handle_good_received(good_received_str)
-                message_handled = True
-
-            else:
-                # Check whether this is a buy inquiry (someone initiates a purchase request)
-                if (buy_flag := self.check_buy_in_received(content)):
-                    logger.info(f"Detected buy inquiry from {account}")
-                    if is_active_peer or not active_account:
-                        self.talk_type = "sell"
-                    else:
-                        pending = getattr(self, "_pending_peer_talk_type", None)
-                        if pending is None or not isinstance(pending, dict):
-                            pending = {}
-                            setattr(self, "_pending_peer_talk_type", pending)
-                        pending[account] = "sell"
-                        logger.info(
-                            "Recorded pending inquiry intent from %s (active_conversation=%s)",
-                            account,
-                            active_account,
-                        )
-                else:
-                    logger.debug(f"Processing as general conversation message from {account}")
-
-                if is_active_peer:
-                    # Process general conversation message only for active peer.
-                    # When no active session, the message is already in inbox and will be
-                    # processed via maybe_auto_reply_from_inbox() which properly sets up
-                    # active_conversation before triggering the review.
-                    if self.human_take_over:
-                        logger.info(
-                            "Human takeover is enabled, skipping automated conversation review for %s",
-                            account,
-                        )
-                    else:
-                        asyncio.create_task(self.taskmng.process_task(
-                            event="conversation_message_received",
-                            talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
-                        ))
-                else:
-                    if active_account:
-                        logger.info(
-                            "Message from %s queued to inbox because active conversation is with %s",
-                            account,
-                            active_account,
-                        )
-                    else:
-                        logger.info(
-                            "Message from %s queued to inbox (no active conversation); will be processed on next game cycle",
-                            account,
-                        )
-                message_handled = True
-
-            # Save current received message
-            self.current_received_msg = content
-
-            # Check human takeover flag
-            if not self.human_take_over:
-                logger.debug("Human takeover is disabled, continuing automated processing")
-            else:
-                logger.info("Human takeover is enabled")
-
-            logger.info(f"Message processing completed for {account}, handled: {message_handled}")
+            self._route_received_message(content, account, is_active_peer, active_account)
 
         except Exception as e:
             logger.error(f"Error in handle_receiveMessage: {e}", exc_info=True)
@@ -248,6 +185,222 @@ class XmppMixin:
                 self.current_received_msg = content
             except:
                 pass
+
+    def _route_received_message(self, content, account, is_active_peer, active_account, defer_review=False):
+        """Route a received message to its handler.
+
+        Handles TERMINATE, payment-received, goods-received, buy inquiry and
+        general conversation review. Extracted so it can run immediately when
+        the engine is running, or be replayed on resume for messages deferred
+        while the engine was paused.
+
+        When ``defer_review`` is True the general conversation review is NOT
+        triggered here; instead it sets ``self._deferred_review_needed`` so the
+        caller (replay path) can trigger a single review after draining all
+        deferred messages, avoiding one redundant review per queued message.
+        """
+        # Terminate short-circuit: if the peer sends a terminate command,
+        # end the conversation immediately without tool check or review.
+        is_terminate = str(content or "").strip().lower() == "terminate"
+        if is_terminate:
+            if is_active_peer:
+                logger.info(
+                    "Received TERMINATE from active peer %s, ending conversation immediately (no tool check / no review)",
+                    account,
+                )
+                try:
+                    self.end_active_conversation(
+                        reason="peer_terminate",
+                        message="Peer requested conversation termination.",
+                        resume_activity=True,
+                        resume_ask_content="",
+                    )
+                except Exception as e:
+                    logger.error("Failed to end active conversation on peer TERMINATE: %s", e, exc_info=True)
+            else:
+                logger.info(
+                    "Received TERMINATE from non-active peer %s, removing from inbox",
+                    account,
+                )
+                try:
+                    inbox = getattr(self, "conversation_inbox", None)
+                    if isinstance(inbox, dict):
+                        inbox.pop(account, None)
+                except Exception as e:
+                    logger.error("Failed to remove %s from inbox on TERMINATE: %s", account, e)
+
+            self.current_received_msg = content
+            logger.info("TERMINATE handling completed for %s", account)
+            return
+
+        # Message type routing - use walrus operator for conditional checks
+        message_handled = False
+
+        if (pay_received_str := self.check_pay_in_received(content)):
+            # Payment / goods handlers operate on the live active conversation
+            # state (current_talk_people, current_trade_price, ...). Only honour
+            # them for the active peer; a payload from a non-active peer must
+            # stay in the inbox so it is not mis-applied to the active peer
+            # (or crash when there is no active conversation at all).
+            if not is_active_peer:
+                logger.info(
+                    "Ignoring payment payload from non-active peer %s; kept in inbox",
+                    account,
+                )
+                self.current_received_msg = content
+                return
+            logger.info(f"Detected payment received from {account}")
+            self.handle_pay_received(pay_received_str)
+            message_handled = True
+
+        elif (good_received_str := self.check_good_in_received(content)):
+            if not is_active_peer:
+                logger.info(
+                    "Ignoring goods payload from non-active peer %s; kept in inbox",
+                    account,
+                )
+                self.current_received_msg = content
+                return
+            logger.info(f"Detected goods received from {account}")
+            self.handle_good_received(good_received_str)
+            message_handled = True
+
+        else:
+            # Check whether this is a buy inquiry (someone initiates a purchase request)
+            if (buy_flag := self.check_buy_in_received(content)):
+                logger.info(f"Detected buy inquiry from {account}")
+                if is_active_peer or not active_account:
+                    self.talk_type = "sell"
+                else:
+                    pending = getattr(self, "_pending_peer_talk_type", None)
+                    if pending is None or not isinstance(pending, dict):
+                        pending = {}
+                        setattr(self, "_pending_peer_talk_type", pending)
+                    pending[account] = "sell"
+                    logger.info(
+                        "Recorded pending inquiry intent from %s (active_conversation=%s)",
+                        account,
+                        active_account,
+                    )
+            else:
+                logger.debug(f"Processing as general conversation message from {account}")
+
+            if is_active_peer:
+                # Process general conversation message only for active peer.
+                # When no active session, the message is already in inbox and will be
+                # processed via maybe_auto_reply_from_inbox() which properly sets up
+                # active_conversation before triggering the review.
+                if self.human_take_over:
+                    logger.info(
+                        "Human takeover is enabled, skipping automated conversation review for %s",
+                        account,
+                    )
+                elif defer_review:
+                    # Replay path: do not trigger a review per message. Mark
+                    # that a review is due so the caller fires exactly one
+                    # review against the full talk history after draining all
+                    # deferred messages.
+                    self._deferred_review_needed = True
+                    logger.info(
+                        "Deferred conversation review for %s (will run once after replay)",
+                        account,
+                    )
+                else:
+                    asyncio.create_task(self.taskmng.process_task(
+                        event="conversation_message_received",
+                        talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False)
+                    ))
+            else:
+                if active_account:
+                    logger.info(
+                        "Message from %s queued to inbox because active conversation is with %s",
+                        account,
+                        active_account,
+                    )
+                else:
+                    logger.info(
+                        "Message from %s queued to inbox (no active conversation); will be processed on next game cycle",
+                        account,
+                    )
+            message_handled = True
+
+        # Save current received message
+        self.current_received_msg = content
+
+        # Check human takeover flag
+        if not self.human_take_over:
+            logger.debug("Human takeover is disabled, continuing automated processing")
+        else:
+            logger.info("Human takeover is enabled")
+
+        logger.info(f"Message processing completed for {account}, handled: {message_handled}")
+
+    async def _replay_pending_active_peer_messages(self):
+        """Replay active-peer messages deferred during pause, in order.
+
+        Invoked on resume. Stops early if the conversation has ended (for
+        example a deferred TERMINATE or a trade completion ended it), dropping
+        any remaining stale messages instead of mis-routing them to the inbox.
+        """
+        # Mutex: only one replay task at a time. A rapid pause/resume cycle
+        # could otherwise schedule two concurrent replays.
+        if getattr(self, "_replaying_active_peer_messages", False):
+            return
+        self._replaying_active_peer_messages = True
+        # Coalesce general-conversation reviews: route every deferred message
+        # with defer_review=True, then fire a single review at the end so N
+        # queued chat messages do not trigger N redundant reviews/replies.
+        self._deferred_review_needed = False
+        try:
+            pending = getattr(self, "_pending_active_peer_messages", None) or []
+            self._pending_active_peer_messages = []
+            if not pending:
+                return
+            for msg in pending:
+                content = msg.get("content")
+                account = msg.get("account")
+
+                active_account = ""
+                try:
+                    active = getattr(self, "active_conversation", None) or {}
+                    active_account = (active.get("account") or "").strip()
+                except Exception:
+                    active_account = ""
+
+                if not active_account:
+                    logger.info("Active conversation ended; dropping remaining deferred messages")
+                    return
+
+                is_active_peer = bool(active_account) and active_account == account
+                try:
+                    self._route_received_message(
+                        content, account, is_active_peer, active_account, defer_review=True
+                    )
+                except Exception as e:
+                    logger.error("Failed to replay deferred message from %s: %s", account, e, exc_info=True)
+
+            # Single review against the full talk history if any replayed
+            # message requested one and the conversation is still active and
+            # not under human takeover.
+            try:
+                active = getattr(self, "active_conversation", None) or {}
+                still_active = bool((active.get("account") or "").strip())
+                if (
+                    getattr(self, "_deferred_review_needed", False)
+                    and still_active
+                    and not bool(getattr(self, "human_take_over", False))
+                ):
+                    asyncio.create_task(self.taskmng.process_task(
+                        event="conversation_message_received",
+                        talk_history_str=json.dumps(self.current_talk_history, ensure_ascii=False),
+                    ))
+            except Exception as e:
+                logger.error("Failed to trigger coalesced review after replay: %s", e, exc_info=True)
+        except Exception as e:
+            logger.error("Failed to replay deferred active-peer messages: %s", e, exc_info=True)
+        finally:
+            self._deferred_review_needed = False
+            self._replaying_active_peer_messages = False
 
 
     def send_xmpp_message(self, to_jid: str, content: str) -> bool:
@@ -331,6 +484,16 @@ class XmppMixin:
             # Update UI (if not background)
             if not back_ground:
                 self._update_ui_with_sent_message(to_jid, stored_content)
+
+            # Arm the reply-wait timeout: we just sent a foreground message to
+            # the peer and now wait for their reply. An incoming reply disarms
+            # it; sending another message re-arms it.
+            if not back_ground:
+                try:
+                    if hasattr(self, "_arm_reply_timeout"):
+                        self._arm_reply_timeout(to_jid)
+                except Exception:
+                    pass
 
             try:
                 if by_click and bool(getattr(self, "human_take_over", False)):

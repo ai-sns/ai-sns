@@ -284,6 +284,32 @@ async def ensure_social_engine_started() -> bool:
             return False
 
 
+async def ensure_social_engine_instance():
+    """Ensure an engine instance exists WITHOUT starting it.
+
+    Creates and initializes the AISocialEngine if it does not exist yet, so an
+    incoming message can be enqueued to the inbox, but does NOT start or resume
+    the engine. Returns the instance, or None on failure. Used for third-party
+    XMPP messages that must never auto-start/resume the engine.
+    """
+    global _social_engine_instance
+
+    async with _social_engine_op_lock:
+        if _social_engine_instance is not None:
+            return _social_engine_instance
+        try:
+            from runtime.apps.sns.ai_social_engine import AISocialEngine
+
+            db_sync = get_db_sync()
+            _social_engine_instance = AISocialEngine(db_sync)
+            await _social_engine_instance.async_init()
+            logger.info("AI Social Engine instance created (not started) for inbox enqueue")
+            return _social_engine_instance
+        except Exception as e:
+            logger.error("ensure_social_engine_instance failed: %s", e, exc_info=True)
+            return None
+
+
 class SNSService:
     """SNS service for handling social network operations - async version."""
 
@@ -580,20 +606,42 @@ class SNSService:
                         friend_name=_to_account
                     )
                     session.add(message)
+                    session.flush()
                     friend.last_message_time = datetime.now()
-                    return {
+                    contact_payload = {
                         'account': friend.account,
                         'nick_name': friend.nick_name or friend.account,
                         'new_message_flag': bool(friend.new_message_flag),
                         'last_message_time': friend.last_message_time.isoformat() if friend.last_message_time else None,
                     }
+                    msg_payload = {
+                        'id': message.id,
+                        'from_account': _to_account,
+                        'content': message.content,
+                        'flag': 0,
+                        'create_time': message.create_time.isoformat() if message.create_time else None,
+                        'contact': contact_payload,
+                    }
+                    return {
+                        'contact': contact_payload,
+                        'message': msg_payload,
+                    }
 
-                contact_payload = await db_write_async(_save_and_upsert, description="service_async_send_message")
+                result_payload = await db_write_async(_save_and_upsert, description="service_async_send_message")
+                contact_payload = (result_payload or {}).get('contact')
+                msg_payload = (result_payload or {}).get('message')
 
-                await websocket_manager.broadcast({
-                    'type': 'contact_upserted',
-                    'data': contact_payload
-                })
+                if contact_payload:
+                    await websocket_manager.broadcast({
+                        'type': 'contact_upserted',
+                        'data': contact_payload
+                    })
+
+                if msg_payload:
+                    await websocket_manager.broadcast({
+                        'type': 'new_message',
+                        'data': msg_payload,
+                    })
 
             return {
                 "success": True,
@@ -2453,6 +2501,30 @@ class SNSService:
 
             if not config:
                 return {"success": False, "message": "No user config found"}
+
+            # IMPORTANT: detach the ORM instance from the async session.
+            #
+            # All real DB writes for this method go through the centralized
+            # `db_write_async` queue (sync engine). The ORM mutations below
+            # (`config.profession = ...`, `config.money = ...`, etc.) are only
+            # used as in-memory scratch state to compute the values that get
+            # forwarded into `_updates`.
+            #
+            # If we leave `config` attached, AsyncSession.autoflush=True will
+            # silently turn the next `await self.db.execute(...)` (e.g. the
+            # SELECT inside `_sync_profession_to_remote`) into an implicit
+            # `UPDATE aisns_cfg ...` on the async-engine connection, which
+            # acquires SQLite's write lock. Because this method never calls
+            # `self.db.commit()` on the success path, that write lock is held
+            # until FastAPI tears the dependency down — long enough to starve
+            # the write queue and produce `sqlite3.OperationalError: database
+            # is locked` after `busy_timeout` (30s) elapses.
+            try:
+                self.db.expunge(config)
+            except Exception:
+                # expunge is best-effort: if the instance is already detached
+                # or the session implementation changes, fall through.
+                pass
 
             if 'nickname' in data:
                 config.nickname = data['nickname']

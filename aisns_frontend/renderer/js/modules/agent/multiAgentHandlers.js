@@ -1508,7 +1508,14 @@ const multiAgentHandlers = {
                     Array.from(activePane.querySelectorAll('.param-toggle')).forEach(pushUnique);
                     Array.from(activePane.querySelectorAll('pre')).forEach(pushUnique);
 
-                    if (blocks.length > 0) return blocks;
+                    // Remove nested blocks so the same text is not counted multiple
+                    // times (e.g. a .settings-section also contains .settings-section-title
+                    // and .param-label children). Keep only the outermost blocks.
+                    const nonOverlapping = blocks.filter(
+                        (el) => !blocks.some((other) => other !== el && other.contains(el))
+                    );
+
+                    if (nonOverlapping.length > 0) return nonOverlapping;
 
                     try {
                         const children = Array.from(activePane.children || []).filter(Boolean);
@@ -1519,29 +1526,80 @@ const multiAgentHandlers = {
                     return [activePane];
                 };
 
-                const createRangeFromTextOffsets = (root, start, end) => {
-                    if (!root || start < 0 || end <= start) return null;
-                    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+                const isElementVisible = (el) => {
+                    if (!el) return false;
+                    try {
+                        const style = window.getComputedStyle(el);
+                        if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                            return false;
+                        }
+                    } catch (e) {
+                    }
+                    return true;
+                };
+
+                // Build the visible text of an element and a map from text offsets
+                // back to DOM text nodes. Hidden subtrees (display:none /
+                // visibility:hidden) and non-content controls (select/option) are
+                // skipped, so search only matches what the user can actually see.
+                const buildVisibleTextMap = (root) => {
+                    const map = [];
+                    let text = '';
+                    if (!root) return { text, map };
+
+                    let walker = null;
+                    try {
+                        walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+                            acceptNode(node) {
+                                if (node.nodeType === 1) {
+                                    const tag = String(node.tagName || '').toLowerCase();
+                                    if (tag === 'select' || tag === 'option' || tag === 'script' || tag === 'style') {
+                                        return NodeFilter.FILTER_REJECT;
+                                    }
+                                    let style = null;
+                                    try { style = window.getComputedStyle(node); } catch (e) { style = null; }
+                                    if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                                        return NodeFilter.FILTER_REJECT;
+                                    }
+                                    return NodeFilter.FILTER_SKIP;
+                                }
+                                return NodeFilter.FILTER_ACCEPT;
+                            }
+                        });
+                    } catch (e) {
+                        const t = String(root.textContent || '');
+                        return { text: t, map: t ? [{ textStart: 0, node: root, length: t.length }] : [] };
+                    }
+
                     let node = null;
-                    let pos = 0;
+                    while ((node = walker.nextNode())) {
+                        const value = node.nodeValue || '';
+                        if (!value) continue;
+                        map.push({ textStart: text.length, node, length: value.length });
+                        text += value;
+                    }
+                    return { text, map };
+                };
+
+                const createRangeFromMap = (map, start, end) => {
+                    if (!map || !map.length || start < 0 || end <= start) return null;
                     let startNode = null;
                     let startOffset = 0;
                     let endNode = null;
                     let endOffset = 0;
 
-                    while ((node = walker.nextNode())) {
-                        const value = node.nodeValue || '';
-                        const len = value.length;
-                        if (!startNode && pos + len >= start) {
-                            startNode = node;
-                            startOffset = Math.max(0, start - pos);
+                    for (let i = 0; i < map.length; i++) {
+                        const seg = map[i];
+                        const segEnd = seg.textStart + seg.length;
+                        if (!startNode && segEnd > start) {
+                            startNode = seg.node;
+                            startOffset = Math.max(0, start - seg.textStart);
                         }
-                        if (pos + len >= end) {
-                            endNode = node;
-                            endOffset = Math.max(0, end - pos);
+                        if (segEnd >= end) {
+                            endNode = seg.node;
+                            endOffset = Math.max(0, end - seg.textStart);
                             break;
                         }
-                        pos += len;
                     }
 
                     if (!startNode || !endNode) return null;
@@ -1566,7 +1624,7 @@ const multiAgentHandlers = {
                         if (!Number.isFinite(start) || start < 0) return;
 
                         clearSelectionHighlight();
-                        const range = createRangeFromTextOffsets(match.el, start, end);
+                        const range = createRangeFromMap(match.map, start, end);
                         if (!range) return;
 
                         const sel = window.getSelection();
@@ -1588,7 +1646,7 @@ const multiAgentHandlers = {
                     const start = Number(match.start);
                     const end = start + q.length;
                     const range = (q && Number.isFinite(start) && start >= 0)
-                        ? createRangeFromTextOffsets(el, start, end)
+                        ? createRangeFromMap(match.map, start, end)
                         : null;
 
                     if (range) {
@@ -1650,13 +1708,19 @@ const multiAgentHandlers = {
                             blockIndex += 1;
 
                             if (!el) continue;
-
-                            let text = '';
-                            try {
-                                text = String(el.textContent || '');
-                            } catch (e) {
-                                text = '';
+                            if (!isElementVisible(el)) {
+                                const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                                if (nowMs - startMs > 10) break;
+                                continue;
                             }
+
+                            let textInfo = null;
+                            try {
+                                textInfo = buildVisibleTextMap(el);
+                            } catch (e) {
+                                textInfo = { text: '', map: [] };
+                            }
+                            const text = textInfo.text;
 
                             if (!text) {
                                 const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -1669,7 +1733,7 @@ const multiAgentHandlers = {
                             while (fromIndex < lower.length) {
                                 const found = lower.indexOf(query, fromIndex);
                                 if (found === -1) break;
-                                currentMatches.push({ el, start: found });
+                                currentMatches.push({ el, start: found, map: textInfo.map });
                                 if (currentMatches.length >= maxMatches) break;
                                 fromIndex = found + query.length;
                             }
@@ -1861,11 +1925,13 @@ const multiAgentHandlers = {
 
             let currentAgentId = null;
             let currentTabContent = null;
+            let currentSelectedText = '';
 
             const hideContextMenu = () => {
                 contextMenu.style.display = 'none';
                 currentAgentId = null;
                 currentTabContent = null;
+                currentSelectedText = '';
             };
 
             const showMenuAt = (x, y) => {
@@ -1931,8 +1997,10 @@ const multiAgentHandlers = {
                 const activePane = tabContent ? tabContent.querySelector('.tab-pane.active') : null;
 
                 if (action === 'copy') {
-                    const selected = window.getSelection ? window.getSelection().toString() : '';
-                    const selectedText = selected || getSelectedTextFromActiveElement();
+                    // Use the text captured at right-click time, because clicking the
+                    // menu button moves focus away and clears the live selection.
+                    const liveSelected = window.getSelection ? window.getSelection().toString() : '';
+                    const selectedText = currentSelectedText || liveSelected || getSelectedTextFromActiveElement();
                     if (selectedText) {
                         copyTextToClipboard(selectedText).catch(() => {
                         });
@@ -1982,6 +2050,10 @@ const multiAgentHandlers = {
 
                 currentAgentId = String(agentId);
                 currentTabContent = tabContent;
+                // Capture the current selection now; clicking the menu button later
+                // moves focus away and clears the live selection / active element.
+                const liveSelected = window.getSelection ? window.getSelection().toString() : '';
+                currentSelectedText = liveSelected || getSelectedTextFromActiveElement();
                 ensureSearchControllerForAgent(currentAgentId);
                 showMenuAt(e.clientX, e.clientY);
             });
@@ -2438,9 +2510,6 @@ const multiAgentHandlers = {
 
         console.log('[MultiAgentHandlers] All events bound');
 
-        // Message bubble right-click context menu for copy functionality
-        this.initMessageContextMenu();
-
         // Message copy button click handler
         this.initMessageCopyButtons();
 
@@ -2452,154 +2521,6 @@ const multiAgentHandlers = {
 
         console.log('[MultiAgentHandlers] Context menu initialized');
         console.log('[MultiAgentHandlers] === bindAllAgentEvents END ===');
-    },
-
-    /**
-     * Initialize right-click context menu for message bubbles
-     */
-    initMessageContextMenu() {
-        console.log('[MultiAgentHandlers] initMessageContextMenu called');
-
-        // Create context menu element if not exists
-        let contextMenu = document.getElementById('messageContextMenu');
-        if (!contextMenu) {
-            contextMenu = document.createElement('div');
-            contextMenu.id = 'messageContextMenu';
-            contextMenu.className = 'message-context-menu';
-            contextMenu.innerHTML = `
-                <div class="context-menu-item" id="copyMessageBtn">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
-                    <span>Copy</span>
-                </div>
-            `;
-            document.body.appendChild(contextMenu);
-            console.log('[MultiAgentHandlers] Context menu DOM element created and appended to body');
-        }
-
-        // Copy message text to clipboard
-        const copyMessageText = async (text) => {
-            try {
-                if (window.electronAPI && typeof window.electronAPI.writeClipboardText === 'function') {
-                    const result = await window.electronAPI.writeClipboardText(text);
-                    if (result && result.success) {
-                        console.log('[MultiAgentHandlers] Message copied via electron API');
-                        return true;
-                    }
-                }
-            } catch (e) {
-                console.warn('[MultiAgentHandlers] Electron clipboard failed, falling back:', e);
-            }
-
-            try {
-                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-                    await navigator.clipboard.writeText(text);
-                    console.log('[MultiAgentHandlers] Message copied via navigator.clipboard');
-                    return true;
-                }
-            } catch (e) {
-                console.warn('[MultiAgentHandlers] Navigator clipboard failed, falling back:', e);
-            }
-
-            // Fallback method
-            try {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                textarea.setAttribute('readonly', '');
-                textarea.style.position = 'fixed';
-                textarea.style.top = '-9999px';
-                textarea.style.left = '-9999px';
-                document.body.appendChild(textarea);
-                textarea.select();
-                const ok = document.execCommand('copy');
-                document.body.removeChild(textarea);
-                if (ok) {
-                    console.log('[MultiAgentHandlers] Message copied via execCommand');
-                    return true;
-                }
-            } catch (e) {
-                console.warn('[MultiAgentHandlers] Fallback copy failed:', e);
-            }
-
-            return false;
-        };
-
-        // Hide context menu
-        const hideMenu = () => {
-            if (contextMenu) {
-                contextMenu.style.display = 'none';
-            }
-        };
-
-        // Show context menu at position
-        const showMenuAt = (x, y) => {
-            if (contextMenu) {
-                contextMenu.style.display = 'block';
-                const rect = contextMenu.getBoundingClientRect();
-                const maxX = window.innerWidth - rect.width - 10;
-                const maxY = window.innerHeight - rect.height - 10;
-                contextMenu.style.left = Math.min(x, maxX) + 'px';
-                contextMenu.style.top = Math.min(y, maxY) + 'px';
-            }
-        };
-
-        // Track current target message body
-        let currentTargetMessageBody = null;
-
-        // Show menu on right-click on message-body
-        document.addEventListener('contextmenu', (e) => {
-            const messageBody = e.target.closest('.message-body');
-            if (!messageBody) return;
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            currentTargetMessageBody = messageBody;
-            showMenuAt(e.clientX, e.clientY);
-            console.log('[MultiAgentHandlers] Right-click detected on message body, showing menu at', e.clientX, e.clientY);
-        }, true);
-
-        // Handle copy action
-        contextMenu.addEventListener('click', async (e) => {
-            const copyBtn = e.target.closest('#copyMessageBtn');
-            if (!copyBtn || !currentTargetMessageBody) return;
-
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Get text content from message body
-            const textToCopy = currentTargetMessageBody.innerText || currentTargetMessageBody.textContent || '';
-            if (!textToCopy.trim()) {
-                hideMenu();
-                return;
-            }
-
-            const success = await copyMessageText(textToCopy);
-            if (success) {
-                console.log('[MultiAgentHandlers] Message copied successfully');
-            }
-            hideMenu();
-        });
-
-        // Hide menu on click elsewhere
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#messageContextMenu')) {
-                hideMenu();
-            }
-        }, true);
-
-        // Hide menu on scroll
-        document.addEventListener('scroll', () => {
-            hideMenu();
-        }, true);
-
-        // Hide menu on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                hideMenu();
-            }
-        });
     },
 
     /**

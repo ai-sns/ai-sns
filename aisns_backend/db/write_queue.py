@@ -95,7 +95,13 @@ class DbWriteQueue:
                 try:
                     result = op.func(session)
                     session.commit()
-                    op.future.set_result(result)
+                    # Guard against the caller having already cancelled the
+                    # future (e.g. asyncio.wait_for timeout in
+                    # submit_write_async). Without this check, set_result on
+                    # a CANCELLED future raises InvalidStateError and the
+                    # worker loop logs a misleading traceback.
+                    if not op.future.done():
+                        op.future.set_result(result)
                 except Exception as exc:
                     try:
                         session.rollback()

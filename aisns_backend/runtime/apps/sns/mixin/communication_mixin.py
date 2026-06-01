@@ -83,6 +83,34 @@ class CommunicationMixin:
         self._conversation_last_activity_ts = self._now_ts()
         self._ensure_conversation_timeout_task()
 
+    def _arm_reply_timeout(self, account: str) -> None:
+        """Start counting the wait for the active peer's reply.
+
+        Called right after we send a message to the active peer. The timeout
+        only measures how long we wait for their reply; it is re-armed each
+        time we send another message and cleared when the peer replies.
+        """
+        account = (account or "").strip()
+        if not account:
+            return
+        active_account = self._get_active_account()
+        if not active_account or active_account != account:
+            return
+        self._awaiting_reply_since = self._now_ts()
+        self._ensure_conversation_timeout_task()
+
+    def _disarm_reply_timeout(self, account: str = "") -> None:
+        """Clear the reply-wait timeout once the peer has replied.
+
+        After this there is no pending timeout until we send another message.
+        """
+        account = (account or "").strip()
+        if account:
+            active_account = self._get_active_account()
+            if active_account and active_account != account:
+                return
+        self._awaiting_reply_since = 0.0
+
     def _ensure_conversation_timeout_task(self) -> None:
         try:
             task = getattr(self, "_conversation_timeout_task", None)
@@ -98,9 +126,23 @@ class CommunicationMixin:
                 active_account = self._get_active_account()
                 if not active_account:
                     return
-                last_ts = float(getattr(self, "_conversation_last_activity_ts", 0.0) or 0.0)
+                awaiting_since = float(getattr(self, "_awaiting_reply_since", 0.0) or 0.0)
+                # Only count down while we are waiting for the peer's reply.
+                # A received reply disarms the timer; a new outgoing message
+                # re-arms it. When not waiting, there is nothing to time out.
+                if awaiting_since <= 0:
+                    await asyncio.sleep(1)
+                    continue
                 timeout_s = int(getattr(self, "conversation_timeout_seconds", 60) or 60)
-                if last_ts > 0 and (self._now_ts() - last_ts) >= timeout_s:
+                if (self._now_ts() - awaiting_since) >= timeout_s:
+                    # Defer timeout handling while the engine is paused. The
+                    # follow-up actions (map warning + end_active_conversation)
+                    # must run only after the engine is resumed.
+                    status = (getattr(self, "map_task_status", "") or "").strip()
+                    if status == "paused":
+                        await asyncio.sleep(1)
+                        continue
+
                     msg_html = f"<b>Conversation timed out after {timeout_s}s. Unable to connect to {active_account}.</b>"
                     msg_map = f"Conversation timed out after {timeout_s}s. Unable to connect to {active_account}."
 
@@ -114,6 +156,7 @@ class CommunicationMixin:
                     except Exception:
                         pass
 
+                    self._awaiting_reply_since = 0.0
                     self.end_active_conversation(
                         reason="timeout",
                         message=f"Conversation timed out after {timeout_s}s. Unable to connect to {active_account}.",
@@ -144,73 +187,32 @@ class CommunicationMixin:
         except Exception as e:
             logger.error(f"Failed to notify inbox message: {e}")
 
-        # Auto-start engine and process inbox if engine is not running or idle
+        # Inbox-only: never auto-start or resume the engine. The helper just
+        # logs the engine status for observability; the user must start the
+        # engine manually for inbox messages to be processed.
         self._maybe_auto_start_for_inbox(account, content)
 
     def _maybe_auto_start_for_inbox(self, account: str, content: str) -> None:
-        """Schedule engine auto-start and immediate inbox processing if needed."""
+        """Process an inbox message only when the engine is already running.
+
+        Third-party (non-active-peer) inbox messages must NOT start, resume, or
+        otherwise wake the engine. They are simply kept in the inbox:
+        - Not started / stopped: do nothing; the message waits in the inbox
+          until the user starts the engine.
+        - Paused: do nothing; pause is an explicit user choice.
+        - Running with an active conversation: the existing flow drains the
+          inbox later, so nothing extra is scheduled here.
+        """
         try:
-            # Guard: prevent duplicate scheduling
-            if getattr(self, "_inbox_auto_start_scheduled", False):
-                return
-
-            started = bool(getattr(self, "started_flag", False))
             status = (getattr(self, "map_task_status", "") or "").strip()
-            active_account = self._get_active_account()
-            if not active_account:
-                return
-
-            if not started or status in ("paused", "stopped", ""):
-                # Engine not running: schedule start + inbox drain
-                self._inbox_auto_start_scheduled = True
-                asyncio.create_task(self._auto_start_engine_and_process_inbox(account, content))
-            # else: engine running + active conversation → existing flow will drain inbox later
+            if status != "started":
+                logger.info(
+                    "Inbox message from %s kept in inbox; engine status=%s (no auto-start/resume)",
+                    account,
+                    status or "(blank)",
+                )
         except Exception as e:
-            self._inbox_auto_start_scheduled = False
             logger.error(f"_maybe_auto_start_for_inbox failed: {e}")
-
-    async def _auto_start_engine_and_process_inbox(self, account: str, content: str) -> None:
-        """Start/resume engine, broadcast status, then process the inbox message."""
-        # CRITICAL: Pop inbox message BEFORE any await to prevent race with
-        # the process_activity background task that start_engine() will launch.
-        try:
-            inbox = getattr(self, "conversation_inbox", None)
-            if isinstance(inbox, dict):
-                inbox.pop(account, None)
-        except Exception:
-            pass
-
-        try:
-            started = bool(getattr(self, "started_flag", False))
-            status = (getattr(self, "map_task_status", "") or "").strip()
-
-            if status == "paused":
-                logger.info("Auto-start for inbox: resuming paused engine")
-                await self.resume_engine()
-            elif not started or status in ("stopped", ""):
-                logger.info("Auto-start for inbox: starting engine")
-                self.map_task_status = ""
-                await self.start_engine()
-
-            # Sync module-level running flag so service-layer pause/resume works
-            try:
-                import runtime.apps.sns.service_async as _svc_mod
-                _svc_mod._social_engine_running = True
-            except Exception:
-                pass
-
-            # Broadcast engine status so frontend button shows "Pause"
-            await self._broadcast_engine_status_from_engine()
-
-            # Small delay to let frontend settle
-            await asyncio.sleep(1)
-
-            # Process the inbox message
-            await self._auto_reply_from_inbox_message(account, content)
-        except Exception as e:
-            logger.error(f"_auto_start_engine_and_process_inbox failed: {e}", exc_info=True)
-        finally:
-            self._inbox_auto_start_scheduled = False
 
     async def _broadcast_engine_status_from_engine(self) -> None:
         """Broadcast sns_engine_status from within the engine instance."""
@@ -734,6 +736,9 @@ class CommunicationMixin:
             pass
 
         self._conversation_last_activity_ts = self._now_ts()
+        # New conversation: not waiting for a reply yet. The timer is armed
+        # only once we actually send a message to the peer.
+        self._awaiting_reply_since = 0.0
         self._record_contact(talk_type, account)
         self._ensure_conversation_timeout_task()
 
@@ -831,6 +836,15 @@ class CommunicationMixin:
 
         self.active_conversation = None
         self._conversation_last_activity_ts = 0.0
+        self._awaiting_reply_since = 0.0
+        # Drop any deferred map bubbles and deferred message routing: the
+        # conversation is over, so anything queued during pause must not be
+        # shown or replayed on resume.
+        try:
+            self._pending_map_bubbles = []
+            self._pending_active_peer_messages = []
+        except Exception:
+            pass
 
         try:
             self.current_talk_people = None

@@ -70,7 +70,7 @@ def get_python_executable():
 
 
 # Execution timeout in seconds
-EXECUTION_TIMEOUT = 60
+EXECUTION_TIMEOUT = 300
 
 
 class ToolExecutor:

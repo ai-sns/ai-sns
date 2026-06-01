@@ -313,20 +313,18 @@ function parseModelFilename(filename) {
     // Strip extension
     const nameWithoutExt = baseName.replace(/\.[^/.]+$/, '');
 
-    // Match: starts with letters, followed by underscore-separated numbers
-    const match = nameWithoutExt.match(/^[a-zA-Z]+(.*)$/);
-    if (!match || !match[1]) {
+    // Split the filename into underscore-separated tokens. The model name may
+    // itself contain underscores (e.g. "lobster_animation"), so we always take
+    // the LAST 6 tokens as the numeric parameters and treat everything before
+    // them as the model name. This avoids mis-parsing names with underscores.
+    const allTokens = nameWithoutExt.split('_').filter(s => s !== '');
+
+    if (allTokens.length < 6) {
+        console.warn(`Filename has fewer than 6 parameters: ${filename}, found ${allTokens.length} tokens`);
         return null;
     }
 
-    // Parse underscore-separated numeric params after the letter prefix
-    const paramString = match[1];
-    const params = paramString.split('_').filter(s => s !== '');
-
-    if (params.length < 6) {
-        console.warn(`Filename has fewer than 6 parameters: ${filename}, found ${params.length} parameters`);
-        return null;
-    }
+    const params = allTokens.slice(allTokens.length - 6);
 
     // Parse scale parameter (5th number, index 4)
     // If it starts with 0, treat as decimal, e.g. 05 => 0.5
@@ -987,12 +985,25 @@ function loadModel(persondata) {
 
     loader.load(url, function (obj) {
         let model = obj.scene;
-        model.rotateX(90 / 180 * Math.PI); // Rotate model
 
-        // Compute model bounding box
+        // Compute model bounding box BEFORE applying the 90-degree X rotation.
+        // After rotateX(90deg) the world Y axis maps to the model's original Z
+        // (depth) axis, so measuring size.y post-rotation would scale by depth
+        // instead of height. Measuring here keeps the scaling reference (model
+        // height) consistent with the Google map loader, otherwise flat/long
+        // models (e.g. lobster/crab) become disproportionately small.
         const box = new THREE.Box3().setFromObject(model);
+        // Skinned avatars: Box3.setFromObject ignores skeletal skinning and only
+        // measures bind-pose geometry, which for some models (e.g. ctgirlschool)
+        // is much shorter than the real standing height. Expand the box by bone
+        // world positions so the height reflects the skeleton.
+        model.updateMatrixWorld(true);
+        const __bonePos = new THREE.Vector3();
+        model.traverse((o) => { if (o.isBone) { o.getWorldPosition(__bonePos); box.expandByPoint(__bonePos); } });
         const size = box.getSize(new THREE.Vector3());
-        const height = size.y; // Model height
+        const height = size.y; // Model height (original up axis)
+
+        model.rotateX(90 / 180 * Math.PI); // Rotate model to stand up on the Baidu Z-up scene
         // alert(height);
         console.log("the height33:", height);
         // Get model bounding box
@@ -1000,8 +1011,12 @@ function loadModel(persondata) {
         const modelHeight = box.max.y - box.min.y;
         console.log("the modelHeight333:", modelHeight);
 
-        // Adjust scale based on height
-        const desiredHeight = 150; // Desired height
+        // Adjust scale based on height.
+        // Now that height is measured from the un-rotated model (true height),
+        // the resulting scale is smaller than the previous depth-based scale.
+        // Bump the desired height to restore the original visual size of the
+        // person models on the Baidu map.
+        const desiredHeight = 400; // Desired height
         let scale = desiredHeight / height;
 
 
@@ -2243,9 +2258,9 @@ async function toggleNavigate() {
         if (__snsIsEngineActiveForLandmark(status)) {
             try {
                 if (typeof showAlert === 'function') {
-                    showAlert('Landmark animation is only available when the engine is stopped. Please stop the engine first.', true);
+                    showAlert('Landmark animation can only be run before the engine starts. Please reload the map and try again before starting the engine.', true);
                 } else {
-                    alert('Landmark animation is only available when the engine is stopped. Please stop the engine first.');
+                    alert('Landmark animation can only be run before the engine starts. Please reload the map and try again before starting the engine.');
                 }
             } catch (e) {
             }

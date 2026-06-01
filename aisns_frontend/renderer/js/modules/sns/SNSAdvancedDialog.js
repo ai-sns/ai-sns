@@ -203,7 +203,7 @@ export class SNSAdvancedDialog {
                     </div>
                     <div class="modal-tabs">
                         <button class="modal-tab active" data-tab="avatar">Avatar Settings</button>
-                        <button class="modal-tab" data-tab="userinfo">Profile Info</button>
+                        <button class="modal-tab" data-tab="userinfo">Identity</button>
                         <button class="modal-tab" data-tab="xmpp">XMPP</button>
                         <button class="modal-tab" data-tab="security">Security</button>
                     </div>
@@ -264,7 +264,7 @@ export class SNSAdvancedDialog {
                                             <input type="text" id="userSnsUrl" class="form-control" placeholder="X.com URL or other social links(to learn more about you)">
                                         </div>
                                         <div class="form-group">
-                                            <label for="userAgentId">Agent<span class="required-asterisk">*</span></label>
+                                            <label for="userAgentId">Select an agent to run on the map<span class="required-asterisk">*</span></label>
                                             <select id="userAgentId" class="form-control">
                                                 <option value="">Select an agent</option>
                                             </select>
@@ -729,6 +729,14 @@ export class SNSAdvancedDialog {
                 this.showInlineMessage('Agent is required.', 'error', { tab: 'userinfo', focusEl: agentIdEl });
                 return;
             }
+
+            // Ensure the selected agent's LLM model has a valid API key before it runs on the map.
+            const agentKeyCheck = await this._validateSelectedAgentApiKey(agentIdRaw.trim());
+            if (!agentKeyCheck.ok) {
+                this.showInlineMessage(agentKeyCheck.message, 'error', { tab: 'userinfo', focusEl: agentIdEl });
+                return;
+            }
+
             if (!xmppAccount) {
                 this.showInlineMessage('Account is required.', 'error', { tab: 'xmpp', focusEl: xmppAccountEl });
                 return;
@@ -807,7 +815,7 @@ export class SNSAdvancedDialog {
                 // avatar3d will be submitted in one request below
             }
 
-            // 2) Profile info (nickname / signature / sns_url / agent)
+            // 2) Identity (nickname / signature / sns_url / agent)
             const snsUrlEl = this._q('#userSnsUrl');
             const nickname = nicknameRaw;
             const sign = signRaw;
@@ -1047,6 +1055,62 @@ export class SNSAdvancedDialog {
             }
         } catch (error) {
             console.error('Error loading user info:', error);
+        }
+    }
+
+    _isInvalidApiKey(key) {
+        const raw = String(key == null ? '' : key).trim();
+        if (!raw) return true;
+        const lower = raw.toLowerCase();
+        const placeholders = new Set([
+            'your_api_key', 'your-api-key', 'yourapikey', 'your_api_key_here',
+            'your_key', 'your-key', 'api_key', 'apikey', 'placeholder',
+            'changeme', 'change_me', 'none', 'null', 'undefined', 'todo',
+            '***redacted***', 'sk-xxx', 'sk-xxxx', 'sk-xxxxxxxx'
+        ]);
+        if (placeholders.has(lower)) return true;
+        if (/^x+$/i.test(raw)) return true;            // e.g. xxxxxx
+        if (/^sk-x+$/i.test(raw)) return true;         // e.g. sk-xxxxxx
+        if (/^<.*>$/.test(raw)) return true;           // e.g. <your-key>
+        return false;
+    }
+
+    async _validateSelectedAgentApiKey(agentId) {
+        try {
+            const resp = await fetch(this.resolve(`/api/agent/${encodeURIComponent(agentId)}`));
+            const result = await resp.json();
+            const agent = result && result.success ? result.data : null;
+            if (!agent) {
+                return { ok: false, message: 'Failed to load the selected agent configuration.' };
+            }
+
+            const agentType = String(agent.agent_type || 'local').toLowerCase();
+            // Remote agents run through an external A2A endpoint and do not require a local LLM API key.
+            if (agentType === 'remote') {
+                return { ok: true };
+            }
+
+            const configId = String(agent.model_config_id || agent.model || '').trim();
+            if (!configId) {
+                return { ok: false, message: 'The selected agent has no LLM model configured. Please configure an LLM model for this agent first.' };
+            }
+
+            const cfgResp = await fetch(this.resolve(`/api/agent/llm-configs/${encodeURIComponent(configId)}`));
+            const cfgResult = await cfgResp.json();
+            const cfg = cfgResult && cfgResult.success ? cfgResult.data : null;
+            if (!cfg) {
+                return { ok: false, message: 'The LLM model of the selected agent could not be found. Please reconfigure the agent LLM model.' };
+            }
+
+            if (this._isInvalidApiKey(cfg.api_key)) {
+                const modelName = cfg.name ? ` (${cfg.name})` : '';
+                return { ok: false, message: `The LLM model${modelName} of the selected agent has no valid API key configured. Please set a valid API key before running it on the map.` };
+            }
+
+            return { ok: true };
+        } catch (e) {
+            console.error('[SNSAdvancedDialog] Failed to validate agent LLM API key:', e);
+            return { ok: false, message: 'Failed to validate the selected agent LLM API key. Please try again.' };
         }
     }
 

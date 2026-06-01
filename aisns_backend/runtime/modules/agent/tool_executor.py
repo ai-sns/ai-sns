@@ -29,16 +29,30 @@ class ToolExecutor:
         self._load_builtin_tools()
 
     def _load_builtin_tools(self):
-        """Load built-in tools (from agent/tools.py)."""
+        """Load built-in tools (from agent/tools.py).
+
+        Only functions that are actually defined in the tools module itself
+        are registered. Symbols imported into that module (e.g.
+        ``from runtime.shared import debug_info``) are skipped by comparing
+        ``obj.__module__`` against the tools module name; this avoids
+        accidentally exposing helper utilities as agent-callable tools.
+        """
         try:
             module_name = f"{__package__}.tools" if __package__ else "runtime.modules.agent.tools"
             tools_module = importlib.import_module(module_name)
+            tools_module_name = getattr(tools_module, "__name__", module_name)
 
-            # Get all functions
+            # Get only functions defined directly in this module
             for name, obj in inspect.getmembers(tools_module):
-                if inspect.isfunction(obj) and not name.startswith('_'):
-                    self._tool_functions[name] = obj
-                    logger.info(f"Loaded built-in tool: {name}")
+                if not inspect.isfunction(obj):
+                    continue
+                if name.startswith('_'):
+                    continue
+                # Skip anything imported from another module
+                if getattr(obj, "__module__", None) != tools_module_name:
+                    continue
+                self._tool_functions[name] = obj
+                logger.info(f"Loaded built-in tool: {name}")
 
         except ModuleNotFoundError as e:
             module_name = f"{__package__}.tools" if __package__ else "runtime.modules.agent.tools"
