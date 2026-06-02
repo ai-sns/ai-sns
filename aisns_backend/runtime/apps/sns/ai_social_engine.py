@@ -909,6 +909,13 @@ class AISocialEngine(
         self.life_decline_counter += 1
         self.energy_decline_counter += 1
 
+        # Re-sync route mode from DB, since the user may toggle route_status at
+        # runtime via the map UI (which only updates the DB, not this in-memory flag).
+        try:
+            self.refresh_move_by_route_flag()
+        except Exception as e:
+            logger.warning("refresh_move_by_route_flag failed: %s", e)
+
         if self.move_by_route_flag:
             self.write_on_going_process_to_pane(f"{action_str}(Changed to 'move by route' due to the movement setting.")
         else:
@@ -1057,7 +1064,9 @@ class AISocialEngine(
                 parts = instruction.split(delimiter, 1)
                 action_text = parts[1].strip() if len(parts) > 1 else ""
             else:
-                return ""
+                # No header present: the LLM may return just the action token
+                # (e.g. "【1_EXPLORE_NEARBY】"). Fall back to the whole response.
+                action_text = instruction.strip()
 
         if not action_text:
             return ""

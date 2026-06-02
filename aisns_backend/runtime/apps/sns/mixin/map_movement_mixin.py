@@ -123,6 +123,21 @@ class MapMovementMixin:
 
         return float(total)
 
+    def refresh_move_by_route_flag(self) -> bool:
+        """Re-sync move_by_route_flag from the latest DB route_status.
+
+        The flag is initialized once in load_all_user_data(), but the user can
+        toggle route mode (route_status) at runtime via the map UI. That only
+        updates the DB, not this running engine's in-memory flag. Refresh it
+        here so movement decisions reflect the current route setting.
+        """
+        try:
+            record = query_AISnsCfg_map()
+            self.move_by_route_flag = bool(record and getattr(record, "route_status", None) == "playing")
+        except Exception as e:
+            logger.warning("Failed to refresh move_by_route_flag from DB: %s", e)
+        return bool(getattr(self, "move_by_route_flag", False))
+
     def _finish_route_and_switch_to_free_mode(self) -> None:
         try:
             self.move_by_route_flag = False

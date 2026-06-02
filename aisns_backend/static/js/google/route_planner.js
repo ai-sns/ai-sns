@@ -302,16 +302,19 @@ function createMarker(latlng, label, html) {
 
     var contentString = '<b>' + label + '</b><br>' + html;
 
-    // Convert avatar path to the _map variant
-    // Example: images/avatars/NG2025052719071718435.png -> images/avatars/NG2025052719071718435_map.png
+    // Convert avatar path to the _map variant.
+    // The backend always generates the map-variant avatar as PNG
+    // (see system/service.py: map_filename = f"{name}_map.png"), regardless of
+    // the original avatar extension, so force ".png" here.
+    // Example: avatars/<id>.jpg -> avatars/<id>_map.png
     var avatarPath = person_data_me.avatar;
     var lastDotIndex = avatarPath.lastIndexOf('.');
     var mapAvatarPath;
     if (lastDotIndex !== -1) {
-        mapAvatarPath = avatarPath.substring(0, lastDotIndex) + '_map' + avatarPath.substring(lastDotIndex);
+        mapAvatarPath = avatarPath.substring(0, lastDotIndex) + '_map.png';
     } else {
-        // If there is no extension, append _map directly
-        mapAvatarPath = avatarPath + '_map';
+        // If there is no extension, append _map.png directly
+        mapAvatarPath = avatarPath + '_map.png';
     }
 
     var user_marker = new google.maps.Marker({
