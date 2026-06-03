@@ -707,17 +707,18 @@ async function createMapWindow() {
             cachedMapType = String(cfg.map_type || '').trim();
         } catch (e) {
         }
+        if (!cachedMapType) {
+            cachedMapType = '0';
+        }
 
         // Start loading immediately (do not block on map-config)
         let mapUrl = buildMapUrlByType(cachedMapType);
         console.log('Initial map URL (non-blocking):', mapUrl);
         mapWindow.loadURL(mapUrl);
 
-        // Fetch config asynchronously and switch if needed
         Promise.resolve().then(async () => {
-            try {
+            const fetchMapConfigOnce = async (timeoutMs) => {
                 const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-                const timeoutMs = 1200;
                 let timeoutId = null;
                 if (controller) {
                     timeoutId = setTimeout(() => {
@@ -728,33 +729,51 @@ async function createMapWindow() {
                     }, timeoutMs);
                 }
 
-                const response = await fetch(
-                    `${apiBaseUrl}/api/sns/map-config`,
-                    controller ? { signal: controller.signal } : undefined
-                );
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-                const result = await response.json();
-
-                console.log('Map config API response:', JSON.stringify(result, null, 2));
-
-                if (result && result.success && result.data) {
-                    const mapType = String(result.data.map_type).trim();
-                    const desiredUrl = buildMapUrlByType(mapType);
-                    if (desiredUrl && desiredUrl !== mapUrl) {
-                        console.log('Switching map URL after config fetch:', desiredUrl);
-                        mapUrl = desiredUrl;
-                        try {
-                            if (mapWindow && !mapWindow.isDestroyed()) {
-                                mapWindow.loadURL(mapUrl);
-                            }
-                        } catch (e) {
-                        }
+                try {
+                    const response = await fetch(
+                        `${apiBaseUrl}/api/sns/map-config`,
+                        controller ? { signal: controller.signal } : undefined
+                    );
+                    return await response.json();
+                } finally {
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
                     }
                 }
-            } catch (error) {
-                console.warn('Failed to fetch map config (non-blocking):', error);
+            };
+
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                if (!mapWindow || mapWindow.isDestroyed()) {
+                    return;
+                }
+
+                try {
+                    const result = await fetchMapConfigOnce(2000);
+                    console.log('Map config API response:', JSON.stringify(result, null, 2));
+
+                    if (result && result.success && result.data) {
+                        const mapType = String(result.data.map_type).trim();
+                        const desiredUrl = buildMapUrlByType(mapType);
+                        if (desiredUrl && desiredUrl !== mapUrl) {
+                            console.log('Switching map URL after config fetch:', desiredUrl);
+                            mapUrl = desiredUrl;
+                            try {
+                                if (mapWindow && !mapWindow.isDestroyed()) {
+                                    mapWindow.loadURL(mapUrl);
+                                }
+                            } catch (e) {
+                            }
+                        }
+                        return;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to fetch map config (attempt ${attempt}/${maxAttempts}):`, error);
+                }
+
+                if (attempt < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, 800));
+                }
             }
         });
 
@@ -771,7 +790,7 @@ async function createMapWindow() {
         if (aiSnsServer) {
             qs.set('ai_sns_server', aiSnsServer);
         }
-        mapWindow.loadURL(`${apiBaseUrl}/static/map.html?${qs.toString()}`);
+        mapWindow.loadURL(`${apiBaseUrl}/static/googlemap3d.html?${qs.toString()}`);
 
     }
 

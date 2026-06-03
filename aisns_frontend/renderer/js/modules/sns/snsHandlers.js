@@ -2822,9 +2822,8 @@ export default {
 
         // Fetch map configuration asynchronously (best-effort, short timeout)
         Promise.resolve().then(async () => {
-            try {
+            const fetchMapConfigOnce = async (timeoutMs) => {
                 const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-                const timeoutMs = 1200;
                 let timeoutId = null;
                 if (controller) {
                     timeoutId = setTimeout(() => {
@@ -2835,43 +2834,61 @@ export default {
                     }, timeoutMs);
                 }
 
-                const response = await fetch(
-                    agentBaseUrl ? `${agentBaseUrl}/api/sns/map-config` : '/api/sns/map-config',
-                    controller ? { signal: controller.signal } : undefined
-                );
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-                const result = await response.json();
-
-                console.log('Map config API response:', result);
-
-                if (result && result.success && result.data) {
-                    const mapType = String(result.data.map_type).trim();
-                    try {
-                        localStorage.setItem('sns_map_type', mapType);
-                    } catch (e) {
+                try {
+                    const response = await fetch(
+                        agentBaseUrl ? `${agentBaseUrl}/api/sns/map-config` : '/api/sns/map-config',
+                        controller ? { signal: controller.signal } : undefined
+                    );
+                    return await response.json();
+                } finally {
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
                     }
+                }
+            };
 
-                    const desiredUrl = buildMapUrlByType(mapType);
-                    if (desiredUrl && desiredUrl !== mapUrl) {
-                        console.log('Switching map URL after config fetch:', desiredUrl);
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                if (iframe && !iframe.isConnected) {
+                    return;
+                }
+
+                try {
+                    const result = await fetchMapConfigOnce(2000);
+                    console.log('Map config API response:', result);
+
+                    if (result && result.success && result.data) {
+                        const mapType = String(result.data.map_type).trim();
                         try {
-                            await this.stopEngineIfActiveForMapReload('mapTypeSwitch');
+                            localStorage.setItem('sns_map_type', mapType);
                         } catch (e) {
                         }
-                        mapUrl = desiredUrl;
-                        try {
-                            if (iframe && !iframe.isConnected) {
-                                return;
+
+                        const desiredUrl = buildMapUrlByType(mapType);
+                        if (desiredUrl && desiredUrl !== mapUrl) {
+                            console.log('Switching map URL after config fetch:', desiredUrl);
+                            try {
+                                await this.stopEngineIfActiveForMapReload('mapTypeSwitch');
+                            } catch (e) {
                             }
-                            iframe.src = mapUrl;
-                        } catch (e) {
+                            mapUrl = desiredUrl;
+                            try {
+                                if (iframe && !iframe.isConnected) {
+                                    return;
+                                }
+                                iframe.src = mapUrl;
+                            } catch (e) {
+                            }
                         }
+                        return;
                     }
+                } catch (error) {
+                    console.warn(`Failed to fetch map config (attempt ${attempt}/${maxAttempts}):`, error);
                 }
-            } catch (error) {
-                console.warn('Failed to fetch map config (non-blocking):', error);
+
+                if (attempt < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, 800));
+                }
             }
         });
 

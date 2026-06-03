@@ -196,6 +196,11 @@ const InitializationWizard = {
                         if (typeof Notification !== 'undefined') {
                             Notification.success('Configuration saved');
                         }
+                        try {
+                            const mapTypeValue = this.state.map === 'Baidu' ? '1' : '0';
+                            localStorage.setItem('sns_map_type', mapTypeValue);
+                        } catch (e) {
+                        }
                         this.cleanupCaptchaObjectUrl();
                         return true;
                     }
@@ -970,9 +975,33 @@ const InitializationWizard = {
 
     validateCurrentStep() {
         if (this.step === 0) {
-            if (!this.state.name || !this.state.avatar || !this.state.password || !this.state.confirm_password || !this.state.profile) {
+            if (!this.state.name) {
                 if (typeof Notification !== 'undefined') {
-                    Notification.error('All fields and avatar are required except your social links.');
+                    Notification.error('Please enter your name.');
+                }
+                return false;
+            }
+            if (!this.state.avatar) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please upload an avatar.');
+                }
+                return false;
+            }
+            if (!this.state.password) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter your password.');
+                }
+                return false;
+            }
+            if (!this.state.confirm_password) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please confirm your password.');
+                }
+                return false;
+            }
+            if (!this.state.profile) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter your profile.');
                 }
                 return false;
             }
@@ -993,33 +1022,70 @@ const InitializationWizard = {
         }
 
         if (this.step === 1) {
-            if (!this.state.llm || !this.state.llm_server || !this.state.api_key) {
+            if (!this.state.llm) {
                 if (typeof Notification !== 'undefined') {
-                    Notification.error('Please complete the LLM configuration.');
+                    Notification.error('Please select an LLM model.');
+                }
+                return false;
+            }
+            if (!this.state.llm_server) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter the LLM server URL.');
+                }
+                return false;
+            }
+            if (!this.state.api_key) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter the LLM API key.');
                 }
                 return false;
             }
         }
 
         if (this.step === 2) {
-            if (!this.state.account || !this.state.account_password) {
+            if (!this.state.account) {
                 if (typeof Notification !== 'undefined') {
-                    Notification.error('Please complete the XMPP configuration.');
+                    Notification.error('Please enter the XMPP account.');
+                }
+                return false;
+            }
+            if (!this.state.account_password) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter the XMPP account password.');
                 }
                 return false;
             }
         }
 
         if (this.step === 3) {
-            if (!this.state.avatar3d || !this.state.map || !this.state.map_api_key || !this.state.map_id) {
+            if (!this.state.avatar3d) {
                 if (typeof Notification !== 'undefined') {
-                    Notification.error('Map configuration is required.');
+                    Notification.error('Please select a 3D avatar.');
+                }
+                return false;
+            }
+            if (!this.state.map) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please select a map type.');
+                }
+                return false;
+            }
+            if (!this.state.map_api_key) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter the map API key.');
                 }
                 return false;
             }
 
-            if (this.state.map === 'Baidu' && this.state.map_id !== 'do_not_need_map_id') {
-                this.state.map_id = 'do_not_need_map_id';
+            if (this.state.map === 'Baidu') {
+                if (this.state.map_id !== 'do_not_need_map_id') {
+                    this.state.map_id = 'do_not_need_map_id';
+                }
+            } else if (!this.state.map_id) {
+                if (typeof Notification !== 'undefined') {
+                    Notification.error('Please enter the map ID.');
+                }
+                return false;
             }
         }
 
