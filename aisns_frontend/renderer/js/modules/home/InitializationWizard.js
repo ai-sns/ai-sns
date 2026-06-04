@@ -6,6 +6,7 @@ const InitializationWizard = {
         id: '',
         objectUrl: ''
     },
+    captchaRequestSeq: 0,
     state: {
         id: null,
         status: 0,
@@ -543,9 +544,16 @@ const InitializationWizard = {
                     <label>Please enter the captcha code *</label>
                     <div style="display:flex;gap:12px;align-items:center;">
                         <input class="form-input" id="initCaptchaCode" type="text" value="${this.escapeHtml(this.state.captcha_code || '')}" style="flex:1;" />
-                        <img id="initCaptchaImg" style="width:140px;height:56px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;object-fit:contain;" />
+                        <div id="initCaptchaImgWrap" style="position:relative;width:140px;height:56px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;overflow:hidden;flex:0 0 auto;">
+                            <img id="initCaptchaImg" style="width:100%;height:100%;object-fit:contain;display:none;" />
+                            <div id="initCaptchaLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;line-height:1.2;color:rgba(255,255,255,0.7);text-align:center;padding:4px 6px;box-sizing:border-box;">
+                                <span id="initCaptchaSpinner" style="flex:0 0 auto;width:14px;height:14px;border:2px solid rgba(255,255,255,0.25);border-top-color:rgba(255,255,255,0.9);border-radius:50%;display:inline-block;animation:initCaptchaSpin 0.8s linear infinite;"></span>
+                                <span id="initCaptchaLoadingText" style="flex:1 1 auto;min-width:0;white-space:normal;word-break:break-word;">Loading...</span>
+                            </div>
+                        </div>
                         <button class="btn btn-secondary" id="initCaptchaRefresh" type="button">Refresh</button>
                     </div>
+                    <style>@keyframes initCaptchaSpin{to{transform:rotate(360deg);}}</style>
                 </div>
 
 
@@ -928,7 +936,10 @@ const InitializationWizard = {
         const captchaRefresh = root.querySelector('#initCaptchaRefresh');
         if (captchaImg && captchaRefresh) {
             captchaRefresh.addEventListener('click', async () => {
-                await this.loadCaptcha();
+                try {
+                    await this.loadCaptcha();
+                } catch (e) {
+                }
             });
 
             this.loadCaptcha().catch(() => {});
@@ -1111,27 +1122,88 @@ const InitializationWizard = {
         }
     },
 
-    async loadCaptcha() {
-        this.cleanupCaptchaObjectUrl();
-
-        const resp = await fetch(`${this.apiBaseUrl()}/api/system/init-wizard/captcha`, {
-            method: 'GET'
-        });
-        if (!resp.ok) {
-            throw new Error(await resp.text());
-        }
-
-        this.captcha.id = resp.headers.get('X-Captcha-ID') || '';
-        const blob = await resp.blob();
-        this.captcha.objectUrl = URL.createObjectURL(blob);
-
+    setCaptchaStatus(status) {
         if (!this.modal || !this.modal.element) {
             return;
         }
+        const root = this.modal.element;
+        const loading = root.querySelector('#initCaptchaLoading');
+        const spinner = root.querySelector('#initCaptchaSpinner');
+        const text = root.querySelector('#initCaptchaLoadingText');
+        const img = root.querySelector('#initCaptchaImg');
+        const refresh = root.querySelector('#initCaptchaRefresh');
 
-        const img = this.modal.element.querySelector('#initCaptchaImg');
+        const isLoaded = status === 'loaded';
+        if (loading) {
+            loading.style.display = isLoaded ? 'none' : 'flex';
+        }
         if (img) {
-            img.src = this.captcha.objectUrl;
+            img.style.display = isLoaded ? 'block' : 'none';
+        }
+        if (spinner) {
+            spinner.style.display = status === 'loading' ? 'inline-block' : 'none';
+        }
+        if (text) {
+            if (status === 'error') {
+                text.textContent = 'Load failed';
+                text.style.color = 'rgba(255,120,120,0.95)';
+                text.title = 'Click Refresh to retry';
+            } else {
+                text.textContent = 'Loading...';
+                text.style.color = '';
+                text.title = '';
+            }
+        }
+        if (refresh) {
+            refresh.disabled = status === 'loading';
+            refresh.style.opacity = status === 'loading' ? '0.6' : '';
+            refresh.style.cursor = status === 'loading' ? 'not-allowed' : '';
+        }
+    },
+
+    async loadCaptcha() {
+        const requestSeq = ++this.captchaRequestSeq;
+        this.cleanupCaptchaObjectUrl();
+        this.setCaptchaStatus('loading');
+
+        try {
+            const resp = await fetch(`${this.apiBaseUrl()}/api/system/init-wizard/captcha`, {
+                method: 'GET'
+            });
+            if (!resp.ok) {
+                throw new Error(await resp.text());
+            }
+
+            this.captcha.id = resp.headers.get('X-Captcha-ID') || '';
+            const blob = await resp.blob();
+            if (requestSeq !== this.captchaRequestSeq) {
+                return;
+            }
+            this.captcha.objectUrl = URL.createObjectURL(blob);
+
+            if (!this.modal || !this.modal.element) {
+                return;
+            }
+
+            const img = this.modal.element.querySelector('#initCaptchaImg');
+            if (img) {
+                img.onload = () => {
+                    if (requestSeq === this.captchaRequestSeq) {
+                        this.setCaptchaStatus('loaded');
+                    }
+                };
+                img.onerror = () => {
+                    if (requestSeq === this.captchaRequestSeq) {
+                        this.setCaptchaStatus('error');
+                    }
+                };
+                img.src = this.captcha.objectUrl;
+            }
+        } catch (e) {
+            if (requestSeq === this.captchaRequestSeq) {
+                this.setCaptchaStatus('error');
+            }
+            throw e;
         }
     },
 
