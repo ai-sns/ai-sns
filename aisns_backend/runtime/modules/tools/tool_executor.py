@@ -850,7 +850,7 @@ if 'main' in dir():
                         for t in (tools_result.tools if test_tool is None else []):
                             if t.name == 'get_weather':
                                 test_tool = 'get_weather'
-                                test_args = {"city": "Beijing", "unit": "celsius"}
+                                test_args = {"city": "London", "unit": "celsius"}
                                 break
                             if t.name == 'get_current_time':
                                 test_tool = 'get_current_time'
