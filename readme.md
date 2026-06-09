@@ -147,7 +147,18 @@ npm install
 npm run start:electron:dev
 ```
 
- 
+## ⚠️ Network / Proxy Setup (For China or Proxy Users)
+
+If you are using a proxy or located in China, set the following environment variables to speed up installation and avoid Electron download issues:
+
+```bash
+# macOS / Linux
+export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+
+# Windows (PowerShell)
+$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+
+npm config set registry https://registry.npmmirror.com 
 
 ## 🧑 For Users
 
