@@ -221,5 +221,5 @@ We are not building a platform.We are building:
 
 If you like this project, please give it a star⭐. Star this repo to never miss new features, updates, and improvements!
 
-[![Star](https://img.shields.io/badge/⭐-Star%20on%20GitHub-black?style=for-the-badge&logo=github)](https://github.com/ai-sns/openclaw-hermes-agent-network)
+[![Star](https://img.shields.io/badge/⭐-Star%20on%20GitHub-black?style=for-the-badge&logo=github)](https://github.com/ai-sns/ai-sns)
 
