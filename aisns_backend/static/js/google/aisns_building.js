@@ -867,7 +867,12 @@ const initializeBuilding = async () => {
 
     } catch (error) {
         console.error("Building model initialization failed:", error);
-        // Error recovery logic can be added here
+        // Ensure the 3D render loop still starts even if the building/font
+        // failed to load, otherwise the user's own avatar (person_me) would
+        // never be animated/redrawn while 2D cluster markers still show.
+        if (typeof checkAnimationStart === 'function') {
+            checkAnimationStart();
+        }
     }
 };
 
@@ -1036,3 +1041,23 @@ window.addEventListener('resize', () => {
 // ===== Start =====
 initializeBuilding();
 setTimeout(load_aisns_building, 6000);
+
+// Safety net: guarantee the 3D render loop starts once the WebGL overlay and
+// animate() are ready, independent of the AI-SNS building/font and the optional
+// scene models (tower/girl/boy). This prevents person_me from being
+// intermittently un-animated/invisible on the Google map when those optional
+// models load slowly or fail. checkAnimationStart() is internally guarded by
+// `overlay`/`animate` readiness and `animationStarted`, so repeated calls are
+// safe. The overlay is created asynchronously in initMap (a Google Maps
+// callback), so we re-check a few times to cover that init latency.
+function __snsTryStartGoogleRenderLoop() {
+    try {
+        if (typeof checkAnimationStart === 'function') {
+            checkAnimationStart();
+        }
+    } catch (e) {
+    }
+}
+__snsTryStartGoogleRenderLoop();
+setTimeout(__snsTryStartGoogleRenderLoop, 2000);
+setTimeout(__snsTryStartGoogleRenderLoop, 5000);

@@ -214,6 +214,19 @@ async function loadPersonsData(url, retries = FETCH_RETRIES, retryDelay = INITIA
 
 // Wrap async operation loadPersonsData
 async function load_persons_data_and_show() {
+    // Safety net: verify the user's own avatar (person_me) is rendered shortly
+    // after the config load triggers loadModel(person_data_me), and re-issue
+    // the load if it is still missing. Scheduled unconditionally so it runs
+    // even if the people-list fetch below fails.
+    try {
+        if (typeof ensureMyModelLoaded === 'function') {
+            setTimeout(function () {
+                ensureMyModelLoaded(5);
+            }, 3000);
+        }
+    } catch (e) {
+    }
+
     const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
         ? API_BASE_URL
         : ((typeof window !== 'undefined' && window.__AGENT_SERVER__) ? window.__AGENT_SERVER__ : '');
@@ -422,6 +435,8 @@ function isWebUrl(url) {
 
 var person_model_loading_promises = {};
 var person_model_meshes_by_nation = {};
+// Per-nation retry counter for transient GLTF load failures.
+var person_model_load_retries = {};
 
 function showPersonModelByNationId(nation_id) {
     try {
@@ -1096,6 +1111,7 @@ function loadModel(persondata) {
 
         try {
             delete person_model_loading_promises[nationId];
+            delete person_model_load_retries[nationId];
         } catch (e) {
         }
 
@@ -1110,11 +1126,69 @@ function loadModel(persondata) {
         } catch (e) {
         }
 
+        // Bounded retry for transient GLTF load failures (e.g. network blips).
+        // Without this a single failure would leave the avatar permanently
+        // missing, which was especially noticeable for the user's own avatar
+        // (person_me) on the Baidu map. The loading overlay is kept visible
+        // while retries are pending, and only hidden after the final failure.
+        try {
+            const maxRetries = 3;
+            const attempts = person_model_load_retries[nationId] || 0;
+            if (attempts < maxRetries) {
+                person_model_load_retries[nationId] = attempts + 1;
+                const delayMs = 1000 * (attempts + 1);
+                console.warn(`Retrying person model load for ${nationId} in ${delayMs} ms (attempt ${attempts + 1}/${maxRetries})`);
+                setTimeout(function () {
+                    try {
+                        loadModel(persondata);
+                    } catch (e) {
+                    }
+                }, delayMs);
+                return;
+            }
+        } catch (e) {
+        }
+
         try {
             __snsHideBaiduPersonLoadingOverlay(nationId);
         } catch (e) {
         }
     });
+}
+
+// Verify that the user's own avatar (person_me) actually loaded, and re-issue
+// the load if it is still missing after a grace period. This is a safety net
+// on top of loadModel's own retry, covering races where the initial load was
+// skipped, silently dropped, or never rendered.
+function ensureMyModelLoaded(retriesLeft) {
+    try {
+        const meNationId = (typeof nation_id_me !== 'undefined' && nation_id_me) ? String(nation_id_me).trim() : '';
+        if (!meNationId) return;
+        if (typeof person_data_me === 'undefined' || !person_data_me) return;
+
+        const remaining = (typeof retriesLeft === 'number') ? retriesLeft : 5;
+
+        // Already loaded -> nothing to do.
+        if (model_loaded_list && model_loaded_list[meNationId]) {
+            return;
+        }
+
+        // Not currently loading -> (re)issue the load.
+        if (!person_model_loading_promises[meNationId]) {
+            console.warn('person_me model missing; re-issuing loadModel(person_data_me)');
+            try {
+                loadModel(person_data_me);
+            } catch (e) {
+            }
+        }
+
+        if (remaining > 0) {
+            setTimeout(function () {
+                ensureMyModelLoaded(remaining - 1);
+            }, 2000);
+        }
+    } catch (e) {
+    }
 }
 
 function removeModel(nation_id) {
@@ -1295,11 +1369,16 @@ function getAllGroups(scene) {
 function checkAnimationStart() {
     if (animationStarted) return;
 
-    if (modelLoadStatus.building) {
-
+    // Start the 3D render loop as soon as the three.js layer is ready.
+    // Previously this was gated on modelLoadStatus.building, so a slow or
+    // failed AI-SNS building/font load would prevent the entire 3D scene --
+    // including the user's own avatar (person_me) -- from ever being rendered,
+    // even though 2D cluster markers still appeared. That made person_me
+    // intermittently invisible on the Baidu map.
+    if (typeof threeLayer !== 'undefined' && threeLayer && typeof animate === 'function') {
         animate(0);
         animationStarted = true;
-        console.log("All models finished loading, starting animation");
+        console.log("3D render loop started");
     }
 }
 

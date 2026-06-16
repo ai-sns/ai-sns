@@ -1,4 +1,4 @@
-const FETCH_RETRIES = 30;
+﻿const FETCH_RETRIES = 30;
 
 const INITIAL_RETRY_DELAY = 1000;
 
@@ -163,6 +163,19 @@ async function loadPersonsData(url, retries = FETCH_RETRIES, retryDelay = INITIA
 // Wrap async operation loadPersonsData
 
 async function load_persons_data_and_show() {
+
+    // Safety net: verify the user's own avatar (person_me) is rendered shortly
+    // after the config load triggers loadModel(person_data_me), and re-issue
+    // the load if it is still missing. Scheduled unconditionally so it runs
+    // even if the people-list fetch below fails.
+    try {
+        if (typeof ensureMyModelLoaded === 'function') {
+            setTimeout(function () {
+                ensureMyModelLoaded(5);
+            }, 3000);
+        }
+    } catch (e) {
+    }
 
     const resolvedBaseUrl = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
 
@@ -2530,11 +2543,12 @@ function checkAnimationStart() {
 
 
 
-    if (modelLoadStatus.building &&
+    // Start the 3D render loop as soon as the WebGL overlay and animation function are ready. The loop should not depend on optional scene models (building/girl/boy) finishing first, otherwise a slow or failed optional model load can delay avatar animations and status updates -- mirroring the person_me visibility issue previously fixed on the Baidu map.
+    if (typeof overlay !== 'undefined' && overlay && typeof animate === 'function') {
 
-        modelLoadStatus.girl &&
+        // legacy gate on modelLoadStatus.girl removed
 
-        modelLoadStatus.boy) {
+        // legacy gate on modelLoadStatus.boy removed
 
 
 
@@ -2542,7 +2556,7 @@ function checkAnimationStart() {
 
         animationStarted = true;
 
-        console.log("Core models loaded. Starting animation");
+        console.log("3D render loop started");
 
     }
 
@@ -3779,6 +3793,38 @@ function loadModel(persondata) {
 }
 
 
+// Verify that the user's own avatar (person_me) actually loaded, and re-issue
+// the load if it is still missing after a grace period. Google already uses
+// loadModelWithRetry for the GLTF request itself; this covers startup races or
+// silent drops where the initial loadModel call does not result in a model.
+function ensureMyModelLoaded(retriesLeft) {
+    try {
+        const meNationId = (typeof nation_id_me !== 'undefined' && nation_id_me) ? String(nation_id_me).trim() : '';
+        if (!meNationId) return;
+        if (typeof person_data_me === 'undefined' || !person_data_me) return;
+
+        const remaining = (typeof retriesLeft === 'number') ? retriesLeft : 5;
+
+        if (model_loaded_list && model_loaded_list[meNationId]) {
+            return;
+        }
+
+        if (!person_model_loading_promises[meNationId]) {
+            console.warn('person_me model missing; re-issuing loadModel(person_data_me)');
+            try {
+                loadModel(person_data_me);
+            } catch (e) {
+            }
+        }
+
+        if (remaining > 0) {
+            setTimeout(function () {
+                ensureMyModelLoaded(remaining - 1);
+            }, 2000);
+        }
+    } catch (e) {
+    }
+}
 
 function removeModel(nation_id) {
 

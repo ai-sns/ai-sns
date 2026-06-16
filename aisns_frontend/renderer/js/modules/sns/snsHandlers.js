@@ -2783,16 +2783,23 @@ export default {
             qs.set('ai_sns_server', aiSnsBaseUrl);
         }
 
+        const mapCacheBust = String(Date.now());
         const buildMapUrlByType = (mapType) => {
             const t = String(mapType || '').trim();
+            // Append a cache-busting timestamp so the map page is always reloaded
+            // from the server. The map key/config is baked into the HTML by the
+            // backend on save, so a stale cached HTML would otherwise be shown.
+            const params = new URLSearchParams(qs);
+            params.set('_ts', mapCacheBust);
+            const query = params.toString();
             if (t === '0') {
                 return agentBaseUrl
-                    ? `${agentBaseUrl}/static/googlemap3d.html?${qs.toString()}`
-                    : `/static/googlemap3d.html?${qs.toString()}`;
+                    ? `${agentBaseUrl}/static/googlemap3d.html?${query}`
+                    : `/static/googlemap3d.html?${query}`;
             }
             return agentBaseUrl
-                ? `${agentBaseUrl}/static/map.html?${qs.toString()}`
-                : `/static/map.html?${qs.toString()}`;
+                ? `${agentBaseUrl}/static/map.html?${query}`
+                : `/static/map.html?${query}`;
         };
 
         let cachedMapType = '';

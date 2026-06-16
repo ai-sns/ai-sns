@@ -668,6 +668,12 @@ const initializeBuilding = async () => {
         setupVideoScreenInteraction();
     } catch (error) {
         console.error("Building model initialization failed:", error);
+        // Ensure the 3D render loop still starts even if the building/font
+        // failed to load, otherwise the user's own avatar (person_me) would
+        // never be rendered while 2D cluster markers still show.
+        if (typeof checkAnimationStart === 'function') {
+            checkAnimationStart();
+        }
     }
 };
 
@@ -791,6 +797,21 @@ window.addEventListener('resize', () => {
 // Start initialization
 initializeBuilding();
 setTimeout(load_aisns_building, 6000);
+
+// Safety net: guarantee the 3D render loop starts as soon as the three.js
+// layer is ready, independent of the AI-SNS building/font load. This prevents
+// person_me from being intermittently invisible on the Baidu map when the
+// building model loads slowly or fails.
+try {
+    checkAnimationStart();
+} catch (e) {
+}
+setTimeout(function () {
+    try {
+        checkAnimationStart();
+    } catch (e) {
+    }
+}, 2000);
 
 function convertCoords(pos) {
     const llPoint = new BMapGL.Point(pos[0], pos[1]);

@@ -689,6 +689,7 @@ async function createMapWindow() {
         const { cfg, apiBaseUrl } = refreshApiBaseUrlFromConfigSync();
         const aiSnsServer = normalizeHttpUrl(cfg.ai_sns_server);
 
+        const mapCacheBust = String(Date.now());
         const buildMapUrlByType = (mapType) => {
             const t = String(mapType || '').trim();
             const qs = new URLSearchParams();
@@ -696,6 +697,9 @@ async function createMapWindow() {
             if (aiSnsServer) {
                 qs.set('ai_sns_server', aiSnsServer);
             }
+            // Append a cache-busting timestamp so the map page is always reloaded
+            // from the server (the map key/config is baked into the HTML on save).
+            qs.set('_ts', mapCacheBust);
             if (t === '0') {
                 return `${apiBaseUrl}/static/googlemap3d.html?${qs.toString()}`;
             }
@@ -790,6 +794,8 @@ async function createMapWindow() {
         if (aiSnsServer) {
             qs.set('ai_sns_server', aiSnsServer);
         }
+        // Append a cache-busting timestamp so the map page is always reloaded.
+        qs.set('_ts', String(Date.now()));
         mapWindow.loadURL(`${apiBaseUrl}/static/googlemap3d.html?${qs.toString()}`);
 
     }

@@ -1150,9 +1150,9 @@
 
 <script src="js/interact_python.js?0010"></script>
 
-<script src="js/google/map_common.js?006"></script>
+<script src="js/google/map_common.js?ts=1781598318284"></script>
 
-<script src="js/google/aisns_building.js?001"></script>
+<script src="js/google/aisns_building.js?002"></script>
 
 <script src="js/google/person_data.js?006"></script>
 

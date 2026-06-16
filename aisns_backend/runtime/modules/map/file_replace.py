@@ -1,4 +1,6 @@
 import logging
+import re
+import time
 from pathlib import Path
 import shutil
 from typing import Dict, List
@@ -170,3 +172,44 @@ def replace_map_config_in_files(
     baidu_key_pairs.append(("ak=" + BAIDU_KEY_PLACEHOLDER, "ak=" + baidu_key))
 
     _do_replace("static/map.html", baidu_key_pairs, logger)
+
+    # --- Force the browser/Electron to reload the JS whose contents changed ---
+    # The Google mapId lives in map_common.js, which the HTML references with a
+    # static version query (e.g. map_common.js?006). Bumping that query to a
+    # fresh timestamp guarantees the updated mapId is picked up instead of a
+    # cached copy.
+    bump_map_common_cache_buster(logger)
+
+
+def bump_map_common_cache_buster(logger: logging.Logger) -> None:
+    """Rewrite the ``map_common.js`` reference query string in the map HTML
+    files to a fresh timestamp, so the browser/Electron reloads the file
+    (which holds the dynamically-updated mapId) instead of using a cached copy.
+    """
+    ts = str(int(time.time() * 1000))
+    targets = (
+        ("static/googlemap3d.html", "js/google/map_common.js"),
+        ("static/map.html", "js/baidu/map_common.js"),
+    )
+    for rel_path, script_ref in targets:
+        abs_path = (_REPO_ROOT / rel_path).resolve()
+        if not abs_path.exists():
+            continue
+        try:
+            content = abs_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            logger.error("Cannot read %s for cache-buster bump: %s", abs_path, exc)
+            continue
+
+        # Match the script reference with an optional ?query and replace the
+        # whole thing with the reference plus a fresh timestamp query.
+        pattern = re.compile(re.escape(script_ref) + r"(\?[^\"']*)?")
+        new_content, count = pattern.subn(script_ref + "?ts=" + ts, content)
+        if count and new_content != content:
+            try:
+                abs_path.write_text(new_content, encoding="utf-8")
+                logger.info(
+                    "Bumped cache-buster for %s in %s (ts=%s)", script_ref, rel_path, ts
+                )
+            except Exception as exc:
+                logger.error("Cannot write %s for cache-buster bump: %s", abs_path, exc)

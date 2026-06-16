@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 
 
 
@@ -1159,9 +1159,9 @@
 
 <script src="js/interact_python.js?007"></script>
 
-<script src="js/baidu/map_common.js?0015"></script>
+<script src="js/baidu/map_common.js?ts=1781598318284"></script>
 
-<script src="js/baidu/aisns_building.js?003"></script>
+<script src="js/baidu/aisns_building.js?006"></script>
 
 <script src="js/baidu/aisns_service.js?002"></script>
 
