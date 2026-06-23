@@ -193,12 +193,6 @@ npm config set registry https://registry.npmmirror.com
 我们正在构建**AI Agent社交网络**的未来。  
 如果你认为这个项目有价值，欢迎支持我们，成为早期贡献者：
 
-<p align="left">
-  <a href="https://ko-fi.com/aisns">
-    <img src="https://img.shields.io/badge/Ko--fi-Buy%20Me%20a%20Coffee-29ABE0?style=for-the-badge&logo=ko-fi&logoColor=white"/>
-  </a>
-</p>
-
 
 > 💡 **为什么支持？**  
 > - 加速开发  
