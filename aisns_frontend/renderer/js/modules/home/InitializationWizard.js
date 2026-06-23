@@ -1,3 +1,8 @@
+// Prefix under which all Initialization Setup wizard strings live in the
+// language JSON files (renderer/lang/{en,zh}.json), which are the single
+// source of truth. Consumed by InitializationWizard.t().
+const INIT_WIZARD_I18N_PREFIX = 'home.init_wizard';
+
 const InitializationWizard = {
     modal: null,
     step: 0,
@@ -7,6 +12,9 @@ const InitializationWizard = {
         objectUrl: ''
     },
     captchaRequestSeq: 0,
+    // Currently selected wizard UI language ('en' or 'zh').
+    // Initialized from window.appConfig.language on first show().
+    currentLang: 'en',
     state: {
         id: null,
         status: 0,
@@ -25,6 +33,124 @@ const InitializationWizard = {
         map: 'Google',
         map_api_key: '',
         map_id: ''
+    },
+
+    // Resolve a localized label (sub-key under home.init_wizard) for the
+    // current wizard language, reading from the language JSON via the global
+    // i18n module. Falls back to English JSON, then to the raw key.
+    t(key) {
+        const fullKey = `${INIT_WIZARD_I18N_PREFIX}.${key}`;
+        if (window.i18n && typeof window.i18n.ltFor === 'function') {
+            const lang = (this.currentLang === 'zh') ? 'zh' : 'en';
+            const val = window.i18n.ltFor(lang, fullKey, '');
+            if (val) {
+                return val;
+            }
+            const en = window.i18n.ltFor('en', fullKey, '');
+            if (en) {
+                return en;
+            }
+        }
+        return key;
+    },
+
+    // Persist the chosen UI language to system config (system_cfg) and sync
+    // the in-memory app config so the rest of the app (and a re-opened wizard)
+    // reflects it immediately. Safe to call repeatedly; failures are non-fatal.
+    async persistLanguage(lang) {
+        const chosen = (String(lang || '').toLowerCase() === 'zh') ? 'zh' : 'en';
+        try {
+            if (window.api && typeof window.api.put === 'function') {
+                await window.api.put('/api/system/config', { language: chosen });
+            }
+            if (!window.appConfig || typeof window.appConfig !== 'object') {
+                window.appConfig = {};
+            }
+            window.appConfig.language = chosen;
+            try {
+                window.dispatchEvent(new CustomEvent('app-config-updated', {
+                    detail: { language: chosen }
+                }));
+            } catch (_) {}
+        } catch (e) {
+            console.warn('[InitializationWizard] persistLanguage failed:', e);
+        }
+    },
+
+    // Pick the initial wizard language from window.appConfig.language.
+    resolveInitialLang() {
+        try {
+            const v = (window.appConfig && window.appConfig.language)
+                ? String(window.appConfig.language).toLowerCase()
+                : '';
+            return v === 'zh' ? 'zh' : 'en';
+        } catch (_) {
+            return 'en';
+        }
+    },
+
+    // Render the language selector that lives in the modal footer's
+    // bottom-left corner. Returns an HTML string ready to be injected.
+    renderLanguageSelectorHtml() {
+        const lang = this.currentLang === 'zh' ? 'zh' : 'en';
+        return `
+            <div class="init-wizard-lang-selector" style="display:flex;align-items:center;gap:8px;margin-right:auto;">
+                <label for="initWizardLangSelect" style="margin:0;font-size:12px;opacity:0.85;">${this.escapeHtml(this.t('languageLabel'))}</label>
+                <select id="initWizardLangSelect" class="form-input" style="height:30px;padding:2px 8px;font-size:12px;min-width:120px;">
+                    <option value="en" ${lang === 'en' ? 'selected' : ''}>English</option>
+                    <option value="zh" ${lang === 'zh' ? 'selected' : ''}>中文</option>
+                </select>
+            </div>
+        `;
+    },
+
+    // Insert (or refresh) the language selector inside the modal footer.
+    // Uses margin-right:auto on the selector to push action buttons to the
+    // right edge while the selector sits in the bottom-left corner.
+    mountLanguageSelector() {
+        if (!this.modal || !this.modal.element) {
+            return;
+        }
+        const footer = this.modal.element.querySelector('.modal-footer');
+        if (!footer) {
+            return;
+        }
+
+        const existing = footer.querySelector('.init-wizard-lang-selector');
+        if (existing) {
+            existing.remove();
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = this.renderLanguageSelectorHtml().trim();
+        const node = wrapper.firstElementChild;
+        if (!node) {
+            return;
+        }
+        footer.insertBefore(node, footer.firstChild);
+
+        const select = node.querySelector('#initWizardLangSelect');
+        if (select) {
+            select.addEventListener('change', async (e) => {
+                const next = String(e.target.value || 'en').toLowerCase() === 'zh' ? 'zh' : 'en';
+                select.disabled = true;
+                // Preserve user input on the current step before re-rendering.
+                this.collectFormValues();
+                // Load the target language dictionary from JSON before
+                // re-rendering so all labels resolve correctly.
+                if (window.i18n && typeof window.i18n.ensureLang === 'function') {
+                    try {
+                        await window.i18n.ensureLang(next);
+                    } catch (_) {}
+                }
+                this.currentLang = next;
+                // Persist the language choice to system config immediately, so
+                // that closing the wizard before completing initialization does
+                // not lose the selection (it is restored on next open).
+                await this.persistLanguage(next);
+                this.updateModal();
+            });
+        }
     },
 
     sanitizeTestMessage(message) {
@@ -112,6 +238,21 @@ const InitializationWizard = {
 
         await this.loadInitialData();
 
+        // Initialize wizard UI language from the global app config so that
+        // the wizard reflects the user's previously chosen language.
+        this.currentLang = this.resolveInitialLang();
+
+        // Ensure the language dictionaries are loaded from JSON before any
+        // rendering. English is always loaded as the fallback source.
+        if (window.i18n && typeof window.i18n.ensureLang === 'function') {
+            try {
+                await window.i18n.ensureLang('en');
+                await window.i18n.ensureLang(this.currentLang);
+            } catch (e) {
+                console.warn('[InitializationWizard] i18n load failed:', e);
+            }
+        }
+
         const auto = !!(options && options.auto);
 
         if (auto && Number(this.state.status) === 1) {
@@ -120,11 +261,18 @@ const InitializationWizard = {
 
         if (Number(this.state.status) === 1) {
             Modal.show({
-                title: 'Initialization Setup',
+                title: this.t('title'),
                 content: this.renderReadonlySummary(),
                 showCancel: false,
-                confirmText: 'Close',
-                width: '820px'
+                confirmText: this.t('btn.close'),
+                width: '820px',
+                onOpen: (modal) => {
+                    this.modal = modal;
+                    this.mountLanguageSelector();
+                },
+                onClose: () => {
+                    this.modal = null;
+                }
             });
             return;
         }
@@ -132,15 +280,16 @@ const InitializationWizard = {
         this.step = 0;
 
         Modal.show({
-            title: 'Initialization Setup',
+            title: this.t('title'),
             content: this.renderStep(),
             showCancel: true,
-            cancelText: 'Cancel',
-            confirmText: 'Next',
+            cancelText: this.t('btn.cancel'),
+            confirmText: this.t('btn.next'),
             width: '820px',
             closeOnClickOutside: false,
             onOpen: (modal) => {
                 this.modal = modal;
+                this.mountLanguageSelector();
                 this.bindStepEvents();
             },
             onCancel: async () => {
@@ -180,7 +329,7 @@ const InitializationWizard = {
                 const captchaCode = (this.state.captcha_code || '').trim();
                 if (!this.captcha.id || !captchaCode) {
                     if (typeof Notification !== 'undefined') {
-                        Notification.error('Please enter the captcha code');
+                        Notification.error(this.t('notify.enterCaptcha'));
                     }
                     return false;
                 }
@@ -196,24 +345,27 @@ const InitializationWizard = {
                     const res = await window.api.post('/api/system/init-wizard/submit', payload);
                     if (res && res.success) {
                         if (typeof Notification !== 'undefined') {
-                            Notification.success('Configuration saved');
+                            Notification.success(this.t('notify.configSaved'));
                         }
                         try {
                             const mapTypeValue = this.state.map === 'Baidu' ? '1' : '0';
                             localStorage.setItem('sns_map_type', mapTypeValue);
                         } catch (e) {
                         }
+                        // Persist the chosen wizard language to system config
+                        // so the rest of the app picks it up after init.
+                        await this.persistLanguage(this.currentLang);
                         this.cleanupCaptchaObjectUrl();
                         return true;
                     }
 
                     if (typeof Notification !== 'undefined') {
-                        Notification.error(res?.message || res?.detail || 'Submit failed');
+                        Notification.error(res?.message || res?.detail || this.t('notify.submitFailed'));
                     }
                     return false;
                 } catch (e) {
                     if (typeof Notification !== 'undefined') {
-                        Notification.error(e.message || 'Submit failed');
+                        Notification.error(e.message || this.t('notify.submitFailed'));
                     }
                     return false;
                 }
@@ -327,12 +479,12 @@ const InitializationWizard = {
                         ${avatarUrl ? `<img src="${avatarUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;"/>` : ''}
                     </div>
                     <div style="flex:1;">
-                        <h4 style="margin:0 0 8px 0;">Initialization complete</h4>
+                        <h4 style="margin:0 0 8px 0;">${this.escapeHtml(this.t('summary.complete'))}</h4>
                         <div style="opacity:0.9;">
-                            <div><strong>Nickname:</strong> ${this.escapeHtml(this.state.name || '')}</div>
-                            <div><strong>Account:</strong> ${this.escapeHtml(this.state.account || '')}</div>
-                            <div><strong>Map:</strong> ${this.escapeHtml(this.state.map || '')}</div>
-                            <div><strong>3D Avatar:</strong> ${this.escapeHtml(this.state.avatar3d || '')}</div>
+                            <div><strong>${this.escapeHtml(this.t('summary.nickname'))}:</strong> ${this.escapeHtml(this.state.name || '')}</div>
+                            <div><strong>${this.escapeHtml(this.t('summary.account'))}:</strong> ${this.escapeHtml(this.state.account || '')}</div>
+                            <div><strong>${this.escapeHtml(this.t('summary.map'))}:</strong> ${this.escapeHtml(this.state.map || '')}</div>
+                            <div><strong>${this.escapeHtml(this.t('summary.avatar3d'))}:</strong> ${this.escapeHtml(this.state.avatar3d || '')}</div>
                         </div>
                     </div>
                 </div>
@@ -342,11 +494,11 @@ const InitializationWizard = {
 
     renderStep() {
         const steps = [
-            { key: 'basic', title: 'Basic' },
-            { key: 'llm', title: 'LLM' },
-            { key: 'xmpp', title: 'XMPP' },
-            { key: 'map', title: 'Map' },
-            { key: 'submit', title: 'Verify & Submit' }
+            { key: 'basic', title: this.t('tab.basic') },
+            { key: 'llm', title: this.t('tab.llm') },
+            { key: 'xmpp', title: this.t('tab.xmpp') },
+            { key: 'map', title: this.t('tab.map') },
+            { key: 'submit', title: this.t('tab.submit') }
         ];
 
         return `
@@ -378,36 +530,36 @@ const InitializationWizard = {
                         <img id="initAvatarPreview" src="${avatarUrl}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,0.2);display:block;margin:0 auto;" />
                         <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;align-items:center;">
                             <input id="initAvatarFile" type="file" accept="image/*" style="display:none;" />
-                            <button class="btn btn-secondary" id="initAvatarSelectBtn" type="button" style="width:92px;display:block;margin:0 auto;">Upload</button>
+                            <button class="btn btn-secondary" id="initAvatarSelectBtn" type="button" style="width:92px;display:block;margin:0 auto;">${this.escapeHtml(this.t('btn.upload'))}</button>
                             <div id="initAvatarFileName" style="font-size:11px;opacity:0.75;max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
                         </div>
                     </div>
 
                     <div style="flex:1;">
                         <div class="form-group">
-                            <label>Nickname *</label>
+                            <label>${this.escapeHtml(this.t('basic.nickname'))}</label>
                             <input class="form-input" id="initName" type="text" value="${this.escapeHtml(this.state.name || '')}" />
                         </div>
 
                         <div class="form-row" style="display:flex;gap:12px;">
                             <div class="form-group" style="flex:1;">
-                                <label>Password *</label>
+                                <label>${this.escapeHtml(this.t('basic.password'))}</label>
                                 <input class="form-input" id="initPassword" type="password" value="${this.escapeHtml(this.state.password || '')}" />
                             </div>
                             <div class="form-group" style="flex:1;">
-                                <label>Confirm password *</label>
+                                <label>${this.escapeHtml(this.t('basic.confirmPassword'))}</label>
                                 <input class="form-input" id="initConfirmPassword" type="password" value="${this.escapeHtml(this.state.confirm_password || '')}" />
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>Bio *</label>
-                            <textarea class="form-input" id="initProfile" placeholder="Introduce yourself" rows="3">${this.escapeHtml(this.state.profile || '')}</textarea>
+                            <label>${this.escapeHtml(this.t('basic.bio'))}</label>
+                            <textarea class="form-input" id="initProfile" placeholder="${this.escapeHtml(this.t('basic.bioPlaceholder'))}" rows="3">${this.escapeHtml(this.state.profile || '')}</textarea>
                         </div>
 
                         <div class="form-group">
-                            <label>Your social links</label>
-                            <input class="form-input" id="initSnsUrl" type="text" placeholder="e.g. https://x.com/ai_sns_org" value="${this.escapeHtml(this.state.sns_url || '')}" />
+                            <label>${this.escapeHtml(this.t('basic.snsUrl'))}</label>
+                            <input class="form-input" id="initSnsUrl" type="text" placeholder="${this.escapeHtml(this.t('basic.snsUrlPlaceholder'))}" value="${this.escapeHtml(this.state.sns_url || '')}" />
                         </div>
                     </div>
                 </div>
@@ -426,19 +578,19 @@ const InitializationWizard = {
         return `
             <div class="init-step init-step-llm">
                 <div class="form-group">
-                    <label>LLM *</label>
+                    <label>${this.escapeHtml(this.t('llm.llm'))}</label>
                     <select class="form-input" id="initLlm">
                         ${llmOptions.map(o => `<option value="${this.escapeHtml(o)}" ${o === this.state.llm ? 'selected' : ''}>${this.escapeHtml(o)}</option>`).join('')}
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label>LLM Server *</label>
+                    <label>${this.escapeHtml(this.t('llm.server'))}</label>
                     <input class="form-input" id="initLlmServer" type="text" value="${this.escapeHtml(this.state.llm_server || '')}" />
                 </div>
 
                 <div class="form-group">
-                    <label>API Key *</label>
+                    <label>${this.escapeHtml(this.t('llm.apiKey'))}</label>
                     <input class="form-input" id="initApiKey" type="text" value="${this.escapeHtml(this.state.api_key || '')}" />
                 </div>
 
@@ -449,9 +601,9 @@ const InitializationWizard = {
                 <div class="form-group" style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:16px;">
                     <div id="initLlmTestingIndicator" style="display:none; align-items:center; gap:8px; color:var(--color-primary, #1a73e8); font-size:13px; font-weight:500; transition: all 0.2s;">
                         <div class="spinner" style="width:16px; height:16px; border-width:2px; margin:0;"></div>
-                        <span>Testing...</span>
+                        <span>${this.escapeHtml(this.t('common.testing'))}</span>
                     </div>
-                    <button class="btn btn-secondary" id="initTestLlmBtn" type="button" style="min-width:80px; transition: all 0.2s;">Test</button>
+                    <button class="btn btn-secondary" id="initTestLlmBtn" type="button" style="min-width:80px; transition: all 0.2s;">${this.escapeHtml(this.t('btn.test'))}</button>
                 </div>
             </div>
         `;
@@ -462,19 +614,19 @@ const InitializationWizard = {
             <div class="init-step init-step-xmpp">
                 <div class="form-row" style="display:flex;gap:12px;">
                     <div class="form-group" style="flex:1;">
-                        <label>XMPP Account *</label>
+                        <label>${this.escapeHtml(this.t('xmpp.account'))}</label>
                         <input class="form-input" id="initAccount" type="text" value="${this.escapeHtml(this.state.account || '')}" />
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label>XMPP Password *</label>
+                        <label>${this.escapeHtml(this.t('xmpp.password'))}</label>
                         <input class="form-input" id="initAccountPassword" type="password" value="${this.escapeHtml(this.state.account_password || '')}" />
                     </div>
                 </div>
 
                 <div class="form-group" style="display:flex;justify-content:flex-start;">
                     <div style="display:flex;align-items:center;gap:8px;white-space:nowrap;">
-                        <label style="white-space:nowrap;margin:0;">If you don't have an account:</label>
-                        <a href="#" id="initSnsRegisterLink" style="font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;">Get one</a>
+                        <label style="white-space:nowrap;margin:0;">${this.escapeHtml(this.t('xmpp.noAccount'))}</label>
+                        <a href="#" id="initSnsRegisterLink" style="font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;">${this.escapeHtml(this.t('btn.getOne'))}</a>
                     </div>
                 </div>
 
@@ -485,9 +637,9 @@ const InitializationWizard = {
                 <div class="form-group" style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:16px;">
                     <div id="initXmppTestingIndicator" style="display:none; align-items:center; gap:8px; color:var(--color-primary, #1a73e8); font-size:13px; font-weight:500; transition: all 0.2s;">
                         <div class="spinner" style="width:16px; height:16px; border-width:2px; margin:0;"></div>
-                        <span>Testing...</span>
+                        <span>${this.escapeHtml(this.t('common.testing'))}</span>
                     </div>
-                    <button class="btn btn-secondary" id="initTestXmppBtn" type="button" style="min-width:80px; transition: all 0.2s;">Test</button>
+                    <button class="btn btn-secondary" id="initTestXmppBtn" type="button" style="min-width:80px; transition: all 0.2s;">${this.escapeHtml(this.t('btn.test'))}</button>
                 </div>
             </div>
         `;
@@ -511,8 +663,8 @@ const InitializationWizard = {
             <div class="init-step init-step-map">
                 <div class="form-group">
                     <div style="display:flex;align-items:baseline;gap:2ch;">
-                        <label style="margin:0;">Please choose your 3D avatar *</label>
-                        <a href="#" id="initAvatar3dLicensesLink" style="font-size:12px;white-space:nowrap;">Licenses</a>
+                        <label style="margin:0;">${this.escapeHtml(this.t('map.chooseAvatar'))}</label>
+                        <a href="#" id="initAvatar3dLicensesLink" style="font-size:12px;white-space:nowrap;">${this.escapeHtml(this.t('btn.licenses'))}</a>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;">
                         <button class="btn btn-secondary" id="avatar3dPrevBtn" type="button" style="padding:6px 10px;">◀</button>
@@ -526,7 +678,7 @@ const InitializationWizard = {
 
                 <div class="form-row" style="display:flex;gap:12px;align-items:center;">
                     <div class="form-group" style="flex:1;min-width:0;">
-                        <label>Map Type *</label>
+                        <label>${this.escapeHtml(this.t('map.mapType'))}</label>
                         <select class="form-input" id="initMapType">
                             <option value="Google" ${this.state.map === 'Google' ? 'selected' : ''}>Google</option>
                             <option value="Baidu" ${this.state.map === 'Baidu' ? 'selected' : ''}>Baidu</option>
@@ -534,19 +686,19 @@ const InitializationWizard = {
                     </div>
                     <div class="form-group" style="flex:1;min-width:0;">
                         <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
-                            <span style="font-size:14px;opacity:0.9;">If you don't have an Api Key:</span>
-                            <a href="#" id="initMapRegisterLink" style="font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;">Get one</a>
+                            <span style="font-size:14px;opacity:0.9;">${this.escapeHtml(this.t('map.noApiKey'))}</span>
+                            <a href="#" id="initMapRegisterLink" style="font-size:14px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;">${this.escapeHtml(this.t('btn.getOne'))}</a>
                         </div>
                     </div>
                 </div>
 
                 <div class="form-row" style="display:flex;gap:12px;">
                     <div class="form-group" style="flex:1;">
-                        <label>Map API Key *</label>
+                        <label>${this.escapeHtml(this.t('map.apiKey'))}</label>
                         <input class="form-input" id="initMapApiKey" type="text" value="${this.escapeHtml(this.state.map_api_key || '')}" />
                     </div>
                     <div class="form-group" style="flex:1;min-width:0;">
-                        <label>Map ID *</label>
+                        <label>${this.escapeHtml(this.t('map.mapId'))}</label>
                         <input class="form-input" id="initMapId" type="text" value="${this.escapeHtml(mapIdValue)}" ${mapIdReadOnly ? 'readonly' : ''} />
                     </div>
                 </div>
@@ -556,7 +708,7 @@ const InitializationWizard = {
                 </div>
 
                 <div class="form-group" style="display:flex;justify-content:flex-end;margin-top:16px;">
-                    <button class="btn btn-secondary" id="initTestMapBtn" type="button" style="min-width:80px; transition: all 0.2s;">Test</button>
+                    <button class="btn btn-secondary" id="initTestMapBtn" type="button" style="min-width:80px; transition: all 0.2s;">${this.escapeHtml(this.t('btn.test'))}</button>
                 </div>
             </div>
         `;
@@ -566,17 +718,17 @@ const InitializationWizard = {
         return `
             <div class="init-step init-step-captcha">
                 <div class="form-group">
-                    <label>Please enter the captcha code *</label>
+                    <label>${this.escapeHtml(this.t('captcha.enter'))}</label>
                     <div style="display:flex;gap:12px;align-items:center;">
                         <input class="form-input" id="initCaptchaCode" type="text" value="${this.escapeHtml(this.state.captcha_code || '')}" style="flex:1;" />
                         <div id="initCaptchaImgWrap" style="position:relative;width:140px;height:56px;border:1px solid rgba(255,255,255,0.2);border-radius:6px;overflow:hidden;flex:0 0 auto;">
                             <img id="initCaptchaImg" style="width:100%;height:100%;object-fit:contain;display:none;" />
                             <div id="initCaptchaLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;line-height:1.2;color:rgba(255,255,255,0.7);text-align:center;padding:4px 6px;box-sizing:border-box;">
                                 <span id="initCaptchaSpinner" style="flex:0 0 auto;width:14px;height:14px;border:2px solid rgba(255,255,255,0.25);border-top-color:rgba(255,255,255,0.9);border-radius:50%;display:inline-block;animation:initCaptchaSpin 0.8s linear infinite;"></span>
-                                <span id="initCaptchaLoadingText" style="flex:1 1 auto;min-width:0;white-space:normal;word-break:break-word;">Loading...</span>
+                                <span id="initCaptchaLoadingText" style="flex:1 1 auto;min-width:0;white-space:normal;word-break:break-word;">${this.escapeHtml(this.t('captcha.loading'))}</span>
                             </div>
                         </div>
-                        <button class="btn btn-secondary" id="initCaptchaRefresh" type="button">Refresh</button>
+                        <button class="btn btn-secondary" id="initCaptchaRefresh" type="button">${this.escapeHtml(this.t('btn.refresh'))}</button>
                     </div>
                     <style>@keyframes initCaptchaSpin{to{transform:rotate(360deg);}}</style>
                 </div>
@@ -593,28 +745,35 @@ const InitializationWizard = {
 
         this.clearAllTestingState();
 
+        const readonly = Number(this.state.status) === 1;
         const body = this.modal.element.querySelector('.modal-body');
         if (body) {
-            body.innerHTML = this.renderStep();
+            body.innerHTML = readonly ? this.renderReadonlySummary() : this.renderStep();
         }
 
         const title = this.modal.element.querySelector('.modal-title');
         if (title) {
-            title.textContent = 'Initialization Setup';
+            title.textContent = this.t('title');
         }
 
         const cancelBtn = this.modal.element.querySelector('[data-action="cancel"]');
         const confirmBtn = this.modal.element.querySelector('[data-action="confirm"]');
 
         if (cancelBtn) {
-            cancelBtn.textContent = this.step === 0 ? 'Cancel' : 'Previous';
+            cancelBtn.textContent = this.step === 0 ? this.t('btn.cancel') : this.t('btn.previous');
         }
 
         if (confirmBtn) {
-            confirmBtn.textContent = this.step < 4 ? 'Next' : 'Submit';
+            confirmBtn.textContent = readonly ? this.t('btn.close') : (this.step < 4 ? this.t('btn.next') : this.t('btn.submit'));
         }
 
-        this.bindStepEvents();
+        // Re-mount the language selector so it reflects the current language
+        // label and stays in the bottom-left of the footer after re-render.
+        this.mountLanguageSelector();
+
+        if (!readonly) {
+            this.bindStepEvents();
+        }
     },
 
     bindStepEvents() {
@@ -729,18 +888,18 @@ const InitializationWizard = {
 
                     if (okResult) {
                         const messageLines = [
-                            `Status: ${okResult.status || 'success'}`,
-                            okResult.model ? `Model: ${okResult.model}` : '',
-                            okResult.base_url ? `Base URL: ${okResult.base_url}` : '',
-                            okResult.latency_ms != null ? `Latency: ${okResult.latency_ms} ms` : '',
-                            okResult.reply ? `Reply: ${okResult.reply}` : ''
+                            `${this.t('test.status')}: ${okResult.status || 'success'}`,
+                            okResult.model ? `${this.t('test.model')}: ${okResult.model}` : '',
+                            okResult.base_url ? `${this.t('test.baseUrl')}: ${okResult.base_url}` : '',
+                            okResult.latency_ms != null ? `${this.t('test.latency')}: ${okResult.latency_ms} ${this.t('test.latencyMs')}` : '',
+                            okResult.reply ? `${this.t('test.reply')}: ${okResult.reply}` : ''
                         ].filter(Boolean);
                         this.setInlineTestResult('success', messageLines.join('\n'));
                     } else {
-                        this.setInlineTestResult('error', String(lastErr || 'Test failed'));
+                        this.setInlineTestResult('error', String(lastErr || this.t('test.failed')));
                     }
                 } catch (e) {
-                    this.setInlineTestResult('error', e.message || 'Test failed');
+                    this.setInlineTestResult('error', e.message || this.t('test.failed'));
                 } finally {
                     this.setTestingState('llm', false);
                 }
@@ -771,12 +930,12 @@ const InitializationWizard = {
                         account_password: this.state.account_password
                     });
                     if (res && res.success) {
-                        this.setInlineTestResult('success', res.message || 'Test passed');
+                        this.setInlineTestResult('success', res.message || this.t('test.passed'));
                     } else {
-                        this.setInlineTestResult('error', res?.message || res?.detail || 'Test failed');
+                        this.setInlineTestResult('error', res?.message || res?.detail || this.t('test.failed'));
                     }
                 } catch (e) {
-                    this.setInlineTestResult('error', e.message || 'Test failed');
+                    this.setInlineTestResult('error', e.message || this.t('test.failed'));
                 } finally {
                     this.setTestingState('xmpp', false);
                 }
@@ -866,7 +1025,7 @@ const InitializationWizard = {
 
                     const json = await resp.json();
                     if (!json.success) {
-                        throw new Error(json.message || json.detail || 'Upload failed');
+                        throw new Error(json.message || json.detail || this.t('notify.uploadFailed'));
                     }
 
                     this.state.avatar = json.data.avatar;
@@ -878,11 +1037,11 @@ const InitializationWizard = {
                     }
 
                     if (typeof Notification !== 'undefined') {
-                        Notification.success('Avatar updated');
+                        Notification.success(this.t('notify.avatarUpdated'));
                     }
                 } catch (e) {
                     if (typeof Notification !== 'undefined') {
-                        Notification.error(e.message || 'Avatar upload failed');
+                        Notification.error(e.message || this.t('notify.avatarUploadFailed'));
                     }
                 } finally {
                     fileInput.value = '';
@@ -1022,118 +1181,51 @@ const InitializationWizard = {
     },
 
     validateCurrentStep() {
+        const fail = (key) => {
+            if (typeof Notification !== 'undefined') {
+                Notification.error(this.t(key));
+            }
+            return false;
+        };
+
         if (this.step === 0) {
-            if (!this.state.name) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter your name.');
-                }
-                return false;
-            }
-            if (!this.state.avatar) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please upload an avatar.');
-                }
-                return false;
-            }
-            if (!this.state.password) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter your password.');
-                }
-                return false;
-            }
-            if (!this.state.confirm_password) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please confirm your password.');
-                }
-                return false;
-            }
-            if (!this.state.profile) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter your profile.');
-                }
-                return false;
-            }
+            if (!this.state.name) return fail('notify.enterName');
+            if (!this.state.avatar) return fail('notify.uploadAvatar');
+            if (!this.state.password) return fail('notify.enterPassword');
+            if (!this.state.confirm_password) return fail('notify.confirmPassword');
+            if (!this.state.profile) return fail('notify.enterBio');
 
             if (this.state.password !== this.state.confirm_password) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Password and confirm password do not match.');
-                }
-                return false;
+                return fail('notify.passwordMismatch');
             }
 
             if (!this.isPasswordValid(this.state.password)) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Password must include uppercase, lowercase, digits, and special characters, and be at least 8 characters long.');
-                }
-                return false;
+                return fail('notify.passwordRule');
             }
         }
 
         if (this.step === 1) {
-            if (!this.state.llm) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please select an LLM model.');
-                }
-                return false;
-            }
-            if (!this.state.llm_server) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter the LLM server URL.');
-                }
-                return false;
-            }
-            if (!this.state.api_key) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter the LLM API key.');
-                }
-                return false;
-            }
+            if (!this.state.llm) return fail('notify.selectLlm');
+            if (!this.state.llm_server) return fail('notify.enterLlmServer');
+            if (!this.state.api_key) return fail('notify.enterApiKey');
         }
 
         if (this.step === 2) {
-            if (!this.state.account) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter the XMPP account.');
-                }
-                return false;
-            }
-            if (!this.state.account_password) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter the XMPP account password.');
-                }
-                return false;
-            }
+            if (!this.state.account) return fail('notify.enterXmppAccount');
+            if (!this.state.account_password) return fail('notify.enterXmppPassword');
         }
 
         if (this.step === 3) {
-            if (!this.state.avatar3d) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please select a 3D avatar.');
-                }
-                return false;
-            }
-            if (!this.state.map) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please select a map type.');
-                }
-                return false;
-            }
-            if (!this.state.map_api_key) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter the map API key.');
-                }
-                return false;
-            }
+            if (!this.state.avatar3d) return fail('notify.selectAvatar3d');
+            if (!this.state.map) return fail('notify.selectMapType');
+            if (!this.state.map_api_key) return fail('notify.enterMapKey');
 
             if (this.state.map === 'Baidu') {
                 if (this.state.map_id !== 'do_not_need_map_id') {
                     this.state.map_id = 'do_not_need_map_id';
                 }
             } else if (!this.state.map_id) {
-                if (typeof Notification !== 'undefined') {
-                    Notification.error('Please enter the map ID.');
-                }
-                return false;
+                return fail('notify.enterMapId');
             }
         }
 
@@ -1182,11 +1274,11 @@ const InitializationWizard = {
         }
         if (text) {
             if (status === 'error') {
-                text.textContent = 'Load failed';
+                text.textContent = this.t('captcha.loadFailed');
                 text.style.color = 'rgba(255,120,120,0.95)';
-                text.title = 'Click Refresh to retry';
+                text.title = this.t('captcha.refreshTip');
             } else {
-                text.textContent = 'Loading...';
+                text.textContent = this.t('captcha.loading');
                 text.style.color = '';
                 text.title = '';
             }

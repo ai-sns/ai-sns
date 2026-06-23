@@ -228,7 +228,7 @@ export default {
         if (!titleEl) return;
 
         if (!formatted) {
-            titleEl.textContent = 'Explore the Earth';
+            titleEl.textContent = window.tt('sns.sidebar.exploreTitle');
             return;
         }
         titleEl.innerHTML = this._renderExploreTitleHTML(formatted, this._exploreMembership);
@@ -353,7 +353,7 @@ export default {
                     <div class="user-stats-charts">
                         <div class="user-stat-bars">
                             <div class="stat-bar-item">
-                                <span class="stat-label">Rebirth</span>
+                                <span class="stat-label">${window.escHtml(window.tt('sns.sidebar.stat.rebirth'))}</span>
                                 <div class="stat-bar-wrapper">
                                     <div class="stat-bar-container">
                                         <div class="stat-bar" style="width: ${Math.min((this.userStats.rebirth / 100) * 100, 100)}%"></div>
@@ -362,7 +362,7 @@ export default {
                                 </div>
                             </div>
                             <div class="stat-bar-item">
-                                <span class="stat-label">Credit</span>
+                                <span class="stat-label">${window.escHtml(window.tt('sns.sidebar.stat.credit'))}</span>
                                 <div class="stat-bar-wrapper">
                                     <div class="stat-bar-container">
                                         <div class="stat-bar" style="width: ${Math.min((this.userStats.credit / 100) * 100, 100)}%"></div>
@@ -371,7 +371,7 @@ export default {
                                 </div>
                             </div>
                             <div class="stat-bar-item">
-                                <span class="stat-label">Exp</span>
+                                <span class="stat-label">${window.escHtml(window.tt('sns.sidebar.stat.exp'))}</span>
                                 <div class="stat-bar-wrapper">
                                     <div class="stat-bar-container">
                                         <div class="stat-bar" style="width: ${Math.min((this.userStats.exp / 1000) * 100, 100)}%"></div>
@@ -389,9 +389,9 @@ export default {
             <div class="sidebar-section">
                 <!-- Chat / Trade tabs -->
                 <div class="sns-sidebar-tabs">
-                    <button class="sidebar-tab active" data-tab="chat">Chat</button>
-                    <button class="sidebar-tab" data-tab="visit">Visit</button>
-                    <button class="sidebar-tab" data-tab="trade">Trade</button>
+                    <button class="sidebar-tab active" data-tab="chat">${window.escHtml(window.tt('sns.sidebar.tab.chat'))}</button>
+                    <button class="sidebar-tab" data-tab="visit">${window.escHtml(window.tt('sns.sidebar.tab.visit'))}</button>
+                    <button class="sidebar-tab" data-tab="trade">${window.escHtml(window.tt('sns.sidebar.tab.trade'))}</button>
                 </div>
                 <!-- Contact List -->
                 <div class="contact-section tab-content active" data-content="chat">
@@ -401,7 +401,7 @@ export default {
                             <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                 <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                             </svg>
-                            <input type="text" class="sns-search-input" id="contactSearchInput" placeholder="Search contacts..." />
+                            <input type="text" class="sns-search-input" id="contactSearchInput" placeholder="${window.escAttr(window.tt('sns.sidebar.searchContacts'))}" />
                             <button class="sns-search-clear" id="contactSearchClear">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -421,7 +421,7 @@ export default {
                             <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                 <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                             </svg>
-                            <input type="text" class="sns-search-input" id="tradeSearchInput" placeholder="Search trades..." />
+                            <input type="text" class="sns-search-input" id="tradeSearchInput" placeholder="${window.escAttr(window.tt('sns.sidebar.searchTrades'))}" />
                             <button class="sns-search-clear" id="tradeSearchClear">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -439,7 +439,7 @@ export default {
                             <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                 <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                             </svg>
-                            <input type="text" class="sns-search-input" id="visitSearchInput" placeholder="Search visits..." />
+                            <input type="text" class="sns-search-input" id="visitSearchInput" placeholder="${window.escAttr(window.tt('sns.sidebar.searchVisits'))}" />
                             <button class="sns-search-clear" id="visitSearchClear">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -457,13 +457,13 @@ export default {
                     </div>
                     <div class="chat-messages" id="chatMessages"></div>
                     <div class="chat-input-area">
-                        <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." />
-                        <button class="chat-file-btn" id="sendFileBtn" title="Attach file">
+                        <input type="text" class="chat-input" id="chatInput" placeholder="${window.escAttr(window.tt('sns.sidebar.typeMessage'))}" />
+                        <button class="chat-file-btn" id="sendFileBtn" title="${window.escAttr(window.tt('sns.sidebar.attachFile'))}">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                 <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
                             </svg>
                         </button>
-                        <button class="chat-send-btn" id="sendMessageBtn" title="Send message">
+                        <button class="chat-send-btn" id="sendMessageBtn" title="${window.escAttr(window.tt('sns.sidebar.sendMessage'))}">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                             </svg>
@@ -573,7 +573,7 @@ export default {
         menu.className = 'trade-context-menu';
         menu.style.display = 'none';
         menu.innerHTML = `
-            <button class="trade-context-menu-item" data-action="delete">Delete</button>
+            <button class="trade-context-menu-item" data-action="delete">${window.escHtml(window.tt('sns.sidebar.delete'))}</button>
         `;
 
         document.body.appendChild(menu);
@@ -707,7 +707,7 @@ export default {
         if (!visitList) return;
 
         if (!Array.isArray(this.visits) || this.visits.length === 0) {
-            visitList.innerHTML = '<div class="empty-message">No visits available</div>';
+            visitList.innerHTML = `<div class="empty-message">${window.escHtml(window.tt('sns.sidebar.emptyVisits'))}</div>`;
             return;
         }
 
@@ -722,14 +722,14 @@ export default {
         });
 
         if (filtered.length === 0) {
-            visitList.innerHTML = '<div class="empty-message">No visits found</div>';
+            visitList.innerHTML = `<div class="empty-message">${window.escHtml(window.tt('sns.sidebar.emptyVisitsFound'))}</div>`;
             return;
         }
 
         visitList.innerHTML = filtered.map(v => {
             const rawKey = (v.coord_key || v.visit_id || v.id || '').toString();
             const key = this.escapeHtml(rawKey);
-            const title = this.escapeHtml((v.title || 'Visited place').toString());
+            const title = this.escapeHtml((v.title || window.tt('sns.sidebar.defaultVisitTitle')).toString());
             const detailRaw = (v.detail || '').toString();
             const detail = this.escapeHtml(this._clipText(detailRaw, 160));
             const timeText = v.create_time ? this.escapeHtml(this._formatTradeTime(v.create_time)) : '';
@@ -741,7 +741,7 @@ export default {
                     ${detail ? `<div class="trade-detail">${detail}</div>` : ''}
                     <div class="trade-footer">
                         <span class="trade-with">
-                            <span class="trade-with-name trade-with-link visit-open-link" data-visit-key="${key}">Visit</span>
+                            <span class="trade-with-name trade-with-link visit-open-link" data-visit-key="${key}">${window.escHtml(window.tt('sns.sidebar.visitOpen'))}</span>
                             ${timeText ? `<span class="trade-time">${timeText}</span>` : ''}
                         </span>
                     </div>
@@ -925,7 +925,7 @@ export default {
         menu.className = 'trade-context-menu';
         menu.style.display = 'none';
         menu.innerHTML = `
-            <button class="trade-context-menu-item" data-action="delete">Delete</button>
+            <button class="trade-context-menu-item" data-action="delete">${window.escHtml(window.tt('sns.sidebar.delete'))}</button>
         `;
 
         document.body.appendChild(menu);
@@ -1343,7 +1343,7 @@ export default {
         });
 
         if (filteredContacts.length === 0) {
-            contactList.innerHTML = '<div class="empty-message">No contacts found</div>';
+            contactList.innerHTML = `<div class="empty-message">${window.escHtml(window.tt('sns.sidebar.emptyContacts'))}</div>`;
             return;
         }
 
@@ -1385,7 +1385,7 @@ export default {
         if (!tradeList) return;
 
         if (this.trades.length === 0) {
-            tradeList.innerHTML = '<div class="empty-message">No trades available</div>';
+            tradeList.innerHTML = `<div class="empty-message">${window.escHtml(window.tt('sns.sidebar.emptyTrades'))}</div>`;
             return;
         }
 
@@ -1401,7 +1401,7 @@ export default {
         });
 
         if (filteredTrades.length === 0) {
-            tradeList.innerHTML = '<div class="empty-message">No trades found</div>';
+            tradeList.innerHTML = `<div class="empty-message">${window.escHtml(window.tt('sns.sidebar.emptyTrades'))}</div>`;
             return;
         }
 

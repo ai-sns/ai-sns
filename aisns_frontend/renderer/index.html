@@ -186,6 +186,10 @@
     <div id="notificationContainer" class="notification-container"></div>
 
     <!-- Scripts -->
+    <!-- i18n (single source of truth: renderer/lang/*.json). Must load
+         before app/page scripts so window.i18n is available everywhere. -->
+    <script src="js/i18n.js"></script>
+
     <!-- Legacy scripts (backward compatibility) -->
     <script src="js/api.js"></script>
     <script src="js/components.js"></script>

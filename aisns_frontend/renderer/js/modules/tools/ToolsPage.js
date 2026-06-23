@@ -10,19 +10,19 @@ const ToolsPage = {
                     <div class="tools-main-ref__container">
                         <header class="tools-main-ref__header plugin-list-header">
                             <div>
-                                <h1 class="plugin-list-title">Tools Plugin List</h1>
-                                <p class="tools-main-ref__subtitle">Manage and test here</p>
+                                <h1 class="plugin-list-title">${window.escHtml(window.tt('tools.page.title'))}</h1>
+                                <p class="tools-main-ref__subtitle">${window.escHtml(window.tt('tools.page.subtitle'))}</p>
                             </div>
                             <button class="tools-add-btn">
                                 <span class="material-icons-round tools-main-ref__add-icon">add</span>
-                                Add
+                                ${window.escHtml(window.tt('tools.page.add'))}
                             </button>
                         </header>
                         <div class="plugin-grid" id="pluginGrid">
                             ${this.renderPluginCards()}
                         </div>
                         <div class="plugin-more-section">
-                            <button class="plugin-more-btn" type="button">More...</button>
+                            <button class="plugin-more-btn" type="button">${window.escHtml(window.tt('tools.page.more'))}</button>
                         </div>
                     </div>
                 </main>
@@ -31,13 +31,14 @@ const ToolsPage = {
     },
 
     renderPluginCards() {
+        const badge = window.tt('tools.page.llmConnector');
         const plugins = [
-            { name: 'OpenAI', icon: 'openai', desc: 'OpenAI is an AI research organization known for GPT-4 and GPT-4o, which excel in natural language understanding and generation.', badge: 'LLM Connector' },
-            { name: 'Claude', icon: 'claude', desc: 'Claude is an AI language model by Anthropic, featuring Claude 3.5, designed for safe, reliable, and user-friendly communication tasks.', badge: 'LLM Connector' },
-            { name: 'DeepSeek', icon: 'deepseek', desc: 'DeepSeek\'s DeepSeek-R1 model excels in reasoning, code generation, and cost efficiency, rivaling OpenAI\'s offerings in performance.', badge: 'LLM Connector' },
-            { name: 'Mistral', icon: 'mistral', desc: 'Mistral AI is a Paris-based startup specializing in open-source large language models, founded by ex-Google DeepMind and Meta researchers.', badge: 'LLM Connector' },
-            { name: 'Gemini', icon: 'gemini', desc: 'Gemini is Google DeepMind\'s advanced multimodal AI model, designed to intuitively understand and integrate text, code, audio, images, and video.', badge: 'LLM Connector' },
-            { name: 'Llama', icon: 'llama', desc: 'Llama is developed by Meta, featuring multiple model sizes for diverse applications, enabling efficient and effective natural language processing tasks.', badge: 'LLM Connector' },
+            { name: 'OpenAI', icon: 'openai', desc: window.tt('tools.page.desc.openai'), badge },
+            { name: 'Claude', icon: 'claude', desc: window.tt('tools.page.desc.claude'), badge },
+            { name: 'DeepSeek', icon: 'deepseek', desc: window.tt('tools.page.desc.deepseek'), badge },
+            { name: 'Mistral', icon: 'mistral', desc: window.tt('tools.page.desc.mistral'), badge },
+            { name: 'Gemini', icon: 'gemini', desc: window.tt('tools.page.desc.gemini'), badge },
+            { name: 'Llama', icon: 'llama', desc: window.tt('tools.page.desc.llama'), badge },
         ];
 
         return plugins.map(plugin => `
@@ -47,16 +48,16 @@ const ToolsPage = {
                         ${this.getPluginIcon(plugin.icon)}
                     </div>
                     <div class="plugin-header-info">
-                        <span class="plugin-name">${plugin.name}</span>
-                        <span class="plugin-badge-connector">${plugin.badge}</span>
+                        <span class="plugin-name">${window.escHtml(plugin.name)}</span>
+                        <span class="plugin-badge-connector">${window.escHtml(plugin.badge)}</span>
                     </div>
                 </div>
                 <div class="plugin-author">
                     <span class="author-label">AI-SNS</span>
-                    <span class="author-official">Official</span>
+                    <span class="author-official">${window.escHtml(window.tt('tools.page.official'))}</span>
                 </div>
-                <div class="plugin-desc">${plugin.desc}</div>
-                <button class="plugin-download-btn">Download</button>
+                <div class="plugin-desc">${window.escHtml(plugin.desc)}</div>
+                <button class="plugin-download-btn">${window.escHtml(window.tt('tools.page.download'))}</button>
             </div>
         `).join('');
     },

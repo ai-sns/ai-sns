@@ -259,7 +259,7 @@ const AgentSidebar = {
                     <line x1="10" y1="14" x2="7" y2="17"></line>
                 </svg>
                 
-                <span class="web-section-title">LLM Setting</span>
+                <span class="web-section-title">${window.escHtml(window.tt('agent.sidebar.section.llmSetting'))}</span>
             </div>
             <div class="agent-item agent-management" data-page="role-management">
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="18" height="18" stroke="currentColor" fill="currentColor">
@@ -273,13 +273,13 @@ const AgentSidebar = {
                     <path d="M80,20 L82,28 L90,30 L82,32 L80,40 L78,32 L70,30 L78,28 Z" />
                 </g>
             </svg>
-                <span class="web-section-title">Role Setting</span>
+                <span class="web-section-title">${window.escHtml(window.tt('agent.sidebar.section.roleSetting'))}</span>
             </div>
             <div class="agent-item agent-management" data-page="agent-management">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                     <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z"/>
                 </svg>
-                <span class="web-section-title">Agent Management</span>
+                <span class="web-section-title">${window.escHtml(window.tt('agent.sidebar.section.agentManagement'))}</span>
             </div>
         `;
 
@@ -306,7 +306,7 @@ const AgentSidebar = {
                                 <path d="M16 10 L16 14 M14 12 L18 12" stroke="#1a73e8" stroke-width="1.5"/>
                             </svg>
                         </div>
-                        <span class="action-btn-text">New Chat</span>
+                        <span class="action-btn-text">${window.escHtml(window.tt('agent.sidebar.newChat'))}</span>
                     </button>
                     <button class="agent-action-btn" data-action="settings" data-agent-id="${agent.id}">
                         <div class="action-btn-icon">
@@ -316,14 +316,14 @@ const AgentSidebar = {
                                 <circle cx="24" cy="24" r="6" fill="none" stroke="#1a73e8" stroke-width="2"/>
                             </svg>
                         </div>
-                        <span class="action-btn-text">Setting</span>
+                        <span class="action-btn-text">${window.escHtml(window.tt('agent.sidebar.setting'))}</span>
                     </button>
                 </div>
                 <div class="conversation-section">
                     <!-- Chat List / Tag List switch -->
                     <div class="sns-sidebar-tabs">
-                        <button class="sidebar-tab active" data-tab="chatList" data-agent-id="${agent.id}">Chat List</button>
-                        <button class="sidebar-tab" data-tab="tagList" data-agent-id="${agent.id}">Tag List</button>
+                        <button class="sidebar-tab active" data-tab="chatList" data-agent-id="${agent.id}">${window.escHtml(window.tt('agent.sidebar.tab.chatList'))}</button>
+                        <button class="sidebar-tab" data-tab="tagList" data-agent-id="${agent.id}">${window.escHtml(window.tt('agent.sidebar.tab.tagList'))}</button>
                     </div>
                     <div class="tab-content active" data-content="chatList" data-agent-id="${agent.id}">
                         <div class="sns-search-box">
@@ -331,7 +331,7 @@ const AgentSidebar = {
                                 <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                                 </svg>
-                                <input type="text" class="sns-search-input" id="agentChatSearchInput-${agent.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-agent-id="${agent.id}" />
+                                <input type="text" class="sns-search-input" id="agentChatSearchInput-${agent.id}" placeholder="${window.escAttr(window.tt('agent.sidebar.searchPlaceholder'))}" data-agent-id="${agent.id}" />
                                 <button class="sns-search-clear" id="agentChatSearchClear-${agent.id}">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -354,7 +354,7 @@ const AgentSidebar = {
                                 <svg class="sns-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                     <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                                 </svg>
-                                <input type="text" class="sns-search-input" id="agentTagSearchInput-${agent.id}" placeholder="Keyword+Enter,Blank+Enter to reset" data-agent-id="${agent.id}" />
+                                <input type="text" class="sns-search-input" id="agentTagSearchInput-${agent.id}" placeholder="${window.escAttr(window.tt('agent.sidebar.searchPlaceholder'))}" data-agent-id="${agent.id}" />
                                 <button class="sns-search-clear" id="agentTagSearchClear-${agent.id}">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -365,7 +365,7 @@ const AgentSidebar = {
                         <div class="chat-list-container" id="tagListContainer-${agent.id}">
                             <div class="chat-tree">
                                 <div class="tree-children">
-                                    <div class="empty-state">No tags</div>
+                                    <div class="empty-state">${window.escHtml(window.tt('agent.sidebar.noTags'))}</div>
                                 </div>
                             </div>
                         </div>
@@ -383,8 +383,8 @@ const AgentSidebar = {
         if (agentList) {
             agentList.innerHTML = `
                 <div class="empty-state" style="padding: 20px; text-align: center; color: #999;">
-                    <p>No available agents</p>
-                    <p style="font-size: 12px; margin-top: 10px;">Please create an agent in Agent Management first</p>
+                    <p>${window.escHtml(window.tt('agent.sidebar.noAgents'))}</p>
+                    <p style="font-size: 12px; margin-top: 10px;">${window.escHtml(window.tt('agent.sidebar.createAgentHint'))}</p>
                 </div>
             `;
         }

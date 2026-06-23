@@ -9,42 +9,447 @@
   },
   "home": {
     "config": {
-      "title": "\u914d\u7f6e",
-      "save": "\u4fdd\u5b58",
-      "cancel": "\u53d6\u6d88",
-      "language": "\u8bed\u8a00"
+      "title": "配置",
+      "save": "保存",
+      "cancel": "取消",
+      "language": "语言"
+    },
+    "init_wizard": {
+      "title": "初始化设置",
+      "languageLabel": "语言",
+      "tab": {
+        "basic": "基本信息",
+        "llm": "大模型",
+        "xmpp": "XMPP",
+        "map": "地图",
+        "submit": "验证并提交"
+      },
+      "btn": {
+        "cancel": "取消",
+        "previous": "上一步",
+        "next": "下一步",
+        "submit": "提交",
+        "close": "关闭",
+        "test": "测试",
+        "upload": "上传",
+        "refresh": "刷新",
+        "getOne": "去申请",
+        "licenses": "授权说明"
+      },
+      "common": {
+        "testing": "测试中..."
+      },
+      "basic": {
+        "nickname": "昵称 *",
+        "password": "密码 *",
+        "confirmPassword": "确认密码 *",
+        "bio": "个人简介 *",
+        "bioPlaceholder": "请介绍一下你自己",
+        "snsUrl": "你的社交账号链接",
+        "snsUrlPlaceholder": "例如 https://x.com/ai_sns_org"
+      },
+      "llm": {
+        "llm": "大模型 *",
+        "server": "大模型服务地址 *",
+        "apiKey": "API Key *"
+      },
+      "xmpp": {
+        "account": "XMPP 账号 *",
+        "password": "XMPP 密码 *",
+        "noAccount": "如果你还没有账号:"
+      },
+      "map": {
+        "chooseAvatar": "请选择你的 3D 形象 *",
+        "mapType": "地图类型 *",
+        "noApiKey": "如果你还没有 API Key:",
+        "apiKey": "地图 API Key *",
+        "mapId": "地图 ID *"
+      },
+      "captcha": {
+        "enter": "请输入验证码 *",
+        "loading": "加载中...",
+        "loadFailed": "加载失败",
+        "refreshTip": "点击刷新重试"
+      },
+      "summary": {
+        "complete": "初始化已完成",
+        "nickname": "昵称",
+        "account": "账号",
+        "map": "地图",
+        "avatar3d": "3D 形象"
+      },
+      "test": {
+        "status": "状态",
+        "model": "模型",
+        "baseUrl": "服务地址",
+        "latency": "延迟",
+        "latencyMs": "毫秒",
+        "reply": "回复",
+        "passed": "测试通过",
+        "failed": "测试失败"
+      },
+      "notify": {
+        "enterName": "请输入昵称。",
+        "uploadAvatar": "请上传头像。",
+        "enterPassword": "请输入密码。",
+        "confirmPassword": "请输入确认密码。",
+        "enterBio": "请输入个人简介。",
+        "passwordMismatch": "两次输入的密码不一致。",
+        "passwordRule": "密码必须包含大写字母、小写字母、数字和特殊字符，且长度至少 8 位。",
+        "selectLlm": "请选择一个大模型。",
+        "enterLlmServer": "请输入大模型服务地址。",
+        "enterApiKey": "请输入大模型 API Key。",
+        "enterXmppAccount": "请输入 XMPP 账号。",
+        "enterXmppPassword": "请输入 XMPP 密码。",
+        "selectAvatar3d": "请选择一个 3D 形象。",
+        "selectMapType": "请选择地图类型。",
+        "enterMapKey": "请输入地图 API Key。",
+        "enterMapId": "请输入地图 ID。",
+        "enterCaptcha": "请输入验证码",
+        "configSaved": "配置已保存",
+        "avatarUpdated": "头像已更新",
+        "avatarUploadFailed": "头像上传失败",
+        "uploadFailed": "上传失败",
+        "submitFailed": "提交失败"
+      }
+    },
+    "page": {
+      "tagline": "连接全球 AI 智能体的社交网络",
+      "description": "AI-SNS 基于分布式、去中心化的网络架构，具备以下核心特点：",
+      "feature1": "本地运行，数据完全由用户掌控。",
+      "feature2": "AI 智能体之间可无缝通信与协作。",
+      "feature3": "用户可在基于 WebGL 的 3D 地图上发布面向 AI 智能体的服务或位置。",
+      "feature4": "智能体通过 XMPP 这一去中心化、分布式的即时消息网络进行通信。",
+      "contactTitle": "联系我们",
+      "contactText": "欢迎访问我们的网站了解更多信息："
+    },
+    "sidebar": {
+      "setting": "设置",
+      "configuration": "配置",
+      "devtools": "开发者工具"
     }
   },
   "agent": {
     "settings": {
-      "title": "\u4ee3\u7406\u8bbe\u7f6e",
-      "basic_info": "\u57fa\u672c\u4fe1\u606f",
-      "a2a_protocol": "A2A \u534f\u8bae",
-      "name": "\u4ee3\u7406\u540d\u79f0",
-      "description": "\u63cf\u8ff0",
-      "agent_type": "\u4ee3\u7406\u7c7b\u578b",
-      "local_agent": "\u672c\u5730\u4ee3\u7406",
-      "remote_agent": "\u8fdc\u7a0b\u4ee3\u7406",
-      "a2a_endpoint": "A2A \u7aef\u70b9 URL",
+      "title": "代理设置",
+      "basic_info": "基本信息",
+      "a2a_protocol": "A2A 协议",
+      "name": "代理名称",
+      "description": "描述",
+      "agent_type": "代理类型",
+      "local_agent": "本地代理",
+      "remote_agent": "远程代理",
+      "a2a_endpoint": "A2A 端点 URL",
       "agent_card_url": "A2A Agent Card URL",
-      "framework": "\u6846\u67b6",
-      "save": "\u4fdd\u5b58",
-      "cancel": "\u53d6\u6d88"
+      "framework": "框架",
+      "save": "保存",
+      "cancel": "取消"
+    },
+    "page": {
+      "role": {
+        "seniorDev": "高级开发者",
+        "assistant": "通用助手",
+        "writer": "创意写作",
+        "analyst": "数据分析师"
+      },
+      "welcomeName": "AI 助手",
+      "welcomeDesc": "由 OpenAI GPT 提供支持",
+      "inputHint": "输入 @@ 加载工具选择器；Ctrl+i 加载预设问题；Ctrl+/ 插入对话模板。",
+      "typeMessage": "输入消息...",
+      "inputTitle": "输入 @ 可提示联想，使用上下方向键浏览输入历史。",
+      "title": {
+        "configTools": "配置工具",
+        "configKb": "配置知识库",
+        "attachment": "附件",
+        "addPlugin": "添加插件",
+        "sendMessage": "发送消息",
+        "stopGenerating": "停止生成",
+        "collapseSettings": "折叠设置面板",
+        "uploadFile": "上传文件"
+      },
+      "section": {
+        "modelParameters": "模型参数",
+        "advancedSettings": "高级设置",
+        "systemPrompt": "系统提示词",
+        "chatFiles": "对话文件"
+      },
+      "param": {
+        "temperature": "温度（Temperature）",
+        "maxTokens": "最大 Token 数",
+        "topP": "Top P",
+        "frequencyPenalty": "频率惩罚",
+        "presencePenalty": "出现惩罚",
+        "streamMode": "流式模式",
+        "showTokenUsage": "显示 Token 消耗",
+        "thinkingEffort": "思考深度",
+        "effortLevel": "深度等级"
+      },
+      "viewDocumentation": "查看文档",
+      "defaultPrompt": "你是一名精通多种编程语言与框架的高级开发者。",
+      "enterPrompt": "请输入系统提示词...",
+      "save": "保存",
+      "noFiles": "暂无文件",
+      "tab": {
+        "param": "参数",
+        "prompt": "提示词",
+        "file": "文件"
+      }
+    },
+    "sidebar": {
+      "section": {
+        "llmSetting": "大模型设置",
+        "roleSetting": "角色设置",
+        "agentManagement": "智能体管理"
+      },
+      "newChat": "新建对话",
+      "setting": "设置",
+      "tab": {
+        "chatList": "对话列表",
+        "tagList": "标签列表"
+      },
+      "searchPlaceholder": "关键词+回车搜索，空+回车重置",
+      "noTags": "暂无标签",
+      "noAgents": "暂无可用的智能体",
+      "createAgentHint": "请先在智能体管理中创建智能体"
     }
   },
   "sns": {
-    "map_setting": "\u5730\u56fe\u8bbe\u7f6e",
-    "google_map": "\u8c37\u6b4c\u5730\u56fe",
-    "baidu_map": "\u767e\u5ea6\u5730\u56fe"
+    "map_setting": "地图设置",
+    "google_map": "谷歌地图",
+    "baidu_map": "百度地图",
+    "page": {
+      "loadingMap": "地图加载中...",
+      "btn": {
+        "square": "广场",
+        "mc": "本人",
+        "move": "移动",
+        "start": "开始",
+        "control": "接管",
+        "plugin": "插件",
+        "help": "帮助"
+      },
+      "title": {
+        "square": "获取 AI 信息的广场",
+        "mc": "本人角色",
+        "move": "将角色移动到地图某一位置",
+        "control": "人工接管",
+        "plugin": "加载插件",
+        "help": "查看帮助",
+        "endControl": "结束人工接管",
+        "collapsePanel": "折叠状态面板",
+        "refreshModel": "刷新模型信息",
+        "closeSearch": "关闭搜索",
+        "previous": "上一个",
+        "next": "下一个"
+      },
+      "talkTo": "对话",
+      "talkMc": "本人",
+      "talkTc": "对象",
+      "talkMcTitle": "本人角色",
+      "talkTcTitle": "目标角色",
+      "inputPlaceholder": "人工输入...",
+      "inputTitle": "输入 @ 可提示联想，使用上下方向键浏览输入历史。",
+      "searchTabPlaceholder": "在当前选项卡内搜索...",
+      "foundResults": "找到 0 条结果",
+      "ctx": {
+        "copy": "复制",
+        "selectAll": "全选",
+        "search": "搜索"
+      },
+      "section": {
+        "currentStatus": "当前状态",
+        "onGoing": "进行中",
+        "processHistory": "进程历史",
+        "resourceOverview": "资源概览",
+        "aiModel": "AI 模型",
+        "thinkingLog": "思考日志"
+      },
+      "row": {
+        "agent": "智能体",
+        "provider": "提供商",
+        "model": "模型"
+      },
+      "tab": {
+        "process": "进程",
+        "resource": "资源",
+        "think": "思考"
+      },
+      "na": "无",
+      "loading": "加载中...",
+      "error": "错误"
+    },
+    "sidebar": {
+      "stat": {
+        "rebirth": "重生值",
+        "credit": "信用值",
+        "exp": "经验值"
+      },
+      "tab": {
+        "chat": "聊天",
+        "visit": "拜访",
+        "trade": "交易"
+      },
+      "searchContacts": "搜索联系人...",
+      "searchTrades": "搜索交易...",
+      "searchVisits": "搜索拜访...",
+      "typeMessage": "输入消息...",
+      "attachFile": "附加文件",
+      "sendMessage": "发送消息",
+      "delete": "删除",
+      "visitOpen": "拜访",
+      "exploreTitle": "探索地球",
+      "defaultVisitTitle": "拜访地点",
+      "emptyContacts": "未找到联系人",
+      "emptyVisits": "暂无拜访记录",
+      "emptyVisitsFound": "未找到拜访记录",
+      "emptyTrades": "暂无交易记录"
+    }
   },
   "common": {
-    "ok": "\u786e\u5b9a",
-    "cancel": "\u53d6\u6d88",
-    "save": "\u4fdd\u5b58",
-    "close": "\u5173\u95ed",
-    "confirm": "\u786e\u8ba4",
-    "loading": "\u52a0\u8f7d\u4e2d...",
-    "error": "\u9519\u8bef",
-    "success": "\u6210\u529f"
+    "ok": "确定",
+    "cancel": "取消",
+    "save": "保存",
+    "close": "关闭",
+    "confirm": "确认",
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功"
+  },
+  "app": {
+    "search": {
+      "title": "搜索",
+      "placeholder": "搜索智能体、聊天、知识库……",
+      "close": "关闭"
+    },
+    "about": {
+      "title": "关于 AI-SNS",
+      "name": "AI-SNS",
+      "subtitle": "AI 智能体社交网络",
+      "version": "版本：1.0.0",
+      "description": "一个支持 AI 与 AI、AI 与人协作的智能社交网络平台。",
+      "close": "关闭"
+    },
+    "help": {
+      "title": "帮助",
+      "close": "关闭",
+      "shortcutsHeading": "快捷键",
+      "sidebarHeading": "侧边栏",
+      "modulesHeading": "模块",
+      "shortcut": {
+        "sidebar": "折叠/展开侧边栏",
+        "search": "搜索",
+        "quickNav": "快速切换模块",
+        "send": "发送消息",
+        "newline": "换行"
+      },
+      "sidebar": {
+        "dragTitle": "拖拽调整宽度",
+        "dragDesc": "拖动分隔条调整侧边栏宽度",
+        "doubleClickTitle": "双击快速折叠",
+        "doubleClickDesc": "双击分隔条可快速折叠",
+        "floatingTitle": "悬浮按钮",
+        "floatingDesc": "鼠标悬停显示折叠按钮"
+      },
+      "module": {
+        "sns": "在地图上进行社交探索",
+        "agent": "AI 智能体对话",
+        "km": "知识库管理",
+        "tools": "插件与工具",
+        "web": "在线大模型服务",
+        "home": "主页设置"
+      }
+    }
+  },
+  "tools": {
+    "page": {
+      "title": "插件列表",
+      "subtitle": "在此管理与测试",
+      "add": "添加",
+      "more": "更多...",
+      "official": "官方",
+      "llmConnector": "LLM 连接器",
+      "download": "下载",
+      "desc": {
+        "openai": "OpenAI 是一家 AI 研究机构，以 GPT-4 和 GPT-4o 闻名，在自然语言理解与生成方面表现卓越。",
+        "claude": "Claude 是 Anthropic 推出的 AI 语言模型，以 Claude 3.5 为代表，定位安全、可靠、易于使用。",
+        "deepseek": "DeepSeek 的 DeepSeek-R1 模型在推理、代码生成和性价比上表现优异，可与 OpenAI 同类产品匠心。",
+        "mistral": "Mistral AI 是总部位于巴黎的初创公司，专注于开源大语言模型，由前 Google DeepMind 和 Meta 的研究人员创立。",
+        "gemini": "Gemini 是 Google DeepMind 推出的多模态 AI 模型，能够直观地理解并整合文本、代码、音频、图像和视频。",
+        "llama": "Llama 由 Meta 研发，提供多种参数规模以适配不同场景，能高效胜任多种自然语言任务。"
+      }
+    },
+    "sidebar": {
+      "title": "工具管理",
+      "mcp": "MCP",
+      "skills": "技能"
+    }
+  },
+  "web": {
+    "page": {
+      "emptyTitle": "网络服务",
+      "emptyDesc": "点击任意一个 LLM 或 AI 工具图标以在此打开",
+      "emptyTip": "提示：右键点击图标查看更多选项",
+      "notConnect": "无法连接到该网站"
+    },
+    "sidebar": {
+      "llmOnline": "在线 LLM",
+      "aiToolsOnline": "在线 AI 工具",
+      "searchPlaceholder": "搜索...",
+      "add": "添加",
+      "manage": "管理",
+      "emptyLlm": "暂无可用的 LLM 服务",
+      "emptyTools": "暂无可用的 AI 工具"
+    }
+  },
+  "km": {
+    "page": {
+      "title": {
+        "save": "保存",
+        "print": "打印",
+        "copy": "复制",
+        "cut": "剪切",
+        "paste": "粘贴",
+        "undo": "撤销",
+        "redo": "重做",
+        "search": "搜索",
+        "date": "日期",
+        "table": "表格",
+        "image": "图片",
+        "link": "链接",
+        "bulletList": "项目符号列表",
+        "numberedList": "编号列表",
+        "emoji": "表情",
+        "symbol": "符号",
+        "bold": "加粗",
+        "italic": "斜体",
+        "underline": "下划线",
+        "strikethrough": "删除线",
+        "superscript": "上标",
+        "subscript": "下标",
+        "alignLeft": "左对齐",
+        "alignCenter": "居中对齐",
+        "alignRight": "右对齐",
+        "justify": "两端对齐",
+        "decreaseIndent": "减少缩进",
+        "increaseIndent": "增加缩进",
+        "fontColor": "字体颜色"
+      }
+    },
+    "sidebar": {
+      "section": {
+        "kmManagement": "知识库管理"
+      },
+      "newNote": "新建笔记",
+      "setting": "设置",
+      "addFile": "添加文件",
+      "add": "添加",
+      "tab": {
+        "all": "全部",
+        "tag": "标签"
+      },
+      "searchPlaceholder": "关键词+回车搜索，空+回车重置",
+      "noTags": "暂无标签",
+      "unknownKbType": "未知的知识库类型"
+    }
   }
 }

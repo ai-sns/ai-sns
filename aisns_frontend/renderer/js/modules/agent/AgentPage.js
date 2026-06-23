@@ -102,10 +102,10 @@ const AgentPage = {
                 </g>
             </svg>
                             <select class="role-selector" id="roleSelector-${agent.id}" data-agent-id="${agent.id}" ${isRemote ? 'disabled' : ''}>
-                                <option value="senior-dev">Senior Developer</option>
-                                <option value="assistant">General Assistant</option>
-                                <option value="writer">Creative Writing</option>
-                                <option value="analyst">Data Analyst</option>
+                                <option value="senior-dev">${window.escHtml(window.tt('agent.page.role.seniorDev'))}</option>
+                                <option value="assistant">${window.escHtml(window.tt('agent.page.role.assistant'))}</option>
+                                <option value="writer">${window.escHtml(window.tt('agent.page.role.writer'))}</option>
+                                <option value="analyst">${window.escHtml(window.tt('agent.page.role.analyst'))}</option>
                             </select>
                         </div>
                     </div>
@@ -135,31 +135,31 @@ const AgentPage = {
     </g>
 </svg>
                             </div>
-                            <h2 class="welcome-title">${agent.name || 'AI Assistant'}</h2>
-                            <p class="welcome-subtitle">${agent.description || 'Powered by OpenAI GPT'}</p>
+                            <h2 class="welcome-title">${window.escHtml(agent.name || window.tt('agent.page.welcomeName'))}</h2>
+                            <p class="welcome-subtitle">${window.escHtml(agent.description || window.tt('agent.page.welcomeDesc'))}</p>
                         </div>
                     </div>
 
                     <!-- Input area -->
                     <div class="agent-chat-input-area">
-                        <div style="display: none;" class="input-hint">Input @@ to load tools selector; Ctrl+i To load preset question; Ctrl+/ To insert chat template.</div>
+                        <div style="display: none;" class="input-hint">${window.escHtml(window.tt('agent.page.inputHint'))}</div>
                         <div class="input-wrapper">
-                            <textarea class="agent-chat-input" id="chatInput-${agent.id}" data-agent-id="${agent.id}" placeholder="Type a message..." title="Type @ to show suggestions. Use ArrowUp/ArrowDown to browse input history." spellcheck="false"></textarea>
+                            <textarea class="agent-chat-input" id="chatInput-${agent.id}" data-agent-id="${agent.id}" placeholder="${window.escAttr(window.tt('agent.page.typeMessage'))}" title="${window.escAttr(window.tt('agent.page.inputTitle'))}" spellcheck="false"></textarea>
                         </div>
                         <div class="input-toolbar">
                             <div class="toolbar-buttons">
-                                <button class="toolbar-icon-btn config-tools-btn" title="Configure tools" data-agent-id="${agent.id}">
+                                <button class="toolbar-icon-btn config-tools-btn" title="${window.escAttr(window.tt('agent.page.title.configTools'))}" data-agent-id="${agent.id}">
                                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                         <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
                                     </svg>
                                 </button>
-                                <button class="toolbar-icon-btn" title="Configure knowledge base" data-action="kb-config" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                <button class="toolbar-icon-btn" title="${window.escAttr(window.tt('agent.page.title.configKb'))}" data-action="kb-config" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                                   <path d="M12 2C7.58 2 4 3.79 4 6v12c0 2.21 3.58 4 8 4s8-1.79 8-4V6c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 .99 6 2s-2.13 2-6 2-6-.99-6-2 2.13-2 6-2zm0 14c-3.87 0-6-.99-6-2v-2c1.46 1.01 4.05 1.5 6 1.5s4.54-.49 6-1.5v2c0 1.01-2.13 2-6 2zm0-6c-3.87 0-6-.99-6-2V8c1.46 1.01 4.05 1.5 6 1.5S16.54 9.01 18 8v2c0 1.01-2.13 2-6 2z"/>
                                 </svg>
                                 </button>
-                                <button class="toolbar-icon-btn" title="Attachment" data-action="attachment" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg></button>
+                                <button class="toolbar-icon-btn" title="${window.escAttr(window.tt('agent.page.title.attachment'))}" data-action="attachment" data-agent-id="${agent.id}"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg></button>
                                 
-                                <button class="toolbar-icon-btn" title="Add Plugin" data-action="add-plugin" data-agent-id="${agent.id}">
+                                <button class="toolbar-icon-btn" title="${window.escAttr(window.tt('agent.page.title.addPlugin'))}" data-action="add-plugin" data-agent-id="${agent.id}">
 
                                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M19.439 7.85c.157-.24.245-.525.245-.814V3a1 1 0 0 0-1-1h-3.95c-.289 0-.574.088-.814.245a2.5 2.5 0 1 1-3.84 0A1.5 1.5 0 0 0 9.266 2H5.316a1 1 0 0 0-1 1v3.95c0 .289-.088.574-.245.814a2.5 2.5 0 1 1 0 3.84c.157.24.245.525.245.814V20a1 1 0 0 0 1 1h3.95c.289 0 .574-.088.814-.245a2.5 2.5 0 1 1 3.84 0c.24.157.525.245.814.245h3.95a1 1 0 0 0 1-1v-3.95c0-.289.088-.574.245-.814a2.5 2.5 0 1 1 0-3.84Z"/>
@@ -167,12 +167,12 @@ const AgentPage = {
                                 </button>
 
                             </div>
-                            <button class="send-btn" id="sendMessageBtn-${agent.id}" data-agent-id="${agent.id}" title="Send message">
+                            <button class="send-btn" id="sendMessageBtn-${agent.id}" data-agent-id="${agent.id}" title="${window.escAttr(window.tt('agent.page.title.sendMessage'))}">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                                     <path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.59 5.58L20 12l-8-8z"/>
                                 </svg>
                             </button>
-                            <button class="cancel-btn" id="cancelMessageBtn-${agent.id}" data-agent-id="${agent.id}" title="Stop generating">
+                            <button class="cancel-btn" id="cancelMessageBtn-${agent.id}" data-agent-id="${agent.id}" title="${window.escAttr(window.tt('agent.page.title.stopGenerating'))}">
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                                     <rect x="6" y="6" width="12" height="12" rx="2"/>
                                 </svg>
@@ -186,7 +186,7 @@ const AgentPage = {
                     <div class="panel-resizer-handle">
                         <div class="panel-resizer-line"></div>
                     </div>
-                    <button class="panel-collapse-btn" id="agentPanelCollapseBtn-${agent.id}" data-agent-id="${agent.id}" title="Collapse settings panel">
+                    <button class="panel-collapse-btn" id="agentPanelCollapseBtn-${agent.id}" data-agent-id="${agent.id}" title="${window.escAttr(window.tt('agent.page.title.collapseSettings'))}">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
                             <polyline points="9,6 15,12 9,18"/>
                         </svg>
@@ -204,27 +204,27 @@ const AgentPage = {
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
                                         <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
                                     </svg>
-                                    <span>Model parameters</span>
+                                    <span>${window.escHtml(window.tt('agent.page.section.modelParameters'))}</span>
                                 </div>
                                 <div class="param-group">
                                     <label class="param-label">
-                                        <span>Temperature</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.temperature'))}</span>
                                         <input type="number" class="param-input" value="0.7" min="0" max="2" step="0.1" data-agent-id="${agent.id}">
                                     </label>
                                     <label class="param-label">
-                                        <span>Max Tokens</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.maxTokens'))}</span>
                                         <input type="number" class="param-input" value="2048" min="1" max="8192" step="1" data-agent-id="${agent.id}">
                                     </label>
                                     <label class="param-label">
-                                        <span>Top P</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.topP'))}</span>
                                         <input type="number" class="param-input" value="0.9" min="0" max="1" step="0.1" data-agent-id="${agent.id}">
                                     </label>
                                     <label class="param-label">
-                                        <span>Frequency Penalty</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.frequencyPenalty'))}</span>
                                         <input type="number" class="param-input" value="0" min="-2" max="2" step="0.1" data-agent-id="${agent.id}">
                                     </label>
                                     <label class="param-label">
-                                        <span>Presence Penalty</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.presencePenalty'))}</span>
                                         <input type="number" class="param-input" value="0" min="-2" max="2" step="0.1" data-agent-id="${agent.id}">
                                     </label>
                                 </div>
@@ -242,26 +242,26 @@ const AgentPage = {
                                         <line x1="9" y1="8" x2="15" y2="8"></line>
                                         <line x1="17" y1="16" x2="23" y2="16"></line>
                                     </svg>                                    
-                                    <span>Advanced settings</span>
+                                    <span>${window.escHtml(window.tt('agent.page.section.advancedSettings'))}</span>
                                 </div>
                                 <div class="param-group">
                                     <label class="param-toggle">
-                                        <span>Stream mode</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.streamMode'))}</span>
                                         <input type="checkbox" checked data-agent-id="${agent.id}">
                                         <span class="toggle-slider"></span>
                                     </label>
                                     <label class="param-toggle">
-                                        <span>Show token usage</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.showTokenUsage'))}</span>
                                         <input type="checkbox" data-agent-id="${agent.id}">
                                         <span class="toggle-slider"></span>
                                     </label>
                                     <label class="param-toggle">
-                                        <span>Thinking effort</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.thinkingEffort'))}</span>
                                         <input type="checkbox" data-agent-id="${agent.id}">
                                         <span class="toggle-slider"></span>
                                     </label>
                                     <label class="param-label thinking-effort-wrapper" style="display:none;">
-                                        <span>Effort level</span>
+                                        <span>${window.escHtml(window.tt('agent.page.param.effortLevel'))}</span>
                                         <select class="param-input thinking-effort-select" data-agent-id="${agent.id}">
                                             <option value="minimal">minimal</option>
                                             <option value="low">low</option>
@@ -270,7 +270,7 @@ const AgentPage = {
                                             <option value="max">max</option>
                                         </select>
                                         <div class="thinking-effort-doc-link" style="display:none;">
-                                            <a class="thinking-effort-doc-anchor" href="#" data-external-url="" target="_blank" rel="noopener noreferrer">View documentation</a>
+                                            <a class="thinking-effort-doc-anchor" href="#" data-external-url="" target="_blank" rel="noopener noreferrer">${window.escHtml(window.tt('agent.page.viewDocumentation'))}</a>
                                         </div>
                                     </label>
                                 </div>
@@ -284,11 +284,11 @@ const AgentPage = {
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
                                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                                     </svg>
-                                    <span>System Prompt</span>
+                                    <span>${window.escHtml(window.tt('agent.page.section.systemPrompt'))}</span>
                                 </div>
                                 <div class="prompt-editor">
-                                    <textarea class="prompt-textarea" id="systemPrompt-${agent.id}" data-agent-id="${agent.id}" placeholder="Enter system prompt...">You are a senior developer proficient in multiple programming languages and frameworks.</textarea>
-                                    <button class="prompt-save-btn" data-agent-id="${agent.id}">Save</button>
+                                    <textarea class="prompt-textarea" id="systemPrompt-${agent.id}" data-agent-id="${agent.id}" placeholder="${window.escAttr(window.tt('agent.page.enterPrompt'))}">${window.escHtml(window.tt('agent.page.defaultPrompt'))}</textarea>
+                                    <button class="prompt-save-btn" data-agent-id="${agent.id}">${window.escHtml(window.tt('agent.page.save'))}</button>
                                 </div>
                             </div>
                         </div>
@@ -300,8 +300,8 @@ const AgentPage = {
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="#1a73e8">
                                         <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
                                     </svg>
-                                    <span>Chat files</span>
-                                    <button class="file-upload-btn" title="Upload file" data-agent-id="${agent.id}">
+                                    <span>${window.escHtml(window.tt('agent.page.section.chatFiles'))}</span>
+                                    <button class="file-upload-btn" title="${window.escAttr(window.tt('agent.page.title.uploadFile'))}" data-agent-id="${agent.id}">
                                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                                             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                                         </svg>
@@ -312,7 +312,7 @@ const AgentPage = {
                                         <svg viewBox="0 0 24 24" width="48" height="48" fill="#ccc">
                                             <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
                                         </svg>
-                                        <p>No files</p>
+                                        <p>${window.escHtml(window.tt('agent.page.noFiles'))}</p>
                                     </div>
                                 </div>
                             </div>
@@ -324,13 +324,13 @@ const AgentPage = {
                     <!-- Bottom tab buttons -->
                     <div class="settings-tabs" id="settingsTabs-${agent.id}">
                         <button class="settings-tab active" data-tab="param" data-agent-id="${agent.id}" ${isRemote ? 'disabled' : ''}>
-                            <span>Param</span>
+                            <span>${window.escHtml(window.tt('agent.page.tab.param'))}</span>
                         </button>
                         <button class="settings-tab" data-tab="prompt" data-agent-id="${agent.id}" ${isRemote ? 'disabled' : ''}>
-                            <span>Prompt</span>
+                            <span>${window.escHtml(window.tt('agent.page.tab.prompt'))}</span>
                         </button>
                         <button class="settings-tab" data-tab="file" data-agent-id="${agent.id}" ${isRemote ? 'disabled' : ''}>
-                            <span>File</span>
+                            <span>${window.escHtml(window.tt('agent.page.tab.file'))}</span>
                         </button>
                     </div>
                 </div>

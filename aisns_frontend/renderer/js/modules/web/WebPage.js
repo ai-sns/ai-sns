@@ -27,13 +27,14 @@ const WebPage = {
         this._lastConnectFailAt = now;
         this._lastConnectFailUrl = normalizedUrl;
 
+        const msg = (window.tt && window.tt('web.page.notConnect')) || 'WebSite Can not connect';
         if (window.Toast && typeof window.Toast.error === 'function') {
-            window.Toast.error('WebSite Can not connect');
+            window.Toast.error(msg);
             return;
         }
 
         if (window.Notification && typeof window.Notification.error === 'function') {
-            window.Notification.error('WebSite Can not connect');
+            window.Notification.error(msg);
         }
     },
 
@@ -47,10 +48,10 @@ const WebPage = {
                             <path d="M2 12h20"/>
                             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                         </svg>
-                        <h3>Web Services</h3>
-                        <p>Click on any LLM or AI Tool icon to open it here</p>
+                        <h3>${window.escHtml(window.tt('web.page.emptyTitle'))}</h3>
+                        <p>${window.escHtml(window.tt('web.page.emptyDesc'))}</p>
                         <p style="font-size: 0.75rem; margin-top: 1rem; opacity: 0.6;">
-                            💡 Tip: Right-click on any icon for more options
+                            💡 ${window.escHtml(window.tt('web.page.emptyTip'))}
                         </p>
                     </div>
                 </div>

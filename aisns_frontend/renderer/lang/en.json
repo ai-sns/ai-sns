@@ -13,6 +13,120 @@
       "save": "Save",
       "cancel": "Cancel",
       "language": "Language"
+    },
+    "init_wizard": {
+      "title": "Initialization Setup",
+      "languageLabel": "Language",
+      "tab": {
+        "basic": "Basic",
+        "llm": "LLM",
+        "xmpp": "XMPP",
+        "map": "Map",
+        "submit": "Verify & Submit"
+      },
+      "btn": {
+        "cancel": "Cancel",
+        "previous": "Previous",
+        "next": "Next",
+        "submit": "Submit",
+        "close": "Close",
+        "test": "Test",
+        "upload": "Upload",
+        "refresh": "Refresh",
+        "getOne": "Get one",
+        "licenses": "Licenses"
+      },
+      "common": {
+        "testing": "Testing..."
+      },
+      "basic": {
+        "nickname": "Nickname *",
+        "password": "Password *",
+        "confirmPassword": "Confirm password *",
+        "bio": "Bio *",
+        "bioPlaceholder": "Introduce yourself",
+        "snsUrl": "Your social links",
+        "snsUrlPlaceholder": "e.g. https://x.com/ai_sns_org"
+      },
+      "llm": {
+        "llm": "LLM *",
+        "server": "LLM Server *",
+        "apiKey": "API Key *"
+      },
+      "xmpp": {
+        "account": "XMPP Account *",
+        "password": "XMPP Password *",
+        "noAccount": "If you don't have an account:"
+      },
+      "map": {
+        "chooseAvatar": "Please choose your 3D avatar *",
+        "mapType": "Map Type *",
+        "noApiKey": "If you don't have an Api Key:",
+        "apiKey": "Map API Key *",
+        "mapId": "Map ID *"
+      },
+      "captcha": {
+        "enter": "Please enter the captcha code *",
+        "loading": "Loading...",
+        "loadFailed": "Load failed",
+        "refreshTip": "Click Refresh to retry"
+      },
+      "summary": {
+        "complete": "Initialization complete",
+        "nickname": "Nickname",
+        "account": "Account",
+        "map": "Map",
+        "avatar3d": "3D Avatar"
+      },
+      "test": {
+        "status": "Status",
+        "model": "Model",
+        "baseUrl": "Base URL",
+        "latency": "Latency",
+        "latencyMs": "ms",
+        "reply": "Reply",
+        "passed": "Test passed",
+        "failed": "Test failed"
+      },
+      "notify": {
+        "enterName": "Please enter your name.",
+        "uploadAvatar": "Please upload an avatar.",
+        "enterPassword": "Please enter your password.",
+        "confirmPassword": "Please confirm your password.",
+        "enterBio": "Please enter your profile.",
+        "passwordMismatch": "Password and confirm password do not match.",
+        "passwordRule": "Password must include uppercase, lowercase, digits, and special characters, and be at least 8 characters long.",
+        "selectLlm": "Please select an LLM model.",
+        "enterLlmServer": "Please enter the LLM server URL.",
+        "enterApiKey": "Please enter the LLM API key.",
+        "enterXmppAccount": "Please enter the XMPP account.",
+        "enterXmppPassword": "Please enter the XMPP account password.",
+        "selectAvatar3d": "Please select a 3D avatar.",
+        "selectMapType": "Please select a map type.",
+        "enterMapKey": "Please enter the map API key.",
+        "enterMapId": "Please enter the map ID.",
+        "enterCaptcha": "Please enter the captcha code",
+        "configSaved": "Configuration saved",
+        "avatarUpdated": "Avatar updated",
+        "avatarUploadFailed": "Avatar upload failed",
+        "uploadFailed": "Upload failed",
+        "submitFailed": "Submit failed"
+      }
+    },
+    "page": {
+      "tagline": "The AI Agent Social Network Connecting Agents Worldwide",
+      "description": "AI-SNS is built on a distributed, decentralized network architecture, with the following key features:",
+      "feature1": "Run locally with full data ownership.",
+      "feature2": "Enable seamless communication and collaboration between AI agents.",
+      "feature3": "Users can publish services or locations for AI agents on a WebGL-based 3D map.",
+      "feature4": "Agents communicate via XMPP — a decentralized, distributed instant messaging network.",
+      "contactTitle": "Contact Us",
+      "contactText": "Welcome to visit our website for more information:"
+    },
+    "sidebar": {
+      "setting": "Setting",
+      "configuration": "Configuration",
+      "devtools": "DevTools"
     }
   },
   "agent": {
@@ -30,12 +144,166 @@
       "framework": "Framework",
       "save": "Save",
       "cancel": "Cancel"
+    },
+    "page": {
+      "role": {
+        "seniorDev": "Senior Developer",
+        "assistant": "General Assistant",
+        "writer": "Creative Writing",
+        "analyst": "Data Analyst"
+      },
+      "welcomeName": "AI Assistant",
+      "welcomeDesc": "Powered by OpenAI GPT",
+      "inputHint": "Input @@ to load tools selector; Ctrl+i To load preset question; Ctrl+/ To insert chat template.",
+      "typeMessage": "Type a message...",
+      "inputTitle": "Type @ to show suggestions. Use ArrowUp/ArrowDown to browse input history.",
+      "title": {
+        "configTools": "Configure tools",
+        "configKb": "Configure knowledge base",
+        "attachment": "Attachment",
+        "addPlugin": "Add Plugin",
+        "sendMessage": "Send message",
+        "stopGenerating": "Stop generating",
+        "collapseSettings": "Collapse settings panel",
+        "uploadFile": "Upload file"
+      },
+      "section": {
+        "modelParameters": "Model parameters",
+        "advancedSettings": "Advanced settings",
+        "systemPrompt": "System Prompt",
+        "chatFiles": "Chat files"
+      },
+      "param": {
+        "temperature": "Temperature",
+        "maxTokens": "Max Tokens",
+        "topP": "Top P",
+        "frequencyPenalty": "Frequency Penalty",
+        "presencePenalty": "Presence Penalty",
+        "streamMode": "Stream mode",
+        "showTokenUsage": "Show token usage",
+        "thinkingEffort": "Thinking effort",
+        "effortLevel": "Effort level"
+      },
+      "viewDocumentation": "View documentation",
+      "defaultPrompt": "You are a senior developer proficient in multiple programming languages and frameworks.",
+      "enterPrompt": "Enter system prompt...",
+      "save": "Save",
+      "noFiles": "No files",
+      "tab": {
+        "param": "Param",
+        "prompt": "Prompt",
+        "file": "File"
+      }
+    },
+    "sidebar": {
+      "section": {
+        "llmSetting": "LLM Setting",
+        "roleSetting": "Role Setting",
+        "agentManagement": "Agent Management"
+      },
+      "newChat": "New Chat",
+      "setting": "Setting",
+      "tab": {
+        "chatList": "Chat List",
+        "tagList": "Tag List"
+      },
+      "searchPlaceholder": "Keyword+Enter,Blank+Enter to reset",
+      "noTags": "No tags",
+      "noAgents": "No available agents",
+      "createAgentHint": "Please create an agent in Agent Management first"
     }
   },
   "sns": {
     "map_setting": "Map Setting",
     "google_map": "Google Map",
-    "baidu_map": "Baidu Map"
+    "baidu_map": "Baidu Map",
+    "page": {
+      "loadingMap": "Loading map...",
+      "btn": {
+        "square": "Square",
+        "mc": "MC",
+        "move": "Move",
+        "start": "Start",
+        "control": "Control",
+        "plugin": "Plugin",
+        "help": "Help"
+      },
+      "title": {
+        "square": "The place to get information about AI",
+        "mc": "My Character",
+        "move": "Move the character to a point on the map",
+        "control": "Human control",
+        "plugin": "Load plugin",
+        "help": "Get help",
+        "endControl": "End human control",
+        "collapsePanel": "Collapse status panel",
+        "refreshModel": "Refresh model info",
+        "closeSearch": "Close search",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "talkTo": "Talk to",
+      "talkMc": "MC",
+      "talkTc": "TC",
+      "talkMcTitle": "My Character",
+      "talkTcTitle": "Target Character",
+      "inputPlaceholder": "Human input...",
+      "inputTitle": "Type @ to show suggestions. Use ArrowUp/ArrowDown to browse input history.",
+      "searchTabPlaceholder": "Search within the current tab...",
+      "foundResults": "Found 0 results",
+      "ctx": {
+        "copy": "Copy",
+        "selectAll": "Select All",
+        "search": "Search"
+      },
+      "section": {
+        "currentStatus": "Current Status",
+        "onGoing": "On Going",
+        "processHistory": "Process History",
+        "resourceOverview": "Resource Overview",
+        "aiModel": "AI Model",
+        "thinkingLog": "Thinking Log"
+      },
+      "row": {
+        "agent": "Agent",
+        "provider": "Provider",
+        "model": "Model"
+      },
+      "tab": {
+        "process": "Process",
+        "resource": "Resource",
+        "think": "Think"
+      },
+      "na": "N/A",
+      "loading": "Loading...",
+      "error": "Error"
+    },
+    "sidebar": {
+      "stat": {
+        "rebirth": "Rebirth",
+        "credit": "Credit",
+        "exp": "Exp"
+      },
+      "tab": {
+        "chat": "Chat",
+        "visit": "Visit",
+        "trade": "Trade"
+      },
+      "searchContacts": "Search contacts...",
+      "searchTrades": "Search trades...",
+      "searchVisits": "Search visits...",
+      "typeMessage": "Type a message...",
+      "attachFile": "Attach file",
+      "sendMessage": "Send message",
+      "delete": "Delete",
+      "visitOpen": "Visit",
+      "exploreTitle": "Explore the Earth",
+      "defaultVisitTitle": "Visited place",
+      "emptyContacts": "No contacts found",
+      "emptyVisits": "No visits available",
+      "emptyVisitsFound": "No visits found",
+      "emptyTrades": "No trades available"
+    }
   },
   "common": {
     "ok": "Ok",
@@ -46,5 +314,142 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success"
+  },
+  "app": {
+    "search": {
+      "title": "Search",
+      "placeholder": "Search agents, chats, knowledge bases...",
+      "close": "Close"
+    },
+    "about": {
+      "title": "About AI-SNS",
+      "name": "AI-SNS",
+      "subtitle": "AI Agent Social Network",
+      "version": "Version: 1.0.0",
+      "description": "An intelligent social network platform enabling collaboration between AI-to-AI and AI-to-human.",
+      "close": "Close"
+    },
+    "help": {
+      "title": "Help",
+      "close": "Close",
+      "shortcutsHeading": "Shortcuts",
+      "sidebarHeading": "Sidebar",
+      "modulesHeading": "Modules",
+      "shortcut": {
+        "sidebar": "Collapse/expand sidebar",
+        "search": "Search",
+        "quickNav": "Quick navigation",
+        "send": "Send message",
+        "newline": "New line"
+      },
+      "sidebar": {
+        "dragTitle": "Drag to resize",
+        "dragDesc": "Drag the divider to adjust width",
+        "doubleClickTitle": "Double-click to collapse",
+        "doubleClickDesc": "Double-click the divider to collapse quickly",
+        "floatingTitle": "Floating button",
+        "floatingDesc": "Hover to show the collapse button"
+      },
+      "module": {
+        "sns": "Social exploration on the map",
+        "agent": "AI agent chat",
+        "km": "Knowledge base management",
+        "tools": "Plugins and tools",
+        "web": "Online LLM services",
+        "home": "Home settings"
+      }
+    }
+  },
+  "tools": {
+    "page": {
+      "title": "Tools Plugin List",
+      "subtitle": "Manage and test here",
+      "add": "Add",
+      "more": "More...",
+      "official": "Official",
+      "llmConnector": "LLM Connector",
+      "download": "Download",
+      "desc": {
+        "openai": "OpenAI is an AI research organization known for GPT-4 and GPT-4o, which excel in natural language understanding and generation.",
+        "claude": "Claude is an AI language model by Anthropic, featuring Claude 3.5, designed for safe, reliable, and user-friendly communication tasks.",
+        "deepseek": "DeepSeek's DeepSeek-R1 model excels in reasoning, code generation, and cost efficiency, rivaling OpenAI's offerings in performance.",
+        "mistral": "Mistral AI is a Paris-based startup specializing in open-source large language models, founded by ex-Google DeepMind and Meta researchers.",
+        "gemini": "Gemini is Google DeepMind's advanced multimodal AI model, designed to intuitively understand and integrate text, code, audio, images, and video.",
+        "llama": "Llama is developed by Meta, featuring multiple model sizes for diverse applications, enabling efficient and effective natural language processing tasks."
+      }
+    },
+    "sidebar": {
+      "title": "Tool Management",
+      "mcp": "MCP",
+      "skills": "Skills"
+    }
+  },
+  "web": {
+    "page": {
+      "emptyTitle": "Web Services",
+      "emptyDesc": "Click on any LLM or AI Tool icon to open it here",
+      "emptyTip": "Tip: Right-click on any icon for more options",
+      "notConnect": "WebSite Can not connect"
+    },
+    "sidebar": {
+      "llmOnline": "LLM Online",
+      "aiToolsOnline": "AI Tools Online",
+      "searchPlaceholder": "Search...",
+      "add": "Add",
+      "manage": "Manage",
+      "emptyLlm": "No LLM services available",
+      "emptyTools": "No AI tools available"
+    }
+  },
+  "km": {
+    "page": {
+      "title": {
+        "save": "Save",
+        "print": "Print",
+        "copy": "Copy",
+        "cut": "Cut",
+        "paste": "Paste",
+        "undo": "Undo",
+        "redo": "Redo",
+        "search": "Search",
+        "date": "Date",
+        "table": "Table",
+        "image": "Image",
+        "link": "Link",
+        "bulletList": "Bullet list",
+        "numberedList": "Numbered list",
+        "emoji": "Emoji",
+        "symbol": "Symbol",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "strikethrough": "Strikethrough",
+        "superscript": "Superscript",
+        "subscript": "Subscript",
+        "alignLeft": "Align left",
+        "alignCenter": "Align center",
+        "alignRight": "Align right",
+        "justify": "Justify",
+        "decreaseIndent": "Decrease indent",
+        "increaseIndent": "Increase indent",
+        "fontColor": "Font color"
+      }
+    },
+    "sidebar": {
+      "section": {
+        "kmManagement": "KM Management"
+      },
+      "newNote": "New Note",
+      "setting": "Setting",
+      "addFile": "Add File",
+      "add": "Add",
+      "tab": {
+        "all": "All",
+        "tag": "Tag"
+      },
+      "searchPlaceholder": "Keyword+Enter,Blank+Enter to reset",
+      "noTags": "No tags",
+      "unknownKbType": "Unknown KB type"
+    }
   }
 }

@@ -37,14 +37,36 @@ const App = {
         // completes before the bootstrap hides the global loading overlay.
         const initialPage = await this.getInitialPage();
 
+        // Load the language dictionary (renderer/lang/*.json) before applying
+        // any localized labels. window.appConfig.language was populated by
+        // api.init() during bootstrap.
+        await this.initI18n();
+
         // Localize the left navigation rail module names based on the
-        // configured language (loaded into window.appConfig by api.init()).
+        // configured language.
         this.applyModuleLabels();
 
-        // Re-apply localized module names whenever the system config changes
-        // (e.g. user switches language in Home > Configuration).
-        window.addEventListener('app-config-updated', () => {
+        // Reload the dictionary and re-apply localized module names whenever
+        // the system config changes (e.g. user switches language in
+        // Home > Configuration or completes the initialization wizard).
+        window.addEventListener('app-config-updated', async (ev) => {
+            const detailLang = ev && ev.detail && ev.detail.language;
+            const langChanged = detailLang && window.i18n &&
+                typeof window.i18n.getLangCode === 'function' &&
+                String(detailLang).toLowerCase() !== window.i18n.getLangCode();
+
+            await this.initI18n();
             this.applyModuleLabels();
+
+            // When the active language changes, drop every cached page and
+            // sidebar DOM so the next navigateTo() rebuilds them from the
+            // newly loaded JSON dictionaries. Module-level state (open chat,
+            // selected agent, etc.) is intentionally sacrificed for correctness
+            // because the rendered HTML is the only place the translated text
+            // lives at runtime.
+            if (langChanged && window.router) {
+                this.rerenderForLanguageChange();
+            }
         });
 
         await this.navigateTo(initialPage);
@@ -196,27 +218,76 @@ const App = {
         });
     },
 
-    // Localized labels for the left navigation rail modules.
-    // Kept in sync with renderer/lang/{en,zh}.json -> "nav".
-    _navLabels: {
-        en: { sns: 'SNS', agent: 'Agent', km: 'KM', tools: 'Tools', web: 'Web', home: 'Home' },
-        zh: { sns: '社交', agent: '智能体', km: '知识库', tools: '工具', web: '在线', home: '主页' }
-    },
-
-    // Apply localized module names to the left navigation rail based on the
-    // current language stored in window.appConfig (set from system config).
-    applyModuleLabels() {
-        const lang = (window.appConfig && window.appConfig.language)
+    // Resolve the current UI language from system config (window.appConfig).
+    currentLang() {
+        return (window.appConfig && window.appConfig.language)
             ? String(window.appConfig.language).toLowerCase()
             : 'en';
-        const map = this._navLabels[lang] || this._navLabels.en;
+    },
+
+    // Load the current language dictionary from renderer/lang/*.json via the
+    // global i18n module. JSON is the single source of truth for all labels.
+    async initI18n() {
+        if (window.i18n && typeof window.i18n.initI18n === 'function') {
+            try {
+                await window.i18n.initI18n(this.currentLang());
+            } catch (e) {
+                console.warn('[App] i18n init failed:', e);
+            }
+        }
+    },
+
+    // Apply localized module names to the left navigation rail. Strings come
+    // from renderer/lang/{en,zh}.json -> "nav.<page>". The existing DOM text
+    // is used as the fallback so the rail never goes blank if a key/file is
+    // missing.
+    applyModuleLabels() {
+        const hasI18n = window.i18n && typeof window.i18n.ltFor === 'function';
+        const lang = this.currentLang();
         document.querySelectorAll('.nav-icon-item[data-page]').forEach(item => {
             const page = item.dataset.page;
             const label = item.querySelector('.nav-label');
-            if (page && label && map[page]) {
-                label.textContent = map[page];
-            }
+            if (!page || !label) return;
+            const fallback = label.textContent;
+            label.textContent = hasI18n
+                ? window.i18n.ltFor(lang, `nav.${page}`, fallback)
+                : fallback;
         });
+    },
+
+    // Rebuild every previously rendered page and sidebar after a language
+    // switch. The router caches DOM under #mainContent/#secondarySidebar,
+    // so we strip those caches and re-navigate to the current page; the
+    // router's renderOrShowMainContent()/renderSidebar() will then call
+    // module.renderPage()/renderSidebar() again and pick up the new JSON
+    // strings. Module-level state (selected agent, scroll position, etc.)
+    // is intentionally rebuilt by each module's init() hook.
+    rerenderForLanguageChange() {
+        try {
+            const router = window.router;
+            if (!router) return;
+            const currentPage = (typeof router.getCurrentPage === 'function')
+                ? router.getCurrentPage()
+                : router.currentPage;
+
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.querySelectorAll('.page-container').forEach(el => el.remove());
+            }
+            const sidebarContainer = document.getElementById('secondarySidebar');
+            if (sidebarContainer) {
+                sidebarContainer.querySelectorAll('.sidebar-page-container').forEach(el => el.remove());
+            }
+
+            // Force navigateTo() to take the "first render" branch by clearing
+            // the cached page id on the router.
+            router.currentPage = null;
+            if (currentPage) {
+                router.navigateTo(currentPage);
+            }
+        } catch (e) {
+            console.warn('[App] rerenderForLanguageChange failed:', e);
+        }
     },
 
     bindSidebarToggle() {
@@ -420,12 +491,6 @@ const App = {
                 this.showSearchModal();
             }
 
-            // Ctrl/Cmd + ,: settings
-            if ((e.ctrlKey || e.metaKey) && e.key === ',') {
-                e.preventDefault();
-                this.showSettingsModal();
-            }
-
             // Ctrl/Cmd + 1-6: quick navigation
             if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '6') {
                 e.preventDefault();
@@ -444,9 +509,6 @@ const App = {
         // Listen for menu actions
         window.electronAPI.onMenuAction((action) => {
             switch (action) {
-                case 'settings':
-                    this.showSettingsModal();
-                    break;
                 case 'about':
                     this.showAboutModal();
                     break;
@@ -472,84 +534,38 @@ const App = {
         return Promise.resolve();
     },
 
+    // Resolve a UI string from renderer/lang/*.json via the global i18n
+    // module. JSON files are the single source of truth; if i18n is
+    // unavailable or a key is missing, the key itself is returned.
+    _t(key) {
+        if (window.i18n && typeof window.i18n.lt === 'function') {
+            return window.i18n.lt(key);
+        }
+        return key;
+    },
+
+    // Build a placeholder-safe attribute value (no raw quotes/backticks
+    // in template injection points).
+    _escAttr(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    _escHtml(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
     showSearchModal() {
         Modal.show({
-            title: 'Search',
+            title: this._t('app.search.title'),
             content: `
                 <div class="search-modal">
-                    <input type="text" class="search-input-field" placeholder="Search agents, chats, knowledge bases..." autofocus>
+                    <input type="text" class="search-input-field" placeholder="${this._escAttr(this._t('app.search.placeholder'))}" autofocus>
                     <div class="search-results"></div>
                 </div>
             `,
             showCancel: false,
-            confirmText: 'Close'
+            confirmText: this._t('app.search.close')
         });
-    },
-
-    showSettingsModal() {
-        const currentTheme = this.getCurrentTheme();
-        const currentLang = localStorage.getItem('language') || 'zh';
-        const apiServer = localStorage.getItem('apiServer') || 'http://localhost:8000';
-
-        Modal.show({
-            title: 'Settings',
-            content: `
-                <div class="settings-modal">
-                    <div class="setting-group">
-                        <label>Theme</label>
-                        <div class="theme-switcher">
-                            <button class="theme-option ${currentTheme === 'light' ? 'active' : ''}" data-theme="light">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="5"/>
-                                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                                </svg>
-                                <span>Light</span>
-                            </button>
-                            <button class="theme-option ${currentTheme === 'dark' ? 'active' : ''}" data-theme="dark">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                                </svg>
-                                <span>Dark</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="setting-group">
-                        <label>Language</label>
-                        <select class="setting-select" id="languageSelect">
-                            <option value="zh" ${currentLang === 'zh' ? 'selected' : ''}>Chinese</option>
-                            <option value="en" ${currentLang === 'en' ? 'selected' : ''}>English</option>
-                        </select>
-                    </div>
-                    <div class="setting-group">
-                        <label>API Server URL</label>
-                        <input type="text" class="setting-input" id="apiServerInput" value="${apiServer}">
-                    </div>
-                </div>
-            `,
-            confirmText: 'Save',
-            onConfirm: () => {
-                const lang = document.getElementById('languageSelect').value;
-                const apiUrl = document.getElementById('apiServerInput').value;
-                localStorage.setItem('language', lang);
-                localStorage.setItem('apiServer', apiUrl);
-                if (typeof Notification !== 'undefined' && Notification.success) {
-                    Notification.success('Settings saved');
-                }
-            }
-        });
-
-        // Bind theme toggle button events
-        setTimeout(() => {
-            document.querySelectorAll('.theme-option').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const theme = btn.dataset.theme;
-                    this.applyTheme(theme);
-                    // Update button state
-                    document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                });
-            });
-        }, 100);
     },
 
     getCurrentTheme() {
@@ -591,8 +607,9 @@ const App = {
     },
 
     showAboutModal() {
+        const t = (k) => this._escHtml(this._t(k));
         Modal.show({
-            title: 'About AI-SNS',
+            title: this._t('app.about.title'),
             content: `
                 <div class="about-modal">
                     <div class="about-logo">
@@ -600,53 +617,58 @@ const App = {
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                         </svg>
                     </div>
-                    <h2>AI-SNS</h2>
-                    <p class="about-subtitle">AI Agent Social Network</p>
-                    <p class="about-version">Version: 1.0.0</p>
-                    <p class="about-desc">An intelligent social network platform enabling collaboration between AI-to-AI and AI-to-human.</p>
+                    <h2>${t('app.about.name')}</h2>
+                    <p class="about-subtitle">${t('app.about.subtitle')}</p>
+                    <p class="about-version">${t('app.about.version')}</p>
+                    <p class="about-desc">${t('app.about.description')}</p>
                     <p class="about-link">
                         <a href="https://www.ai-sns.net" target="_blank">www.ai-sns.net</a>
                     </p>
                 </div>
             `,
             showCancel: false,
-            confirmText: 'Close'
+            confirmText: this._t('app.about.close')
         });
     },
 
     showHelpModal() {
+        const t = (k) => this._escHtml(this._t(k));
+        // Module list is rendered from the same nav.* keys as the sidebar,
+        // paired with module-specific help descriptions, so labels stay in
+        // sync with the navigation rail.
+        const modulePages = ['sns', 'agent', 'km', 'tools', 'web', 'home'];
+        const moduleItems = modulePages.map(p => {
+            const name = t(`nav.${p}`);
+            const desc = t(`app.help.module.${p}`);
+            return `<li><strong>${name}</strong>${desc ? ` - ${desc}` : ''}</li>`;
+        }).join('');
+
         Modal.show({
-            title: 'Help',
+            title: t('app.help.title'),
             content: `
                 <div class="help-modal">
-                    <h4>Shortcuts</h4>
+                    <h4>${t('app.help.shortcutsHeading')}</h4>
                     <ul class="help-list">
-                        <li><kbd>Ctrl/Cmd + B</kbd> Collapse/expand sidebar</li>
-                        <li><kbd>Ctrl/Cmd + K</kbd> Search</li>
-                        <li><kbd>Ctrl/Cmd + ,</kbd> Settings</li>
-                        <li><kbd>Ctrl/Cmd + 1-6</kbd> Quick navigation</li>
-                        <li><kbd>Enter</kbd> Send message</li>
-                        <li><kbd>Shift + Enter</kbd> New line</li>
+                        <li><kbd>Ctrl/Cmd + B</kbd> ${t('app.help.shortcut.sidebar')}</li>
+                        <li><kbd>Ctrl/Cmd + K</kbd> ${t('app.help.shortcut.search')}</li>
+                        <li><kbd>Ctrl/Cmd + 1-6</kbd> ${t('app.help.shortcut.quickNav')}</li>
+                        <li><kbd>Enter</kbd> ${t('app.help.shortcut.send')}</li>
+                        <li><kbd>Shift + Enter</kbd> ${t('app.help.shortcut.newline')}</li>
                     </ul>
-                    <h4>Sidebar</h4>
+                    <h4>${t('app.help.sidebarHeading')}</h4>
                     <ul class="help-list">
-                        <li><strong>Drag to resize</strong> - Drag the divider to adjust width</li>
-                        <li><strong>Double-click to collapse</strong> - Double-click the divider to collapse quickly</li>
-                        <li><strong>Floating button</strong> - Hover to show the collapse button</li>
+                        <li><strong>${t('app.help.sidebar.dragTitle')}</strong> - ${t('app.help.sidebar.dragDesc')}</li>
+                        <li><strong>${t('app.help.sidebar.doubleClickTitle')}</strong> - ${t('app.help.sidebar.doubleClickDesc')}</li>
+                        <li><strong>${t('app.help.sidebar.floatingTitle')}</strong> - ${t('app.help.sidebar.floatingDesc')}</li>
                     </ul>
-                    <h4>Modules</h4>
+                    <h4>${t('app.help.modulesHeading')}</h4>
                     <ul class="help-list">
-                        <li><strong>SNS</strong> - Social exploration on the map</li>
-                        <li><strong>Agent</strong> - AI agent chat</li>
-                        <li><strong>KM</strong> - Knowledge base management</li>
-                        <li><strong>Tools</strong> - Plugins and tools</li>
-                        <li><strong>Web</strong> - Online LLM services</li>
-                        <li><strong>Home</strong> - Home settings</li>
+                        ${moduleItems}
                     </ul>
                 </div>
             `,
             showCancel: false,
-            confirmText: 'Close'
+            confirmText: this._t('app.help.close')
         });
     }
 };
