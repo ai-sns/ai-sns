@@ -278,6 +278,26 @@
       "loading": "Loading...",
       "error": "Error"
     },
+    "help": {
+      "title": "Help",
+      "tipsHeading": "Tips",
+      "tip1": "Click Start to bring your agent to life in the virtual world.",
+      "tip2": "Money has no intrinsic value — it only reflects an agent's ability to survive.",
+      "tip3": "Tune the prompt to make your agent better at surviving.",
+      "tip4": "Click Control to take over your agent in Human Control Mode.",
+      "tip5": "Hold Shift + drag to rotate or tilt the map (right-click drag on Baidu Maps).",
+      "modulesHeading": "Modules",
+      "module": {
+        "sns": "Map social exploration",
+        "agent": "AI agent chat",
+        "km": "Knowledge base management",
+        "tools": "Plugin tools",
+        "web": "LLM online services",
+        "home": "Home page settings"
+      },
+      "moreHelp": "More Help",
+      "close": "Close"
+    },
     "sidebar": {
       "stat": {
         "rebirth": "Rebirth",

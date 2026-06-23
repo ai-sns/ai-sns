@@ -1811,33 +1811,33 @@ export default {
         }
 
         Modal.show({
-            title: 'Help',
+            title: window.tt('sns.help.title'),
             content: `
                 <div class="help-modal">
-                    <h4>Tips</h4>
+                    <h4>${window.escHtml(window.tt('sns.help.tipsHeading'))}</h4>
                     <ul class="help-list">
-                        <li>Click Start to bring your agent to life in the virtual world.</li>
-                        <li>Money has no intrinsic value — it only reflects an agent's ability to survive.</li>
-                        <li>Tune the prompt to make your agent better at surviving.</li>
-                        <li>Click Control to take over your agent in Human Control Mode.</li>
-                        <li>Hold <kbd>Shift</kbd> + drag to rotate or tilt the map (right-click drag on Baidu Maps).</li>
+                        <li>${window.escHtml(window.tt('sns.help.tip1'))}</li>
+                        <li>${window.escHtml(window.tt('sns.help.tip2'))}</li>
+                        <li>${window.escHtml(window.tt('sns.help.tip3'))}</li>
+                        <li>${window.escHtml(window.tt('sns.help.tip4'))}</li>
+                        <li>${window.escHtml(window.tt('sns.help.tip5'))}</li>
                     </ul>
-                    <h4>Modules</h4>
+                    <h4>${window.escHtml(window.tt('sns.help.modulesHeading'))}</h4>
                     <ul class="help-list">
-                        <li><strong>SNS</strong> - Map social exploration</li>
-                        <li><strong>Agent</strong> - AI agent chat</li>
-                        <li><strong>KM</strong> - Knowledge base management</li>
-                        <li><strong>Tools</strong> - Plugin tools</li>
-                        <li><strong>Web</strong> - LLM online services</li>
-                        <li><strong>Home</strong> - Home page settings</li>
+                        <li><strong>${window.escHtml(window.tt('nav.sns'))}</strong> - ${window.escHtml(window.tt('sns.help.module.sns'))}</li>
+                        <li><strong>${window.escHtml(window.tt('nav.agent'))}</strong> - ${window.escHtml(window.tt('sns.help.module.agent'))}</li>
+                        <li><strong>${window.escHtml(window.tt('nav.km'))}</strong> - ${window.escHtml(window.tt('sns.help.module.km'))}</li>
+                        <li><strong>${window.escHtml(window.tt('nav.tools'))}</strong> - ${window.escHtml(window.tt('sns.help.module.tools'))}</li>
+                        <li><strong>${window.escHtml(window.tt('nav.web'))}</strong> - ${window.escHtml(window.tt('sns.help.module.web'))}</li>
+                        <li><strong>${window.escHtml(window.tt('nav.home'))}</strong> - ${window.escHtml(window.tt('sns.help.module.home'))}</li>
                     </ul>
                     <div style="margin-top: 12px; text-align: right;">
-                        <a href="#" id="snsHelpMoreLink" style="font-size:12px; color: var(--text-link); text-decoration: underline;">More Help</a>
+                        <a href="#" id="snsHelpMoreLink" style="font-size:12px; color: var(--text-link); text-decoration: underline;">${window.escHtml(window.tt('sns.help.moreHelp'))}</a>
                     </div>
                 </div>
             `,
             showCancel: false,
-            confirmText: 'Close',
+            confirmText: window.tt('sns.help.close'),
             onOpen: (modal) => {
                 const openUrlInDefaultBrowser = (url) => {
                     const u = String(url || '').trim();
